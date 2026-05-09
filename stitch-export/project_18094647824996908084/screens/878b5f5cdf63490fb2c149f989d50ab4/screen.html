@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>7-Day Wellness Triage Scan - ADRS Core</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-high": "#222a3d",
+                    "on-secondary-container": "#00311f",
+                    "on-tertiary-fixed": "#111c2d",
+                    "primary-fixed-dim": "#4edea3",
+                    "on-secondary-fixed": "#002114",
+                    "surface-tint": "#4edea3",
+                    "surface": "#0b1326",
+                    "on-background": "#dae2fd",
+                    "primary": "#4edea3",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#005236",
+                    "primary-fixed": "#6ffbbe",
+                    "secondary": "#68dba9",
+                    "tertiary-container": "#98a3ba",
+                    "surface-container-highest": "#2d3449",
+                    "on-tertiary": "#263143",
+                    "outline": "#86948a",
+                    "surface-container-low": "#131b2e",
+                    "inverse-surface": "#dae2fd",
+                    "tertiary-fixed-dim": "#bcc7de",
+                    "surface-container": "#171f33",
+                    "surface-variant": "#2d3449",
+                    "surface-bright": "#31394d",
+                    "on-secondary": "#003825",
+                    "surface-container-lowest": "#060e20",
+                    "primary-container": "#10b981",
+                    "on-secondary-fixed-variant": "#005137",
+                    "on-error": "#690005",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#3c475a",
+                    "on-tertiary-container": "#2e394c",
+                    "on-surface": "#dae2fd",
+                    "on-primary-fixed": "#002113",
+                    "inverse-primary": "#006c49",
+                    "tertiary": "#bcc7de",
+                    "surface-dim": "#0b1326",
+                    "inverse-on-surface": "#283044",
+                    "background": "#0b1326",
+                    "secondary-fixed": "#85f8c4",
+                    "outline-variant": "#3c4a42",
+                    "on-surface-variant": "#bbcabf",
+                    "error": "#ffb4ab",
+                    "on-primary": "#003824",
+                    "secondary-fixed-dim": "#68dba9",
+                    "on-primary-container": "#00422b",
+                    "tertiary-fixed": "#d8e3fb",
+                    "secondary-container": "#25a475"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "display": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(45, 52, 73, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(60, 74, 66, 0.2);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1326;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #171f33;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #222a3d;
+        }
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container overflow-hidden h-screen flex">
+<!-- SideNavBar Component -->
+<aside class="bg-[#131b2e] flex flex-col h-full p-4 space-y-6 w-72 flex-shrink-0">
+<div class="flex items-center gap-3 px-2"><div class="w-10 h-10 bg-[#10b981] rounded flex items-center justify-center"><span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">shield</span></div><div><h1 class="text-lg font-black text-white uppercase tracking-wider">ADRS Core</h1><p class="text-[10px] text-tertiary uppercase tracking-[0.2em] opacity-60">Clinical Precision</p></div></div>
+<nav class="flex-1 space-y-1"><a class="flex items-center gap-3 px-4 py-3 text-[#bcc7de] opacity-70 hover:opacity-100 hover:bg-[#171f33] rounded-lg font-medium text-sm transition-all duration-200" href="#"><span class="material-symbols-outlined">pets</span>Herd Registry</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-[#222a3d] text-[#4edea3] rounded-lg shadow-[0_0_15px_rgba(78,222,163,0.1)] font-medium text-sm transition-all duration-200" href="#"><span class="material-symbols-outlined">health_and_safety</span>Wellness &amp; BCS</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#bcc7de] opacity-70 hover:opacity-100 hover:bg-[#171f33] rounded-lg font-medium text-sm transition-all duration-200" href="#"><span class="material-symbols-outlined">memory</span>AI Smart Diagnosis</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#bcc7de] opacity-70 hover:opacity-100 hover:bg-[#171f33] rounded-lg font-medium text-sm transition-all duration-200" href="#"><span class="material-symbols-outlined">map</span>Geospatial Intelligence</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#bcc7de] opacity-70 hover:opacity-100 hover:bg-[#171f33] rounded-lg font-medium text-sm transition-all duration-200" href="#"><span class="material-symbols-outlined">partly_cloudy_day</span>Seaonal Forecasting</a>
+</nav>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-[#bcc7de] opacity-70 hover:opacity-100 font-medium text-sm" href="#"><span class="material-symbols-outlined">settings</span>Settings</a>
+<a class="flex items-center gap-3 px-4 py-2 text-[#bcc7de] opacity-70 hover:opacity-100 font-medium text-sm" href="#"><span class="material-symbols-outlined">help</span>Support</a>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+<!-- TopNavBar Component -->
+<header class="bg-[#0b1326] flex justify-between items-center w-full px-8 py-3 h-16 sticky top-0 z-10">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-lg">search</span>
+<input class="bg-[#131b2e] border-none rounded-full py-2 pl-10 pr-4 w-full text-sm text-on-surface focus:ring-1 focus:ring-primary placeholder:text-tertiary/40" placeholder="Search case ID, animal profile..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<button class="text-[#bcc7de] opacity-80 hover:text-[#4edea3] transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-slate-300 hover:bg-[#171f33] p-2 rounded-full transition-opacity active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+</div>
+<div class="h-8 w-px bg-outline-variant/20"></div>
+<div class="flex items-center gap-3 group cursor-pointer">
+<div class="text-right">
+<p class="text-sm font-bold text-on-surface">Kamal Perera</p>
+<p class="text-[10px] text-tertiary uppercase tracking-wider font-semibold opacity-60">Dairy Farmer</p>
+</div>
+<img alt="Chief Veterinarian Profile" class="w-10 h-10 rounded-full border-2 border-primary/20 object-cover group-hover:border-primary transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoA7xd4wmMY8uDMSs92VmSSj2hm3zQaG5V5DE3D2rTMRaF25xcbIxJ70Ea187chIZIgZfLcCpGsHQXEYd-fO4SyNkmwDARVyHimxtvDWG2NTQ1NzHto59AjhF0EKW2lAvGJ8HWDhGwAh2uvOdzifZrS-HIe3vnn1TB9aHy2igJP1rryddkoPOeUAEce3FLRbfWRI8QV4D5R8KLQtKD53KbJ3YInjtMyPzSzePVvbNpmSFbhErUilPyJR3yUZcwvNELtzaQHOn5z-NR"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<section class="p-8 space-y-6 flex-1">
+<!-- Header Section -->
+<div class="flex flex-col gap-1">
+<p class="text-primary text-xs font-black tracking-[0.3em] uppercase opacity-80">Phase 01: Diagnostics</p>
+<h2 class="text-4xl font-black text-[#4edea3] tracking-tighter uppercase font-headline">7-Day Wellness Triage Intake</h2>
+<div class="h-1 w-24 bg-gradient-to-r from-primary to-transparent mt-2"></div>
+</div>
+<!-- Split Column Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Image Upload -->
+<div class="lg:col-span-4 h-full">
+<div class="glass-card rounded-xl p-8 flex flex-col items-center justify-center text-center group cursor-pointer border-dashed border-2 border-primary/20 hover:border-primary/50 transition-all h-full min-h-[400px] relative overflow-hidden">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-full bg-surface-container-highest flex items-center justify-center mb-6 ring-8 ring-surface-container-low">
+<span class="material-symbols-outlined text-4xl text-primary">photo_camera</span>
+</div>
+<h3 class="text-xl font-bold text-on-surface mb-2">Upload Top-Down Cattle Image</h3>
+<p class="text-tertiary text-sm leading-relaxed max-w-[240px]">Instructions: Capture a top-down (dorsal) view directly above the animal. Ensure the spine (backbone), hooks, and pins are clearly visible for accurate AI Body Condition Scoring.</p>
+<div class="mt-8">
+<span class="px-3 py-1 bg-surface-container-lowest text-[10px] font-bold text-primary rounded border border-primary/20 uppercase tracking-widest">AI Ready</span>
+</div>
+<img alt="Cattle sample silhouette" class="absolute inset-0 w-full h-full object-cover opacity-5 grayscale pointer-events-none" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD94UGqSbH7XnaRa0bul0RmiEpvD1U8WGQCr51XEjxrXJ5HjpQdXthgwGFgwuJCcDNompGgStodu-_9ZWm2yToCTex1rLwTIpogHGrcM12juFwP6yuo7MOmVGxdnJ5dg-kGlQg4XqxvEuKxdcXMkmLvLYIdzNbLeKPdb7A0ZNG9XeU2c8pwImbU4WnntG-USsYtvl5vX4YxVvRCLX555eP2NhqFn286aWvtdgHgFqk-qyqj_pNomYpUnW8gMV3EfOOM2Xtt5q4aHGBC"/>
+</div>
+</div>
+<!-- Right Column: 7-Day Physiological Logs -->
+<div class="lg:col-span-8">
+<div class="glass-card rounded-xl p-6 h-full flex flex-col">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-secondary">clinical_notes</span>
+<h3 class="text-lg font-bold text-on-surface tracking-tight uppercase">7-Day Physiological Logs</h3>
+</div>
+<div class="flex-1 overflow-x-auto">
+<table class="w-full text-left border-separate border-spacing-2">
+<thead>
+<tr>
+<th class="p-2 text-[10px] font-black text-tertiary uppercase tracking-widest text-left w-32">Metric</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D1</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D2</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D3</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D4</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D5</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D6</th>
+<th class="p-2 text-[10px] font-black text-primary uppercase tracking-widest text-center whitespace-nowrap">D7</th>
+</tr>
+</thead>
+<tbody>
+<!-- Water Intake -->
+<tr>
+<td class="p-2 align-middle">
+<p class="text-xs font-bold text-on-surface">Water Intake</p>
+<p class="text-[9px] text-tertiary/60 font-medium">Liters / Day</p>
+</td>
+<td class="p-1" v-for="i in 7"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="65"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="68"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="62"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="70"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="66"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="72"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="68"/></td>
+</tr>
+<!-- Feed Intake -->
+<tr>
+<td class="p-2 align-middle">
+<p class="text-xs font-bold text-on-surface">Feed Intake</p>
+<p class="text-[9px] text-tertiary/60 font-medium">KG / Day</p>
+</td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.2"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.5"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="13.8"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.0"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.1"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.3"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="14.2"/></td>
+</tr>
+<!-- Milk Yield -->
+<tr>
+<td class="p-2 align-middle">
+<p class="text-xs font-bold text-on-surface">Milk Yield</p>
+<p class="text-[9px] text-tertiary/60 font-medium">Liters / Day</p>
+</td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="28"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="27"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="29"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="28"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="26"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="28"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="30"/></td>
+</tr>
+<!-- Body Temp -->
+<tr>
+<td class="p-2 align-middle">
+<p class="text-xs font-bold text-on-surface">Body Temp</p>
+<p class="text-[9px] text-tertiary/60 font-medium">Celsius (°C)</p>
+</td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.5"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.6"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.4"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.5"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.7"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.5"/></td>
+<td class="p-1"><input class="w-full bg-[#060e20] border-none rounded py-2 text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1" placeholder="0" type="number" value="38.5"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Area: GPS Widget -->
+<div class="w-full">
+<div class="bg-[#171f33] rounded-xl p-5 border-l-4 border-secondary flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+<div class="flex items-center gap-4 relative z-10">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary animate-pulse">radar</span>
+</div>
+<div>
+<h4 class="text-[10px] font-black text-secondary tracking-widest uppercase">Live GPS Synced</h4>
+<p class="text-on-surface text-sm font-medium">Fetching local THI (Ambient Temp &amp; Humidity)...</p>
+</div>
+</div>
+<div class="flex gap-8 relative z-10">
+<div class="text-center">
+<p class="text-[9px] font-black text-tertiary uppercase">Ambient Temp</p>
+<p class="text-lg font-bold text-on-surface">31.4°C</p>
+</div>
+<div class="text-center">
+<p class="text-[9px] font-black text-tertiary uppercase">Humidity</p>
+<p class="text-lg font-bold text-on-surface">78%</p>
+</div>
+<div class="text-center">
+<p class="text-[9px] font-black text-secondary uppercase">Calculated THI</p>
+<p class="text-lg font-black text-secondary">82.4 <span class="text-[9px] font-normal text-error ml-1">[STRESS]</span></p>
+</div>
+</div>
+<div class="absolute right-0 top-0 h-full w-48 opacity-10">
+<img alt="Map background" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5dvK_WKT77odUdmwrY5QnXxX8YKiB9-IAuUM3xR3KRGN0UHrEFXA0DNCT8G6LJxNXxIv-GUfmReDRVuyoYjDUlW12BSjSESkic-aQ9K1giY3O_KRwRYmw8u7cqAh_Lh6bfkkvepFac5xxjZvsQbrSGjywfRbL-puE_hzEx_cBypeLJTYvH9cSQL545nKpzmGLFCtnxbizlFpYESu68aI5JCUvWK1k3_xgVzKjwg6Y6cxfc3dL1S-mfgFXmNTbY9zyhSgiObXXJcR8"/>
+</div>
+</div>
+</div>
+<!-- Primary Action Footer -->
+<div class="pt-4">
+<button class="group relative overflow-hidden bg-primary rounded-xl p-6 w-full flex items-center justify-center text-on-primary transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-primary/20">
+<div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-center gap-4 relative z-10">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="text-xl font-bold uppercase tracking-widest">Run Multi-Modal AI Diagnostics</span>
+<span class="material-symbols-outlined text-3xl group-hover:translate-x-2 transition-transform">arrow_forward</span>
+</div>
+</button>
+</div>
+</section>
+</main>
+</body></html>
