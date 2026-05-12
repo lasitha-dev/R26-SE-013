@@ -2,12 +2,32 @@ import React from 'react'
 
 export default function ProcessingSteps() {
   return (
-    <div className="mt-4">
-      <div className="mb-2">Running YOLO detection...</div>
-      <div className="w-full bg-gray-200 h-2 mb-4"><div className="bg-green-500 h-2 w-2/5" /></div>
+    <div className="pipeline">
+      <div className="step active">
+        <div className="step-icon">
+          <i data-lucide="scan-line" />
+        </div>
+        <div className="step-details">
+          <h3>Running YOLO Detection</h3>
+          <p>Scanning image for cattle using YOLOv8...</p>
+          <div className="progress-bar-container">
+            <div className="progress-bar" style={{ width: '60%' }} />
+          </div>
+        </div>
+      </div>
 
-      <div className="mb-2">Running Transformer classification...</div>
-      <div className="w-full bg-gray-200 h-2"><div className="bg-indigo-500 h-2 w-1/3" /></div>
+      <div className="step">
+        <div className="step-icon">
+          <i data-lucide="brain" />
+        </div>
+        <div className="step-details">
+          <h3>Vision Transformer Classification</h3>
+          <p>Classifying disease using ViT-B/16...</p>
+          <div className="progress-bar-container">
+            <div className="progress-bar" style={{ width: '0%' }} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

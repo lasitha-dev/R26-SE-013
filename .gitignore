@@ -4,3 +4,5 @@ __pycache__/
 .env
 dist/
 build/
+backend/components/smart_diagnostics/models/vision_transformer_cow_disease.pth
+backend/components/smart_diagnostics/models/best.pt

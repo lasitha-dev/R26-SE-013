@@ -1,6 +1,6 @@
-:root {
-  --primary-green: #10b981;
-}
+/* Tailwind base layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Import app-wide styles (bundle or small overrides can go here) */
-@import url('/public/style.css');
+/* App-wide custom styles are loaded via public/style.css in index.html */

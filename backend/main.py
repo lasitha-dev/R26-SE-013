@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from components.smart_diagnostics.config import settings
@@ -9,6 +11,14 @@ from components.smart_diagnostics.routes import router as sd_router
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Animal Farm Reporting - Smart Diagnostics")
+    # Development CORS: allow Vite dev server and localhost
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost:8000", "*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(sd_router)
 
     # Attach configuration and lazy model wrappers to app state.
@@ -28,6 +38,17 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    # Log to console for now — uvicorn will also show traceback in the server logs
+    try:
+        import traceback
+        traceback.print_exc()
+    except Exception:
+        pass
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error", "error": str(exc)})
 
 
 if __name__ == "__main__":
