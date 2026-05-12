@@ -1,0 +1,4 @@
+Test Case,Input Lat,Input Lon,Wind (m/s),Direction,Day7 Lat,Day7 Lon,Movement (km),Spread Direction,Confidence
+Western Province Outbreak,6.9271,80.7744,5.2,120°,6.9299,80.7822,0.91,E,HIGH
+Central Highlands Case,6.9497,80.7891,3.8,270°,6.9485,80.7934,0.49,E,HIGH
+Eastern Province Cluster,7.2906,81.6753,6.1,45°,7.2904,81.6840,0.96,E,HIGH
