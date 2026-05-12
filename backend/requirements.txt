@@ -1,0 +1,6 @@
+# Python dependencies for backend
+fastapi
+uvicorn
+pydantic
+motor
+python-dotenv
