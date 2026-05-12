@@ -1,0 +1,3 @@
+model,mae_km,r2,alpha,pairs,features
+model_lat,9.39,0.0019,1000.0,5097,10
+model_lon,17.81,0.0125,1000.0,5097,10

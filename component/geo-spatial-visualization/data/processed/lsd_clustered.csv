@@ -1,0 +1,2381 @@
+case_id,country,disease_type,report_date,latitude,longitude,species,cluster_id
+2266,Russian Federation,LSD,2018-07-17,53.087542,49.445011,Domestic - Cattle,0
+2262,Russian Federation,LSD,2018-07-17,53.394898,49.056908,Domestic - Cattle,0
+2264,Russian Federation,LSD,2018-07-20,54.568605,63.664276,Domestic - Cattle,1
+2261,Russian Federation,LSD,2018-07-20,53.507068,48.858764,Domestic - Cattle,2
+2257,Russian Federation,LSD,2018-07-20,53.079425,50.652361,Domestic - Cattle,3
+2237,Russian Federation,LSD,2018-07-20,53.233671,50.643142,Domestic - Cattle,3
+2265,Russian Federation,LSD,2018-07-23,53.42,49.02,Domestic - Cattle,0
+2251,Russian Federation,LSD,2018-07-23,52.950457,49.602486,Domestic - Cattle,0
+2250,Russian Federation,LSD,2018-07-23,52.980902,49.68818,Domestic - Cattle,0
+2267,Namibia,LSD,2018-07-25,-17.67,17.69,Domestic - Cattle,4
+2268,Namibia,LSD,2018-07-25,-17.71,15.45,Domestic - Cattle,5
+2269,Namibia,LSD,2018-07-25,-17.56,17.21,Domestic - Cattle,6
+2235,Russian Federation,LSD,2018-07-26,53.152559,49.269036,Domestic - Cattle,0
+2263,Russian Federation,LSD,2018-07-26,54.567477,62.977607,Domestic - Cattle,1
+2234,Russian Federation,LSD,2018-07-30,53.109637,50.641825,Domestic - Cattle,3
+2233,Russian Federation,LSD,2018-07-30,53.22743,50.029927,Domestic - Cattle,0
+2239,Russian Federation,LSD,2018-08-01,54.291491,63.576414,Domestic - Cattle,1
+2242,Russian Federation,LSD,2018-08-01,54.354174,63.360682,Domestic - Cattle,1
+2238,Russian Federation,LSD,2018-08-01,54.336731,64.004208,Domestic - Cattle,1
+2236,Russian Federation,LSD,2018-08-01,52.849799,49.816844,Domestic - Cattle,0
+2232,Russian Federation,LSD,2018-08-01,53.039687,49.77079,Domestic - Cattle,0
+2230,Russian Federation,LSD,2018-08-01,52.997772,49.877967,Domestic - Cattle,0
+2229,Russian Federation,LSD,2018-08-01,52.850265,49.07513,Domestic - Cattle,0
+2240,Russian Federation,LSD,2018-08-01,54.303767,63.353109,Domestic - Cattle,1
+2241,Russian Federation,LSD,2018-08-01,54.361429,64.238059,Domestic - Cattle,1
+2231,Russian Federation,LSD,2018-08-01,53.118124,49.889646,Domestic - Cattle,0
+2252,Russian Federation,LSD,2018-08-03,54.626375,64.086675,Domestic - Cattle,1
+2245,Russian Federation,LSD,2018-08-03,54.652009,64.01455,Domestic - Cattle,1
+2246,Russian Federation,LSD,2018-08-03,54.342329,64.10991,Domestic - Cattle,1
+2247,Russian Federation,LSD,2018-08-03,54.656506,63.873514,Domestic - Cattle,1
+2248,Russian Federation,LSD,2018-08-03,54.358231,63.274788,Domestic - Cattle,1
+2249,Russian Federation,LSD,2018-08-03,54.77412,64.156846,Domestic - Cattle,1
+2228,Georgia,LSD,2018-08-03,41.674306,42.773602,Domestic - Cattle,7
+2253,Russian Federation,LSD,2018-08-03,54.68896,63.841314,Domestic - Cattle,1
+2254,Russian Federation,LSD,2018-08-03,54.6207,63.258643,Domestic - Cattle,1
+2255,Russian Federation,LSD,2018-08-03,55.111809,68.196559,Domestic - Cattle,8
+2256,Russian Federation,LSD,2018-08-03,55.074366,68.213566,Domestic - Cattle,8
+2227,Georgia,LSD,2018-08-03,41.698604,42.794891,Domestic - Cattle,7
+2226,Georgia,LSD,2018-08-03,41.668965,42.719268,Domestic - Cattle,7
+2244,Russian Federation,LSD,2018-08-03,54.671767,63.421231,Domestic - Cattle,1
+2243,Russian Federation,LSD,2018-08-03,54.676385,63.587311,Domestic - Cattle,1
+2225,Russian Federation,LSD,2018-08-09,53.378337,49.090837,Domestic - Cattle,0
+2224,Russian Federation,LSD,2018-08-09,53.052669,49.807109,Domestic - Cattle,0
+2221,Russian Federation,LSD,2018-08-15,53.098593,50.431088,Domestic - Cattle,3
+2217,Russian Federation,LSD,2018-08-22,53.173852,50.455518,Domestic - Cattle,3
+2218,Georgia,LSD,2018-08-22,41.63781,43.04024,Domestic - Cattle,7
+2216,Russian Federation,LSD,2018-08-22,53.155601,50.368106,Domestic - Cattle,3
+2214,Russian Federation,LSD,2018-08-22,53.011447,50.441284,Domestic - Cattle,3
+2213,Russian Federation,LSD,2018-08-28,53.578116,49.967458,Domestic - Cattle,9
+2220,Russian Federation,LSD,2018-08-28,52.848873,48.598902,Domestic - Cattle,10
+2215,Russian Federation,LSD,2018-08-28,54.968664,61.078315,Domestic - Cattle,11
+2223,Russian Federation,LSD,2018-08-28,54.013498,60.0987,Domestic - Cattle,12
+2212,Russian Federation,LSD,2018-09-10,52.720618,48.223867,Domestic - Cattle,10
+2210,Georgia,LSD,2018-09-11,41.637857,42.998808,Domestic - Cattle,7
+2208,Russian Federation,LSD,2018-09-14,53.367471,48.620115,Domestic - Cattle,2
+2211,Russian Federation,LSD,2018-09-14,55.391565,61.737598,Domestic - Cattle,13
+2203,Russian Federation,LSD,2018-09-28,54.308897,71.599406,Domestic - Cattle,14
+2204,Russian Federation,LSD,2018-09-28,54.293137,72.579005,Domestic - Cattle,15
+2205,Russian Federation,LSD,2018-09-28,54.960695,73.552699,Domestic - Cattle,16
+2260,Russian Federation,LSD,2018-09-28,54.272,63.7378,Domestic - Cattle,1
+2259,Russian Federation,LSD,2018-09-28,55.51875,65.452267,Domestic - Cattle,17
+2258,Russian Federation,LSD,2018-09-28,54.43286,63.82546,Domestic - Cattle,1
+2209,Russian Federation,LSD,2018-09-28,53.928,51.795,Domestic - Cattle,18
+2207,Russian Federation,LSD,2018-10-05,56.924,63.242,Domestic - Cattle,19
+2206,Russian Federation,LSD,2018-10-05,53.6039,52.0527,Domestic - Cattle,18
+2201,Russian Federation,LSD,2018-10-12,53.31121,48.682356,Domestic - Cattle,2
+2200,Georgia,LSD,2018-10-17,41.275959,43.47123,Domestic - Cattle,20
+2199,Russian Federation,LSD,2018-10-19,53.569,50.769,Domestic - Cattle,21
+2222,Russian Federation,LSD,2018-10-26,53.2418,49.0166,Domestic - Cattle,0
+2219,Russian Federation,LSD,2018-10-26,53.06498,48.42049,Domestic - Cattle,10
+2202,Russian Federation,LSD,2018-11-13,55.608657,72.288125,Domestic - Cattle,22
+2198,Russian Federation,LSD,2018-11-13,54.303234,71.765426,Domestic - Cattle,14
+2197,Russian Federation,LSD,2018-12-28,53.277093,52.057739,Domestic - Cattle,23
+2196,Russian Federation,LSD,2019-03-18,56.704273,51.97163,Domestic - Cattle,24
+2195,Israel,LSD,2019-06-03,32.8,35.6,Domestic - Cattle,25
+2194,Israel,LSD,2019-06-18,32.905111,35.571879,Domestic - Cattle,25
+2193,Israel,LSD,2019-06-18,32.8,35.6,Domestic - Cattle,25
+2191,Israel,LSD,2019-07-13,32.75435,35.63843,Domestic - Cattle,25
+2190,Israel,LSD,2019-07-13,32.88721,35.10078,Domestic - Cattle,25
+2188,Israel,LSD,2019-07-13,32.96377,35.59485,Domestic - Cattle,25
+2187,Israel,LSD,2019-07-13,32.83736,35.386941,Domestic - Cattle,25
+2182,Israel,LSD,2019-07-13,32.5347,35.14742,Domestic - Cattle,26
+2183,Israel,LSD,2019-07-13,32.83736,35.386941,Domestic - Cattle,25
+2185,Israel,LSD,2019-07-13,32.68543,35.60182,Domestic - Cattle,25
+2186,Israel,LSD,2019-07-13,32.84946,35.52139,Domestic - Cattle,25
+2189,Israel,LSD,2019-07-13,32.83736,35.386941,Domestic - Cattle,25
+2178,Russian Federation,LSD,2019-07-29,50.634,46.4737,Domestic - Cattle,27
+2179,Russian Federation,LSD,2019-07-29,50.729202,46.090064,Domestic - Cattle,27
+2184,Syrian Arab Republic,LSD,2019-07-30,35.3084,36.4821,Domestic - Cattle,28
+2156,Russian Federation,LSD,2019-08-07,54.5556,74.14463,Domestic - Cattle,29
+2155,Russian Federation,LSD,2019-08-07,54.5556,74.14463,Domestic - Cattle,29
+2154,Russian Federation,LSD,2019-08-14,54.84852,75.51794,Domestic - Cattle,30
+2157,Russian Federation,LSD,2019-08-14,55.05673,76.867777,Domestic - Cattle,31
+2150,Russian Federation,LSD,2019-08-14,54.323148,73.05368,Domestic - Cattle,15
+2137,Russian Federation,LSD,2019-08-21,54.81272,74.871614,Domestic - Cattle,30
+2135,Russian Federation,LSD,2019-08-21,54.81272,74.871614,Domestic - Cattle,30
+2147,Russian Federation,LSD,2019-08-21,54.92527,78.096482,Domestic - Cattle,32
+2146,Russian Federation,LSD,2019-08-21,54.92527,78.096482,Domestic - Cattle,32
+2145,Russian Federation,LSD,2019-08-21,54.92527,78.096482,Domestic - Cattle,32
+2136,Russian Federation,LSD,2019-08-21,54.81272,74.871614,Domestic - Cattle,30
+2149,India,LSD,2019-08-25,21.585458,86.91667,Domestic - Cattle,33
+2143,India,LSD,2019-08-25,21.636522,86.857682,Domestic - Cattle,33
+2139,India,LSD,2019-08-25,20.9605,86.3711,Domestic - Cattle,34
+2160,China,LSD,2019-08-26,43.54425,80.99361,Domestic - Cattle,35
+2134,Russian Federation,LSD,2019-08-27,54.917817,78.649628,Domestic - Cattle,32
+2133,Russian Federation,LSD,2019-08-27,55.6713,69.20185,Domestic - Cattle,36
+2131,Russian Federation,LSD,2019-08-27,55.937892,70.16604,Domestic - Cattle,37
+2130,Russian Federation,LSD,2019-09-04,54.98289,72.12187,Domestic - Cattle,38
+2132,Russian Federation,LSD,2019-09-04,54.955058,75.814718,Domestic - Cattle,30
+2129,Russian Federation,LSD,2019-09-04,54.55858,72.75143,Domestic - Cattle,15
+2127,West Bank,LSD,2019-09-09,31.5729,35.1877,Domestic - Cattle,39
+2125,Russian Federation,LSD,2019-09-12,54.895912,78.265121,Domestic - Cattle,32
+2124,Russian Federation,LSD,2019-09-12,55.609609,70.495382,Domestic - Cattle,37
+2123,Russian Federation,LSD,2019-09-12,55.081623,74.533353,Domestic - Cattle,40
+2126,Russian Federation,LSD,2019-09-12,55.048349,74.593919,Domestic - Cattle,40
+2121,Russian Federation,LSD,2019-09-12,55.924905,70.143763,Domestic - Cattle,37
+2122,Russian Federation,LSD,2019-09-12,51.29798,46.603424,Domestic - Cattle,41
+2181,Bangladesh,LSD,2019-09-15,22.298,91.876,Domestic - Cattle,42
+2376,Bangladesh,LSD,2019-09-16,22.298,91.876,Domestic - Cattle,42
+2140,Israel,LSD,2019-09-17,32.791981,35.330164,Domestic - Cattle,25
+2141,Israel,LSD,2019-09-17,32.776675,35.306662,Domestic - Cattle,25
+2192,Israel,LSD,2019-09-17,32.75435,35.63843,Domestic - Cattle,25
+2177,Israel,LSD,2019-09-17,32.811608,35.465791,Domestic - Cattle,25
+2144,Israel,LSD,2019-09-17,32.456501,35.028724,Domestic - Cattle,26
+2169,Israel,LSD,2019-09-17,32.694453,35.435592,Domestic - Cattle,25
+2176,Israel,LSD,2019-09-17,32.811608,35.465791,Domestic - Cattle,25
+2119,Russian Federation,LSD,2019-09-19,55.569204,69.124549,Domestic - Cattle,36
+2120,Russian Federation,LSD,2019-09-19,55.4583,69.3242,Domestic - Cattle,36
+2118,Russian Federation,LSD,2019-09-25,51.445628,47.931788,Domestic - Cattle,43
+2117,Russian Federation,LSD,2019-09-25,51.446,47.9557,Domestic - Cattle,43
+2115,Russian Federation,LSD,2019-09-25,53.804183,82.661315,Domestic - Cattle,44
+2114,Russian Federation,LSD,2019-10-09,55.652,70.273,Domestic - Cattle,37
+2173,Bangladesh,LSD,2019-10-10,23.685,90.598,Domestic - Cattle,45
+2165,China,LSD,2019-10-25,43.801366,80.800777,Domestic - Cattle,35
+2164,China,LSD,2019-10-25,43.805409,81.25112,Domestic - Cattle,35
+2163,China,LSD,2019-10-25,43.978094,81.324148,Domestic - Cattle,46
+2162,China,LSD,2019-10-25,43.761281,81.419105,Domestic - Cattle,35
+2151,China,LSD,2019-10-25,43.882221,81.56451,Domestic - Cattle,46
+2166,China,LSD,2019-10-25,43.833523,80.866547,Domestic - Cattle,35
+2158,China,LSD,2019-10-25,43.688309,81.547132,Domestic - Cattle,35
+2153,China,LSD,2019-10-25,43.966008,81.248335,Domestic - Cattle,46
+2152,China,LSD,2019-10-25,43.834976,81.161057,Domestic - Cattle,35
+2161,China,LSD,2019-10-25,43.591386,81.239566,Domestic - Cattle,35
+2159,China,LSD,2019-10-25,43.836019,81.074165,Domestic - Cattle,35
+2167,China,LSD,2019-10-25,43.546925,80.998887,Domestic - Cattle,35
+2170,China,LSD,2019-10-25,43.727804,81.31971,Domestic - Cattle,35
+2171,China,LSD,2019-10-25,44.045009,80.79963,Domestic - Cattle,46
+2172,China,LSD,2019-10-25,43.8284,81.206167,Domestic - Cattle,35
+2174,China,LSD,2019-10-25,43.15416,81.12118,Domestic - Cattle,35
+2175,China,LSD,2019-10-25,43.99365,80.90709,Domestic - Cattle,46
+2168,China,LSD,2019-10-25,43.842698,80.985762,Domestic - Cattle,35
+2113,Russian Federation,LSD,2019-10-29,55.81528,76.96952,Domestic - Cattle,47
+2112,Israel,LSD,2019-10-31,33.050647,35.406541,Domestic - Cattle,25
+2111,Russian Federation,LSD,2019-11-06,52.49329,79.95024,Domestic - Cattle,48
+2142,India,LSD,2019-11-18,21.636522,86.857682,Domestic - Cattle,33
+2138,India,LSD,2019-11-18,20.9605,86.3711,Domestic - Cattle,34
+2148,India,LSD,2019-11-18,21.585458,86.91667,Domestic - Cattle,33
+2273,Bangladesh,LSD,2019-12-04,24.542086,88.940108,Domestic - Cattle,49
+2274,Bangladesh,LSD,2019-12-04,25.835213,88.968374,Domestic - Cattle,50
+2272,Bangladesh,LSD,2019-12-04,23.136049,89.333251,Domestic - Cattle,51
+2271,Bangladesh,LSD,2019-12-04,24.721343,90.414794,Domestic - Cattle,52
+2270,Bangladesh,LSD,2019-12-04,24.589827,91.696838,Domestic - Cattle,53
+2380,India,LSD,2019-12-20,23.610181,85.279935,Domestic - Cattle,54
+2379,India,LSD,2019-12-20,22.986757,87.854975,Domestic - Cattle,55
+2378,India,LSD,2020-02-01,18.112437,79.0193,Domestic - Cattle,56
+2128,Bangladesh,LSD,2020-03-05,22.65,89.09,Domestic - Cattle,57
+2116,Syrian Arab Republic,LSD,2020-03-09,34.9092,36.4843,Domestic - Cattle,28
+2180,Bangladesh,LSD,2020-03-22,24.73,88.95,Domestic - Cattle,49
+2377,India,LSD,2020-04-15,12.808758,77.625997,Domestic - Cattle,58
+2109,Syrian Arab Republic,LSD,2020-04-30,35.6116,36.1637,Domestic - Cattle,28
+2279,China,LSD,2020-06-07,32.04183,117.1691,Domestic - Cattle,59
+2277,China,LSD,2020-06-07,27.30395,115.48243,Domestic - Cattle,60
+2276,China,LSD,2020-06-07,22.88945,112.43098,Domestic - Cattle,61
+2278,China,LSD,2020-06-07,25.92072,117.92021,Domestic - Cattle,62
+2107,China,LSD,2020-06-22,25.936111,115.901111,Domestic - Cattle,63
+2108,China,LSD,2020-06-22,25.536671,116.331818,Domestic - Cattle,64
+2275,China,LSD,2020-07-08,29.19013,119.73428,Domestic - Cattle,65
+2101,China,LSD,2020-07-10,24.44166,118.44759,Domestic - Cattle,66
+2097,China,LSD,2020-07-13,29.059166,119.5161111,Domestic - Cattle,65
+2104,China,LSD,2020-07-13,24.1046,116.8633,Domestic - Cattle,67
+2106,China,LSD,2020-07-13,27.09386,116.250072,Domestic - Cattle,68
+2103,China,LSD,2020-07-13,29.659769,118.300009,Domestic - Cattle,69
+2093,China,LSD,2020-07-15,24.849028,106.249228,Domestic - Cattle,70
+2094,China,LSD,2020-07-15,24.83644,106.223867,Domestic - Cattle,70
+2086,China,LSD,2020-07-20,24.691944,106.157778,Domestic - Cattle,70
+2087,China,LSD,2020-07-20,24.68,106.188889,Domestic - Cattle,70
+2085,China,LSD,2020-07-20,24.645556,106.2275,Domestic - Cattle,70
+2105,Nepal,LSD,2020-07-29,26.642475,87.383367,Domestic - Cattle,71
+2082,Nepal,LSD,2020-07-29,26.790316,85.338733,Domestic - Cattle,72
+2102,Nepal,LSD,2020-07-29,27.623619,84.610948,Domestic - Cattle,73
+2100,Nepal,LSD,2020-08-05,27.380405,85.072644,Domestic - Cattle,74
+2080,China,LSD,2020-08-06,24.48024,118.31136,Domestic - Cattle,66
+2099,China,LSD,2020-08-06,24.45463,118.33531,Domestic - Cattle,66
+2098,China,LSD,2020-08-06,24.462198,118.32716,Domestic - Cattle,66
+2096,China,LSD,2020-08-06,24.467306,118.315944,Domestic - Cattle,66
+2095,China,LSD,2020-08-06,24.487083,118.314472,Domestic - Cattle,66
+2092,China,LSD,2020-08-06,24.49225,118.409361,Domestic - Cattle,66
+2091,China,LSD,2020-08-06,24.424528,118.302806,Domestic - Cattle,66
+2090,China,LSD,2020-08-06,24.46647,118.32197,Domestic - Cattle,66
+2088,China,LSD,2020-08-06,24.469444,118.313944,Domestic - Cattle,66
+2075,China,LSD,2020-08-06,24.449528,118.439139,Domestic - Cattle,66
+2076,China,LSD,2020-08-06,24.480028,118.423056,Domestic - Cattle,66
+2077,China,LSD,2020-08-06,24.466472,118.321972,Domestic - Cattle,66
+2083,China,LSD,2020-08-06,24.444261,118.412714,Domestic - Cattle,66
+2078,China,LSD,2020-08-06,24.456177,118.423941,Domestic - Cattle,66
+2081,China,LSD,2020-08-06,24.520462,118.41407,Domestic - Cattle,66
+2079,China,LSD,2020-08-06,24.45325,118.351056,Domestic - Cattle,66
+2084,China,LSD,2020-08-06,24.43036,118.32019,Domestic - Cattle,66
+2089,China,LSD,2020-08-06,24.46574,118.31628,Domestic - Cattle,66
+2072,Russian Federation,LSD,2020-08-07,51.35587,80.558806,Domestic - Cattle,75
+2074,Nepal,LSD,2020-08-12,27.9727,84.2477,Domestic - Cattle,76
+2070,Nepal,LSD,2020-08-12,27.759591,85.339865,Domestic - Cattle,74
+2068,Nepal,LSD,2020-08-12,27.576557,85.522331,Domestic - Buffaloe,74
+2073,Nepal,LSD,2020-08-12,28.2563,83.9617,Domestic - Cattle | Domestic - Buffaloe,76
+2065,China,LSD,2020-08-17,24.86941,99.10592,Domestic - Cattle,77
+2069,China,LSD,2020-09-03,24.43935,118.32918,Domestic - Cattle,66
+2051,Russian Federation,LSD,2020-09-03,48.476357,135.175988,Domestic - Cattle,78
+2110,Bangladesh,LSD,2020-09-10,22.437184,90.380931,Domestic - Cattle,79
+2059,China,LSD,2020-09-14,24.416667,118.316667,Domestic - Cattle,66
+2060,China,LSD,2020-09-14,24.416667,118.316667,Domestic - Cattle,66
+2061,China,LSD,2020-09-14,24.416667,118.316667,Domestic - Cattle,66
+2058,China,LSD,2020-09-14,24.416667,118.316667,Domestic - Cattle,66
+2063,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2064,China,LSD,2020-09-14,24.481109,118.427993,Domestic - Cattle,66
+2057,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2066,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2067,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2056,China,LSD,2020-09-14,24.45672,118.334506,Domestic - Cattle,66
+2055,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2054,China,LSD,2020-09-14,24.45672,118.334506,Domestic - Cattle,66
+2053,China,LSD,2020-09-14,24.45672,118.334506,Domestic - Cattle,66
+2062,China,LSD,2020-09-14,24.437691,118.427993,Domestic - Cattle,66
+2044,Russian Federation,LSD,2020-09-25,56.926858,81.967362,Domestic - Cattle,80
+2036,Russian Federation,LSD,2020-10-02,48.527472,134.906564,Domestic - Cattle,78
+2043,Bhutan,LSD,2020-10-08,26.986596,88.893197,Domestic - Cattle,81
+2029,Bhutan,LSD,2020-10-08,26.995056,89.062259,Domestic - Cattle,81
+2032,Bhutan,LSD,2020-10-08,27.058592,88.908976,Domestic - Cattle,81
+2031,Bhutan,LSD,2020-10-08,26.995233,88.961435,Domestic - Cattle,81
+2071,Bhutan,LSD,2020-10-08,26.920233,89.116417,Domestic - Cattle,81
+2050,Bhutan,LSD,2020-10-08,26.959953,89.007111,Domestic - Cattle,81
+2049,Bhutan,LSD,2020-10-08,26.920233,89.116417,Domestic - Cattle,81
+2052,Bhutan,LSD,2020-10-08,26.96612,88.981101,Domestic - Cattle,81
+2034,China,LSD,2020-10-10,30.19524,107.86476,Domestic - Cattle,82
+2035,China,LSD,2020-10-10,30.18072,102.26932,Domestic - Cattle,83
+2024,Viet Nam,LSD,2020-11-02,21.6498,106.2723,Domestic - Cattle,84
+2022,Viet Nam,LSD,2020-11-02,21.6325,106.3035,Domestic - Cattle,84
+2026,Viet Nam,LSD,2020-11-02,22.7837,106.7957,Domestic - Cattle,85
+2027,Viet Nam,LSD,2020-11-02,21.6402,106.2182,Domestic - Cattle,84
+2021,Djibouti,LSD,2020-11-04,11.516665,42.1,Domestic - Cattle,86
+2374,Viet Nam,LSD,2020-11-17,22.271896,105.856002,Domestic - Cattle,87
+2372,Viet Nam,LSD,2020-11-24,21.11686,106.110121,Domestic - Cattle,88
+2371,Viet Nam,LSD,2020-11-24,21.266571,107.178219,Domestic - Cattle,89
+2018,Myanmar,LSD,2020-11-24,22.66354942,95.29969788,Domestic - Cattle,90
+2033,"China, Hong Kong Special Administrative Region	",LSD,2020-11-24,22.3833,114.2667,Domestic - Cattle,91
+2373,Viet Nam,LSD,2020-11-24,21.685671,105.85669,Domestic - Cattle,84
+2370,Viet Nam,LSD,2020-12-04,23.09,105.49,Domestic - Cattle,92
+2030,Viet Nam,LSD,2020-12-09,22.8093,106.0684,Domestic - Cattle,93
+2017,Viet Nam,LSD,2020-12-09,22.5473,105.8734,Domestic - Cattle,87
+2023,Viet Nam,LSD,2020-12-09,21.6104,106.4839,Domestic - Cattle,84
+2025,Viet Nam,LSD,2020-12-09,21.927,106.5539,Domestic - Cattle,84
+2028,Viet Nam,LSD,2020-12-09,22.8109,106.7446,Domestic - Cattle,85
+2015,China,LSD,2020-12-12,37.31539,105.974,Domestic - Cattle,94
+2012,China,LSD,2020-12-12,45.36139,118.3511,Domestic - Cattle,95
+2013,China,LSD,2020-12-12,36.30166,118.03782,Domestic - Cattle,96
+2014,China,LSD,2020-12-12,23.90763,108.99938,Domestic - Cattle,97
+2010,Viet Nam,LSD,2020-12-15,17.026,106.961,Domestic - Cattle,98
+2011,Viet Nam,LSD,2020-12-15,17.026,106.961,Domestic - Cattle,98
+2369,Viet Nam,LSD,2020-12-17,18.43,105.89,Domestic - Cattle,99
+2368,Viet Nam,LSD,2020-12-17,18.42,105.89,Domestic - Cattle,99
+2019,Sri Lanka,LSD,2021-01-19,9.062135,80.660804,Domestic - Cattle,100
+2020,Sri Lanka,LSD,2021-01-19,9.0621351,80.6608048,Domestic - Cattle,100
+2038,Sri Lanka,LSD,2021-01-19,8.888178931,80.0461103553,Domestic - Cattle,101
+2037,Sri Lanka,LSD,2021-01-19,8.888178,80.04611,Domestic - Cattle,101
+2040,Sri Lanka,LSD,2021-01-19,9.75,80.08333,Domestic - Cattle,102
+2039,Sri Lanka,LSD,2021-01-19,9.67349,80.029027,Domestic - Cattle,102
+2041,Sri Lanka,LSD,2021-01-19,9.75,80.08333,Domestic - Cattle,102
+2042,Sri Lanka,LSD,2021-01-19,9.6734908,80.0290277,Domestic - Cattle,102
+2045,Sri Lanka,LSD,2021-01-19,9.6579014,80.1643076,Domestic - Cattle,102
+2046,Sri Lanka,LSD,2021-01-19,9.657901,80.164307,Domestic - Cattle,102
+2047,Sri Lanka,LSD,2021-01-19,9.71517,80.066849,Domestic - Cattle,102
+2048,Sri Lanka,LSD,2021-01-19,9.7151701,80.0668497,Domestic - Cattle,102
+2004,Thailand,LSD,2021-04-09,15.74778,104.10607,Domestic - Cattle,103
+1966,Taiwan (Province of China),LSD,2021-04-14,25.1,121.36,Domestic - Cattle,104
+2359,Viet Nam,LSD,2021-04-15,19.27624,104.87862,Domestic - Cattle,105
+2367,Viet Nam,LSD,2021-04-15,22.2719,105.856,Domestic - Cattle,87
+2366,Viet Nam,LSD,2021-04-15,22.73937,106.25568,Domestic - Cattle,93
+2364,Viet Nam,LSD,2021-04-15,21.26657,107.17822,Domestic - Cattle,89
+2363,Viet Nam,LSD,2021-04-15,20.50665,106.37882,Domestic - Cattle,106
+2362,Viet Nam,LSD,2021-04-15,21.68567,105.85669,Domestic - Cattle,84
+2361,Viet Nam,LSD,2021-04-15,20.80906,106.64962,Domestic - Cattle,106
+2360,Viet Nam,LSD,2021-04-15,18.33968,105.60903,Domestic - Cattle,99
+2358,Viet Nam,LSD,2021-04-15,17.50712,106.28841,Domestic - Cattle,107
+2365,Viet Nam,LSD,2021-04-15,21.89314,106.58781,Domestic - Cattle,84
+2356,Viet Nam,LSD,2021-04-15,19.97863,105.48828,Domestic - Cattle,108
+2357,Viet Nam,LSD,2021-04-15,16.734,106.96466,Domestic - Cattle,98
+2348,Viet Nam,LSD,2021-04-15,21.30358,104.1382,Domestic - Cattle,109
+2349,Viet Nam,LSD,2021-04-15,20.18238,105.9549,Domestic - Cattle,110
+2350,Viet Nam,LSD,2021-04-15,20.22887,106.30161,Domestic - Cattle,106
+2351,Viet Nam,LSD,2021-04-15,20.70861,105.25776,Domestic - Cattle,111
+2347,Viet Nam,LSD,2021-04-15,21.8079,104.5175,Domestic - Cattle,112
+2353,Viet Nam,LSD,2021-04-15,20.53332,105.98112,Domestic - Cattle,106
+2354,Viet Nam,LSD,2021-04-15,14.97687,108.60741,Domestic - Cattle,113
+2355,Viet Nam,LSD,2021-04-15,15.51152,108.0014,Domestic - Cattle,114
+2352,Viet Nam,LSD,2021-04-15,21.1397,105.84772,Domestic - Cattle,88
+2009,Viet Nam,LSD,2021-04-18,18.323,105.753,Domestic - Cattle,99
+2016,Viet Nam,LSD,2021-04-18,22.72,106.553,Domestic - Cattle,85
+1896,Thailand,LSD,2021-05-06,20.23,100.16,Domestic - Cattle,115
+1948,Thailand,LSD,2021-05-06,13.082,99.965,Domestic - Cattle,116
+1949,Thailand,LSD,2021-05-06,13.541,99.775,Domestic - Cattle,117
+1980,Thailand,LSD,2021-05-07,16.288053,103.604413,Domestic - Cattle,118
+1981,Thailand,LSD,2021-05-07,15.849,104.169,Domestic - Cattle,103
+1940,Thailand,LSD,2021-05-07,12.108,99.743,Domestic - Cattle,119
+1928,Thailand,LSD,2021-05-07,15.349,104.183,Domestic - Cattle,103
+1922,Thailand,LSD,2021-05-07,14.781,99.852,Domestic - Cattle,120
+1918,Thailand,LSD,2021-05-07,14.597,99.68,Domestic - Cattle,120
+1996,Thailand,LSD,2021-05-07,15.881,104.639,Domestic - Cattle,121
+1883,Thailand,LSD,2021-05-07,14.885,103.51,Domestic - Cattle,122
+1997,Thailand,LSD,2021-05-07,14.944,103.061,Domestic - Cattle,122
+1866,Thailand,LSD,2021-05-07,15.440425,104.911698,Domestic - Cattle,123
+1865,Thailand,LSD,2021-05-07,13.949546,100.091641,Domestic - Cattle,124
+1864,Thailand,LSD,2021-05-07,16.618,104.353,Domestic - Cattle,125
+1863,Thailand,LSD,2021-05-07,16.128,103.308,Domestic - Cattle,118
+1862,Thailand,LSD,2021-05-07,16.462772,102.805858,Domestic - Cattle,126
+1905,Thailand,LSD,2021-05-07,17.322,104.664,Domestic - Cattle,127
+1860,Thailand,LSD,2021-05-24,13.817325,99.816858,Domestic - Cattle,117
+1968,Thailand,LSD,2021-05-24,15.380844,104.340203,Domestic - Cattle | Domestic - Buffaloe,103
+1959,Thailand,LSD,2021-05-24,15.583826,104.009689,Domestic - Cattle,103
+1964,Thailand,LSD,2021-05-24,16.152,103.748,Domestic - Cattle,118
+1969,Thailand,LSD,2021-05-24,15.84237,103.864256,Domestic - Cattle | Domestic - Buffaloe,103
+1958,Thailand,LSD,2021-05-24,16.524,104.052,Domestic - Cattle,125
+1971,Thailand,LSD,2021-05-25,15.608,103.803,Domestic - Cattle,103
+1990,Thailand,LSD,2021-05-25,15.625,103.383,Domestic - Cattle,128
+1904,Thailand,LSD,2021-05-25,17.636127,104.239185,Domestic - Cattle,129
+1903,Thailand,LSD,2021-05-25,17.054442,104.647054,Domestic - Cattle,127
+1902,Thailand,LSD,2021-05-25,17.499059,104.107489,Domestic - Cattle,129
+1970,Thailand,LSD,2021-05-25,15.514274,104.258253,Domestic - Cattle,103
+1991,Thailand,LSD,2021-05-25,15.671,104.854,Domestic - Cattle,121
+1895,Thailand,LSD,2021-05-25,12.255,99.735,Domestic - Cattle,119
+1894,Thailand,LSD,2021-05-25,18.09,99.16,Domestic - Cattle,130
+1893,Thailand,LSD,2021-05-25,17.613,104.496,Domestic - Cattle,127
+1892,Thailand,LSD,2021-05-25,17.393588,102.788431,Domestic - Cattle,131
+1834,Thailand,LSD,2021-05-25,14.164,99.682,Domestic - Cattle,132
+1835,Thailand,LSD,2021-05-25,16.702,102.878,Domestic - Cattle,126
+1836,Thailand,LSD,2021-05-25,16.493881,102.615998,Domestic - Cattle,126
+1819,Thailand,LSD,2021-05-25,15.866,103.342,Domestic - Cattle,128
+1992,Thailand,LSD,2021-05-25,16.292,103.962,Domestic - Cattle,118
+1881,Thailand,LSD,2021-05-25,17.438,102.526,Domestic - Cattle,131
+1880,Thailand,LSD,2021-05-25,17.202,104.538,Domestic - Cattle,127
+1879,Thailand,LSD,2021-05-25,16.547,104.63,Domestic - Cattle,125
+1872,Thailand,LSD,2021-05-25,15.311,103.646,Domestic - Cattle,122
+1841,Thailand,LSD,2021-05-25,16.899005,99.151195,Domestic - Cattle,133
+2000,Thailand,LSD,2021-05-25,14.561,102.578,Domestic - Cattle,134
+2005,Thailand,LSD,2021-05-25,15.695,104.074,Domestic - Cattle,103
+1861,Thailand,LSD,2021-05-25,16.296353,104.813216,Domestic - Cattle,121
+1859,Thailand,LSD,2021-05-25,14.052521,100.185626,Domestic - Cattle,124
+1858,Thailand,LSD,2021-05-25,15.340912,103.902422,Domestic - Buffaloe,135
+1857,Thailand,LSD,2021-05-25,14.949428,103.780736,Domestic - Buffaloe,122
+1856,Thailand,LSD,2021-05-25,15.044553,103.940974,Domestic - Cattle,122
+1855,Thailand,LSD,2021-05-25,14.048,100.407,Domestic - Cattle,124
+1882,Thailand,LSD,2021-05-25,15.973,105.15,Domestic - Cattle,136
+1818,Thailand,LSD,2021-05-25,10.77,99.093,Domestic - Cattle,137
+1770,Thailand,LSD,2021-05-25,16.451,104.333,Domestic - Cattle,125
+1816,Thailand,LSD,2021-05-25,15.240588,104.388424,Domestic - Cattle,138
+1955,Thailand,LSD,2021-05-25,16.445,103.345,Domestic - Cattle,118
+1954,Thailand,LSD,2021-05-25,15.992124,103.866757,Domestic - Cattle,103
+1975,Thailand,LSD,2021-05-25,16.054895,104.285994,Domestic - Cattle,103
+1817,Thailand,LSD,2021-05-25,15.821,105.039,Domestic - Cattle,121
+1979,Thailand,LSD,2021-05-25,16.305,104.218,Domestic - Cattle,125
+1960,Thailand,LSD,2021-05-25,13.820842,100.020911,Domestic - Cattle,117
+1946,Thailand,LSD,2021-05-25,16.203,104.523,Domestic - Cattle,121
+1985,Thailand,LSD,2021-05-25,15.829,103.55,Domestic - Cattle,128
+1986,Thailand,LSD,2021-05-25,15.711,104.707,Domestic - Cattle,121
+1961,Thailand,LSD,2021-05-25,16.882143,103.52467,Domestic - Cattle,139
+1963,Thailand,LSD,2021-05-25,16.29,103.714,Domestic - Cattle,118
+1972,Thailand,LSD,2021-05-25,16.049907,103.997901,Domestic - Cattle,103
+1967,Thailand,LSD,2021-05-25,16.021806,103.510361,Domestic - Cattle,118
+1974,Thailand,LSD,2021-05-25,15.646636,104.334439,Domestic - Cattle,103
+1973,Thailand,LSD,2021-05-25,15.844059,104.393812,Domestic - Cattle,103
+1987,Thailand,LSD,2021-05-25,16.513,103.556,Domestic - Cattle,118
+1921,Thailand,LSD,2021-05-25,16.728,103.323,Domestic - Cattle,139
+1965,Thailand,LSD,2021-05-25,16.284453,103.267377,Domestic - Cattle,118
+1988,Thailand,LSD,2021-05-25,16.322,103.797,Domestic - Cattle,118
+1561,Lao People's Democratic Republic,LSD,2021-05-31,18.23,102.54,Domestic - Cattle | Domestic - Buffaloe,140
+1582,Thailand,LSD,2021-06-07,15.164337,104.885298,Domestic - Cattle,123
+1503,Thailand,LSD,2021-06-08,14.36,102.997,Domestic - Cattle,141
+1781,Thailand,LSD,2021-06-08,15.948705,104.61802,Domestic - Cattle,121
+1504,Thailand,LSD,2021-06-08,14.911365,103.147373,Domestic - Cattle,122
+1502,Thailand,LSD,2021-06-08,14.439,102.737,Domestic - Cattle,134
+1782,Thailand,LSD,2021-06-08,15.845,102.8957,Domestic - Cattle,142
+1540,Thailand,LSD,2021-06-08,14.532275,102.606809,Domestic - Cattle,134
+1778,Thailand,LSD,2021-06-08,14.723,100.541,Domestic - Cattle,143
+1731,Thailand,LSD,2021-06-08,15.89,104.918,Domestic - Cattle,121
+1771,Thailand,LSD,2021-06-08,17.035021,99.391307,Domestic - Cattle,133
+1772,Thailand,LSD,2021-06-08,17.143,104.362,Domestic - Cattle,127
+1773,Thailand,LSD,2021-06-08,12.26959,99.8879,Domestic - Cattle,119
+1774,Thailand,LSD,2021-06-08,12.38166,99.88841,Domestic - Cattle,119
+1505,Thailand,LSD,2021-06-08,14.959025,103.184241,Domestic - Cattle,122
+1506,Thailand,LSD,2021-06-08,14.291651,102.71806,Domestic - Cattle,134
+1546,Thailand,LSD,2021-06-08,15.957,100.819,Domestic - Cattle,144
+1517,Thailand,LSD,2021-06-08,15.731,102.354,Domestic - Cattle,145
+1776,Thailand,LSD,2021-06-08,17.242,103.635,Domestic - Buffaloe | Domestic - Cattle,139
+1534,Thailand,LSD,2021-06-08,16.337,101.19,Domestic - Cattle,146
+1777,Thailand,LSD,2021-06-08,17.188,100.53,Domestic - Cattle,147
+1780,Thailand,LSD,2021-06-08,16.455,104.588,Domestic - Cattle,125
+1539,Thailand,LSD,2021-06-08,14.276,101.877698,Domestic - Cattle,148
+1779,Thailand,LSD,2021-06-08,14.125,102.838,Domestic - Cattle,141
+1775,Thailand,LSD,2021-06-08,13.939,99.664318,Domestic - Cattle,117
+1547,Thailand,LSD,2021-06-08,15.749474,104.68685,Domestic - Cattle,121
+1600,Thailand,LSD,2021-06-08,18.658,100.818,Domestic - Cattle,149
+1711,Thailand,LSD,2021-06-08,16.9323,102.7338,Domestic - Cattle,150
+1501,Thailand,LSD,2021-06-08,15.114,103.159,Domestic - Cattle,122
+1625,Thailand,LSD,2021-06-08,14.702077,99.31154,Domestic - Cattle,151
+1626,Thailand,LSD,2021-06-08,16.031,100.282,Domestic - Cattle,152
+1627,Thailand,LSD,2021-06-08,17.3,103.447,Domestic - Cattle,139
+1652,Thailand,LSD,2021-06-08,13.902679,100.056229,Domestic - Cattle,124
+1651,Thailand,LSD,2021-06-08,15.615915,104.84875,Domestic - Cattle,121
+1650,Thailand,LSD,2021-06-08,15.228901,103.615344,Domestic - Cattle,122
+1649,Thailand,LSD,2021-06-08,16.288,101.925,Domestic - Cattle,153
+1648,Thailand,LSD,2021-06-08,17.067,102.157,Domestic - Cattle,154
+1647,Thailand,LSD,2021-06-08,17.058,103.791,Domestic - Cattle,139
+1646,Thailand,LSD,2021-06-08,17.322,104.339,Domestic - Cattle | Domestic - Buffaloe,127
+1645,Thailand,LSD,2021-06-08,17.498897,99.709902,Domestic - Cattle,155
+1628,Thailand,LSD,2021-06-08,17.138,101.742,Domestic - Cattle,154
+1629,Thailand,LSD,2021-06-08,16.373,100.843,Domestic - Cattle,144
+1630,Thailand,LSD,2021-06-08,16.631149,104.430514,Domestic - Cattle,125
+1599,Thailand,LSD,2021-06-08,17.668,101.497,Domestic - Cattle,156
+1598,Thailand,LSD,2021-06-08,17.378,103.707,Domestic - Cattle,157
+1673,Thailand,LSD,2021-06-08,16.965567,98.598522,Domestic - Cattle,158
+1674,Thailand,LSD,2021-06-08,12.10598,99.737321,Domestic - Cattle,119
+1710,Thailand,LSD,2021-06-08,17.658,103.47,Domestic - Cattle,157
+1709,Thailand,LSD,2021-06-08,17.191,103.751,Domestic - Cattle,139
+1556,Thailand,LSD,2021-06-08,14.834,101.134,Domestic - Cattle,159
+1557,Thailand,LSD,2021-06-08,13.52,100.83,Domestic - Cattle,160
+1558,Thailand,LSD,2021-06-08,15.443,102.446,Domestic - Cattle,145
+1569,Thailand,LSD,2021-06-08,14.588,100.864,Domestic - Cattle,143
+1712,Thailand,LSD,2021-06-08,13.993,99.8641,Domestic - Cattle,124
+1570,Thailand,LSD,2021-06-08,15.234,99.638,Domestic - Cattle,161
+1680,Thailand,LSD,2021-06-08,16.8567,103.105322,Domestic - Cattle,139
+1679,Thailand,LSD,2021-06-08,16.01903,104.76887,Domestic - Cattle,121
+1678,Thailand,LSD,2021-06-08,16.806,104.705,Domestic - Cattle,125
+1677,Thailand,LSD,2021-06-08,16.511,101.627,Domestic - Cattle,153
+1676,Thailand,LSD,2021-06-08,16.826,101.321,Domestic - Cattle,162
+1675,Thailand,LSD,2021-06-08,18.001,103.822,Domestic - Cattle,163
+1681,Thailand,LSD,2021-06-08,14.03545,100.10287,Domestic - Cattle,124
+1500,Thailand,LSD,2021-06-08,10.066,99.025,Domestic - Cattle,164
+1542,Cambodia,LSD,2021-06-15,13.779,104.999,Domestic - Cattle,165
+1536,Cambodia,LSD,2021-06-21,14.2395,103.58288,Domestic - Cattle,166
+1434,Thailand,LSD,2021-06-23,14.65985,99.426071,Domestic - Cattle,120
+1349,Thailand,LSD,2021-06-24,13.807744,100.98679,Domestic - Cattle,160
+1443,Thailand,LSD,2021-06-24,14.328976,99.676781,Domestic - Cattle,132
+1575,Thailand,LSD,2021-06-24,14.81014,104.9213,Domestic - Cattle,167
+1521,Malaysia,LSD,2021-06-24,4.865,100.949,Domestic - Cattle,168
+1520,Malaysia,LSD,2021-06-24,2.381,102.352,Domestic - Cattle,169
+1743,Thailand,LSD,2021-06-24,15.9016,104.94176,Domestic - Cattle,121
+1744,Thailand,LSD,2021-06-24,15.78944,104.9951,Domestic - Cattle | Domestic - Buffaloe,121
+1444,Malaysia,LSD,2021-06-24,4.515,101.086,Domestic - Cattle,168
+1746,Thailand,LSD,2021-06-24,15.559926,105.033039,Domestic - Buffaloe | Domestic - Cattle,123
+1370,Malaysia,LSD,2021-06-24,6.515,100.233903,Domestic - Cattle,170
+1371,Malaysia,LSD,2021-06-24,5.0,100.628415,Domestic - Cattle,168
+1555,Thailand,LSD,2021-06-24,15.22198,104.99673,Domestic - Cattle,123
+1445,Malaysia,LSD,2021-06-24,4.477,101.08,Domestic - Cattle,168
+1453,Malaysia,LSD,2021-06-24,4.478,101.07618,Domestic - Cattle,168
+1455,Malaysia,LSD,2021-06-24,4.406,101.059,Domestic - Cattle,171
+1535,Malaysia,LSD,2021-06-24,4.518,101.112,Domestic - Cattle,168
+1441,Malaysia,LSD,2021-06-24,6.516634,100.357441,Domestic - Cattle,170
+1398,Malaysia,LSD,2021-06-24,4.7755,101.05328,Domestic - Cattle,168
+1638,Thailand,LSD,2021-06-24,15.600877,104.8463,Domestic - Cattle,121
+1484,Malaysia,LSD,2021-06-24,5.293547,100.689655,Domestic - Cattle,172
+1483,Malaysia,LSD,2021-06-24,4.471,101.045052,Domestic - Cattle,168
+1482,Malaysia,LSD,2021-06-24,4.542682,101.09064,Domestic - Cattle,168
+1481,Malaysia,LSD,2021-06-24,5.480717,100.654666,Domestic - Cattle,172
+1480,Malaysia,LSD,2021-06-24,4.543,101.092678,Domestic - Cattle,168
+1550,Malaysia,LSD,2021-06-24,5.786651,100.702409,Domestic - Cattle,173
+1842,Malaysia,LSD,2021-06-24,4.5124,101.11229,Domestic - Cattle,168
+1473,Malaysia,LSD,2021-06-24,3.29121,103.2213,Domestic - Cattle,174
+1472,Malaysia,LSD,2021-06-24,3.301144,103.272574,Domestic - Cattle,174
+1560,Malaysia,LSD,2021-06-24,5.004,100.953,Domestic - Cattle,168
+1559,Malaysia,LSD,2021-06-24,5.304604,102.905913,Domestic - Cattle,175
+1603,Malaysia,LSD,2021-06-24,2.254,102.263,Domestic - Cattle,169
+1363,Thailand,LSD,2021-06-25,15.607663,103.80343,Domestic - Cattle,103
+1368,Thailand,LSD,2021-06-25,16.057451,103.65097,Domestic - Cattle,118
+1364,Thailand,LSD,2021-06-25,16.30524,104.218183,Domestic - Cattle,125
+1497,Thailand,LSD,2021-06-25,14.291651,102.71806,Domestic - Cattle,134
+1391,Thailand,LSD,2021-06-25,13.450804,99.818023,Domestic - Cattle,116
+1585,Thailand,LSD,2021-06-25,16.252792,103.517557,Domestic - Cattle,118
+1583,Thailand,LSD,2021-06-25,14.91827,104.4247,Domestic - Cattle,138
+1392,Thailand,LSD,2021-06-25,15.65652,103.57827,Domestic - Cattle,128
+1581,Thailand,LSD,2021-06-25,16.327465,102.20752,Domestic - Cattle,153
+1576,Thailand,LSD,2021-06-25,15.37388,105.227216,Domestic - Cattle,123
+1362,Thailand,LSD,2021-06-25,15.84237,103.864256,Domestic - Cattle,103
+1361,Thailand,LSD,2021-06-25,16.16671,103.612595,Domestic - Cattle,118
+1613,Thailand,LSD,2021-06-25,17.138208,101.742254,Domestic - Cattle,154
+1586,Thailand,LSD,2021-06-25,17.66819,101.496536,Domestic - Cattle,156
+1292,Thailand,LSD,2021-06-25,16.613333,101.919722,Domestic - Cattle,153
+1321,Thailand,LSD,2021-06-25,15.078007,104.4302,Domestic - Cattle,138
+1334,Thailand,LSD,2021-06-25,6.5396,101.2477,Domestic - Cattle,176
+1335,Thailand,LSD,2021-06-25,6.5396,101.2477,Domestic - Cattle,176
+1339,Thailand,LSD,2021-06-25,14.555456,99.077328,Domestic - Cattle,151
+1340,Thailand,LSD,2021-06-25,13.724483,100.173003,Domestic - Cattle,117
+1341,Thailand,LSD,2021-06-25,13.62384,99.613762,Domestic - Cattle,117
+1360,Thailand,LSD,2021-06-25,15.829292,103.550141,Domestic - Cattle,128
+1348,Thailand,LSD,2021-06-25,13.523425,99.419246,Domestic - Cattle,117
+1353,Thailand,LSD,2021-06-25,15.624517,103.382564,Domestic - Cattle,128
+1354,Thailand,LSD,2021-06-25,15.694692,104.07404,Domestic - Cattle,103
+1356,Thailand,LSD,2021-06-25,16.021806,103.51036,Domestic - Cattle,118
+1611,Thailand,LSD,2021-06-25,14.97467,103.65094,Domestic - Cattle,122
+1357,Thailand,LSD,2021-06-25,16.0499,103.997901,Domestic - Cattle,103
+1358,Thailand,LSD,2021-06-25,16.321579,103.796548,Domestic - Cattle,118
+1359,Thailand,LSD,2021-06-25,16.29227,103.962315,Domestic - Cattle,118
+1352,Thailand,LSD,2021-06-25,15.99212,103.8667,Domestic - Cattle,103
+1574,Thailand,LSD,2021-06-25,15.311041,104.991427,Domestic - Cattle,123
+1416,Thailand,LSD,2021-06-25,13.99135,100.07304,Domestic - Cattle,124
+1393,Thailand,LSD,2021-06-25,16.15173,103.74801,Domestic - Cattle,118
+1528,Thailand,LSD,2021-06-25,15.528878,101.796746,Domestic - Cattle,177
+1515,Thailand,LSD,2021-06-25,16.703237,103.84418,Domestic - Cattle,139
+1514,Thailand,LSD,2021-06-25,14.998448,102.58568,Domestic - Cattle,134
+1513,Thailand,LSD,2021-06-25,15.730561,102.353642,Domestic - Cattle,145
+1511,Thailand,LSD,2021-06-25,14.36032,102.99748,Domestic - Cattle,141
+1462,Thailand,LSD,2021-06-25,14.59021,103.13728,Domestic - Cattle,141
+1463,Thailand,LSD,2021-06-25,14.854333,101.779329,Domestic - Cattle,178
+1464,Thailand,LSD,2021-06-25,16.317877,103.555,Domestic - Cattle,118
+1465,Thailand,LSD,2021-06-25,16.495008,103.95368,Domestic - Cattle,118
+1466,Thailand,LSD,2021-06-25,16.69974,103.1549,Domestic - Cattle,126
+1467,Thailand,LSD,2021-06-25,17.411516,101.047889,Domestic - Cattle,179
+1471,Thailand,LSD,2021-06-25,15.4815,105.260103,Domestic - Cattle,123
+1478,Thailand,LSD,2021-06-25,15.183121,101.804647,Domestic - Cattle,177
+1479,Thailand,LSD,2021-06-25,15.157444,102.510528,Domestic - Cattle,180
+1491,Thailand,LSD,2021-06-25,15.55154,102.8172,Domestic - Cattle,142
+1537,Thailand,LSD,2021-06-25,14.61803,102.83526,Domestic - Cattle,134
+1437,Thailand,LSD,2021-06-25,13.811195,99.95248,Domestic - Cattle,117
+1436,Thailand,LSD,2021-06-25,14.026056,99.887685,Domestic - Cattle,124
+1435,Thailand,LSD,2021-06-25,13.824366,100.031572,Domestic - Cattle,117
+1394,Thailand,LSD,2021-06-25,13.42471,99.84734,Domestic - Cattle,116
+1566,Thailand,LSD,2021-06-25,15.487439,105.48281,Domestic - Cattle,181
+1565,Thailand,LSD,2021-06-25,15.167901,103.82823,Domestic - Cattle,122
+1396,Thailand,LSD,2021-06-25,11.501685,99.582293,Domestic - Cattle,182
+1405,Thailand,LSD,2021-06-25,13.731063,99.859193,Domestic - Cattle,117
+1415,Thailand,LSD,2021-06-25,17.176391,103.706176,Domestic - Cattle,139
+1496,Thailand,LSD,2021-06-25,14.697156,105.00702,Domestic - Cattle,167
+1573,Thailand,LSD,2021-06-25,14.89535,104.70852,Domestic - Cattle,167
+1417,Thailand,LSD,2021-06-25,13.43686,99.81778,Domestic - Cattle,116
+1423,Thailand,LSD,2021-06-25,11.818351,99.796803,Domestic - Cattle,119
+1554,Thailand,LSD,2021-06-25,14.568063,102.92464,Domestic - Cattle,134
+1549,Thailand,LSD,2021-06-25,15.47146,104.99871,Domestic - Cattle,123
+1424,Thailand,LSD,2021-06-25,12.204886,100.00356,Domestic - Cattle,119
+1433,Thailand,LSD,2021-06-25,17.485281,103.461087,Domestic - Cattle,157
+1544,Thailand,LSD,2021-06-25,15.315697,105.032191,Domestic - Cattle,123
+1543,Thailand,LSD,2021-06-25,15.388777,104.926367,Domestic - Cattle,123
+1418,Thailand,LSD,2021-06-25,15.210218,100.065521,Domestic - Cattle,161
+1635,Thailand,LSD,2021-06-25,16.636271,104.432943,Domestic - Cattle,125
+1702,Thailand,LSD,2021-06-25,15.16104,103.03914,Domestic - Cattle,183
+1801,Thailand,LSD,2021-06-25,14.66706,104.01137,Domestic - Cattle,184
+1806,Thailand,LSD,2021-06-25,14.54154,103.2812,Domestic - Cattle,122
+1807,Thailand,LSD,2021-06-25,15.25134,104.840184,Domestic - Cattle,123
+1808,Thailand,LSD,2021-06-25,15.06965,105.205531,Domestic - Cattle,167
+1738,Thailand,LSD,2021-06-25,14.38907,103.26211,Domestic - Cattle,141
+1737,Thailand,LSD,2021-06-25,14.88909,104.49662,Domestic - Cattle,138
+1736,Thailand,LSD,2021-06-25,17.301132,103.635287,Domestic - Cattle,139
+1735,Thailand,LSD,2021-06-25,15.76618,102.9168,Domestic - Cattle,142
+1723,Thailand,LSD,2021-06-25,14.95236,103.34122,Domestic - Cattle,122
+1722,Thailand,LSD,2021-06-25,15.051403,104.73978,Domestic - Cattle,123
+1721,Thailand,LSD,2021-06-25,14.75145,105.3493,Domestic - Cattle,167
+1720,Thailand,LSD,2021-06-25,15.25448,105.276214,Domestic - Cattle,123
+1718,Thailand,LSD,2021-06-25,15.83545,105.34486,Domestic - Cattle,136
+1716,Thailand,LSD,2021-06-25,14.429106,102.73758,Domestic - Cattle,134
+1715,Thailand,LSD,2021-06-25,17.081293,103.797321,Domestic - Cattle,139
+1791,Thailand,LSD,2021-06-25,14.69411,102.52735,Domestic - Cattle,134
+1701,Thailand,LSD,2021-06-25,16.8312,102.7066,Domestic - Cattle,126
+1700,Thailand,LSD,2021-06-25,15.173493,104.731378,Domestic - Buffaloe | Domestic - Cattle,123
+1740,Thailand,LSD,2021-06-25,15.870059,105.228418,Domestic - Cattle,136
+1742,Thailand,LSD,2021-06-25,16.23213,105.00493,Domestic - Cattle,136
+1803,Thailand,LSD,2021-06-25,15.99779,104.71245,Domestic - Cattle,121
+1745,Thailand,LSD,2021-06-25,15.426342,104.672966,Domestic - Buffaloe | Domestic - Cattle,123
+1793,Thailand,LSD,2021-06-25,16.407377,104.57868,Domestic - Cattle,125
+1794,Thailand,LSD,2021-06-25,14.6509,104.61854,Domestic - Cattle,167
+1795,Thailand,LSD,2021-06-25,15.31722,104.04963,Domestic - Cattle,103
+1790,Thailand,LSD,2021-06-25,14.26919,102.89174,Domestic - Cattle,134
+1789,Thailand,LSD,2021-06-25,14.71746,103.24167,Domestic - Cattle,122
+1788,Thailand,LSD,2021-06-25,17.328505,103.868493,Domestic - Cattle,157
+1787,Thailand,LSD,2021-06-25,15.094127,103.20645,Domestic - Cattle,122
+1796,Thailand,LSD,2021-06-25,14.8972,104.00543,Domestic - Cattle,184
+1698,Thailand,LSD,2021-06-25,14.528427,105.067516,Domestic - Cattle,167
+1797,Thailand,LSD,2021-06-25,14.77597,104.47695,Domestic - Buffaloe | Domestic - Cattle,167
+1799,Thailand,LSD,2021-06-25,14.82027,103.51643,Domestic - Cattle,122
+1752,Thailand,LSD,2021-06-25,14.57569,102.59916,Domestic - Cattle,134
+1751,Thailand,LSD,2021-06-25,14.904232,103.15672,Domestic - Cattle,122
+1800,Thailand,LSD,2021-06-25,14.67397,103.69078,Domestic - Cattle,122
+1750,Thailand,LSD,2021-06-25,14.760882,102.90612,Domestic - Cattle,134
+1749,Thailand,LSD,2021-06-25,15.845,102.8957,Domestic - Cattle,142
+1748,Thailand,LSD,2021-06-25,16.7165,103.03213,Domestic - Cattle,126
+1747,Thailand,LSD,2021-06-25,15.569593,104.829688,Domestic - Cattle,121
+1798,Thailand,LSD,2021-06-25,15.01475,104.10446,Domestic - Cattle,135
+1697,Thailand,LSD,2021-06-25,15.12058,105.00361,Domestic - Cattle,123
+1792,Thailand,LSD,2021-06-25,18.227076,104.031501,Domestic - Cattle,163
+1691,Thailand,LSD,2021-06-25,14.88076,102.88422,Domestic - Cattle,134
+1688,Thailand,LSD,2021-06-25,17.369291,104.264428,Domestic - Cattle,127
+1660,Thailand,LSD,2021-06-25,14.485018,105.254798,Domestic - Cattle,185
+1689,Thailand,LSD,2021-06-25,17.407932,103.750156,Domestic - Cattle,157
+1869,Thailand,LSD,2021-06-25,17.159282,104.132534,Domestic - Cattle,186
+1659,Thailand,LSD,2021-06-25,17.067117,102.15733,Domestic - Cattle,154
+1690,Thailand,LSD,2021-06-25,16.961175,103.86689,Domestic - Cattle,139
+1694,Thailand,LSD,2021-06-25,16.805628,104.705287,Domestic - Cattle,125
+1661,Thailand,LSD,2021-06-25,15.934613,105.29646,Domestic - Cattle,136
+1658,Thailand,LSD,2021-06-25,17.333736,103.474955,Domestic - Cattle,157
+1687,Thailand,LSD,2021-06-25,16.962428,104.17006,Domestic - Cattle,125
+1693,Thailand,LSD,2021-06-25,18.001284,103.82182,Domestic - Cattle,163
+2003,Thailand,LSD,2021-06-25,15.74778,104.10607,Domestic - Cattle,103
+1653,Thailand,LSD,2021-06-25,15.197535,103.55212,Domestic - Cattle,122
+1641,Thailand,LSD,2021-06-25,15.331408,103.17584,Domestic - Cattle,128
+1640,Thailand,LSD,2021-06-25,16.288148,101.925454,Domestic - Cattle,153
+1637,Thailand,LSD,2021-06-25,15.905419,105.30334,Domestic - Cattle,136
+1636,Thailand,LSD,2021-06-25,14.96599,103.77592,Domestic - Cattle,122
+1692,Thailand,LSD,2021-06-25,15.08759,103.28344,Domestic - Cattle,122
+1662,Thailand,LSD,2021-06-25,15.61742,105.2737,Domestic - Cattle,123
+1572,Lao People's Democratic Republic,LSD,2021-06-26,17.85,102.65,Domestic - Cattle | Domestic - Buffaloe,140
+1562,Lao People's Democratic Republic,LSD,2021-07-02,18.114,102.47802,Domestic - Cattle | Domestic - Buffaloe,140
+1512,Lao People's Democratic Republic,LSD,2021-07-02,16.927,105.354,Domestic - Cattle | Domestic - Buffaloe,187
+1525,Lao People's Democratic Republic,LSD,2021-07-02,16.62117,104.7745,Domestic - Cattle | Domestic - Buffaloe,125
+1524,Lao People's Democratic Republic,LSD,2021-07-02,16.5875,104.791,Domestic - Cattle | Domestic - Buffaloe,125
+1563,Lao People's Democratic Republic,LSD,2021-07-02,18.154,102.9328,Domestic - Cattle | Domestic - Buffaloe,140
+1564,Lao People's Democratic Republic,LSD,2021-07-02,18.04644,102.91684,Domestic - Cattle | Domestic - Buffaloe,140
+1217,Lao People's Democratic Republic,LSD,2021-07-02,16.8711,105.30421,Domestic - Cattle | Domestic - Buffaloe,187
+1235,Cambodia,LSD,2021-07-07,14.25,103.67,Domestic - Cattle,166
+1256,Cambodia,LSD,2021-07-08,13.641104,105.23717,Domestic - Cattle,165
+1486,Malaysia,LSD,2021-07-10,4.51,101.108,Domestic - Cattle,168
+1319,Malaysia,LSD,2021-07-11,4.562,101.071,Domestic - Cattle,168
+1382,Malaysia,LSD,2021-07-12,5.166,100.993,Domestic - Cattle,168
+1329,Malaysia,LSD,2021-07-12,3.544,101.973,Domestic - Cattle,188
+1412,Malaysia,LSD,2021-07-12,4.464222,100.921583,Domestic - Cattle,168
+1846,Malaysia,LSD,2021-07-12,5.644,100.915,Domestic - Cattle,172
+1328,Malaysia,LSD,2021-07-12,3.767,100.897,Domestic - Cattle,189
+1324,Malaysia,LSD,2021-07-12,4.50385,101.04003,Domestic - Cattle,168
+1320,Malaysia,LSD,2021-07-12,5.274,100.522,Domestic - Cattle,172
+1313,Malaysia,LSD,2021-07-12,4.44288,101.07881,Domestic - Cattle,168
+1312,Malaysia,LSD,2021-07-12,6.481,100.344,Domestic - Cattle,170
+1291,Malaysia,LSD,2021-07-12,4.874,100.652,Domestic - Cattle,168
+1290,Malaysia,LSD,2021-07-12,4.84841,100.66743,Domestic - Cattle,168
+1447,Malaysia,LSD,2021-07-12,4.865,100.95,Domestic - Cattle,168
+1373,Malaysia,LSD,2021-07-12,4.474,101.08,Domestic - Cattle,168
+1448,Malaysia,LSD,2021-07-12,4.479,101.121,Domestic - Cattle,168
+1283,Malaysia,LSD,2021-07-12,4.592,101.064,Domestic - Cattle,168
+1376,Malaysia,LSD,2021-07-12,6.647,100.277,Domestic - Cattle,170
+1338,Malaysia,LSD,2021-07-12,4.474,101.08,Domestic - Cattle,168
+1449,Malaysia,LSD,2021-07-12,4.442,101.103,Domestic - Cattle,168
+1450,Malaysia,LSD,2021-07-12,4.498,101.097,Domestic - Cattle,168
+1456,Malaysia,LSD,2021-07-12,4.58,100.918,Domestic - Cattle,168
+1457,Malaysia,LSD,2021-07-12,6.172,100.302,Domestic - Cattle,170
+1380,Malaysia,LSD,2021-07-12,6.647,100.277,Domestic - Cattle,170
+1383,Malaysia,LSD,2021-07-12,4.908,100.676,Domestic - Cattle,168
+1381,Malaysia,LSD,2021-07-12,5.004,100.951,Domestic - Cattle,168
+1459,Malaysia,LSD,2021-07-12,5.778,100.631,Domestic - Cattle,173
+1446,Malaysia,LSD,2021-07-12,6.059,100.774,Domestic - Cattle,173
+1345,Malaysia,LSD,2021-07-12,2.355912,102.435234,Domestic - Cattle,169
+1489,Malaysia,LSD,2021-07-12,5.508,100.632,Domestic - Cattle,172
+1713,Thailand,LSD,2021-07-13,16.015,104.601,Domestic - Cattle,121
+1867,Thailand,LSD,2021-07-13,13.948,99.778,Domestic - Cattle,117
+1601,Thailand,LSD,2021-07-13,15.237,105.333,Domestic - Cattle,181
+1837,Thailand,LSD,2021-07-14,13.912,99.602,Domestic - Cattle,117
+1426,Thailand,LSD,2021-07-14,13.726,99.971551,Domestic - Cattle,117
+1425,Thailand,LSD,2021-07-14,14.43,99.413,Domestic - Cattle,132
+1230,Thailand,LSD,2021-07-14,14.425,100.407088,Domestic - Cattle,143
+1236,Thailand,LSD,2021-07-14,14.599,99.113889,Domestic - Cattle,151
+1237,Thailand,LSD,2021-07-14,14.587,100.998,Domestic - Cattle,159
+1240,Thailand,LSD,2021-07-14,19.527892,99.478482,Domestic - Cattle,190
+1246,Thailand,LSD,2021-07-14,14.003333,99.55,Domestic - Cattle,132
+1571,Thailand,LSD,2021-07-14,14.808,103.926,Domestic - Cattle,122
+1247,Thailand,LSD,2021-07-14,18.762,100.788,Domestic - Cattle,149
+1248,Thailand,LSD,2021-07-14,18.123,100.672,Domestic - Cattle,191
+1264,Thailand,LSD,2021-07-14,12.812,100.921472,Domestic - Cattle,192
+1265,Thailand,LSD,2021-07-14,13.543,99.34,Domestic - Cattle,117
+1682,Thailand,LSD,2021-07-14,16.857,103.105,Domestic - Cattle,139
+1282,Thailand,LSD,2021-07-14,17.431871,101.27247,Domestic - Cattle,156
+1289,Thailand,LSD,2021-07-14,13.691667,99.853333,Domestic - Cattle,117
+1296,Thailand,LSD,2021-07-14,18.744265,99.256567,Domestic - Cattle,193
+1297,Thailand,LSD,2021-07-14,13.723,100.217,Domestic - Cattle,124
+1298,Thailand,LSD,2021-07-14,14.906,101.229,Domestic - Cattle,159
+1306,Thailand,LSD,2021-07-14,14.596389,99.774722,Domestic - Cattle,120
+1307,Thailand,LSD,2021-07-14,13.454,99.887,Domestic - Cattle,116
+1308,Thailand,LSD,2021-07-14,14.981,100.015,Domestic - Cattle,120
+1309,Thailand,LSD,2021-07-14,13.62,99.592,Domestic - Cattle,117
+1310,Thailand,LSD,2021-07-14,13.368,99.83,Domestic - Cattle,116
+1631,Thailand,LSD,2021-07-14,14.554,104.906,Domestic - Cattle,167
+1215,Thailand,LSD,2021-07-14,13.518,99.955,Domestic - Cattle,116
+1210,Thailand,LSD,2021-07-14,18.306346,100.151944,Domestic - Cattle,194
+1950,Thailand,LSD,2021-07-14,13.541,99.775,Domestic - Cattle,117
+1507,Thailand,LSD,2021-07-14,15.057,102.961,Domestic - Cattle,180
+1732,Thailand,LSD,2021-07-14,14.751,105.349,Domestic - Cattle,167
+1548,Thailand,LSD,2021-07-14,15.749,104.687,Domestic - Cattle,121
+1166,Thailand,LSD,2021-07-14,13.425,99.957,Domestic - Cattle,116
+1176,Thailand,LSD,2021-07-14,17.50891,101.92359,Domestic - Cattle,156
+1146,Thailand,LSD,2021-07-14,16.183,102.81719,Domestic - Cattle,126
+1208,Thailand,LSD,2021-07-29,7.08252,100.6271,Domestic - Cattle,195
+1118,Thailand,LSD,2021-07-29,13.451667,101.176667,Domestic - Cattle,160
+1305,Thailand,LSD,2021-07-29,14.981111,100.014722,Domestic - Cattle,120
+1127,Thailand,LSD,2021-07-29,15.309444,100.083889,Domestic - Cattle,161
+1086,Nepal,LSD,2021-08-06,28.6365,80.9479,Domestic - Cattle,196
+1077,Nepal,LSD,2021-08-15,28.89222,80.38979,Domestic - Cattle,197
+1293,Malaysia,LSD,2021-08-15,6.059027,102.3395,Domestic - Cattle,198
+1088,Malaysia,LSD,2021-08-15,5.18003,100.47121,Domestic - Cattle,172
+1089,Malaysia,LSD,2021-08-15,5.13856,100.45938,Domestic - Cattle,172
+1090,Malaysia,LSD,2021-08-15,2.869722,101.928333,Domestic - Cattle,199
+1142,Malaysia,LSD,2021-08-15,6.6431,100.2601,Domestic - Cattle,170
+1143,Malaysia,LSD,2021-08-15,6.6425,100.2604,Domestic - Cattle,170
+1141,Malaysia,LSD,2021-08-15,6.6413,100.2471,Domestic - Cattle,170
+1276,Malaysia,LSD,2021-08-15,4.476367,101.126404,Domestic - Cattle,168
+1275,Malaysia,LSD,2021-08-15,4.39974,101.04654,Domestic - Cattle,171
+1522,Malaysia,LSD,2021-08-15,4.775972,100.829472,Domestic - Cattle,168
+1094,Malaysia,LSD,2021-08-15,2.852756,102.435427,Domestic - Cattle,200
+1099,Malaysia,LSD,2021-08-15,5.22954,103.079158,Domestic - Cattle,175
+1113,Malaysia,LSD,2021-08-15,6.671158,100.280691,Domestic - Cattle,170
+1274,Malaysia,LSD,2021-08-15,4.47132,101.04738,Domestic - Cattle,168
+1277,Malaysia,LSD,2021-08-15,5.920607,102.226453,Domestic - Cattle,198
+1144,Malaysia,LSD,2021-08-15,6.6308,100.2796,Domestic - Cattle,170
+1159,Malaysia,LSD,2021-08-15,6.41851,100.29951,Domestic - Cattle,170
+1065,Malaysia,LSD,2021-08-15,3.393235,101.520663,Domestic - Cattle,201
+1078,Malaysia,LSD,2021-08-15,5.796809,102.528977,Domestic - Cattle,198
+1317,Malaysia,LSD,2021-08-15,6.01311,102.318085,Domestic - Cattle,198
+1316,Malaysia,LSD,2021-08-15,6.065748,102.329758,Domestic - Cattle,198
+1315,Malaysia,LSD,2021-08-15,2.19612,103.072981,Domestic - Cattle,202
+1082,Malaysia,LSD,2021-08-15,2.888444,102.371874,Domestic - Cattle,199
+1083,Malaysia,LSD,2021-08-15,5.25189,100.47694,Domestic - Cattle,172
+1148,Malaysia,LSD,2021-08-15,5.792676,102.108263,Domestic - Cattle,198
+1323,Malaysia,LSD,2021-08-15,6.034074,102.353867,Domestic - Cattle,198
+1156,Malaysia,LSD,2021-08-15,6.64671,100.26094,Domestic - Cattle,170
+1075,Malaysia,LSD,2021-08-15,2.234044,102.365419,Domestic - Cattle,169
+1325,Malaysia,LSD,2021-08-15,4.44695,101.07528,Domestic - Cattle,168
+1157,Malaysia,LSD,2021-08-15,6.4185,100.29951,Domestic - Cattle,170
+1158,Malaysia,LSD,2021-08-15,6.55364,100.25093,Domestic - Cattle,170
+1154,Malaysia,LSD,2021-08-15,5.883554,102.13042,Domestic - Cattle,198
+1273,Malaysia,LSD,2021-08-15,6.057984,102.240309,Domestic - Cattle,198
+1301,Malaysia,LSD,2021-08-15,6.098836,102.378536,Domestic - Cattle,198
+1300,Malaysia,LSD,2021-08-15,6.08974,102.263966,Domestic - Cattle,198
+1076,Nepal,LSD,2021-08-15,29.14118,81.08142,Domestic - Cattle,203
+1272,Malaysia,LSD,2021-08-15,6.08877,102.226892,Domestic - Cattle,198
+1260,Malaysia,LSD,2021-08-15,6.56984,100.24482,Domestic - Cattle,170
+1526,Malaysia,LSD,2021-08-15,4.748637,100.956063,Domestic - Cattle,168
+1165,Malaysia,LSD,2021-08-15,5.870392,102.126655,Domestic - Cattle,198
+1124,Malaysia,LSD,2021-08-15,5.15043,100.50291,Domestic - Cattle,172
+1206,Malaysia,LSD,2021-08-15,3.7823,101.014524,Domestic - Cattle,189
+1131,Malaysia,LSD,2021-08-15,5.898938,101.995003,Domestic - Cattle,198
+1229,Malaysia,LSD,2021-08-15,3.54473,101.972877,Domestic - Cattle,188
+1228,Malaysia,LSD,2021-08-15,5.40112,100.2885,Domestic - Cattle,172
+1226,Malaysia,LSD,2021-08-15,4.5153,101.069437,Domestic - Cattle,168
+1225,Malaysia,LSD,2021-08-15,4.47682,101.01129,Domestic - Cattle,168
+1132,Malaysia,LSD,2021-08-15,3.765452,100.984746,Domestic - Cattle,189
+1224,Malaysia,LSD,2021-08-15,4.39401,101.14721,Domestic - Cattle,171
+1220,Malaysia,LSD,2021-08-15,5.991653,102.316922,Domestic - Cattle,198
+1219,Malaysia,LSD,2021-08-15,6.166905,102.316477,Domestic - Cattle,198
+1218,Malaysia,LSD,2021-08-15,3.25077,102.17567,Domestic - Cattle,188
+1125,Malaysia,LSD,2021-08-15,5.15646,100.45932,Domestic - Cattle,172
+1128,Malaysia,LSD,2021-08-15,3.693658,100.959815,Domestic - Cattle,189
+1440,Malaysia,LSD,2021-08-15,2.179291,103.037288,Domestic - Cattle,202
+1213,Malaysia,LSD,2021-08-15,6.066652,102.263567,Domestic - Cattle,198
+1212,Malaysia,LSD,2021-08-15,4.677198,101.164214,Domestic - Cattle,168
+1223,Malaysia,LSD,2021-08-15,5.09835,100.506267,Domestic - Cattle,172
+1140,Malaysia,LSD,2021-08-15,5.81746,102.0678,Domestic - Cattle,198
+1163,Malaysia,LSD,2021-08-15,5.871006,102.082365,Domestic - Cattle,198
+1243,Malaysia,LSD,2021-08-15,4.425396,100.968039,Domestic - Cattle,168
+1126,Malaysia,LSD,2021-08-15,3.359089,101.418896,Domestic - Cattle,201
+1390,Malaysia,LSD,2021-08-15,6.535666,100.234805,Domestic - Cattle,170
+1259,Malaysia,LSD,2021-08-15,6.55666,100.25661,Domestic - Cattle,170
+1114,Malaysia,LSD,2021-08-15,6.6258,100.2577,Domestic - Cattle,170
+1255,Malaysia,LSD,2021-08-15,6.141419,102.266948,Domestic - Cattle,198
+1253,Malaysia,LSD,2021-08-15,6.083863,102.241187,Domestic - Cattle,198
+1252,Malaysia,LSD,2021-08-15,6.542037,100.203354,Domestic - Cattle,170
+1251,Malaysia,LSD,2021-08-15,6.49763,100.26715,Domestic - Cattle,170
+1242,Malaysia,LSD,2021-08-15,6.419234,100.295149,Domestic - Cattle,170
+1160,Malaysia,LSD,2021-08-15,6.55702,100.25887,Domestic - Cattle,170
+1401,Malaysia,LSD,2021-08-15,6.097298,102.133275,Domestic - Cattle,198
+1402,Malaysia,LSD,2021-08-15,6.101243,102.169883,Domestic - Cattle,198
+1403,Malaysia,LSD,2021-08-15,2.1953,103.072734,Domestic - Cattle,202
+1404,Malaysia,LSD,2021-08-15,3.658151,102.81941,Domestic - Cattle,204
+1162,Malaysia,LSD,2021-08-15,2.82001,102.407182,Domestic - Cattle,169
+1133,Malaysia,LSD,2021-08-15,3.759133,100.924614,Domestic - Cattle,189
+1155,Malaysia,LSD,2021-08-15,6.65021,100.2708,Domestic - Cattle,170
+1244,Malaysia,LSD,2021-08-15,4.33014,101.066676,Domestic - Cattle,171
+1161,Malaysia,LSD,2021-08-15,3.2269,102.2459,Domestic - Cattle,188
+1245,Malaysia,LSD,2021-08-15,6.4226,100.30545,Domestic - Cattle,170
+1072,Nepal,LSD,2021-08-18,28.858,81.61,Domestic - Cattle,205
+1048,Nepal,LSD,2021-08-18,28.841,81.322,Domestic - Cattle,196
+1070,Cambodia,LSD,2021-08-19,11.697,104.985,Domestic - Cattle,206
+1059,Thailand,LSD,2021-08-23,18.870278,99.136667,Domestic - Cattle | Domestic - Buffaloe,193
+1874,Thailand,LSD,2021-08-23,16.81412,102.083472,Domestic - Cattle | Domestic - Buffaloe,154
+1366,Thailand,LSD,2021-08-23,16.946,101.928,Domestic - Cattle | Domestic - Buffaloe,154
+1952,Thailand,LSD,2021-08-24,17.866,103.621,Domestic - Cattle,163
+1820,Thailand,LSD,2021-08-24,14.36741,100.576344,Domestic - Cattle,143
+1474,Thailand,LSD,2021-08-24,15.635792,101.670868,Domestic - Cattle,177
+1475,Thailand,LSD,2021-08-24,19.094127,100.947544,Domestic - Cattle,207
+1476,Thailand,LSD,2021-08-24,16.495008,103.95368,Domestic - Cattle,118
+1477,Thailand,LSD,2021-08-24,17.411516,101.047889,Domestic - Cattle,179
+1485,Thailand,LSD,2021-08-24,18.642197,101.128665,Domestic - Cattle,149
+1490,Thailand,LSD,2021-08-24,17.398354,99.359339,Domestic - Cattle,155
+1153,Thailand,LSD,2021-08-24,7.61833,100.328333,Domestic - Cattle,208
+1152,Thailand,LSD,2021-08-24,19.101096,99.954619,Domestic - Cattle,209
+1151,Thailand,LSD,2021-08-24,19.487526,100.458462,Domestic - Cattle,210
+1786,Thailand,LSD,2021-08-24,16.762131,101.908606,Domestic - Cattle,154
+1461,Thailand,LSD,2021-08-24,16.750238,99.184928,Domestic - Cattle,133
+1147,Thailand,LSD,2021-08-24,14.343524,100.457075,Domestic - Cattle,143
+1785,Thailand,LSD,2021-08-24,18.227076,104.031501,Domestic - Cattle,163
+1784,Thailand,LSD,2021-08-24,17.329,103.868,Domestic - Cattle,157
+1783,Thailand,LSD,2021-08-24,13.066,99.673,Domestic - Cattle,116
+1518,Thailand,LSD,2021-08-24,15.67,100.884,Domestic - Cattle,144
+1519,Thailand,LSD,2021-08-24,13.717405,100.679852,Domestic - Cattle,160
+1523,Thailand,LSD,2021-08-24,16.703237,103.84418,Domestic - Cattle,139
+1137,Thailand,LSD,2021-08-24,18.200728,100.787251,Domestic - Cattle,191
+1136,Thailand,LSD,2021-08-24,13.538701,100.230986,Domestic - Cattle,117
+1149,Thailand,LSD,2021-08-24,15.142839,100.527152,Domestic - Cattle,143
+1460,Thailand,LSD,2021-08-24,15.788812,101.374847,Domestic - Cattle,211
+1821,Thailand,LSD,2021-08-24,15.820101,101.982321,Domestic - Cattle,145
+1529,Thailand,LSD,2021-08-24,18.343269,99.836603,Domestic - Cattle,194
+1197,Thailand,LSD,2021-08-24,14.58958,100.428042,Domestic - Cattle,143
+1196,Thailand,LSD,2021-08-24,14.698846,100.330992,Domestic - Cattle,143
+1195,Thailand,LSD,2021-08-24,17.663335,102.701945,Domestic - Cattle,131
+1194,Thailand,LSD,2021-08-24,18.07369,102.20519,Domestic - Cattle,140
+1193,Thailand,LSD,2021-08-24,18.192678,103.227381,Domestic - Cattle,212
+1192,Thailand,LSD,2021-08-24,17.947168,103.13552,Domestic - Cattle,212
+1191,Thailand,LSD,2021-08-24,17.941285,102.4938,Domestic - Cattle,140
+2007,Thailand,LSD,2021-08-24,15.785878,103.807367,Domestic - Cattle,103
+1189,Thailand,LSD,2021-08-24,18.00144,103.311701,Domestic - Cattle,212
+1188,Thailand,LSD,2021-08-24,14.89222,100.317222,Domestic - Cattle,143
+1187,Thailand,LSD,2021-08-24,15.007778,100.326944,Domestic - Cattle,143
+1458,Thailand,LSD,2021-08-24,13.530646,101.086044,Domestic - Cattle,160
+1186,Thailand,LSD,2021-08-24,14.88833,100.404722,Domestic - Cattle,143
+1184,Thailand,LSD,2021-08-24,16.083785,103.728143,Domestic - Cattle,118
+1183,Thailand,LSD,2021-08-24,15.491109,103.887625,Domestic - Cattle,103
+1182,Thailand,LSD,2021-08-24,19.599933,100.417328,Domestic - Cattle,210
+1181,Thailand,LSD,2021-08-24,19.254447,99.950105,Domestic - Cattle,209
+1180,Thailand,LSD,2021-08-24,14.065278,100.5225,Domestic - Cattle,124
+1179,Thailand,LSD,2021-08-24,14.021111,100.734444,Domestic - Cattle,213
+1178,Thailand,LSD,2021-08-24,14.019722,100.535,Domestic - Cattle,124
+1177,Thailand,LSD,2021-08-24,15.129047,103.299063,Domestic - Cattle,122
+1822,Thailand,LSD,2021-08-24,17.884801,99.557307,Domestic - Cattle,130
+1167,Thailand,LSD,2021-08-24,18.105195,99.023892,Domestic - Cattle,130
+1454,Thailand,LSD,2021-08-24,18.15914,100.159478,Domestic - Cattle,194
+1185,Thailand,LSD,2021-08-24,14.800278,100.310833,Domestic - Cattle,120
+1733,Thailand,LSD,2021-08-24,12.937027,99.990694,Domestic - Cattle,116
+1130,Thailand,LSD,2021-08-24,19.256762,100.867206,Domestic - Cattle,207
+1198,Thailand,LSD,2021-08-24,14.519085,100.434854,Domestic - Cattle,143
+1602,Thailand,LSD,2021-08-24,11.110073,99.357755,Domestic - Cattle,137
+1604,Thailand,LSD,2021-08-24,15.750428,101.92035,Domestic - Cattle,145
+1605,Thailand,LSD,2021-08-24,15.420213,101.766768,Domestic - Cattle,177
+1087,Thailand,LSD,2021-08-24,13.997507,101.008722,Domestic - Cattle,213
+1606,Thailand,LSD,2021-08-24,19.026817,100.826283,Domestic - Cattle,149
+1084,Thailand,LSD,2021-08-24,20.113684,99.833928,Domestic - Cattle,115
+1607,Thailand,LSD,2021-08-24,12.82863,99.93063,Domestic - Cattle,116
+1608,Thailand,LSD,2021-08-24,16.78,104.031667,Domestic - Cattle,125
+1610,Thailand,LSD,2021-08-24,15.035359,104.509596,Domestic - Cattle,138
+1657,Thailand,LSD,2021-08-24,14.454772,100.962938,Domestic - Cattle,159
+1656,Thailand,LSD,2021-08-24,13.652876,102.004931,Domestic - Cattle,214
+1655,Thailand,LSD,2021-08-24,12.938466,99.770239,Domestic - Cattle,116
+1654,Thailand,LSD,2021-08-24,16.020078,102.403369,Domestic - Cattle,145
+1071,Thailand,LSD,2021-08-24,17.89993,99.9535,Domestic - Cattle,194
+1066,Thailand,LSD,2021-08-24,18.947343,100.46855,Domestic - Cattle,149
+1633,Thailand,LSD,2021-08-24,16.636271,104.432943,Domestic - Cattle,125
+1064,Thailand,LSD,2021-08-24,18.700672,99.223146,Domestic - Cattle,193
+1063,Thailand,LSD,2021-08-24,19.121944,98.943611,Domestic - Cattle,215
+1062,Thailand,LSD,2021-08-24,18.909808,99.104951,Domestic - Cattle,193
+1061,Thailand,LSD,2021-08-24,19.890653,99.257579,Domestic - Cattle,190
+1060,Thailand,LSD,2021-08-24,18.474444,98.783611,Domestic - Cattle,216
+1058,Thailand,LSD,2021-08-24,19.559291,100.940089,Domestic - Cattle,217
+1057,Thailand,LSD,2021-08-24,14.610381,98.694224,Domestic - Cattle,218
+1091,Thailand,LSD,2021-08-24,19.436755,99.427609,Domestic - Cattle,190
+1541,Thailand,LSD,2021-08-24,19.178515,100.376498,Domestic - Cattle,209
+1683,Thailand,LSD,2021-08-24,17.369,104.264,Domestic - Cattle,127
+1098,Thailand,LSD,2021-08-24,19.803904,100.230727,Domestic - Cattle,115
+1545,Thailand,LSD,2021-08-24,18.184314,99.571081,Domestic - Cattle,130
+1714,Thailand,LSD,2021-08-24,19.988331,99.889342,Domestic - Cattle,115
+1551,Thailand,LSD,2021-08-24,16.799053,100.693961,Domestic - Cattle,147
+1552,Thailand,LSD,2021-08-24,13.298407,101.173059,Domestic - Cattle,160
+1053,Thailand,LSD,2021-08-24,12.703082,101.929916,Domestic - Cattle,219
+1122,Thailand,LSD,2021-08-24,20.118917,100.481532,Domestic - Cattle,115
+1121,Thailand,LSD,2021-08-24,15.207848,100.531123,Domestic - Cattle,220
+1120,Thailand,LSD,2021-08-24,16.578206,100.623557,Domestic - Cattle,221
+1699,Thailand,LSD,2021-08-24,16.8312,102.7066,Domestic - Cattle,126
+1117,Thailand,LSD,2021-08-24,18.754852,100.000217,Domestic - Cattle,209
+1116,Thailand,LSD,2021-08-24,6.779623,100.667608,Domestic - Cattle,195
+1115,Thailand,LSD,2021-08-24,8.197744,98.893533,Domestic - Cattle,222
+1686,Thailand,LSD,2021-08-24,17.018822,99.681736,Domestic - Cattle,223
+1685,Thailand,LSD,2021-08-24,16.55664,102.275993,Domestic - Cattle,153
+1112,Thailand,LSD,2021-08-24,13.239551,102.143112,Domestic - Cattle,214
+1111,Thailand,LSD,2021-08-24,16.407377,104.57868,Domestic - Cattle,125
+1109,Thailand,LSD,2021-08-24,14.270595,100.552366,Domestic - Cattle,213
+1105,Thailand,LSD,2021-08-24,13.221082,101.420361,Domestic - Cattle,224
+1104,Thailand,LSD,2021-08-24,8.610525,98.754195,Domestic - Cattle,222
+1103,Thailand,LSD,2021-08-24,19.756335,99.757151,Domestic - Cattle,190
+1102,Thailand,LSD,2021-08-24,7.623953,100.040773,Domestic - Cattle,208
+1100,Thailand,LSD,2021-08-24,13.781957,101.276466,Domestic - Cattle,225
+1684,Thailand,LSD,2021-08-24,18.001284,103.82182,Domestic - Cattle,163
+1095,Thailand,LSD,2021-08-24,17.192412,100.024379,Domestic - Cattle,155
+1199,Thailand,LSD,2021-08-24,14.710098,100.456782,Domestic - Cattle,143
+1201,Thailand,LSD,2021-08-24,17.441164,100.218603,Domestic - Cattle,147
+1342,Thailand,LSD,2021-08-24,13.523425,99.419246,Domestic - Cattle,117
+1907,Thailand,LSD,2021-08-24,12.608833,99.67873,Domestic - Cattle,226
+1906,Thailand,LSD,2021-08-24,16.727833,102.342626,Domestic - Cattle,150
+1900,Thailand,LSD,2021-08-24,18.394443,99.279481,Domestic - Cattle,130
+1899,Thailand,LSD,2021-08-24,17.74712,102.202111,Domestic - Cattle,227
+1898,Thailand,LSD,2021-08-24,17.85,102.585,Domestic - Cattle,140
+1365,Thailand,LSD,2021-08-24,16.29227,103.962315,Domestic - Cattle,118
+1299,Thailand,LSD,2021-08-24,18.188405,99.978681,Domestic - Cattle,194
+1367,Thailand,LSD,2021-08-24,15.8,101.027,Domestic - Cattle,144
+1897,Thailand,LSD,2021-08-24,17.473423,103.729791,Domestic - Cattle,157
+1369,Thailand,LSD,2021-08-24,15.527,101.189,Domestic - Cattle,211
+2006,Thailand,LSD,2021-08-24,15.988706,103.066379,Domestic - Cattle,142
+1889,Thailand,LSD,2021-08-24,17.79949,102.67662,Domestic - Cattle,131
+1888,Thailand,LSD,2021-08-24,14.473441,103.587134,Domestic - Cattle,122
+1372,Thailand,LSD,2021-08-24,13.450804,99.818023,Domestic - Cattle,116
+1284,Thailand,LSD,2021-08-24,19.62433,99.7706,Domestic - Cattle,190
+1374,Thailand,LSD,2021-08-24,16.15173,103.74801,Domestic - Cattle,118
+1375,Thailand,LSD,2021-08-24,13.42471,99.84734,Domestic - Cattle,116
+1377,Thailand,LSD,2021-08-24,16.822487,99.980076,Domestic - Cattle,223
+1378,Thailand,LSD,2021-08-24,16.434946,103.098559,Domestic - Cattle,126
+1379,Thailand,LSD,2021-08-24,17.043026,100.405411,Domestic - Cattle,147
+1384,Thailand,LSD,2021-08-24,15.624517,103.382564,Domestic - Cattle,128
+1385,Thailand,LSD,2021-08-24,16.021806,103.51036,Domestic - Cattle,118
+1386,Thailand,LSD,2021-08-24,16.057451,103.65097,Domestic - Cattle,118
+1909,Thailand,LSD,2021-08-24,19.563911,99.947868,Domestic - Cattle,190
+1910,Thailand,LSD,2021-08-24,15.745085,104.571227,Domestic - Cattle,103
+1311,Thailand,LSD,2021-08-24,13.777272,100.878653,Domestic - Cattle,160
+1913,Thailand,LSD,2021-08-24,17.039,104.348,Domestic - Cattle,125
+1982,Thailand,LSD,2021-08-24,15.192,104.035,Domestic - Cattle,135
+1343,Thailand,LSD,2021-08-24,16.833589,100.351924,Domestic - Cattle,147
+1337,Thailand,LSD,2021-08-24,13.724483,100.173003,Domestic - Cattle,117
+1336,Thailand,LSD,2021-08-24,14.555456,99.077328,Domestic - Cattle,151
+2001,Thailand,LSD,2021-08-24,15.095784,103.966272,Domestic - Cattle,135
+2002,Thailand,LSD,2021-08-24,14.901127,104.180519,Domestic - Cattle,138
+1333,Thailand,LSD,2021-08-24,15.386146,100.851612,Domestic - Cattle,220
+1332,Thailand,LSD,2021-08-24,17.598537,100.163323,Domestic - Cattle,155
+1331,Thailand,LSD,2021-08-24,19.5836,100.114941,Domestic - Cattle,210
+1330,Thailand,LSD,2021-08-24,17.266956,98.978446,Domestic - Cattle,133
+1344,Thailand,LSD,2021-08-24,18.687792,100.761606,Domestic - Cattle,149
+1268,Thailand,LSD,2021-08-24,17.967605,101.015374,Domestic - Cattle,191
+1346,Thailand,LSD,2021-08-24,19.804971,100.007808,Domestic - Cattle,115
+1347,Thailand,LSD,2021-08-24,20.185445,100.131861,Domestic - Cattle,115
+1947,Thailand,LSD,2021-08-24,13.082406,99.965466,Domestic - Cattle,116
+1934,Thailand,LSD,2021-08-24,17.485709,102.727677,Domestic - Cattle,131
+1350,Thailand,LSD,2021-08-24,15.829292,103.550141,Domestic - Cattle,128
+1351,Thailand,LSD,2021-08-24,15.607663,103.80343,Domestic - Cattle,103
+1923,Thailand,LSD,2021-08-24,14.795,104.67,Domestic - Cattle,167
+1919,Thailand,LSD,2021-08-24,17.776,103.841,Domestic - Cattle,129
+1916,Thailand,LSD,2021-08-24,17.586,104.01,Domestic - Cattle,129
+1355,Thailand,LSD,2021-08-24,16.0499,103.997901,Domestic - Cattle,103
+1314,Thailand,LSD,2021-08-24,16.971381,99.928525,Domestic - Cattle,223
+1914,Thailand,LSD,2021-08-24,14.620211,104.406512,Domestic - Cattle,184
+1327,Thailand,LSD,2021-08-24,18.194874,100.382531,Domestic - Cattle,191
+1200,Thailand,LSD,2021-08-24,14.505648,100.249528,Domestic - Cattle,143
+1267,Thailand,LSD,2021-08-24,12.920669,100.936564,Domestic - Cattle,192
+1388,Thailand,LSD,2021-08-24,16.16671,103.612595,Domestic - Cattle,118
+1428,Thailand,LSD,2021-08-24,13.824366,100.031572,Domestic - Cattle,117
+1227,Thailand,LSD,2021-08-24,16.105237,102.518629,Domestic - Cattle,142
+1429,Thailand,LSD,2021-08-24,14.026056,99.887685,Domestic - Cattle,124
+1430,Thailand,LSD,2021-08-24,13.811195,99.95248,Domestic - Cattle,117
+1431,Thailand,LSD,2021-08-24,19.897578,100.124397,Domestic - Cattle,115
+1432,Thailand,LSD,2021-08-24,11.818351,99.796803,Domestic - Cattle,119
+1222,Thailand,LSD,2021-08-24,20.259423,100.361611,Domestic - Cattle,115
+1844,Thailand,LSD,2021-08-24,18.322021,103.322293,Domestic - Cattle,212
+1843,Thailand,LSD,2021-08-24,18.26524,103.465977,Domestic - Cattle,163
+1839,Thailand,LSD,2021-08-24,13.231775,99.813307,Domestic - Cattle,116
+1838,Thailand,LSD,2021-08-24,15.88367,102.250469,Domestic - Cattle,145
+1216,Thailand,LSD,2021-08-24,17.912459,100.768512,Domestic - Cattle,191
+1830,Thailand,LSD,2021-08-24,17.208467,102.389383,Domestic - Cattle,131
+1442,Thailand,LSD,2021-08-24,11.228813,99.49855,Domestic - Cattle,182
+1829,Thailand,LSD,2021-08-24,13.121288,100.041111,Domestic - Cattle,116
+1211,Thailand,LSD,2021-08-24,18.597698,99.427948,Domestic - Cattle,193
+1828,Thailand,LSD,2021-08-24,17.15882,100.832144,Domestic - Cattle,147
+1823,Thailand,LSD,2021-08-24,18.267366,99.432414,Domestic - Cattle,130
+1451,Thailand,LSD,2021-08-24,20.042206,100.011489,Domestic - Cattle,115
+1205,Thailand,LSD,2021-08-24,14.596026,104.236787,Domestic - Cattle,184
+1204,Thailand,LSD,2021-08-24,18.37645,98.897258,Domestic - Cattle,130
+1203,Thailand,LSD,2021-08-24,14.425469,104.088084,Domestic - Cattle,184
+1202,Thailand,LSD,2021-08-24,18.239976,99.387431,Domestic - Cattle,130
+1427,Thailand,LSD,2021-08-24,13.073831,99.878334,Domestic - Cattle,116
+1845,Thailand,LSD,2021-08-24,14.83854,104.34423,Domestic - Cattle,138
+1231,Thailand,LSD,2021-08-24,14.438909,100.40449,Domestic - Cattle,143
+1232,Thailand,LSD,2021-08-24,16.875097,98.6497,Domestic - Cattle,158
+1389,Thailand,LSD,2021-08-24,16.30524,104.218183,Domestic - Cattle,125
+1887,Thailand,LSD,2021-08-24,17.355875,99.599815,Domestic - Cattle,155
+1886,Thailand,LSD,2021-08-24,15.832089,101.653073,Domestic - Cattle,177
+1885,Thailand,LSD,2021-08-24,15.989932,102.626761,Domestic - Cattle,142
+1254,Thailand,LSD,2021-08-24,17.975625,100.170241,Domestic - Cattle,194
+1884,Thailand,LSD,2021-08-24,14.902952,102.664847,Domestic - Cattle,134
+1873,Thailand,LSD,2021-08-24,15.807367,102.653,Domestic - Cattle,142
+1250,Thailand,LSD,2021-08-24,14.712784,100.81416,Domestic - Cattle,143
+1249,Thailand,LSD,2021-08-24,13.389002,101.310169,Domestic - Cattle,224
+1399,Thailand,LSD,2021-08-24,13.731063,99.859193,Domestic - Cattle,117
+1400,Thailand,LSD,2021-08-24,11.501685,99.582293,Domestic - Cattle,182
+1387,Thailand,LSD,2021-08-24,16.321579,103.796548,Domestic - Cattle,118
+1408,Thailand,LSD,2021-08-24,17.159,104.133,Domestic - Cattle,186
+1410,Thailand,LSD,2021-08-24,13.846146,99.270237,Domestic - Cattle,228
+1411,Thailand,LSD,2021-08-24,16.022021,102.155909,Domestic - Cattle,145
+1413,Thailand,LSD,2021-08-24,18.589212,99.559288,Domestic - Cattle,193
+1414,Thailand,LSD,2021-08-24,15.208115,104.081586,Domestic - Cattle,135
+1239,Thailand,LSD,2021-08-24,13.544,100.069,Domestic - Cattle,117
+1238,Thailand,LSD,2021-08-24,19.527892,99.478482,Domestic - Cattle,190
+1868,Thailand,LSD,2021-08-24,16.716324,104.056877,Domestic - Cattle,125
+1849,Thailand,LSD,2021-08-24,16.143146,102.970557,Domestic - Cattle,126
+1847,Thailand,LSD,2021-08-24,14.946272,104.007054,Domestic - Cattle,135
+1234,Thailand,LSD,2021-08-24,17.532134,99.140032,Domestic - Cattle,229
+1233,Thailand,LSD,2021-08-24,14.623999,100.915982,Domestic - Cattle,143
+1409,Thailand,LSD,2021-08-24,17.176,103.706,Domestic - Cattle,139
+1634,Thailand,LSD,2021-08-24,10.93727,99.343998,Domestic - Cattle,137
+1190,Thailand,LSD,2021-08-24,17.904098,102.423154,Domestic - Cattle,140
+1027,Russian Federation,LSD,2021-09-01,50.728983,115.970662,Domestic - Cattle,230
+1014,Russian Federation,LSD,2021-09-01,50.374858,115.69999,Domestic - Cattle,230
+2344,Nepal,LSD,2021-09-03,28.8766,81.4407,Domestic - Cattle,203
+1016,Cambodia,LSD,2021-09-04,13.5,103.34,Domestic - Cattle,231
+1138,Malaysia,LSD,2021-09-07,3.809086,101.001005,Domestic - Cattle,189
+1040,Malaysia,LSD,2021-09-07,5.103,103.091,Domestic - Cattle,175
+1042,Malaysia,LSD,2021-09-07,2.94233,102.41456,Domestic - Cattle,200
+1043,Malaysia,LSD,2021-09-07,2.90307,102.42166,Domestic - Cattle,200
+1044,Malaysia,LSD,2021-09-07,5.211,103.108,Domestic - Cattle,175
+1045,Malaysia,LSD,2021-09-07,2.511335,102.169034,Domestic - Cattle,169
+1046,Malaysia,LSD,2021-09-07,5.235,103.101,Domestic - Cattle,175
+1107,Malaysia,LSD,2021-09-07,4.349982,100.839065,Domestic - Cattle,171
+1054,Malaysia,LSD,2021-09-07,3.393235,101.520663,Domestic - Cattle,201
+1055,Malaysia,LSD,2021-09-07,2.818159,102.482671,Domestic - Cattle,200
+1056,Malaysia,LSD,2021-09-07,2.894539,102.429869,Domestic - Cattle,200
+1209,Malaysia,LSD,2021-09-07,5.24,102.933,Domestic - Cattle,175
+1079,Malaysia,LSD,2021-09-07,2.888,102.372,Domestic - Cattle,199
+1039,Malaysia,LSD,2021-09-07,5.2189,103.087081,Domestic - Cattle,175
+1080,Malaysia,LSD,2021-09-07,4.743281,101.119913,Domestic - Cattle,168
+1081,Malaysia,LSD,2021-09-07,3.086,101.368,Domestic - Cattle,201
+1164,Malaysia,LSD,2021-09-07,6.474,100.428,Domestic - Cattle,170
+1326,Malaysia,LSD,2021-09-07,6.317,100.374,Domestic - Cattle,170
+1139,Malaysia,LSD,2021-09-07,3.779848,100.96827,Domestic - Cattle,189
+1135,Malaysia,LSD,2021-09-07,3.063,101.422,Domestic - Cattle,201
+1092,Malaysia,LSD,2021-09-07,3.849,100.937,Domestic - Cattle,189
+1093,Malaysia,LSD,2021-09-07,3.629,101.053,Domestic - Cattle,189
+1134,Malaysia,LSD,2021-09-07,3.082,101.375,Domestic - Cattle,201
+1119,Malaysia,LSD,2021-09-07,3.058,101.422,Domestic - Cattle,201
+1110,Malaysia,LSD,2021-09-07,6.071,102.108,Domestic - Cattle,198
+1101,Malaysia,LSD,2021-09-07,4.143408,100.938731,Domestic - Cattle,171
+1073,Malaysia,LSD,2021-09-07,5.913,102.08,Domestic - Cattle,198
+1038,Malaysia,LSD,2021-09-07,2.903,102.42166,Domestic - Cattle,200
+1106,Malaysia,LSD,2021-09-07,4.354019,100.844918,Domestic - Cattle,171
+1029,Malaysia,LSD,2021-09-07,2.579,101.952,Domestic - Cattle,169
+1022,Mongolia,LSD,2021-09-07,49.876,115.759,Domestic - Cattle,232
+1271,Malaysia,LSD,2021-09-07,6.172,100.302,Domestic - Cattle,170
+1012,Malaysia,LSD,2021-09-07,2.262,102.163,Domestic - Cattle,169
+1025,Malaysia,LSD,2021-09-07,2.839,102.584,Domestic - Cattle,200
+1263,Malaysia,LSD,2021-09-07,5.545,100.701,Domestic - Cattle,172
+1266,Malaysia,LSD,2021-09-07,6.312,100.37,Domestic - Cattle,170
+1270,Malaysia,LSD,2021-09-07,5.749,100.662,Domestic - Cattle,173
+1269,Malaysia,LSD,2021-09-07,6.492,100.474,Domestic - Cattle,170
+1031,Malaysia,LSD,2021-09-07,2.744,101.458,Domestic - Cattle,233
+1018,Mongolia,LSD,2021-09-07,49.39,115.176,Domestic - Cattle,234
+1010,Mongolia,LSD,2021-09-07,49.393,114.389,Domestic - Cattle,235
+1011,Malaysia,LSD,2021-09-07,2.269,102.162,Domestic - Cattle,169
+1030,Malaysia,LSD,2021-09-07,2.933,102.527,Domestic - Cattle,200
+1035,Cambodia,LSD,2021-09-14,13.06416,104.49967,Domestic - Cattle,236
+1009,Russian Federation,LSD,2021-09-15,51.947769,113.623939,Domestic - Cattle,237
+1015,Russian Federation,LSD,2021-09-15,50.375112,115.700324,Domestic - Cattle,230
+996,Russian Federation,LSD,2021-09-15,51.885285,113.737539,Domestic - Cattle,237
+1001,Cambodia,LSD,2021-09-16,12.65954,104.94574,Domestic - Cattle,238
+1041,Malaysia,LSD,2021-09-17,4.360805,100.637072,Domestic - Cattle,171
+1034,Malaysia,LSD,2021-09-17,3.167,101.443064,Domestic - Cattle,201
+1024,Malaysia,LSD,2021-09-17,4.4572,100.782136,Domestic - Cattle,168
+1033,Malaysia,LSD,2021-09-17,5.143083,101.025667,Domestic - Cattle,168
+1108,Malaysia,LSD,2021-09-17,4.902,101.060091,Domestic - Cattle,168
+1008,Malaysia,LSD,2021-09-17,2.126,102.435767,Domestic - Cattle,169
+1207,Malaysia,LSD,2021-09-17,4.507,100.947795,Domestic - Cattle,168
+1007,Malaysia,LSD,2021-09-17,2.353,102.322791,Domestic - Cattle,169
+1262,Malaysia,LSD,2021-09-17,4.344,101.069,Domestic - Cattle,171
+1129,Malaysia,LSD,2021-09-17,4.697,101.16357,Domestic - Cattle,168
+998,Malaysia,LSD,2021-09-17,3.65442,101.28216,Domestic - Cattle,189
+1013,Malaysia,LSD,2021-09-17,2.297,102.15984,Domestic - Cattle,169
+1036,Malaysia,LSD,2021-09-17,2.971,101.527674,Domestic - Cattle,199
+1261,Malaysia,LSD,2021-09-17,4.446,101.096,Domestic - Cattle,168
+1221,Malaysia,LSD,2021-09-17,5.161,100.66247,Domestic - Cattle,168
+1032,Malaysia,LSD,2021-09-17,5.085594,101.01075,Domestic - Cattle,168
+1017,Cambodia,LSD,2021-09-21,13.26822,102.95507,Domestic - Cattle,231
+984,Russian Federation,LSD,2021-09-22,50.795413,115.598267,Domestic - Cattle,230
+985,Russian Federation,LSD,2021-09-22,50.485143,116.30633,Domestic - Cattle,230
+960,Thailand,LSD,2021-09-22,12.231667,102.513333,Domestic - Cattle,239
+987,Russian Federation,LSD,2021-09-22,50.250634,116.571517,Domestic - Cattle,240
+988,Russian Federation,LSD,2021-09-22,50.543693,116.249229,Domestic - Cattle,230
+973,Russian Federation,LSD,2021-09-22,49.883688,118.046133,Domestic - Cattle,241
+989,Russian Federation,LSD,2021-09-22,49.896556,115.701868,Domestic - Cattle,232
+1006,Russian Federation,LSD,2021-09-22,50.077536,117.059051,Domestic - Cattle,240
+986,Russian Federation,LSD,2021-09-22,50.5527,115.2762,Domestic - Cattle,242
+1609,Thailand,LSD,2021-09-22,15.455915,104.232188,Domestic - Cattle,103
+983,Nepal,LSD,2021-09-28,28.3046,81.2671,Domestic - Cattle,196
+992,Nepal,LSD,2021-09-28,28.594988,81.669424,Domestic - Cattle | Domestic - Buffaloe,205
+947,Cambodia,LSD,2021-09-29,12.544,103.881,Domestic - Cattle,243
+953,Cambodia,LSD,2021-09-29,12.64778,103.80042,Domestic - Cattle,243
+999,Nepal,LSD,2021-10-01,28.0487,84.8048,Domestic - Cattle,244
+997,Nepal,LSD,2021-10-01,28.1278,84.4105,Domestic - Buffaloe,76
+1000,Nepal,LSD,2021-10-01,28.0251,84.5181,Domestic - Cattle,73
+1023,Nepal,LSD,2021-10-01,28.0047,84.2793,Domestic - Cattle,76
+1021,Nepal,LSD,2021-10-01,27.9356,84.4091,Domestic - Cattle,73
+1510,Thailand,LSD,2021-10-05,13.715949,101.735328,Domestic - Cattle,214
+1487,Thailand,LSD,2021-10-05,13.516372,101.394176,Domestic - Cattle,224
+1258,Thailand,LSD,2021-10-06,13.749663,101.49877,Domestic - Cattle,225
+1257,Thailand,LSD,2021-10-06,13.56699,101.1193,Domestic - Cattle,160
+1069,Thailand,LSD,2021-10-06,13.444722,101.611111,Domestic - Cattle,214
+1067,Thailand,LSD,2021-10-06,13.542778,100.993889,Domestic - Cattle,160
+1068,Thailand,LSD,2021-10-06,13.733174,101.221579,Domestic - Cattle,160
+1241,Thailand,LSD,2021-10-06,13.652835,101.099588,Domestic - Cattle,160
+914,Cambodia,LSD,2021-10-11,12.15685,104.87526,Domestic - Cattle,245
+912,Cambodia,LSD,2021-10-11,12.418,104.43516,Domestic - Cattle,246
+913,Cambodia,LSD,2021-10-11,12.44664,104.71571,Domestic - Cattle,238
+918,Cambodia,LSD,2021-10-11,12.45061,104.45911,Domestic - Cattle,246
+875,Cambodia,LSD,2021-10-17,11.528,104.595,Domestic - Cattle,206
+881,Cambodia,LSD,2021-10-17,11.697,104.546,Domestic - Cattle,206
+899,Cambodia,LSD,2021-10-17,11.57439,104.13147,Domestic - Cattle,247
+882,Cambodia,LSD,2021-10-17,11.38497,104.36865,Domestic - Cattle,247
+892,Cambodia,LSD,2021-10-20,11.238,104.765,Domestic - Cattle,248
+891,Cambodia,LSD,2021-10-20,10.551,104.321,Domestic - Cattle,249
+893,Cambodia,LSD,2021-10-20,11.064,104.945,Domestic - Cattle,248
+886,Cambodia,LSD,2021-10-20,10.54,104.375,Domestic - Cattle,249
+873,Cambodia,LSD,2021-10-27,10.867,104.626,Domestic - Cattle,248
+874,Cambodia,LSD,2021-10-27,10.872,104.537,Domestic - Cattle,248
+861,Cambodia,LSD,2021-10-27,11.562,103.076,Domestic - Cattle,250
+857,Cambodia,LSD,2021-10-27,11.156,103.643,Domestic - Cattle,251
+889,Cambodia,LSD,2021-10-27,10.708,103.618,Domestic - Cattle,251
+887,Cambodia,LSD,2021-10-27,11.0723,103.9959,Domestic - Cattle,251
+854,Cambodia,LSD,2021-11-01,11.677,105.968,Domestic - Cattle,252
+852,Cambodia,LSD,2021-11-01,11.225,105.562,Domestic - Cattle,253
+850,Cambodia,LSD,2021-11-01,11.786,105.59,Domestic - Cattle,252
+849,Cambodia,LSD,2021-11-01,11.616,105.759,Domestic - Cattle,252
+848,Cambodia,LSD,2021-11-01,10.886,106.138,Domestic - Cattle,254
+851,Cambodia,LSD,2021-11-01,10.921,105.973,Domestic - Cattle,254
+839,Cambodia,LSD,2021-11-04,12.49,105.913,Domestic - Cattle,255
+835,Cambodia,LSD,2021-11-04,13.081,107.046,Domestic - Cattle,256
+837,Cambodia,LSD,2021-11-04,13.868,107.298,Domestic - Cattle,257
+838,Cambodia,LSD,2021-11-04,13.683,107.032,Domestic - Cattle,257
+843,Cambodia,LSD,2021-11-04,12.03,106.344,Domestic - Cattle,258
+836,Cambodia,LSD,2021-11-04,13.534,105.991,Domestic - Cattle,259
+840,Cambodia,LSD,2021-11-04,13.673,106.36,Domestic - Cattle,259
+825,Thailand,LSD,2021-11-10,9.205,99.861,Domestic - Cattle,260
+824,Thailand,LSD,2021-11-10,8.42,99.963,Domestic - Cattle,261
+826,Thailand,LSD,2021-11-10,8.1647,99.6808,Domestic - Cattle,261
+832,Thailand,LSD,2021-11-10,9.007,99.902,Domestic - Cattle,260
+831,Thailand,LSD,2021-11-10,8.667,99.932,Domestic - Cattle,261
+949,Russian Federation,LSD,2021-11-12,50.920356,117.928297,Domestic - Cattle,262
+927,Russian Federation,LSD,2021-11-12,50.57548,116.965089,Domestic - Cattle,240
+990,Russian Federation,LSD,2021-11-12,50.485143,116.30633,Domestic - Cattle,230
+917,Russian Federation,LSD,2021-11-12,50.552682,114.919031,Domestic - Cattle,242
+948,Russian Federation,LSD,2021-11-12,51.456054,115.955775,Domestic - Cattle,263
+925,Russian Federation,LSD,2021-11-12,50.397495,116.543805,Domestic - Cattle,240
+876,Russian Federation,LSD,2021-11-12,51.49099,116.415597,Domestic - Cattle,263
+924,Russian Federation,LSD,2021-11-12,50.57548,116.965089,Domestic - Cattle,240
+991,Russian Federation,LSD,2021-11-12,50.795413,115.598267,Domestic - Cattle,230
+926,Russian Federation,LSD,2021-11-12,50.57548,116.965089,Domestic - Cattle,240
+916,Russian Federation,LSD,2021-11-12,50.571282,115.149526,Domestic - Cattle,242
+936,Russian Federation,LSD,2021-11-15,50.829717,115.300902,Domestic - Cattle,230
+935,Russian Federation,LSD,2021-11-16,51.355515,115.464847,Domestic - Cattle,263
+940,Russian Federation,LSD,2021-11-16,51.537116,115.20611,Domestic - Cattle,264
+939,Russian Federation,LSD,2021-11-16,51.475753,115.00341,Domestic - Cattle,264
+938,Russian Federation,LSD,2021-11-16,51.2087,115.7941,Domestic - Cattle,263
+937,Russian Federation,LSD,2021-11-16,51.021475,119.661489,Domestic - Cattle,265
+941,Russian Federation,LSD,2021-11-16,51.406183,115.587566,Domestic - Cattle,263
+933,Russian Federation,LSD,2021-11-16,50.701349,115.62927,Domestic - Cattle,230
+934,Russian Federation,LSD,2021-11-16,50.5892,115.6184,Domestic - Cattle,230
+814,Russian Federation,LSD,2021-11-29,50.261706,115.311424,Domestic - Cattle,242
+833,Russian Federation,LSD,2021-11-29,52.873997,58.51809,Domestic - Cattle,266
+1074,Malaysia,LSD,2021-12-02,6.245195,100.521398,Domestic - Cattle,170
+879,Malaysia,LSD,2021-12-02,1.517622,103.389718,Domestic - Cattle,267
+885,Malaysia,LSD,2021-12-02,2.59774,103.324346,Domestic - Cattle,268
+1214,Malaysia,LSD,2021-12-02,4.229416,101.20293,Domestic - Cattle,171
+880,Malaysia,LSD,2021-12-02,2.61886,102.052074,Domestic - Cattle,169
+890,Malaysia,LSD,2021-12-02,2.374453,102.37252,Domestic - Cattle,169
+993,Malaysia,LSD,2021-12-02,2.291368,102.127546,Domestic - Cattle,169
+994,Malaysia,LSD,2021-12-02,4.532671,100.70155,Domestic - Cattle,168
+819,Malaysia,LSD,2021-12-02,3.974996,101.794866,Domestic - Cattle,269
+820,Malaysia,LSD,2021-12-02,3.76088,102.24808,Domestic - Cattle,188
+878,Malaysia,LSD,2021-12-02,2.466631,102.060553,Domestic - Cattle,169
+884,Malaysia,LSD,2021-12-02,3.530784,103.282008,Domestic - Cattle,174
+965,Malaysia,LSD,2021-12-02,2.42008,102.148899,Domestic - Cattle,169
+867,Malaysia,LSD,2021-12-02,2.503007,102.774553,Domestic - Cattle,169
+1003,Malaysia,LSD,2021-12-02,2.708498,102.169553,Domestic - Cattle,169
+1004,Malaysia,LSD,2021-12-02,4.53289,100.70225,Domestic - Cattle,168
+1005,Malaysia,LSD,2021-12-02,3.94375,100.741174,Domestic - Cattle,189
+1397,Malaysia,LSD,2021-12-02,3.55555,102.64998,Domestic - Cattle,204
+1026,Malaysia,LSD,2021-12-02,3.252045,101.675842,Domestic - Cattle,188
+1037,Malaysia,LSD,2021-12-02,4.591313,101.078335,Domestic - Cattle,168
+1049,Malaysia,LSD,2021-12-02,3.985987,101.124078,Domestic - Cattle,171
+1050,Malaysia,LSD,2021-12-02,3.368405,101.327484,Domestic - Cattle,201
+1051,Malaysia,LSD,2021-12-02,3.223084,101.336032,Domestic - Cattle,201
+841,Malaysia,LSD,2021-12-02,1.80031,103.700998,Domestic - Cattle,267
+869,Malaysia,LSD,2021-12-02,5.116278,101.003389,Domestic - Cattle,168
+842,Malaysia,LSD,2021-12-02,3.716384,103.009894,Domestic - Cattle,204
+845,Malaysia,LSD,2021-12-02,3.912692,101.852234,Domestic - Cattle,188
+827,Malaysia,LSD,2021-12-02,4.234913,101.944797,Domestic - Cattle,269
+853,Malaysia,LSD,2021-12-02,3.09473,102.38505,Domestic - Cattle,200
+995,Malaysia,LSD,2021-12-02,4.497635,100.779403,Domestic - Cattle,168
+855,Malaysia,LSD,2021-12-02,2.96595,102.979789,Domestic - Cattle,174
+858,Malaysia,LSD,2021-12-02,3.749566,101.954312,Domestic - Cattle,188
+862,Malaysia,LSD,2021-12-02,2.71619,103.558361,Domestic - Cattle,268
+863,Malaysia,LSD,2021-12-02,3.5463,101.9672,Domestic - Cattle,188
+865,Malaysia,LSD,2021-12-02,3.394542,102.967191,Domestic - Cattle,174
+866,Malaysia,LSD,2021-12-02,2.465985,102.052283,Domestic - Cattle,169
+844,Malaysia,LSD,2021-12-02,3.5734,102.692448,Domestic - Cattle,204
+896,Malaysia,LSD,2021-12-02,3.449916,101.595349,Domestic - Cattle,188
+901,Malaysia,LSD,2021-12-02,2.18632,102.454783,Domestic - Cattle,169
+898,Malaysia,LSD,2021-12-02,2.528549,102.037625,Domestic - Cattle,169
+946,Malaysia,LSD,2021-12-02,2.287253,102.48332,Domestic - Cattle,169
+945,Malaysia,LSD,2021-12-02,2.160983,102.350913,Domestic - Cattle,169
+944,Malaysia,LSD,2021-12-02,2.339474,102.177315,Domestic - Cattle,169
+943,Malaysia,LSD,2021-12-02,2.426895,102.144551,Domestic - Cattle,169
+972,Malaysia,LSD,2021-12-02,2.142613,102.376967,Domestic - Cattle,169
+974,Malaysia,LSD,2021-12-02,3.94662,101.261789,Domestic - Cattle,189
+942,Malaysia,LSD,2021-12-02,2.396045,102.158898,Domestic - Cattle,169
+975,Malaysia,LSD,2021-12-02,3.95481,101.261,Domestic - Cattle,189
+976,Malaysia,LSD,2021-12-02,4.06525,101.240869,Domestic - Cattle,171
+930,Malaysia,LSD,2021-12-02,2.974193,101.709598,Domestic - Cattle,199
+929,Malaysia,LSD,2021-12-02,3.193269,101.539576,Domestic - Cattle,201
+928,Malaysia,LSD,2021-12-02,3.206705,101.549772,Domestic - Cattle,201
+923,Malaysia,LSD,2021-12-02,5.30995,103.04553,Domestic - Cattle,175
+897,Malaysia,LSD,2021-12-02,2.557995,102.026725,Domestic - Cattle,169
+922,Malaysia,LSD,2021-12-02,5.276869,103.0348,Domestic - Cattle,175
+971,Malaysia,LSD,2021-12-02,2.14798,102.403688,Domestic - Cattle,169
+921,Malaysia,LSD,2021-12-02,5.249236,103.027437,Domestic - Cattle,175
+1096,Malaysia,LSD,2021-12-02,3.340483,101.259724,Domestic - Cattle,201
+951,Malaysia,LSD,2021-12-02,2.297698,102.235144,Domestic - Cattle,169
+966,Malaysia,LSD,2021-12-02,3.743742,101.418302,Domestic - Cattle,201
+967,Malaysia,LSD,2021-12-02,2.196608,102.3276,Domestic - Cattle,169
+963,Malaysia,LSD,2021-12-02,2.372057,102.19083,Domestic - Cattle,169
+968,Malaysia,LSD,2021-12-02,2.800789,102.356189,Domestic - Cattle,169
+962,Malaysia,LSD,2021-12-02,2.245484,102.29496,Domestic - Cattle,169
+961,Malaysia,LSD,2021-12-02,2.36914,102.21095,Domestic - Cattle,169
+969,Malaysia,LSD,2021-12-02,3.089394,101.57382,Domestic - Cattle,199
+959,Malaysia,LSD,2021-12-02,2.464101,102.413393,Domestic - Cattle,169
+958,Malaysia,LSD,2021-12-02,2.28721,102.481775,Domestic - Cattle,169
+1532,Malaysia,LSD,2021-12-02,4.250228,100.73731,Domestic - Cattle,171
+1533,Malaysia,LSD,2021-12-02,4.483401,100.644034,Domestic - Cattle,171
+970,Malaysia,LSD,2021-12-02,2.935645,102.270471,Domestic - Cattle,199
+954,Malaysia,LSD,2021-12-02,2.645996,101.748659,Domestic - Cattle,199
+1097,Malaysia,LSD,2021-12-02,4.096935,101.258078,Domestic - Cattle,171
+952,Malaysia,LSD,2021-12-02,2.311591,102.229059,Domestic - Cattle,169
+950,Malaysia,LSD,2021-12-02,3.44142,101.2434,Domestic - Cattle,201
+920,Malaysia,LSD,2021-12-02,5.310473,103.044865,Domestic - Cattle,175
+829,Malaysia,LSD,2021-12-02,2.5928,102.0589,Domestic - Cattle,169
+919,Malaysia,LSD,2021-12-02,2.878801,102.618979,Domestic - Cattle,200
+980,Malaysia,LSD,2021-12-02,4.157999,101.175003,Domestic - Cattle,171
+981,Malaysia,LSD,2021-12-02,4.158609,101.175668,Domestic - Cattle,171
+910,Malaysia,LSD,2021-12-02,3.045157,102.514189,Domestic - Cattle,200
+909,Malaysia,LSD,2021-12-02,5.116278,101.003389,Domestic - Cattle,168
+908,Malaysia,LSD,2021-12-02,2.29132,102.376377,Domestic - Cattle,169
+818,Malaysia,LSD,2021-12-02,3.74662,102.56708,Domestic - Cattle,204
+979,Malaysia,LSD,2021-12-02,4.188298,101.23791,Domestic - Cattle,171
+906,Malaysia,LSD,2021-12-02,2.988624,101.730749,Domestic - Cattle,199
+904,Malaysia,LSD,2021-12-02,2.4816,102.05743,Domestic - Cattle,169
+903,Malaysia,LSD,2021-12-02,2.844714,101.461515,Domestic - Cattle,233
+902,Malaysia,LSD,2021-12-02,3.625557,101.579466,Domestic - Cattle,188
+964,Malaysia,LSD,2021-12-02,2.402633,102.150145,Domestic - Cattle,169
+900,Malaysia,LSD,2021-12-02,2.146764,102.434034,Domestic - Cattle,169
+982,Malaysia,LSD,2021-12-02,2.442578,102.109693,Domestic - Cattle,169
+905,Malaysia,LSD,2021-12-02,2.994821,102.052103,Domestic - Cattle,199
+915,Malaysia,LSD,2021-12-02,2.30981,102.22407,Domestic - Cattle,169
+817,Malaysia,LSD,2021-12-02,3.49324,102.035736,Domestic - Cattle,188
+816,Malaysia,LSD,2021-12-02,3.81686,102.43731,Domestic - Cattle,204
+1303,Malaysia,LSD,2021-12-02,6.212415,100.592955,Domestic - Cattle,173
+813,Malaysia,LSD,2021-12-02,2.948474,101.737796,Domestic - Cattle,199
+808,Malaysia,LSD,2021-12-02,3.667256,102.535013,Domestic - Cattle,204
+977,Malaysia,LSD,2021-12-02,4.172781,101.195513,Domestic - Cattle,171
+806,Malaysia,LSD,2021-12-02,4.085327,102.251376,Domestic - Cattle,270
+978,Malaysia,LSD,2021-12-02,4.052428,101.228891,Domestic - Cattle,171
+801,Malaysia,LSD,2021-12-02,3.49387,102.0246,Domestic - Cattle,188
+1531,Malaysia,LSD,2021-12-02,4.507671,100.671488,Domestic - Cattle,171
+895,Thailand,LSD,2021-12-03,8.72,99.751667,Domestic - Cattle,261
+894,Thailand,LSD,2021-12-03,9.165556,99.471111,Domestic - Cattle | Domestic - Buffaloe,260
+868,Thailand,LSD,2021-12-03,9.109722,99.231944,Domestic - Cattle,271
+888,Thailand,LSD,2021-12-03,9.313889,99.690278,Domestic - Cattle,260
+872,Thailand,LSD,2021-12-03,9.03,98.953333,Domestic - Cattle,271
+883,Thailand,LSD,2021-12-03,9.386667,99.2,Domestic - Cattle,271
+864,Thailand,LSD,2021-12-03,9.572222,99.165,Domestic - Cattle,272
+877,Thailand,LSD,2021-12-03,9.280833,99.200833,Domestic - Cattle,271
+860,Thailand,LSD,2021-12-03,8.840833,99.194167,Domestic - Cattle,271
+785,Russian Federation,LSD,2021-12-16,54.236,62.522,Domestic - Cattle,273
+792,Cambodia,LSD,2021-12-28,11.16069,105.18831,Domestic - Cattle,248
+823,Russian Federation,LSD,2021-12-28,52.854431,58.49194,Domestic - Cattle,266
+773,Cambodia,LSD,2021-12-28,11.5696,105.4312,Domestic - Cattle,253
+828,Russian Federation,LSD,2021-12-28,50.99334,114.271168,Domestic - Cattle,274
+791,Cambodia,LSD,2021-12-28,11.03578,105.35087,Domestic - Cattle,253
+789,Cambodia,LSD,2021-12-28,11.83149,104.77322,Domestic - Cattle,206
+822,Russian Federation,LSD,2021-12-28,52.8466,58.6737,Domestic - Cattle,266
+846,Russian Federation,LSD,2021-12-28,50.51935,114.556507,Domestic - Cattle,275
+774,Russian Federation,LSD,2021-12-30,50.7777,107.097885,Domestic - Cattle,276
+782,Russian Federation,LSD,2021-12-30,50.415647,106.810711,Domestic - Cattle,276
+781,Russian Federation,LSD,2021-12-30,50.403406,106.632271,Domestic - Cattle,277
+775,Russian Federation,LSD,2021-12-30,52.352588,58.6128,Domestic - Cattle,278
+796,Malaysia,LSD,2022-01-04,3.59,102.21149,Domestic - Cattle,188
+790,Malaysia,LSD,2022-01-04,4.179196,102.121294,Domestic - Cattle,269
+788,Malaysia,LSD,2022-01-04,3.638799,102.30679,Domestic - Cattle,188
+805,Malaysia,LSD,2022-01-04,2.6285,103.629044,Domestic - Cattle,268
+807,Malaysia,LSD,2022-01-04,2.6422,103.676503,Domestic - Cattle,268
+809,Malaysia,LSD,2022-01-04,2.634204,103.677614,Domestic - Cattle,268
+810,Malaysia,LSD,2022-01-04,2.64139,103.677585,Domestic - Cattle,268
+815,Malaysia,LSD,2022-01-04,2.641296,103.676588,Domestic - Cattle,268
+799,Malaysia,LSD,2022-01-04,3.505978,102.24409,Domestic - Cattle,188
+911,Malaysia,LSD,2022-01-04,2.254935,102.188749,Domestic - Cattle,169
+931,Malaysia,LSD,2022-01-04,3.73535,101.382317,Domestic - Cattle,201
+798,Malaysia,LSD,2022-01-04,4.069127,101.814681,Domestic - Cattle,269
+870,Malaysia,LSD,2022-01-04,2.451657,102.231029,Domestic - Cattle,169
+859,Malaysia,LSD,2022-01-04,2.2021,102.377331,Domestic - Cattle,169
+847,Malaysia,LSD,2022-01-04,2.445303,102.206446,Domestic - Cattle,169
+856,Malaysia,LSD,2022-01-04,2.378163,102.392966,Domestic - Cattle,169
+768,Russian Federation,LSD,2022-01-11,50.917,107.093,Domestic - Cattle,276
+769,Russian Federation,LSD,2022-01-11,51.035263,107.068842,Domestic - Cattle,276
+770,Russian Federation,LSD,2022-01-11,50.909424,107.055907,Domestic - Cattle,276
+767,Russian Federation,LSD,2022-01-11,51.23,107.192,Domestic - Cattle,279
+761,Russian Federation,LSD,2022-01-11,50.514048,106.292418,Domestic - Cattle,277
+757,Russian Federation,LSD,2022-01-11,51.750977,107.387634,Domestic - Cattle,280
+758,Russian Federation,LSD,2022-01-11,51.657001,106.817484,Domestic - Cattle,280
+760,Russian Federation,LSD,2022-01-11,51.078,107.246,Domestic - Cattle,276
+1085,Viet Nam,LSD,2022-01-16,10.092,106.588,Domestic - Cattle,281
+932,Viet Nam,LSD,2022-01-16,10.1698,106.6449,Domestic - Cattle,281
+1047,Viet Nam,LSD,2022-01-16,10.095,106.561,Domestic - Cattle,281
+871,Viet Nam,LSD,2022-01-16,10.058,106.576,Domestic - Cattle,281
+907,Viet Nam,LSD,2022-01-16,10.029,106.539,Domestic - Cattle,281
+821,Viet Nam,LSD,2022-01-16,10.0784,106.538,Domestic - Cattle,281
+756,Russian Federation,LSD,2022-01-18,55.382,52.482,Domestic - Cattle,282
+780,Thailand,LSD,2022-01-24,8.326631,99.926963,Domestic - Cattle,261
+779,Thailand,LSD,2022-01-24,8.284557,100.14762,Domestic - Cattle,261
+778,Thailand,LSD,2022-01-24,8.00163,99.47867,Domestic - Cattle,283
+783,Thailand,LSD,2022-01-24,8.00226,100.237399,Domestic - Cattle,208
+784,Thailand,LSD,2022-01-24,8.11183,100.143767,Domestic - Cattle,261
+777,Thailand,LSD,2022-01-24,8.457013,99.519851,Domestic - Cattle,261
+755,Russian Federation,LSD,2022-01-27,51.075,107.153,Domestic - Cattle,276
+812,Thailand,LSD,2022-02-02,17.0747,99.0457,Domestic - Cattle,133
+811,Thailand,LSD,2022-02-02,16.478,98.819,Domestic - Cattle,284
+834,Russian Federation,LSD,2022-02-10,52.874,58.518,Domestic - Cattle,266
+753,Russian Federation,LSD,2022-02-11,50.517803,128.874026,Domestic - Cattle,285
+771,Thailand,LSD,2022-02-23,16.313,99.858,Domestic - Cattle,286
+766,Thailand,LSD,2022-02-23,15.993,99.664,Domestic - Cattle,286
+765,Thailand,LSD,2022-02-23,16.435,99.855,Domestic - Cattle,286
+793,Thailand,LSD,2022-02-23,16.729,99.52,Domestic - Cattle,133
+762,Thailand,LSD,2022-02-23,16.428,99.487,Domestic - Cattle,286
+764,Thailand,LSD,2022-02-23,16.6,99.86,Domestic - Cattle,286
+763,Thailand,LSD,2022-02-23,16.294,99.207,Domestic - Cattle,284
+795,Pakistan,LSD,2022-03-01,24.75983,67.91535,Domestic - Cattle,287
+1725,Thailand,LSD,2022-03-02,15.653,104.309,Domestic - Cattle,103
+1587,Thailand,LSD,2022-03-02,15.926,104.447,Domestic - Buffaloe | Domestic - Cattle,103
+794,Pakistan,LSD,2022-03-02,25.49,68.28552,Domestic - Cattle,288
+754,Indonesia,LSD,2022-03-02,-0.406,102.505,Domestic - Cattle,289
+1614,Thailand,LSD,2022-03-03,16.208,104.555,Domestic - Buffaloe | Domestic - Cattle,121
+1588,Thailand,LSD,2022-03-03,15.456,104.232,Domestic - Cattle,103
+1945,Thailand,LSD,2022-03-03,16.087,104.436,Domestic - Buffaloe | Domestic - Cattle,121
+1978,Thailand,LSD,2022-03-03,15.844,104.394,Domestic - Cattle,103
+1977,Thailand,LSD,2022-03-03,15.984,104.198,Domestic - Cattle | Domestic - Buffaloe,103
+1753,Thailand,LSD,2022-03-03,15.368,104.358,Domestic - Cattle,103
+830,Pakistan,LSD,2022-03-04,29.38111,71.64023,Domestic - Cattle,290
+745,Singapore,LSD,2022-03-12,1.44011,103.70929,Domestic - Cattle,267
+749,Cambodia,LSD,2022-03-20,11.472,105.8,Domestic - Buffaloe | Domestic - Cattle,252
+1302,Thailand,LSD,2022-03-23,18.887,100.303,Domestic - Cattle,209
+776,Russian Federation,LSD,2022-03-24,52.353,58.613,Domestic - Cattle,278
+1538,Thailand,LSD,2022-03-24,19.179,100.376,Domestic - Cattle,209
+956,Thailand,LSD,2022-03-24,12.608,102.499,Domestic - Cattle,239
+955,Thailand,LSD,2022-03-24,12.232,102.513,Domestic - Cattle,239
+1322,Thailand,LSD,2022-03-24,19.364,100.036,Domestic - Cattle,209
+2008,Russian Federation,LSD,2022-03-24,50.518,128.874,Domestic - Cattle,285
+957,Thailand,LSD,2022-03-24,12.474,102.414,Domestic - Cattle,239
+1169,Thailand,LSD,2022-03-24,19.6,100.417,Domestic - Cattle,210
+786,Russian Federation,LSD,2022-03-24,54.236,62.522,Domestic - Cattle,273
+1615,Thailand,LSD,2022-03-24,19.39,100.108,Domestic - Cattle,209
+1168,Thailand,LSD,2022-03-24,19.254,99.95,Domestic - Cattle,209
+1150,Thailand,LSD,2022-03-24,19.488,100.458,Domestic - Cattle,210
+743,Cambodia,LSD,2022-03-29,11.893,105.44,Domestic - Cattle,291
+1875,Thailand,LSD,2022-04-08,16.39982,102.3228,Domestic - Cattle,153
+1925,Thailand,LSD,2022-04-08,14.63768,100.14394,Domestic - Cattle,120
+1926,Thailand,LSD,2022-04-08,14.1947,99.94135,Domestic - Cattle,124
+1530,Thailand,LSD,2022-04-08,15.528878,101.796746,Domestic - Cattle,177
+1927,Thailand,LSD,2022-04-08,14.42091,99.87829,Domestic - Cattle,120
+1809,Thailand,LSD,2022-04-08,15.41434,101.32659,Domestic - Cattle,211
+1933,Thailand,LSD,2022-04-08,14.7601,100.05529,Domestic - Cattle,120
+1937,Thailand,LSD,2022-04-08,14.64358,99.94369,Domestic - Cattle,120
+1755,Thailand,LSD,2022-04-08,15.31092,100.7003,Domestic - Cattle,220
+1703,Thailand,LSD,2022-04-08,15.02671,100.72298,Domestic - Cattle,143
+1810,Thailand,LSD,2022-04-08,14.88426,100.48292,Domestic - Cattle,143
+1938,Thailand,LSD,2022-04-08,14.36214,100.14359,Domestic - Cattle,124
+1939,Thailand,LSD,2022-04-08,14.87245,100.05791,Domestic - Cattle,120
+1754,Thailand,LSD,2022-04-08,14.830964,99.729599,Domestic - Cattle,120
+1468,Thailand,LSD,2022-04-08,15.248744,101.030081,Domestic - Cattle,159
+1756,Thailand,LSD,2022-04-08,15.09207,101.18682,Domestic - Cattle,159
+1932,Thailand,LSD,2022-04-08,14.4965,100.10307,Domestic - Cattle,120
+1726,Thailand,LSD,2022-04-08,14.93194,100.95462,Domestic - Cattle,159
+1876,Thailand,LSD,2022-04-08,16.30013,101.59579,Domestic - Cattle,146
+1853,Thailand,LSD,2022-04-08,15.72333,101.47648,Domestic - Cattle,177
+1890,Thailand,LSD,2022-04-08,15.55606,101.98007,Domestic - Cattle,145
+747,Pakistan,LSD,2022-04-13,26.21,68.51,Domestic - Cattle,292
+1469,Thailand,LSD,2022-05-02,15.794722,104.140556,Domestic - Cattle,103
+1172,Thailand,LSD,2022-05-02,18.31037,98.810994,Domestic - Cattle,130
+1498,Thailand,LSD,2022-05-02,9.9726,99.0394,Domestic - Cattle,164
+1499,Thailand,LSD,2022-05-02,10.460701,99.147784,Domestic - Cattle,137
+1757,Thailand,LSD,2022-05-02,15.94298,104.37632,Domestic - Cattle,103
+1616,Thailand,LSD,2022-05-02,16.207778,104.554722,Domestic - Cattle,121
+1617,Thailand,LSD,2022-05-02,10.93727,99.343998,Domestic - Cattle,137
+1170,Thailand,LSD,2022-05-02,18.513306,99.109015,Domestic - Cattle,130
+1812,Thailand,LSD,2022-05-02,10.770054,99.093158,Domestic - Cattle,137
+1590,Thailand,LSD,2022-05-02,15.455915,104.232188,Domestic - Cattle,103
+1173,Thailand,LSD,2022-05-02,18.641744,99.152954,Domestic - Cattle,193
+1174,Thailand,LSD,2022-05-02,18.37645,98.897258,Domestic - Buffaloe | Domestic - Cattle,130
+1419,Thailand,LSD,2022-05-02,18.515402,99.240923,Domestic - Cattle,130
+1589,Thailand,LSD,2022-05-02,15.92554,104.44745,Domestic - Cattle,103
+1171,Thailand,LSD,2022-05-02,18.105195,99.023892,Domestic - Cattle,130
+1642,Thailand,LSD,2022-05-09,14.21813,100.47777,Domestic - Cattle,213
+1286,Thailand,LSD,2022-05-09,12.60187,102.10869,Domestic - Cattle,219
+1285,Thailand,LSD,2022-05-09,12.98177,101.90854,Domestic - Buffaloe | Domestic - Cattle,219
+1280,Thailand,LSD,2022-05-09,12.62072,102.29504,Domestic - Cattle,219
+1591,Thailand,LSD,2022-05-09,14.5389,100.69911,Domestic - Cattle,143
+1278,Thailand,LSD,2022-05-09,12.78562,101.99423,Domestic - Cattle,219
+1811,Thailand,LSD,2022-05-09,14.36741,100.576344,Domestic - Buffaloe,143
+1294,Thailand,LSD,2022-05-09,12.94231,102.36229,Domestic - Cattle,293
+1618,Thailand,LSD,2022-05-09,14.1689,100.34003,Domestic - Buffaloe | Domestic - Cattle,124
+1663,Thailand,LSD,2022-05-09,14.34519,100.36718,Domestic - Cattle,143
+1052,Thailand,LSD,2022-05-09,12.703082,101.929916,Domestic - Cattle,219
+1619,Thailand,LSD,2022-05-09,14.45576,100.72031,Domestic - Cattle,143
+1577,Thailand,LSD,2022-05-09,14.2376,100.70696,Domestic - Cattle,213
+1594,Thailand,LSD,2022-05-18,13.8553,102.6558,Domestic - Cattle | Domestic - Buffaloe,294
+1596,Thailand,LSD,2022-05-18,13.4785,102.2689,Domestic - Cattle,214
+1567,Thailand,LSD,2022-05-18,16.38755,100.54227,Domestic - Cattle,152
+1568,Thailand,LSD,2022-05-18,16.4393,100.15301,Domestic - Cattle,152
+1593,Thailand,LSD,2022-05-18,16.22079,100.39893,Domestic - Cattle,152
+1759,Thailand,LSD,2022-05-18,17.5626,102.2546,Domestic - Cattle | Domestic - Buffaloe,227
+1578,Thailand,LSD,2022-05-18,16.32142,100.16286,Domestic - Cattle,152
+1592,Thailand,LSD,2022-05-18,16.52685,100.09364,Domestic - Cattle,286
+1620,Thailand,LSD,2022-05-18,16.196271,100.11873,Domestic - Cattle,152
+1621,Thailand,LSD,2022-05-18,16.42048,100.34971,Domestic - Cattle,152
+1622,Thailand,LSD,2022-05-18,13.6854,102.4983,Domestic - Cattle | Domestic - Buffaloe,294
+1623,Thailand,LSD,2022-05-18,13.9603,102.0642,Domestic - Cattle | Domestic - Buffaloe,148
+1595,Thailand,LSD,2022-05-18,16.01715,100.57588,Domestic - Cattle,144
+1580,Thailand,LSD,2022-05-18,16.04325,100.42476,Domestic - Cattle,144
+741,Thailand,LSD,2022-05-18,16.22402,100.6079,Domestic - Cattle,144
+1579,Thailand,LSD,2022-05-18,13.52309,102.08962,Domestic - Cattle,214
+742,Thailand,LSD,2022-05-18,17.3489,102.0553,Domestic - Cattle | Domestic - Buffaloe,154
+1813,Thailand,LSD,2022-05-18,17.34678,102.1855,Domestic - Buffaloe | Domestic - Cattle,154
+739,Thailand,LSD,2022-05-18,13.3896,102.0776,Domestic - Cattle,214
+740,Thailand,LSD,2022-05-18,13.93676,102.34258,Domestic - Buffaloe | Domestic - Cattle,214
+1877,Thailand,LSD,2022-05-24,13.073831,99.878334,Domestic - Cattle,116
+1984,Thailand,LSD,2022-05-24,15.710832,104.706795,Domestic - Buffaloe | Domestic - Cattle,121
+1758,Thailand,LSD,2022-05-24,13.06593,99.673315,Domestic - Cattle,116
+787,Malaysia,LSD,2022-06-09,2.7827,103.4864,Domestic - Cattle,268
+797,Malaysia,LSD,2022-06-09,3.59,102.21149,Domestic - Cattle,188
+800,Malaysia,LSD,2022-06-09,1.95273,103.361609,Domestic - Cattle,202
+802,Malaysia,LSD,2022-06-09,2.17017,103.122144,Domestic - Cattle,202
+803,Malaysia,LSD,2022-06-09,2.165583,103.122144,Domestic - Cattle,202
+804,Malaysia,LSD,2022-06-09,2.190031,103.128017,Domestic - Cattle,202
+772,Malaysia,LSD,2022-06-09,2.682937,102.629806,Domestic - Cattle,169
+759,Malaysia,LSD,2022-06-09,4.192692,101.98385,Domestic - Cattle,269
+1764,Thailand,LSD,2022-06-13,16.45,104.5,Domestic - Cattle,125
+1762,Thailand,LSD,2022-06-13,16.37,104.56,Domestic - Cattle,125
+1666,Thailand,LSD,2022-06-13,16.806,104.705,Domestic - Cattle,125
+1763,Thailand,LSD,2022-06-13,12.3,99.8,Domestic - Cattle,119
+1421,Thailand,LSD,2022-06-13,11.818351,99.796803,Domestic - Cattle,119
+1665,Thailand,LSD,2022-06-13,12.106,99.737,Domestic - Cattle,119
+1760,Thailand,LSD,2022-06-13,16.23213,105.00493,Domestic - Cattle,136
+737,Cambodia,LSD,2022-06-13,10.73152,104.819172,Domestic - Cattle,295
+1395,Thailand,LSD,2022-06-13,11.501685,99.582293,Domestic - Cattle,182
+1761,Thailand,LSD,2022-06-13,16.450689,104.333282,Domestic - Cattle,125
+1664,Thailand,LSD,2022-06-13,16.799,104.367,Domestic - Cattle,125
+730,Cambodia,LSD,2022-06-13,10.828294,104.84003,Domestic - Cattle,248
+1439,Thailand,LSD,2022-06-13,11.22,99.49,Domestic - Cattle,182
+1908,Thailand,LSD,2022-06-13,15.745085,104.571227,Domestic - Cattle,103
+1854,Thailand,LSD,2022-06-13,16.296353,104.813216,Domestic - Cattle,121
+1814,Thailand,LSD,2022-06-13,16.618196,104.352517,Domestic - Cattle,125
+1901,Thailand,LSD,2022-06-13,12.609,99.679,Domestic - Cattle,226
+1420,Thailand,LSD,2022-06-13,12.204886,100.00356,Domestic - Cattle,119
+1597,Thailand,LSD,2022-06-13,11.11,99.35,Domestic - Cattle,137
+736,Afghanistan,LSD,2022-06-17,35.5411,70.0862,Domestic - Cattle,296
+723,Cambodia,LSD,2022-06-26,12.25,105.784,Domestic - Cattle,255
+724,Cambodia,LSD,2022-06-26,10.827872,104.84604,Domestic - Cattle,248
+734,Cambodia,LSD,2022-06-26,10.726,104.814,Domestic - Cattle,295
+727,Viet Nam,LSD,2022-06-27,21.14,104.168,Domestic - Cattle,109
+728,Viet Nam,LSD,2022-06-28,12.1217,109.0949,Domestic - Cattle,297
+733,Viet Nam,LSD,2022-06-28,12.5755,107.8462,Domestic - Cattle,298
+732,Viet Nam,LSD,2022-06-28,22.8742,105.3776,Domestic - Cattle,92
+731,Viet Nam,LSD,2022-06-28,12.2011,109.0305,Domestic - Cattle,297
+735,Viet Nam,LSD,2022-06-28,12.2842,107.9294,Domestic - Cattle,298
+744,Viet Nam,LSD,2022-06-28,15.0507,108.8366,Domestic - Cattle,113
+729,Viet Nam,LSD,2022-06-28,12.3488,107.7956,Domestic - Cattle,298
+746,Viet Nam,LSD,2022-06-28,15.024,108.83,Domestic - Cattle,113
+751,Viet Nam,LSD,2022-06-28,15.1846,108.6294,Domestic - Cattle,113
+748,Viet Nam,LSD,2022-06-28,15.1289,108.6913,Domestic - Cattle,113
+1422,Thailand,LSD,2022-07-05,17.485,103.461,Domestic - Buffaloe | Domestic - Cattle,157
+1727,Thailand,LSD,2022-07-05,17.301132,103.635287,Domestic - Buffaloe | Domestic - Cattle,139
+1406,Thailand,LSD,2022-07-05,17.159282,104.132534,Domestic - Buffaloe | Domestic - Cattle,186
+1951,Thailand,LSD,2022-07-05,17.865747,103.621266,Domestic - Buffaloe | Domestic - Cattle,163
+1706,Thailand,LSD,2022-07-05,17.658335,103.470423,Domestic - Buffaloe | Domestic - Cattle,157
+1705,Thailand,LSD,2022-07-05,17.190793,103.751251,Domestic - Buffaloe | Domestic - Cattle,139
+1704,Thailand,LSD,2022-07-05,17.081293,103.797321,Domestic - Buffaloe | Domestic - Cattle,139
+1667,Thailand,LSD,2022-07-05,16.962,104.17,Domestic - Buffaloe | Domestic - Cattle,125
+1624,Thailand,LSD,2022-07-05,17.299607,103.447029,Domestic - Buffaloe | Domestic - Cattle,139
+1668,Thailand,LSD,2022-07-05,17.408,103.75,Domestic - Buffaloe | Domestic - Cattle,157
+1917,Thailand,LSD,2022-07-05,17.776176,103.840654,Domestic - Buffaloe | Domestic - Cattle,129
+1891,Thailand,LSD,2022-07-05,17.473423,103.729791,Domestic - Buffaloe | Domestic - Cattle,157
+1765,Thailand,LSD,2022-07-05,17.328505,103.868493,Domestic - Buffaloe | Domestic - Cattle,157
+1295,Thailand,LSD,2022-07-05,14.906034,101.229072,Domestic - Cattle,159
+1912,Thailand,LSD,2022-07-05,17.03856,104.348283,Domestic - Buffaloe | Domestic - Cattle,125
+1643,Thailand,LSD,2022-07-05,17.321929,104.338679,Domestic - Buffaloe | Domestic - Cattle,127
+1915,Thailand,LSD,2022-07-05,17.586209,104.009857,Domestic - Buffaloe | Domestic - Cattle,129
+1669,Thailand,LSD,2022-07-05,16.961175,103.86689,Domestic - Buffaloe | Domestic - Cattle,139
+1766,Thailand,LSD,2022-07-05,17.143309,104.361627,Domestic - Buffaloe | Domestic - Cattle,127
+722,Cambodia,LSD,2022-07-13,11.935,105.388,Domestic - Cattle,291
+721,Russian Federation,LSD,2022-07-28,50.199331,95.5693,Domestic - Cattle,299
+720,Russian Federation,LSD,2022-07-28,50.3101,97.4554,Domestic - Cattle,300
+718,Cambodia,LSD,2022-08-03,12.210822,106.877601,Domestic - Cattle,301
+1695,Thailand,LSD,2022-08-04,16.01903,104.76887,Domestic - Cattle,121
+1724,Thailand,LSD,2022-08-04,15.89,104.918,Domestic - Cattle,121
+1632,Thailand,LSD,2022-08-04,13.6854,102.4983,Domestic - Cattle,294
+1998,Thailand,LSD,2022-08-04,15.880559,104.638527,Domestic - Cattle,121
+1944,Thailand,LSD,2022-08-04,14.64358,99.94369,Domestic - Cattle,120
+1943,Thailand,LSD,2022-08-04,14.64358,99.94369,Domestic - Buffaloe,120
+1804,Thailand,LSD,2022-08-04,14.124877,102.837532,Domestic - Cattle,141
+1993,Thailand,LSD,2022-08-04,15.671292,104.854339,Domestic - Cattle,121
+1802,Thailand,LSD,2022-08-04,14.830964,99.729599,Domestic - Cattle,120
+1924,Thailand,LSD,2022-08-04,14.781497,99.851523,Domestic - Cattle,120
+1989,Thailand,LSD,2022-08-04,15.710832,104.706795,Domestic - Cattle,121
+1931,Thailand,LSD,2022-08-04,14.1947,99.94135,Domestic - Cattle,124
+1911,Thailand,LSD,2022-08-04,15.745085,104.571227,Domestic - Cattle,103
+1935,Thailand,LSD,2022-08-04,14.7601,100.05529,Domestic - Cattle,120
+1936,Thailand,LSD,2022-08-04,14.4965,100.10307,Domestic - Cattle,120
+1941,Thailand,LSD,2022-08-04,14.87245,100.05791,Domestic - Cattle,120
+1942,Thailand,LSD,2022-08-04,14.36214,100.14359,Domestic - Cattle,124
+1930,Thailand,LSD,2022-08-04,14.63768,100.14394,Domestic - Buffaloe,120
+1929,Thailand,LSD,2022-08-04,14.42091,99.87829,Domestic - Cattle,120
+1553,Thailand,LSD,2022-08-18,14.568063,102.92464,Domestic - Cattle,134
+1639,Thailand,LSD,2022-08-18,15.331408,103.17584,Domestic - Cattle,128
+1452,Thailand,LSD,2022-08-18,14.59021,103.13728,Domestic - Buffaloe | Domestic - Cattle,141
+1438,Thailand,LSD,2022-08-18,15.55674,102.98588,Domestic - Cattle | Domestic - Buffaloe,128
+1612,Thailand,LSD,2022-08-18,16.252792,103.517557,Domestic - Buffaloe | Domestic - Cattle,118
+1920,Thailand,LSD,2022-08-18,16.728472,103.323425,Domestic - Buffaloe | Domestic - Cattle,139
+1852,Thailand,LSD,2022-08-18,16.58895,103.77054,Domestic - Cattle,118
+1851,Thailand,LSD,2022-08-18,16.90857,103.21627,Domestic - Cattle,139
+1850,Thailand,LSD,2022-08-18,16.716324,104.056877,Domestic - Buffaloe | Domestic - Cattle,125
+1848,Thailand,LSD,2022-08-18,16.78288,103.73395,Domestic - Cattle | Domestic - Buffaloe,139
+1840,Thailand,LSD,2022-08-18,16.47963,103.70906,Domestic - Cattle | Domestic - Buffaloe,118
+1175,Thailand,LSD,2022-08-18,15.129047,103.299063,Domestic - Buffaloe | Domestic - Cattle,122
+1824,Thailand,LSD,2022-08-18,16.98646,103.64143,Domestic - Cattle,139
+1584,Thailand,LSD,2022-08-18,16.78,104.031667,Domestic - Buffaloe | Domestic - Cattle,125
+1805,Thailand,LSD,2022-08-18,14.760882,102.90612,Domestic - Cattle,134
+1470,Thailand,LSD,2022-08-18,16.69974,103.1549,Domestic - Buffaloe | Domestic - Cattle,126
+1739,Thailand,LSD,2022-08-18,14.71746,103.24167,Domestic - Cattle,122
+1953,Thailand,LSD,2022-08-18,16.445393,103.345071,Domestic - Cattle | Domestic - Buffaloe,118
+1494,Thailand,LSD,2022-08-18,14.360325,102.997481,Domestic - Buffaloe | Domestic - Cattle,141
+1493,Thailand,LSD,2022-08-18,14.439247,102.737071,Domestic - Buffaloe | Domestic - Cattle,134
+1492,Thailand,LSD,2022-08-18,15.056969,102.960845,Domestic - Buffaloe | Domestic - Cattle,180
+1741,Thailand,LSD,2022-08-18,14.69411,102.52735,Domestic - Cattle,134
+1719,Thailand,LSD,2022-08-18,14.95236,103.34122,Domestic - Buffaloe | Domestic - Cattle,122
+1516,Thailand,LSD,2022-08-18,16.703237,103.84418,Domestic - Cattle,139
+1717,Thailand,LSD,2022-08-18,14.33607,102.88336,Domestic - Cattle | Domestic - Buffaloe,134
+1488,Thailand,LSD,2022-08-18,15.55154,102.8172,Domestic - Cattle,142
+1508,Thailand,LSD,2022-08-18,14.291651,102.71806,Domestic - Cattle,134
+1983,Thailand,LSD,2022-08-18,16.513255,103.555636,Domestic - Buffaloe | Domestic - Cattle,118
+1696,Thailand,LSD,2022-08-18,15.16104,103.03914,Domestic - Buffaloe | Domestic - Cattle,183
+1495,Thailand,LSD,2022-08-18,14.959025,103.184241,Domestic - Cattle,122
+1962,Thailand,LSD,2022-08-18,16.289974,103.714154,Domestic - Cattle,118
+1976,Thailand,LSD,2022-08-18,16.288053,103.604413,Domestic - Buffaloe | Domestic - Cattle,118
+1509,Thailand,LSD,2022-08-18,15.113855,103.158907,Domestic - Cattle,122
+1527,Thailand,LSD,2022-08-18,14.61803,102.83526,Domestic - Cattle,134
+1730,Thailand,LSD,2022-08-18,15.76618,102.9168,Domestic - Buffaloe | Domestic - Cattle,142
+1999,Thailand,LSD,2022-08-18,14.561056,102.577978,Domestic - Cattle,134
+1957,Thailand,LSD,2022-08-18,16.882143,103.52467,Domestic - Buffaloe | Domestic - Cattle,139
+1734,Thailand,LSD,2022-08-18,16.73271,103.54379,Domestic - Cattle | Domestic - Buffaloe,118
+1956,Thailand,LSD,2022-08-18,16.524365,104.051536,Domestic - Buffaloe | Domestic - Cattle,125
+1994,Thailand,LSD,2022-08-18,14.943823,103.060775,Domestic - Buffaloe | Domestic - Cattle,122
+719,Mongolia,LSD,2022-08-24,47.879238,117.931328,Domestic - Cattle,302
+716,Mongolia,LSD,2022-08-24,47.636288,118.61074,Domestic - Cattle,303
+726,Mongolia,LSD,2022-08-24,48.022044,115.162029,Domestic - Cattle,304
+717,Mongolia,LSD,2022-08-24,47.209248,118.529452,Domestic - Cattle,303
+1833,Thailand,LSD,2022-09-02,16.701667,102.878402,Domestic - Cattle,126
+1832,Thailand,LSD,2022-09-02,16.493881,102.615998,Domestic - Cattle,126
+1728,Thailand,LSD,2022-09-02,16.50588,102.38834,Domestic - Cattle,126
+1729,Thailand,LSD,2022-09-02,15.89,104.918,Domestic - Cattle,121
+1825,Thailand,LSD,2022-09-02,16.05575,102.76793,Domestic - Cattle,126
+1826,Thailand,LSD,2022-09-02,15.75979,102.77227,Domestic - Cattle,142
+1878,Thailand,LSD,2022-09-02,15.989932,102.626761,Domestic - Cattle,142
+1707,Thailand,LSD,2022-09-02,16.91513,102.77295,Domestic - Cattle,150
+1815,Thailand,LSD,2022-09-02,15.92255,102.441,Domestic - Cattle,142
+1871,Thailand,LSD,2022-09-02,16.81412,102.083472,Domestic - Cattle,154
+1870,Thailand,LSD,2022-09-02,15.807367,102.653,Domestic - Cattle,142
+1644,Thailand,LSD,2022-09-02,16.020078,102.403369,Domestic - Cattle,145
+1672,Thailand,LSD,2022-09-02,16.01903,104.76887,Domestic - Cattle,121
+1995,Thailand,LSD,2022-09-02,15.880559,104.638527,Domestic - Cattle,121
+1769,Thailand,LSD,2022-09-02,16.82244,102.29883,Domestic - Cattle,150
+1768,Thailand,LSD,2022-09-02,15.80666,102.39707,Domestic - Cattle,145
+1767,Thailand,LSD,2022-09-02,15.845,102.8957,Domestic - Cattle,142
+1670,Thailand,LSD,2022-09-02,16.55664,102.275993,Domestic - Cattle,153
+1671,Thailand,LSD,2022-09-02,16.8567,103.105322,Domestic - Cattle,139
+1708,Thailand,LSD,2022-09-02,16.8312,102.7066,Domestic - Cattle,126
+1002,India,LSD,2022-09-02,22.06,74.883,Domestic - Cattle,305
+1831,Thailand,LSD,2022-09-02,16.462772,102.805858,Domestic - Cattle,126
+1287,Thailand,LSD,2022-09-02,15.19675,100.10008,Domestic - Cattle,161
+715,India,LSD,2022-09-02,24.971,77.363,Domestic - Cattle,306
+1827,Thailand,LSD,2022-09-02,16.69394,102.45517,Domestic - Cattle,126
+1318,Thailand,LSD,2022-09-02,14.98876,99.80187,Domestic - Cattle,120
+1304,Thailand,LSD,2022-09-02,14.981111,100.014722,Domestic - Cattle,120
+1288,Thailand,LSD,2022-09-02,15.00545,99.78344,Domestic - Cattle,120
+725,India,LSD,2022-09-02,31.067,77.081,Domestic - Cattle,307
+1407,Thailand,LSD,2022-09-02,15.210218,100.065521,Domestic - Cattle,161
+1279,Thailand,LSD,2022-09-02,15.1661,100.24723,Domestic - Cattle,220
+1145,Thailand,LSD,2022-09-02,16.18343,102.81719,Domestic - Cattle,126
+1123,Thailand,LSD,2022-09-02,15.309444,100.083889,Domestic - Cattle,161
+1028,India,LSD,2022-09-02,23.251,77.435,Domestic - Cattle,308
+1020,India,LSD,2022-09-02,28.593,77.035,Domestic - Cattle,309
+1019,India,LSD,2022-09-02,28.641,76.985,Domestic - Cattle,309
+1281,Thailand,LSD,2022-09-02,15.03061,100.16714,Domestic - Cattle,120
+2375,Jammu and Kashmir,LSD,2022-09-05,33.95331,73.900607,Domestic - Cattle,310
+2345,Viet Nam,LSD,2022-09-06,12.28064,107.74331,Domestic - Cattle,298
+2346,Viet Nam,LSD,2022-09-06,14.97687,108.60741,Domestic - Cattle,113
+714,Russian Federation,LSD,2022-09-28,50.812823,92.68106,Domestic - Cattle,311
+2337,Indonesia,LSD,2022-11-08,-7.306041,109.852467,Domestic - Cattle,312
+2336,Indonesia,LSD,2022-11-09,-1.757522,102.671881,Domestic - Cattle,313
+2338,India,LSD,2022-11-22,20.183642,84.47204,Domestic - Cattle,314
+2335,Indonesia,LSD,2022-12-09,-7.981,112.646,Domestic - Cattle,315
+750,Malaysia,LSD,2023-01-08,2.683,102.63,Domestic - Cattle,169
+738,Malaysia,LSD,2023-01-08,6.362,100.226,Domestic - Cattle,170
+752,Malaysia,LSD,2023-01-08,3.774,100.986,Domestic - Cattle,189
+710,Indonesia,LSD,2023-01-27,-7.873252,110.413375,Domestic - Cattle,316
+713,Indonesia,LSD,2023-01-27,2.27,99.259,Domestic - Cattle,317
+712,Indonesia,LSD,2023-01-27,-0.790209,100.876,Domestic - Cattle,318
+711,Indonesia,LSD,2023-01-27,-6.864,107.617,Domestic - Cattle,319
+709,Indonesia,LSD,2023-01-27,-3.602,102.469403,Domestic - Cattle,320
+708,Indonesia,LSD,2023-01-27,3.913,97.125,Domestic - Cattle,321
+2332,Indonesia,LSD,2023-02-17,-7.873,110.413,Domestic - Cattle,316
+2328,Indonesia,LSD,2023-02-17,-7.766,112.277,Domestic - Cattle,315
+2327,Indonesia,LSD,2023-02-17,0.708,101.581,Domestic - Cattle,322
+2329,Indonesia,LSD,2023-02-17,-7.306,109.852,Domestic - Cattle,312
+2326,Indonesia,LSD,2023-02-17,-0.79,100.87582,Domestic - Cattle,318
+2330,Indonesia,LSD,2023-02-17,-6.864,107.617,Domestic - Cattle,319
+2333,Indonesia,LSD,2023-02-17,-3.60155,102.4694,Domestic - Cattle,320
+2334,Indonesia,LSD,2023-02-17,3.91299,97.12466,Domestic - Cattle,321
+2331,Indonesia,LSD,2023-02-17,-1.758,102.672,Domestic - Cattle,313
+2324,Indonesia,LSD,2023-03-17,-4.83419,105.11369,Domestic - Cattle,323
+2325,Indonesia,LSD,2023-03-17,-2.30623,106.01822,Domestic - Cattle,324
+685,Israel,LSD,2023-05-30,31.471743,34.496073,Domestic - Cattle,325
+688,Libya,LSD,2023-06-10,32.783367,13.062138,Domestic - Cattle,326
+686,Libya,LSD,2023-06-11,32.769804,13.052842,Domestic - Cattle,326
+683,Libya,LSD,2023-06-11,32.726504,13.141307,Domestic - Cattle,326
+681,Israel,LSD,2023-06-28,31.855286,34.758343,Domestic - Cattle,325
+678,Israel,LSD,2023-06-28,31.715919,34.634528,Domestic - Cattle,325
+2323,Indonesia,LSD,2023-07-14,-0.495911,111.046404,Domestic - Cattle,327
+690,Libya,LSD,2023-07-17,32.696087,12.925243,Domestic - Cattle,326
+689,Libya,LSD,2023-07-17,32.711592,12.934867,Domestic - Cattle,326
+675,Libya,LSD,2023-07-17,32.696087,12.925243,Domestic - Cattle,326
+684,Libya,LSD,2023-07-17,32.444639,13.034652,Domestic - Cattle,326
+692,Libya,LSD,2023-07-17,32.711592,12.932756,Domestic - Cattle,326
+679,Libya,LSD,2023-07-20,32.7423,12.72952,Domestic - Cattle,326
+680,Libya,LSD,2023-07-20,32.726325,12.734119,Domestic - Cattle,326
+677,Libya,LSD,2023-07-20,32.700175,12.696102,Domestic - Cattle,326
+672,Israel,LSD,2023-08-08,31.585683,34.555259,Domestic - Cattle,325
+705,Bhutan,LSD,2023-08-10,26.892,90.0857,Domestic - Cattle,328
+674,Bhutan,LSD,2023-08-10,27.5732,90.6778,Domestic - Cattle,329
+704,Bhutan,LSD,2023-08-10,26.8261,89.494,Domestic - Cattle,330
+703,Bhutan,LSD,2023-08-10,26.8591,90.1781,Domestic - Cattle,328
+702,Bhutan,LSD,2023-08-10,26.7435,89.8129,Domestic - Cattle,328
+701,Bhutan,LSD,2023-08-10,26.8549,90.8253,Domestic - Cattle,331
+700,Bhutan,LSD,2023-08-10,26.8426,91.2182,Domestic - Cattle,331
+699,Bhutan,LSD,2023-08-10,27.061,91.1443,Domestic - Cattle,331
+698,Bhutan,LSD,2023-08-10,27.098,89.1011,Domestic - Cattle,81
+673,Bhutan,LSD,2023-08-10,27.7831,89.6604,Domestic - Cattle,332
+697,Bhutan,LSD,2023-08-10,27.246,89.3738,Domestic - Cattle,330
+695,Bhutan,LSD,2023-08-10,27.5415,89.7991,Domestic - Cattle,332
+694,Bhutan,LSD,2023-08-10,27.3652,89.5679,Domestic - Cattle,332
+707,Bhutan,LSD,2023-08-10,26.884638,89.131602,Domestic - Cattle,81
+691,Bhutan,LSD,2023-08-10,27.2912,90.5757,Domestic - Cattle,329
+687,Bhutan,LSD,2023-08-10,27.4349,91.5695,Domestic - Cattle,333
+682,Bhutan,LSD,2023-08-10,27.4801,91.0703,Domestic - Cattle,329
+706,Bhutan,LSD,2023-08-10,27.02274,91.807151,Domestic - Cattle,334
+696,Bhutan,LSD,2023-08-10,27.2543,90.1735,Domestic - Cattle,328
+693,Bhutan,LSD,2023-08-10,27.2255,91.4863,Domestic - Cattle,333
+2322,Indonesia,LSD,2023-09-20,2.270321,99.259126,Domestic - Cattle,317
+669,Thailand,LSD,2023-09-26,17.132973,101.689352,Domestic - Cattle,335
+676,Thailand,LSD,2023-09-26,16.177855,104.024525,Domestic - Cattle,103
+671,Thailand,LSD,2023-09-26,17.696765,102.63302,Domestic - Cattle,131
+670,Thailand,LSD,2023-09-26,17.841136,102.782875,Domestic - Cattle,131
+668,Thailand,LSD,2023-09-26,13.787924,101.465301,Domestic - Cattle,225
+666,Russian Federation,LSD,2023-10-16,50.184043,127.740343,Domestic - Cattle,336
+665,Russian Federation,LSD,2023-10-16,54.227412,90.844981,Domestic - Cattle,337
+658,Republic of Korea,LSD,2023-10-22,36.8666542,126.789579,Domestic - Cattle,338
+659,Republic of Korea,LSD,2023-10-22,37.046364,126.980418,Domestic - Cattle,338
+656,Republic of Korea,LSD,2023-10-22,37.7487302,126.639823,Domestic - Cattle,339
+660,Republic of Korea,LSD,2023-10-22,36.6622973,126.405866,Domestic - Cattle,338
+661,Republic of Korea,LSD,2023-10-22,36.673316,126.418322,Domestic - Cattle,338
+664,Russian Federation,LSD,2023-10-24,57.948653,52.143357,Domestic - Cattle,340
+663,Russian Federation,LSD,2023-10-24,57.888,52.4057,Domestic - Cattle,340
+654,Republic of Korea,LSD,2023-10-25,36.950291,126.300984,Domestic - Cattle,338
+657,Republic of Korea,LSD,2023-10-25,36.6740176,126.42165,Domestic - Cattle,338
+652,Republic of Korea,LSD,2023-10-25,37.0109814,126.879741,Domestic - Cattle,338
+650,Republic of Korea,LSD,2023-10-25,36.865669,127.642916,Domestic - Cattle,341
+628,Republic of Korea,LSD,2023-10-26,36.57138,126.491755,Domestic - Cattle,338
+624,Republic of Korea,LSD,2023-10-26,37.066369,126.781302,Domestic - Cattle,338
+625,Republic of Korea,LSD,2023-10-26,37.129344,127.054363,Domestic - Cattle,338
+627,Republic of Korea,LSD,2023-10-26,37.12,126.77,Domestic - Cattle,338
+622,Republic of Korea,LSD,2023-10-26,35.682438,126.760238,Domestic - Cattle,342
+623,Republic of Korea,LSD,2023-10-26,37.606269,126.566202,Domestic - Cattle,339
+649,Republic of Korea,LSD,2023-10-26,37.749127,126.614631,Domestic - Cattle,339
+630,Republic of Korea,LSD,2023-10-26,37.116155,126.773105,Domestic - Cattle,338
+648,Republic of Korea,LSD,2023-10-26,36.663986,126.412833,Domestic - Cattle,338
+647,Republic of Korea,LSD,2023-10-26,37.115341,126.788505,Domestic - Cattle,338
+646,Republic of Korea,LSD,2023-10-26,37.103297,127.0117,Domestic - Cattle,338
+645,Republic of Korea,LSD,2023-10-26,38.057969,128.01453,Domestic - Cattle,343
+644,Republic of Korea,LSD,2023-10-26,36.684625,126.410291,Domestic - Cattle,338
+643,Republic of Korea,LSD,2023-10-26,37.779772,126.395863,Domestic - Cattle,339
+642,Republic of Korea,LSD,2023-10-26,37.801605,126.390163,Domestic - Cattle,339
+641,Republic of Korea,LSD,2023-10-26,37.629455,126.408363,Domestic - Cattle,339
+640,Republic of Korea,LSD,2023-10-26,37.327564,127.013501,Domestic - Cattle,344
+639,Republic of Korea,LSD,2023-10-26,36.838361,126.764716,Domestic - Cattle,338
+638,Republic of Korea,LSD,2023-10-26,36.870933,126.775405,Domestic - Cattle,338
+637,Republic of Korea,LSD,2023-10-26,36.861511,126.766563,Domestic - Cattle,338
+636,Republic of Korea,LSD,2023-10-26,36.871591,126.772041,Domestic - Cattle,338
+651,Republic of Korea,LSD,2023-10-26,36.86598,126.787994,Domestic - Cattle,338
+635,Republic of Korea,LSD,2023-10-26,36.665158,126.413727,Domestic - Cattle,338
+634,Republic of Korea,LSD,2023-10-26,37.218425,126.723886,Domestic - Cattle,338
+632,Republic of Korea,LSD,2023-10-26,36.855958,126.7675,Domestic - Cattle,338
+653,Republic of Korea,LSD,2023-10-26,36.680193,126.418639,Domestic - Cattle,338
+631,Republic of Korea,LSD,2023-10-26,36.673652,126.399255,Domestic - Cattle,338
+655,Republic of Korea,LSD,2023-10-26,36.684021,126.410924,Domestic - Cattle,338
+629,Republic of Korea,LSD,2023-10-26,37.787913,126.4555,Domestic - Cattle,339
+626,Republic of Korea,LSD,2023-10-27,37.749658,126.615613,Domestic - Cattle,339
+612,Republic of Korea,LSD,2023-10-27,38.085883,127.015455,Domestic - Cattle,339
+619,Republic of Korea,LSD,2023-10-27,37.77528,126.429091,Domestic - Cattle,339
+618,Republic of Korea,LSD,2023-10-27,37.755275,126.416438,Domestic - Cattle,339
+617,Republic of Korea,LSD,2023-10-27,37.794813,126.371544,Domestic - Cattle,339
+616,Republic of Korea,LSD,2023-10-27,36.738166,126.416394,Domestic - Cattle,338
+615,Republic of Korea,LSD,2023-10-27,37.0547,126.767905,Domestic - Cattle,338
+614,Republic of Korea,LSD,2023-10-27,37.498383,128.1002,Domestic - Cattle,345
+613,Republic of Korea,LSD,2023-10-27,38.047613,127.06018,Domestic - Cattle,339
+601,Republic of Korea,LSD,2023-10-28,37.806008,127.171897,Domestic - Cattle,339
+611,Republic of Korea,LSD,2023-10-28,36.812819,126.968483,Domestic - Cattle,338
+608,Republic of Korea,LSD,2023-10-28,37.814938,126.748441,Domestic - Cattle,339
+610,Republic of Korea,LSD,2023-10-28,36.204263,127.025036,Domestic - Cattle,346
+609,Republic of Korea,LSD,2023-10-28,37.959702,126.908441,Domestic - Cattle,339
+2321,Indonesia,LSD,2023-10-30,-1.3889,113.45401,Domestic - Cattle,347
+633,Libya,LSD,2023-11-02,32.842265,21.521516,Domestic - Cattle,348
+620,Libya,LSD,2023-11-02,32.842265,21.521516,Domestic - Cattle,348
+600,Republic of Korea,LSD,2023-11-06,37.366455,126.759494,Domestic - Cattle,339
+599,Republic of Korea,LSD,2023-11-06,38.307461,128.527322,Domestic - Cattle,349
+598,Republic of Korea,LSD,2023-11-06,35.002777,126.400605,Domestic - Cattle,350
+597,Republic of Korea,LSD,2023-11-06,38.079483,127.019591,Domestic - Cattle,339
+596,Republic of Korea,LSD,2023-11-06,36.971688,126.613877,Domestic - Cattle,338
+595,Republic of Korea,LSD,2023-11-06,35.493913,126.501605,Domestic - Cattle,342
+592,Republic of Korea,LSD,2023-11-06,37.775575,127.214541,Domestic - Cattle,351
+593,Republic of Korea,LSD,2023-11-06,35.343519,128.688077,Domestic - Cattle,352
+607,Republic of Korea,LSD,2023-11-06,37.392252,127.560502,Domestic - Cattle,344
+605,Republic of Korea,LSD,2023-11-06,37.130711,126.994883,Domestic - Cattle,338
+603,Republic of Korea,LSD,2023-11-06,38.272405,128.1194,Domestic - Cattle,343
+602,Republic of Korea,LSD,2023-11-06,36.738819,126.872163,Domestic - Cattle,338
+606,Republic of Korea,LSD,2023-11-06,36.683,126.416011,Domestic - Cattle,338
+594,Republic of Korea,LSD,2023-11-06,38.209355,127.290158,Domestic - Cattle,351
+584,Republic of Korea,LSD,2023-11-06,36.70333,126.436791,Domestic - Cattle,338
+582,Republic of Korea,LSD,2023-11-06,36.886892,126.419786,Domestic - Cattle,338
+586,Republic of Korea,LSD,2023-11-06,36.72965,126.400108,Domestic - Cattle,338
+587,Republic of Korea,LSD,2023-11-06,36.828191,126.787055,Domestic - Cattle,338
+588,Republic of Korea,LSD,2023-11-06,35.081161,126.084902,Domestic - Cattle,350
+589,Republic of Korea,LSD,2023-11-06,35.550838,126.65,Domestic - Cattle,342
+590,Republic of Korea,LSD,2023-11-06,37.694927,126.487247,Domestic - Cattle,339
+591,Republic of Korea,LSD,2023-11-06,38.008852,127.214541,Domestic - Cattle,351
+585,Republic of Korea,LSD,2023-11-06,36.651016,126.486336,Domestic - Cattle,338
+667,Thailand,LSD,2023-11-09,13.76993,100.845606,Domestic - Cattle,160
+621,Thailand,LSD,2023-11-09,15.130649,102.65605,Domestic - Cattle,180
+662,Thailand,LSD,2023-11-09,15.208794,100.226376,Domestic - Cattle,220
+583,Russian Federation,LSD,2023-11-10,50.65243,93.735736,Domestic - Cattle,353
+579,Republic of Korea,LSD,2023-11-13,36.860116,126.793777,Domestic - Cattle,338
+578,Republic of Korea,LSD,2023-11-13,36.919191,126.564711,Domestic - Cattle,338
+569,Republic of Korea,LSD,2023-11-13,36.72475,126.42818,Domestic - Cattle,338
+574,Republic of Korea,LSD,2023-11-13,36.97,126.45,Domestic - Cattle,338
+577,Republic of Korea,LSD,2023-11-13,37.009813,127.788708,Domestic - Cattle,341
+570,Republic of Korea,LSD,2023-11-13,36.748441,126.426213,Domestic - Cattle,338
+571,Republic of Korea,LSD,2023-11-13,35.496638,126.473111,Domestic - Cattle,342
+572,Republic of Korea,LSD,2023-11-13,36.339663,126.97223,Domestic - Cattle,346
+573,Republic of Korea,LSD,2023-11-13,38.386583,128.414411,Domestic - Cattle,349
+580,Republic of Korea,LSD,2023-11-13,37.689786,126.410686,Domestic - Cattle,339
+581,Republic of Korea,LSD,2023-11-13,36.702655,126.437166,Domestic - Cattle,338
+575,Republic of Korea,LSD,2023-11-13,36.664975,126.38475,Domestic - Cattle,338
+576,Republic of Korea,LSD,2023-11-13,36.915669,126.56808,Domestic - Cattle,338
+604,Russian Federation,LSD,2023-11-14,57.97232,53.772702,Domestic - Cattle,354
+555,Republic of Korea,LSD,2023-11-20,35.419677,126.595286,Domestic - Cattle,342
+554,Republic of Korea,LSD,2023-11-20,35.452438,126.593063,Domestic - Cattle,342
+558,Republic of Korea,LSD,2023-11-20,35.486716,126.493016,Domestic - Cattle,342
+559,Republic of Korea,LSD,2023-11-20,36.091016,128.15583,Domestic - Cattle,355
+560,Republic of Korea,LSD,2023-11-20,36.723927,127.473913,Domestic - Cattle,341
+562,Republic of Korea,LSD,2023-11-20,35.513247,126.518419,Domestic - Cattle,342
+556,Republic of Korea,LSD,2023-11-20,36.328669,126.970886,Domestic - Cattle,346
+568,Republic of Korea,LSD,2023-11-20,35.492219,126.507441,Domestic - Cattle,342
+567,Republic of Korea,LSD,2023-11-20,36.713616,126.8026,Domestic - Cattle,338
+566,Republic of Korea,LSD,2023-11-20,37.005594,127.792022,Domestic - Cattle,341
+565,Republic of Korea,LSD,2023-11-20,35.46048,126.45383,Domestic - Cattle,342
+564,Republic of Korea,LSD,2023-11-20,35.513888,126.52223,Domestic - Cattle,342
+563,Russian Federation,LSD,2023-11-20,54.36346,90.980977,Domestic - Cattle,337
+561,Republic of Korea,LSD,2023-11-20,35.423286,126.568138,Domestic - Cattle,342
+557,Russian Federation,LSD,2023-11-20,53.7513,91.3326,Domestic - Cattle,356
+547,Russian Federation,LSD,2023-11-27,54.320336,90.763228,Domestic - Cattle,337
+552,Republic of Korea,LSD,2023-11-27,36.290402,126.885716,Domestic - Cattle,346
+551,Republic of Korea,LSD,2023-11-27,36.721561,127.460027,Domestic - Cattle,341
+550,Republic of Korea,LSD,2023-11-27,35.495302,126.488433,Domestic - Cattle,342
+549,Republic of Korea,LSD,2023-11-27,38.386713,128.421391,Domestic - Cattle,349
+548,Republic of Korea,LSD,2023-11-27,36.626786,128.503872,Domestic - Cattle,357
+553,Republic of Korea,LSD,2023-11-27,35.687938,127.273625,Domestic - Cattle,342
+545,Libya,LSD,2023-11-30,32.8422,21.6322,Domestic - Cattle,348
+546,Russian Federation,LSD,2023-12-05,54.245072,90.632123,Domestic - Cattle,337
+542,Russian Federation,LSD,2023-12-21,53.623183,91.281975,Domestic - Cattle,356
+544,Russian Federation,LSD,2023-12-27,54.326387,90.891549,Domestic - Cattle,337
+2319,Indonesia,LSD,2023-12-27,-3.294057,104.377175,Domestic - Cattle,358
+540,Russian Federation,LSD,2023-12-27,53.5891,91.4006,Domestic - Cattle,356
+2320,Indonesia,LSD,2023-12-27,-7.873252,110.413375,Domestic - Cattle,316
+538,Russian Federation,LSD,2023-12-27,53.5188,91.31,Domestic - Cattle,356
+536,Libya,LSD,2024-01-22,32.2354,15.0706,Domestic - Cattle,359
+537,Libya,LSD,2024-01-22,32.2422,15.0648,Domestic - Cattle,359
+539,Libya,LSD,2024-01-22,32.7619,21.7482,Domestic - Cattle,348
+541,Libya,LSD,2024-01-22,32.7619,21.7482,Domestic - Cattle,348
+543,Libya,LSD,2024-01-22,32.7614,21.7482,Domestic - Cattle,348
+535,Russian Federation,LSD,2024-01-24,53.131974,90.533786,Domestic - Cattle,360
+2318,Indonesia,LSD,2024-02-20,-2.306226,106.018217,Domestic - Cattle,324
+2313,Indonesia,LSD,2024-02-20,-0.495911,111.046404,Domestic - Cattle,327
+2314,Indonesia,LSD,2024-02-20,-7.766097,112.27735,Domestic - Cattle,315
+2315,Indonesia,LSD,2024-02-20,-7.306041,109.852467,Domestic - Cattle,312
+2317,Indonesia,LSD,2024-02-20,-7.873252,110.413375,Domestic - Cattle,316
+2316,Indonesia,LSD,2024-02-20,-6.863998,107.616626,Domestic - Cattle,319
+534,Libya,LSD,2024-03-17,32.4257,13.0644,Domestic - Cattle,326
+533,Libya,LSD,2024-03-17,32.4304,13.0687,Domestic - Cattle,326
+532,Libya,LSD,2024-03-17,32.4303,13.0652,Domestic - Cattle,326
+531,Libya,LSD,2024-03-17,32.4273,13.0678,Domestic - Cattle,326
+529,Libya,LSD,2024-03-25,32.4557,12.4018,Domestic - Cattle,361
+525,Libya,LSD,2024-03-25,32.3022,13.1343,Domestic - Cattle,362
+526,Libya,LSD,2024-03-25,32.3055,13.1348,Domestic - Cattle,362
+527,Libya,LSD,2024-03-25,32.4556,12.3925,Domestic - Cattle,361
+528,Libya,LSD,2024-03-25,32.4557,12.4015,Domestic - Cattle,361
+530,Libya,LSD,2024-03-25,32.4552,12.5954,Domestic - Cattle,361
+522,Libya,LSD,2024-03-31,32.3128,13.1351,Domestic - Cattle,362
+521,Libya,LSD,2024-03-31,32.3119,13.1402,Domestic - Cattle,362
+520,Libya,LSD,2024-03-31,32.3113,13.1407,Domestic - Cattle,362
+524,Libya,LSD,2024-03-31,32.3128,13.1351,Domestic - Cattle,362
+516,Libya,LSD,2024-04-17,32.6523,13.2937,Domestic - Cattle,326
+512,Libya,LSD,2024-04-17,32.4849,13.2559,Domestic - Cattle,326
+508,Libya,LSD,2024-04-17,32.3143,13.1341,Domestic - Cattle,362
+506,Libya,LSD,2024-04-17,32.3112,13.1405,Domestic - Cattle,362
+504,Libya,LSD,2024-04-17,32.762,13.6658,Domestic - Cattle,363
+503,Libya,LSD,2024-04-17,32.75,13.7166,Domestic - Cattle,363
+509,Libya,LSD,2024-04-24,32.5573,13.2995,Domestic - Cattle,326
+505,Libya,LSD,2024-04-24,32.539,13.2862,Domestic - Cattle,326
+507,Libya,LSD,2024-04-24,32.5356,13.2874,Domestic - Cattle,326
+510,Libya,LSD,2024-04-24,32.5339,13.2407,Domestic - Cattle,326
+511,Libya,LSD,2024-04-24,32.7551,13.0643,Domestic - Cattle,326
+513,Libya,LSD,2024-04-24,32.5276,13.2727,Domestic - Cattle,326
+514,Libya,LSD,2024-04-24,32.7537,13.2893,Domestic - Cattle,326
+515,Libya,LSD,2024-04-24,32.5381,13.2894,Domestic - Cattle,326
+523,Libya,LSD,2024-04-24,32.7476,13.0929,Domestic - Cattle,326
+519,Libya,LSD,2024-04-24,32.7008,13.2288,Domestic - Cattle,326
+518,Libya,LSD,2024-04-24,32.2525,14.3638,Domestic - Cattle,364
+517,Libya,LSD,2024-04-24,32.6096,13.1476,Domestic - Cattle,326
+502,Libya,LSD,2024-04-24,32.6893,13.2279,Domestic - Cattle,326
+501,"China, Hong Kong Special Administrative Region	",LSD,2024-06-11,22.4589,114.142,Domestic - Cattle,91
+498,Algeria,LSD,2024-06-19,36.5291,2.9957,Domestic - Cattle,365
+499,Algeria,LSD,2024-06-21,35.521,5.223,Domestic - Cattle,366
+2283,Algeria,LSD,2024-06-24,36.682789,2.910091,Domestic - Cattle,365
+494,Algeria,LSD,2024-06-24,36.4055,3.961,Domestic - Cattle,367
+500,Algeria,LSD,2024-06-25,32.5298,3.6136,Domestic - Cattle,368
+2282,Algeria,LSD,2024-06-26,33.258267,7.128383,Domestic - Cattle,369
+2281,Algeria,LSD,2024-06-27,36.5175,6.2535,Domestic - Cattle,370
+2280,Algeria,LSD,2024-06-28,36.2,5.68,Domestic - Cattle,371
+496,Algeria,LSD,2024-06-29,36.7435,3.9021,Domestic - Cattle,367
+497,Algeria,LSD,2024-07-02,36.7701,5.8979,Domestic - Cattle,370
+490,Algeria,LSD,2024-07-09,36.6681,5.1568,Domestic - Cattle,372
+478,Tunisia,LSD,2024-08-14,36.670356,8.570452,Domestic - Cattle,373
+476,Republic of Korea,LSD,2024-08-16,37.0903,127.47,Domestic - Cattle,341
+480,Thailand,LSD,2024-09-03,19.087093,100.914019,Domestic - Cattle,149
+482,Thailand,LSD,2024-09-03,19.077678,100.873271,Domestic - Cattle,149
+474,Republic of Korea,LSD,2024-09-04,37.159335,127.436501,Domestic - Cattle,341
+475,China,LSD,2024-09-06,24.483723,118.434755,Domestic - Cattle,66
+471,Republic of Korea,LSD,2024-09-19,37.0029331,127.893543,Domestic - Cattle,341
+473,Republic of Korea,LSD,2024-09-20,38.21204,127.962511,Domestic - Cattle,343
+472,Republic of Korea,LSD,2024-09-20,37.187884,127.690218,Domestic - Cattle,341
+467,Republic of Korea,LSD,2024-10-03,38.1237796,128.573346,Domestic - Cattle,343
+469,Republic of Korea,LSD,2024-10-03,37.0431398,127.00861,Domestic - Cattle,338
+465,Republic of Korea,LSD,2024-10-05,38.446865,128.415356,Domestic - Cattle,349
+468,Republic of Korea,LSD,2024-10-08,38.1237796,128.573346,Domestic - Cattle,343
+492,Algeria,LSD,2024-10-09,36.3589,2.7722,Domestic - Cattle,365
+495,Algeria,LSD,2024-10-09,36.6723,3.808,Domestic - Cattle,367
+461,Republic of Korea,LSD,2024-10-10,38.0549386,128.626305,Domestic - Cattle,349
+466,Tunisia,LSD,2024-10-12,36.3824,8.5581,Domestic - Cattle,373
+450,Republic of Korea,LSD,2024-10-19,36.548967,128.0932358,Domestic - Cattle,357
+2310,Indonesia,LSD,2024-10-23,0.707978,101.580735,Domestic - Cattle,322
+2309,Indonesia,LSD,2024-10-23,-0.790209,100.875818,Domestic - Cattle,318
+2312,Indonesia,LSD,2024-10-23,3.912992,97.124655,Domestic - Cattle,321
+2311,Indonesia,LSD,2024-10-23,-1.757522,102.671881,Domestic - Cattle,313
+464,Tunisia,LSD,2024-10-25,36.248533,8.863256,Domestic - Cattle,374
+443,Republic of Korea,LSD,2024-10-25,36.780955,126.806241,Domestic - Cattle,338
+462,Tunisia,LSD,2024-10-25,36.116705,8.61136,Domestic - Cattle,374
+445,Republic of Korea,LSD,2024-10-25,37.953761,128.068025,Domestic - Cattle,343
+460,Tunisia,LSD,2024-10-25,36.146921,8.666409,Domestic - Cattle,374
+457,Tunisia,LSD,2024-10-25,37.1558,10.0846,Domestic - Cattle,375
+456,Tunisia,LSD,2024-10-25,36.381841,8.438336,Domestic - Cattle,373
+459,Tunisia,LSD,2024-10-25,35.86138,8.542807,Domestic - Cattle,376
+453,Tunisia,LSD,2024-10-25,36.762438,8.653351,Domestic - Cattle,373
+452,Tunisia,LSD,2024-10-25,35.954377,8.775028,Domestic - Cattle,374
+455,Tunisia,LSD,2024-10-25,36.069066,9.049301,Domestic - Cattle,374
+435,Republic of Korea,LSD,2024-10-28,36.985547,127.749526,Domestic - Cattle,341
+434,Republic of Korea,LSD,2024-10-29,37.024202,127.337173,Domestic - Cattle,341
+437,Republic of Korea,LSD,2024-10-29,37.272796,127.82951,Domestic - Cattle,341
+440,Republic of Korea,LSD,2024-10-31,37.269411,127.829236,Domestic - Cattle,341
+441,Republic of Korea,LSD,2024-10-31,36.620636,128.2035,Domestic - Cattle,357
+454,Tunisia,LSD,2024-11-05,35.283735,9.433433,Domestic - Cattle,377
+451,Tunisia,LSD,2024-11-05,36.52404,8.665573,Domestic - Cattle,373
+448,Tunisia,LSD,2024-11-05,36.451325,8.432311,Domestic - Cattle,373
+449,Tunisia,LSD,2024-11-05,36.088889,9.094167,Domestic - Cattle,374
+463,Tunisia,LSD,2024-11-05,36.556851,8.824249,Domestic - Cattle,373
+442,Tunisia,LSD,2024-11-05,36.226976,8.369346,Domestic - Cattle,374
+470,Tunisia,LSD,2024-11-05,36.33635,8.564195,Domestic - Cattle,373
+444,Tunisia,LSD,2024-11-05,36.053609,8.384571,Domestic - Cattle,374
+433,Tunisia,LSD,2024-11-05,35.1775,9.510278,Domestic - Cattle,377
+439,Tunisia,LSD,2024-11-05,36.144656,8.653509,Domestic - Cattle,374
+424,Japan,LSD,2024-11-08,33.557294,130.196391,Domestic - Cattle,378
+425,Japan,LSD,2024-11-08,33.556907,130.19628,Domestic - Cattle,378
+2339,Japan,LSD,2024-11-11,32.8784,130.8688,Domestic - Cattle,379
+414,Japan,LSD,2024-11-11,33.5573,130.1957,Domestic - Cattle,378
+406,Republic of Korea,LSD,2024-11-13,36.2263,128.5707,Domestic - Cattle,355
+404,Republic of Korea,LSD,2024-11-14,36.7877,126.9471,Domestic - Cattle,338
+408,Japan,LSD,2024-11-14,33.557447,130.195216,Domestic - Cattle,378
+411,Japan,LSD,2024-11-14,33.557447,130.195216,Domestic - Cattle,378
+412,Japan,LSD,2024-11-14,33.557327,130.195663,Domestic - Cattle,378
+413,Japan,LSD,2024-11-14,33.557388,130.195675,Domestic - Cattle,378
+410,Japan,LSD,2024-11-15,33.5573,130.1965,Domestic - Cattle,378
+395,Republic of Korea,LSD,2024-11-17,34.824,126.6845,Domestic - Cattle,350
+484,Algeria,LSD,2024-11-21,35.8914,5.6686,Domestic - Cattle,371
+488,Algeria,LSD,2024-11-21,36.5492,3.8976,Domestic - Cattle,367
+485,Algeria,LSD,2024-11-21,35.2434,7.7762,Domestic - Cattle,380
+489,Algeria,LSD,2024-11-21,36.5094,4.0616,Domestic - Cattle,367
+486,Algeria,LSD,2024-11-21,36.8298,6.6424,Domestic - Cattle,370
+481,Algeria,LSD,2024-11-21,36.5207,8.0426,Domestic - Cattle,381
+493,Algeria,LSD,2024-11-21,36.5759,3.9657,Domestic - Cattle,367
+479,Algeria,LSD,2024-11-21,36.5712,2.6801,Domestic - Cattle,365
+487,Algeria,LSD,2024-11-21,36.5968,2.9992,Domestic - Cattle,365
+491,Algeria,LSD,2024-11-21,36.534,3.8449,Domestic - Cattle,367
+477,Algeria,LSD,2024-11-21,36.6696,2.9376,Domestic - Cattle,365
+483,Algeria,LSD,2024-11-21,36.1516,4.7966,Domestic - Cattle,382
+2341,Republic of Korea,LSD,2024-11-25,35.86,128.53,Domestic - Cattle,355
+2343,Republic of Korea,LSD,2024-11-25,35.89,128.64,Domestic - Cattle,355
+378,Japan,LSD,2024-11-26,33.557266,130.196216,Domestic - Cattle,378
+376,Japan,LSD,2024-11-28,33.55717,130.19629,Domestic - Cattle,378
+373,Japan,LSD,2024-11-29,33.5573,130.1965,Domestic - Cattle,378
+2342,Republic of Korea,LSD,2024-12-03,36.48,127.71,Domestic - Cattle,341
+369,Japan,LSD,2024-12-03,33.4997,130.4222,Domestic - Cattle,378
+366,Japan,LSD,2024-12-03,33.5573,130.1965,Domestic - Cattle,378
+355,Japan,LSD,2024-12-04,33.5903,130.4017,Domestic - Cattle,378
+358,Japan,LSD,2024-12-04,33.5573,130.1965,Domestic - Cattle,378
+2340,Republic of Korea,LSD,2024-12-09,34.77,127.61,Domestic - Cattle,383
+344,Japan,LSD,2024-12-10,32.878,130.8685,Domestic - Cattle,379
+350,Japan,LSD,2024-12-10,33.5573,130.1965,Domestic - Cattle,378
+353,Japan,LSD,2024-12-10,33.5573,130.1965,Domestic - Cattle,378
+351,Japan,LSD,2024-12-10,33.4234,130.6655,Domestic - Cattle,378
+316,Republic of Korea,LSD,2024-12-24,34.5631,127.2113,Domestic - Cattle,383
+312,Japan,LSD,2024-12-27,32.878,130.8685,Domestic - Cattle,379
+2308,Indonesia,LSD,2024-12-31,-6.432122,106.133805,Domestic - Cattle,384
+393,Tunisia,LSD,2025-01-07,36.528145,8.674315,Domestic - Cattle,373
+447,Tunisia,LSD,2025-01-07,36.917326,10.278644,Domestic - Cattle,375
+386,Tunisia,LSD,2025-01-07,36.19043,8.84629,Domestic - Cattle,374
+385,Tunisia,LSD,2025-01-07,36.942684,8.767519,Domestic - Cattle,373
+423,Tunisia,LSD,2025-01-07,36.669717,8.666553,Domestic - Cattle,373
+426,Tunisia,LSD,2025-01-07,36.922096,9.24738,Domestic - Cattle,385
+416,Tunisia,LSD,2025-01-07,36.601187,9.744103,Domestic - Cattle,386
+377,Tunisia,LSD,2025-01-07,35.141106,9.499512,Domestic - Cattle,377
+380,Tunisia,LSD,2025-01-07,36.458954,8.449982,Domestic - Cattle,373
+417,Tunisia,LSD,2025-01-07,36.913158,10.287937,Domestic - Cattle,375
+387,Tunisia,LSD,2025-01-07,36.456858,8.423498,Domestic - Cattle,373
+419,Tunisia,LSD,2025-01-07,36.535145,8.674756,Domestic - Cattle,373
+324,Tunisia,LSD,2025-01-07,36.18617,9.128233,Domestic - Cattle,374
+420,Tunisia,LSD,2025-01-07,36.356604,8.764654,Domestic - Cattle,373
+415,Tunisia,LSD,2025-01-07,36.039974,8.630771,Domestic - Cattle,374
+418,Tunisia,LSD,2025-01-07,37.208524,10.086492,Domestic - Cattle,375
+394,Tunisia,LSD,2025-01-07,35.826582,9.041354,Domestic - Cattle,374
+438,Tunisia,LSD,2025-01-07,36.451264,8.403748,Domestic - Cattle,373
+392,Tunisia,LSD,2025-01-07,36.530171,8.686502,Domestic - Cattle,373
+396,Tunisia,LSD,2025-01-07,36.461127,8.455418,Domestic - Cattle,373
+397,Tunisia,LSD,2025-01-07,37.193565,10.096699,Domestic - Cattle,375
+398,Tunisia,LSD,2025-01-07,35.145906,9.547939,Domestic - Cattle,377
+399,Tunisia,LSD,2025-01-07,36.591582,8.928467,Domestic - Cattle,373
+400,Tunisia,LSD,2025-01-07,36.593236,8.92675,Domestic - Cattle,373
+401,Tunisia,LSD,2025-01-07,35.138799,9.496755,Domestic - Cattle,377
+402,Tunisia,LSD,2025-01-07,36.70873,9.28517,Domestic - Cattle,385
+403,Tunisia,LSD,2025-01-07,37.193728,10.092003,Domestic - Cattle,375
+388,Tunisia,LSD,2025-01-07,34.971297,9.470662,Domestic - Cattle,377
+405,Tunisia,LSD,2025-01-07,36.458088,8.426128,Domestic - Cattle,373
+390,Tunisia,LSD,2025-01-07,35.080798,9.455047,Domestic - Cattle,377
+422,Tunisia,LSD,2025-01-07,36.711225,9.110913,Domestic - Cattle,373
+421,Tunisia,LSD,2025-01-07,36.513445,8.790274,Domestic - Cattle,373
+432,Tunisia,LSD,2025-01-07,36.145476,8.745613,Domestic - Cattle,374
+431,Tunisia,LSD,2025-01-07,36.611951,8.970229,Domestic - Cattle,373
+430,Tunisia,LSD,2025-01-07,36.111401,8.676934,Domestic - Cattle,374
+429,Tunisia,LSD,2025-01-07,36.172487,8.832042,Domestic - Cattle,374
+436,Tunisia,LSD,2025-01-07,36.868552,10.097554,Domestic - Cattle,375
+409,Tunisia,LSD,2025-01-07,35.646362,10.755958,Domestic - Cattle,387
+389,Tunisia,LSD,2025-01-07,35.154327,9.546909,Domestic - Cattle,377
+427,Tunisia,LSD,2025-01-07,35.822418,8.400005,Domestic - Cattle,376
+407,Tunisia,LSD,2025-01-07,36.45471,10.759598,Domestic - Cattle,388
+428,Tunisia,LSD,2025-01-07,36.14654,8.745715,Domestic - Cattle,374
+311,Tunisia,LSD,2025-03-07,37.0262,10.169612,Domestic - Cattle,375
+305,Tunisia,LSD,2025-03-07,36.935933,10.167273,Domestic - Cattle,375
+304,Tunisia,LSD,2025-03-07,36.871617,10.256546,Domestic - Cattle,375
+299,Tunisia,LSD,2025-03-07,36.944992,10.163225,Domestic - Cattle,375
+300,Tunisia,LSD,2025-03-07,36.869481,10.251934,Domestic - Cattle,375
+308,Tunisia,LSD,2025-03-07,36.664611,10.301222,Domestic - Cattle,388
+307,Tunisia,LSD,2025-03-07,36.87747,10.254132,Domestic - Cattle,375
+306,Tunisia,LSD,2025-03-07,36.819507,9.971867,Domestic - Cattle,375
+310,Tunisia,LSD,2025-03-07,36.721208,9.88884,Domestic - Cattle,386
+309,Tunisia,LSD,2025-03-07,36.71477,9.878114,Domestic - Cattle,386
+336,Tunisia,LSD,2025-03-07,36.471175,10.736346,Domestic - Cattle,388
+314,Tunisia,LSD,2025-03-07,36.905022,10.086489,Domestic - Cattle,375
+349,Tunisia,LSD,2025-03-07,36.502744,8.867898,Domestic - Cattle,373
+458,Tunisia,LSD,2025-03-07,37.010114,9.148965,Domestic - Cattle,385
+352,Tunisia,LSD,2025-03-07,36.677427,9.52444,Domestic - Cattle,385
+354,Tunisia,LSD,2025-03-07,35.563051,10.067399,Domestic - Cattle,389
+356,Tunisia,LSD,2025-03-07,34.995919,8.559174,Domestic - Cattle,390
+357,Tunisia,LSD,2025-03-07,36.940306,8.76868,Domestic - Cattle,373
+446,Tunisia,LSD,2025-03-07,36.451326,8.432311,Domestic - Cattle,373
+359,Tunisia,LSD,2025-03-07,35.882898,10.509345,Domestic - Cattle,387
+360,Tunisia,LSD,2025-03-07,35.427481,10.01755,Domestic - Cattle,389
+361,Tunisia,LSD,2025-03-07,36.758979,10.198825,Domestic - Cattle,375
+362,Tunisia,LSD,2025-03-07,35.944748,9.131037,Domestic - Cattle,374
+363,Tunisia,LSD,2025-03-07,36.908672,8.757376,Domestic - Cattle,373
+364,Tunisia,LSD,2025-03-07,37.099936,9.194559,Domestic - Cattle,385
+365,Tunisia,LSD,2025-03-07,37.096836,9.188905,Domestic - Cattle,385
+367,Tunisia,LSD,2025-03-07,35.815721,9.323437,Domestic - Cattle,391
+368,Tunisia,LSD,2025-03-07,36.424652,8.436032,Domestic - Cattle,373
+370,Tunisia,LSD,2025-03-07,36.451326,8.432311,Domestic - Cattle,373
+371,Tunisia,LSD,2025-03-07,36.648966,9.617844,Domestic - Cattle,385
+313,Tunisia,LSD,2025-03-07,36.713072,9.88067,Domestic - Cattle,386
+374,Tunisia,LSD,2025-03-07,36.849008,11.114001,Domestic - Cattle,392
+375,Tunisia,LSD,2025-03-07,36.942754,9.197798,Domestic - Cattle,385
+379,Tunisia,LSD,2025-03-07,35.242771,10.176834,Domestic - Cattle,389
+381,Tunisia,LSD,2025-03-07,36.494621,8.798787,Domestic - Cattle,373
+382,Tunisia,LSD,2025-03-07,36.923344,8.770845,Domestic - Cattle,373
+383,Tunisia,LSD,2025-03-07,37.100782,9.188199,Domestic - Cattle,385
+384,Tunisia,LSD,2025-03-07,36.452423,8.456904,Domestic - Cattle,373
+391,Tunisia,LSD,2025-03-07,36.42852,8.442899,Domestic - Cattle,373
+348,Tunisia,LSD,2025-03-07,37.013826,9.058524,Domestic - Cattle,385
+347,Tunisia,LSD,2025-03-07,36.931636,9.208522,Domestic - Cattle,385
+372,Tunisia,LSD,2025-03-07,36.417469,8.46487,Domestic - Cattle,373
+345,Tunisia,LSD,2025-03-07,36.663672,9.158476,Domestic - Cattle,385
+315,Tunisia,LSD,2025-03-07,35.739954,10.264849,Domestic - Cattle,387
+346,Tunisia,LSD,2025-03-07,36.628816,9.187589,Domestic - Cattle,385
+318,Tunisia,LSD,2025-03-07,35.27444,10.597066,Domestic - Cattle,387
+319,Tunisia,LSD,2025-03-07,36.651521,9.621369,Domestic - Cattle,385
+320,Tunisia,LSD,2025-03-07,36.994124,10.144893,Domestic - Cattle,375
+321,Tunisia,LSD,2025-03-07,36.629076,9.144852,Domestic - Cattle,374
+322,Tunisia,LSD,2025-03-07,36.579957,9.509393,Domestic - Cattle,385
+323,Tunisia,LSD,2025-03-07,37.057341,10.123447,Domestic - Cattle,375
+325,Tunisia,LSD,2025-03-07,37.022226,10.172873,Domestic - Cattle,375
+326,Tunisia,LSD,2025-03-07,36.230687,10.176237,Domestic - Cattle,393
+327,Tunisia,LSD,2025-03-07,36.64598,9.590388,Domestic - Cattle,385
+328,Tunisia,LSD,2025-03-07,37.033463,10.164462,Domestic - Cattle,375
+329,Tunisia,LSD,2025-03-07,37.084096,10.151875,Domestic - Cattle,375
+317,Tunisia,LSD,2025-03-07,36.718262,9.883329,Domestic - Cattle,386
+331,Tunisia,LSD,2025-03-07,36.545914,9.440324,Domestic - Cattle,385
+341,Tunisia,LSD,2025-03-07,36.586558,10.855584,Domestic - Cattle,388
+342,Tunisia,LSD,2025-03-07,36.756527,10.914431,Domestic - Cattle,388
+330,Tunisia,LSD,2025-03-07,36.807786,9.110287,Domestic - Cattle,385
+340,Tunisia,LSD,2025-03-07,36.778573,9.833114,Domestic - Cattle,375
+338,Tunisia,LSD,2025-03-07,36.937051,10.037282,Domestic - Cattle,375
+339,Tunisia,LSD,2025-03-07,37.033326,10.161715,Domestic - Cattle,375
+343,Tunisia,LSD,2025-03-07,34.993728,9.399757,Domestic - Cattle,377
+335,Tunisia,LSD,2025-03-07,36.613587,9.675856,Domestic - Cattle,386
+334,Tunisia,LSD,2025-03-07,34.998751,9.429003,Domestic - Cattle,377
+333,Tunisia,LSD,2025-03-07,36.139758,9.647261,Domestic - Cattle,391
+332,Tunisia,LSD,2025-03-07,36.935608,10.035057,Domestic - Cattle,375
+337,Tunisia,LSD,2025-03-07,35.077846,9.423409,Domestic - Cattle,377
+2306,Indonesia,LSD,2025-05-31,-6.863998,107.616626,Domestic - Cattle,319
+2305,Indonesia,LSD,2025-05-31,-7.306041,109.852467,Domestic - Cattle,312
+2304,Indonesia,LSD,2025-05-31,-7.766097,112.27735,Domestic - Cattle,315
+2303,Indonesia,LSD,2025-05-31,0.707978,101.580735,Domestic - Cattle,322
+2307,Indonesia,LSD,2025-05-31,-7.873252,110.413375,Domestic - Cattle,316
+248,Italy,LSD,2025-06-21,40.30429,9.22154,Domestic - Cattle,394
+245,Italy,LSD,2025-06-26,45.197941,10.814533,Domestic - Cattle,395
+247,Italy,LSD,2025-06-27,40.31139,9.09821,Domestic - Cattle,394
+244,Italy,LSD,2025-06-27,40.24291,9.22451,Domestic - Cattle,394
+243,Italy,LSD,2025-06-27,40.392626,9.018567,Domestic - Cattle,394
+246,France,LSD,2025-06-29,45.7977,5.89422,Domestic - Cattle,396
+2300,Indonesia,LSD,2025-06-30,-7.306041,109.852467,Domestic - Cattle,312
+2301,Indonesia,LSD,2025-06-30,-7.873252,110.413375,Domestic - Cattle,316
+2302,Indonesia,LSD,2025-06-30,-6.432122,106.133805,Domestic - Cattle,384
+2299,Indonesia,LSD,2025-06-30,-7.766097,112.27735,Domestic - Cattle,315
+237,Italy,LSD,2025-07-01,40.2623,9.082244,Domestic - Cattle,394
+239,Italy,LSD,2025-07-01,40.22246,9.19132,Domestic - Cattle,394
+238,Italy,LSD,2025-07-02,40.335997,9.123835,Domestic - Cattle,394
+241,Italy,LSD,2025-07-02,40.209698,9.177213,Domestic - Cattle,394
+240,Italy,LSD,2025-07-02,40.28903,9.102816,Domestic - Cattle,394
+236,France,LSD,2025-07-04,45.8097,5.8875,Domestic - Cattle,396
+224,France,LSD,2025-07-06,45.827391,5.907129,Domestic - Cattle,396
+217,Italy,LSD,2025-07-09,40.3451,9.2594,Domestic - Cattle,394
+234,Italy,LSD,2025-07-09,40.24404,9.13817,Domestic - Cattle,394
+218,Italy,LSD,2025-07-09,40.319967,9.100123,Domestic - Cattle,394
+232,Italy,LSD,2025-07-09,40.33445,9.15608,Domestic - Cattle,394
+229,France,LSD,2025-07-09,45.799303,5.906145,Domestic - Cattle,396
+223,France,LSD,2025-07-11,45.794874,5.902321,Domestic - Cattle,396
+219,France,LSD,2025-07-11,45.80542,5.890954,Domestic - Cattle,396
+221,France,LSD,2025-07-11,45.812541,5.897265,Domestic - Cattle,396
+222,France,LSD,2025-07-11,45.82235,5.86832,Domestic - Cattle,396
+213,France,LSD,2025-07-11,45.836144,5.952319,Domestic - Cattle,396
+226,France,LSD,2025-07-11,45.8107,5.8974,Domestic - Cattle,396
+227,France,LSD,2025-07-11,45.809822,5.880446,Domestic - Cattle,396
+228,France,LSD,2025-07-11,45.8096,5.8803,Domestic - Cattle,396
+230,France,LSD,2025-07-11,45.79597,5.900912,Domestic - Cattle,396
+231,France,LSD,2025-07-11,45.8115,5.8818,Domestic - Cattle,396
+225,France,LSD,2025-07-11,45.80122,5.9174,Domestic - Cattle,396
+206,France,LSD,2025-07-15,45.741155,6.289335,Domestic - Cattle,396
+205,France,LSD,2025-07-15,45.818855,5.884543,Domestic - Cattle,396
+204,France,LSD,2025-07-15,45.848617,5.91182,Domestic - Cattle,396
+211,France,LSD,2025-07-15,45.739081,6.309311,Domestic - Cattle,396
+203,France,LSD,2025-07-15,45.815866,5.893342,Domestic - Cattle,396
+207,France,LSD,2025-07-15,45.932344,5.908444,Domestic - Cattle,396
+212,Italy,LSD,2025-07-16,40.35071,9.132964,Domestic - Cattle,394
+194,Italy,LSD,2025-07-16,40.260758,9.168392,Domestic - Cattle,394
+195,Italy,LSD,2025-07-16,40.280527,9.116003,Domestic - Cattle,394
+197,Italy,LSD,2025-07-16,40.24569,9.20289,Domestic - Cattle,394
+198,Italy,LSD,2025-07-16,40.725228,9.485748,Domestic - Cattle,397
+201,Italy,LSD,2025-07-16,40.467998,9.151939,Domestic - Cattle,394
+202,Italy,LSD,2025-07-16,40.33221,9.08099,Domestic - Cattle,394
+214,Italy,LSD,2025-07-16,40.24096,9.093,Domestic - Cattle,394
+196,Italy,LSD,2025-07-16,40.3192,9.1386,Domestic - Cattle,394
+210,Italy,LSD,2025-07-16,40.3399,9.167,Domestic - Cattle,394
+216,Italy,LSD,2025-07-16,40.34778,9.16083,Domestic - Cattle,394
+215,Italy,LSD,2025-07-16,40.3121,9.2046,Domestic - Cattle,394
+209,Italy,LSD,2025-07-16,40.28833,9.157329,Domestic - Cattle,394
+185,France,LSD,2025-07-18,45.746318,6.283645,Domestic - Cattle,396
+193,France,LSD,2025-07-18,45.81331,5.90718,Domestic - Cattle,396
+192,France,LSD,2025-07-18,45.752725,6.271632,Domestic - Cattle,396
+199,France,LSD,2025-07-18,45.78778,6.20302,Domestic - Cattle,396
+200,France,LSD,2025-07-18,45.776,5.892,Domestic - Cattle,396
+208,France,LSD,2025-07-18,45.79867,5.896,Domestic - Cattle,396
+187,Italy,LSD,2025-07-21,40.304711,9.068162,Domestic - Cattle,394
+191,Italy,LSD,2025-07-21,40.34618,9.110074,Domestic - Cattle,394
+183,France,LSD,2025-07-22,45.73177,6.29517,Domestic - Cattle,396
+184,France,LSD,2025-07-22,45.76667,6.3,Domestic - Cattle,396
+190,France,LSD,2025-07-22,45.76175,6.308166,Domestic - Cattle,396
+189,France,LSD,2025-07-22,45.730836,6.293155,Domestic - Cattle,396
+186,France,LSD,2025-07-22,45.74702,6.293547,Domestic - Cattle,396
+292,Cambodia,LSD,2025-07-23,11.900214,105.155589,Domestic - Cattle,206
+290,Cambodia,LSD,2025-07-23,13.200639,103.318353,Domestic - Cattle,231
+289,Cambodia,LSD,2025-07-23,13.154428,103.235545,Domestic - Cattle,231
+176,France,LSD,2025-07-23,45.76676,6.534592,Domestic - Cattle,396
+288,Cambodia,LSD,2025-07-23,13.193467,103.234645,Domestic - Cattle,231
+291,Cambodia,LSD,2025-07-23,13.178687,103.212154,Domestic - Cattle,231
+293,Cambodia,LSD,2025-07-23,11.827794,105.066959,Domestic - Cattle,206
+287,Cambodia,LSD,2025-07-23,13.134412,103.229804,Domestic - Cattle,231
+235,Cambodia,LSD,2025-07-23,11.791632,106.097366,Domestic - Cattle,252
+286,Cambodia,LSD,2025-07-23,11.795715,105.106494,Domestic - Cattle,206
+271,Cambodia,LSD,2025-07-23,13.220135,103.173358,Domestic - Cattle,231
+178,Italy,LSD,2025-07-24,40.25851,9.20678,Domestic - Cattle,394
+180,Italy,LSD,2025-07-24,40.25499,9.12552,Domestic - Cattle,394
+181,Italy,LSD,2025-07-24,40.28341,9.22293,Domestic - Cattle,394
+175,Italy,LSD,2025-07-24,40.30125,9.04641,Domestic - Cattle,394
+174,Italy,LSD,2025-07-24,40.3092,9.2079,Domestic - Cattle,394
+173,France,LSD,2025-07-24,45.78639,5.945,Domestic - Cattle,396
+172,France,LSD,2025-07-24,45.8557,5.98299,Domestic - Cattle,396
+182,Italy,LSD,2025-07-24,40.24738,9.12763,Domestic - Cattle,394
+170,France,LSD,2025-07-24,45.81849,5.906705,Domestic - Cattle,396
+242,Italy,LSD,2025-07-24,40.33359,9.16725,Domestic - Cattle,394
+179,Italy,LSD,2025-07-24,40.306593,9.071998,Domestic - Cattle,394
+159,France,LSD,2025-07-29,45.82957,5.880999,Domestic - Cattle,396
+162,France,LSD,2025-07-29,45.831082,5.891302,Domestic - Cattle,396
+167,France,LSD,2025-07-29,45.785551,5.945063,Domestic - Cattle,396
+164,France,LSD,2025-07-29,45.785551,5.945063,Domestic - Cattle,396
+177,France,LSD,2025-07-29,45.77312,5.90383,Domestic - Cattle,396
+171,France,LSD,2025-07-29,45.72769,6.26876,Domestic - Cattle,396
+169,France,LSD,2025-07-29,45.833328,5.93333,Domestic - Cattle,396
+168,France,LSD,2025-07-29,45.80304,5.90399,Domestic - Cattle,396
+166,France,LSD,2025-07-29,45.835855,5.886704,Domestic - Cattle,396
+163,France,LSD,2025-07-29,45.785551,5.945063,Domestic - Cattle,396
+161,Italy,LSD,2025-07-30,40.397264,9.172869,Domestic - Cattle,394
+160,Italy,LSD,2025-07-30,40.26065,9.27494,Domestic - Cattle,394
+158,France,LSD,2025-07-30,45.740204,6.305958,Domestic - Cattle,396
+157,Italy,LSD,2025-07-30,40.25888,9.2727,Domestic - Cattle,394
+156,France,LSD,2025-07-30,45.78778,6.20302,Domestic - Cattle,396
+155,France,LSD,2025-07-30,45.749662,6.317258,Domestic - Cattle,396
+165,France,LSD,2025-07-30,45.812104,5.924742,Domestic - Cattle,396
+139,France,LSD,2025-08-01,45.802405,5.895232,Domestic - Cattle,396
+143,France,LSD,2025-08-01,45.785787,5.891339,Domestic - Cattle,396
+142,France,LSD,2025-08-01,45.845732,5.900009,Domestic - Cattle,396
+153,France,LSD,2025-08-01,45.770046,6.251743,Domestic - Cattle,396
+149,France,LSD,2025-08-01,45.772405,6.253055,Domestic - Cattle,396
+145,France,LSD,2025-08-01,45.786003,5.894707,Domestic - Cattle,396
+144,France,LSD,2025-08-04,45.828377,5.896239,Domestic - Cattle,396
+154,France,LSD,2025-08-04,45.748822,6.316325,Domestic - Cattle,396
+129,France,LSD,2025-08-04,45.79958,5.894266,Domestic - Cattle,396
+134,France,LSD,2025-08-04,45.802483,5.869732,Domestic - Cattle,396
+131,Italy,LSD,2025-08-05,40.20129,9.18471,Domestic - Cattle,394
+151,Italy,LSD,2025-08-05,40.29275,9.116667,Domestic - Cattle,394
+133,Italy,LSD,2025-08-05,40.23263,9.15369,Domestic - Cattle,394
+150,Italy,LSD,2025-08-05,40.30794,9.07156,Domestic - Cattle,394
+147,Italy,LSD,2025-08-05,40.28273,9.26401,Domestic - Cattle,394
+146,Italy,LSD,2025-08-05,40.284756,9.303752,Domestic - Cattle,394
+136,Italy,LSD,2025-08-05,40.32509,9.133142,Domestic - Cattle,394
+123,France,LSD,2025-08-06,45.798972,5.906319,Domestic - Cattle,396
+132,France,LSD,2025-08-06,45.814315,5.913948,Domestic - Cattle,396
+140,France,LSD,2025-08-06,45.747162,6.296467,Domestic - Cattle,396
+141,France,LSD,2025-08-06,45.843296,5.891533,Domestic - Cattle,396
+128,France,LSD,2025-08-06,45.83212,5.902087,Domestic - Cattle,396
+125,France,LSD,2025-08-06,45.875102,5.912438,Domestic - Cattle,396
+117,Italy,LSD,2025-08-08,40.30071,9.15876,Domestic - Cattle,394
+118,Italy,LSD,2025-08-08,40.315906,9.213706,Domestic - Cattle,394
+121,Italy,LSD,2025-08-08,40.400795,9.171361,Domestic - Cattle,394
+120,Italy,LSD,2025-08-08,40.38841,9.00316,Domestic - Cattle,394
+127,Italy,LSD,2025-08-08,40.27775,9.03683,Domestic - Cattle,394
+124,France,LSD,2025-08-11,45.728279,6.266423,Domestic - Cattle,396
+126,France,LSD,2025-08-11,45.81887,5.900636,Domestic - Cattle,396
+116,France,LSD,2025-08-11,45.841861,5.915771,Domestic - Cattle,396
+115,France,LSD,2025-08-11,45.833066,5.90589,Domestic - Cattle,396
+119,France,LSD,2025-08-13,45.704781,6.304378,Domestic - Cattle,396
+114,France,LSD,2025-08-13,45.826349,5.912668,Domestic - Cattle,396
+113,France,LSD,2025-08-13,45.848977,5.900997,Domestic - Cattle,396
+112,Italy,LSD,2025-08-16,40.1822,8.5336,Domestic - Cattle,398
+111,France,LSD,2025-08-18,45.72722,6.261841,Domestic - Cattle,396
+109,Italy,LSD,2025-08-19,40.174537,9.115053,Domestic - Cattle,394
+107,France,LSD,2025-08-22,45.832458,5.853166,Domestic - Cattle,396
+108,France,LSD,2025-08-22,45.832458,5.853166,Domestic - Cattle,396
+105,France,LSD,2025-08-25,45.883511,5.764516,Domestic - Cattle,396
+284,Tunisia,LSD,2025-08-26,36.366716,9.909361,Domestic - Cattle,386
+270,Tunisia,LSD,2025-08-26,37.009019,9.864461,Domestic - Cattle,375
+303,Tunisia,LSD,2025-08-26,36.886348,10.215644,Domestic - Cattle,375
+272,Tunisia,LSD,2025-08-26,36.823939,10.064167,Domestic - Cattle,375
+273,Tunisia,LSD,2025-08-26,36.96338,9.924941,Domestic - Cattle,375
+274,Tunisia,LSD,2025-08-26,36.838949,9.593244,Domestic - Cattle,385
+275,Tunisia,LSD,2025-08-26,36.7733,9.076659,Domestic - Cattle,373
+276,Tunisia,LSD,2025-08-26,36.709483,10.300121,Domestic - Cattle,388
+277,Tunisia,LSD,2025-08-26,36.839884,9.590573,Domestic - Cattle,385
+278,Tunisia,LSD,2025-08-26,37.102084,8.98572,Domestic - Cattle,385
+279,Tunisia,LSD,2025-08-26,36.970556,9.960551,Domestic - Cattle,375
+280,Tunisia,LSD,2025-08-26,35.070484,10.390896,Domestic - Cattle,399
+281,Tunisia,LSD,2025-08-26,36.698391,10.175506,Domestic - Cattle,386
+282,Tunisia,LSD,2025-08-26,36.839082,9.590315,Domestic - Cattle,385
+283,Tunisia,LSD,2025-08-26,35.070484,10.390896,Domestic - Cattle,399
+269,Tunisia,LSD,2025-08-26,36.961697,9.956708,Domestic - Cattle,375
+285,Tunisia,LSD,2025-08-26,34.668948,10.627921,Domestic - Cattle,399
+268,Tunisia,LSD,2025-08-26,37.057898,10.133103,Domestic - Cattle,375
+252,Tunisia,LSD,2025-08-26,36.619746,9.346312,Domestic - Cattle,385
+266,Tunisia,LSD,2025-08-26,36.717311,9.864654,Domestic - Cattle,386
+251,Tunisia,LSD,2025-08-26,36.5162,9.667738,Domestic - Cattle,386
+250,Tunisia,LSD,2025-08-26,36.74346,9.590416,Domestic - Cattle,385
+249,Tunisia,LSD,2025-08-26,36.741155,9.588919,Domestic - Cattle,385
+254,Tunisia,LSD,2025-08-26,36.753233,10.021347,Domestic - Cattle,375
+255,Tunisia,LSD,2025-08-26,36.641747,9.623254,Domestic - Cattle,385
+256,Tunisia,LSD,2025-08-26,36.898229,10.220771,Domestic - Cattle,375
+257,Tunisia,LSD,2025-08-26,37.042662,10.165344,Domestic - Cattle,375
+267,Tunisia,LSD,2025-08-26,37.059909,10.135721,Domestic - Cattle,375
+258,Tunisia,LSD,2025-08-26,36.176234,10.107549,Domestic - Cattle,393
+260,Tunisia,LSD,2025-08-26,36.624997,10.227595,Domestic - Cattle,386
+261,Tunisia,LSD,2025-08-26,36.889159,10.010745,Domestic - Cattle,375
+233,Tunisia,LSD,2025-08-26,36.570638,9.382094,Domestic - Cattle,385
+262,Tunisia,LSD,2025-08-26,36.678207,10.291308,Domestic - Cattle,386
+263,Tunisia,LSD,2025-08-26,36.709658,10.166487,Domestic - Cattle,386
+264,Tunisia,LSD,2025-08-26,36.9784,10.134456,Domestic - Cattle,375
+265,Tunisia,LSD,2025-08-26,36.577383,9.511739,Domestic - Cattle,385
+259,Tunisia,LSD,2025-08-26,36.613736,10.274483,Domestic - Cattle,386
+302,Tunisia,LSD,2025-08-26,36.959761,10.199413,Domestic - Cattle,375
+253,Tunisia,LSD,2025-08-26,36.514953,9.484521,Domestic - Cattle,385
+301,Tunisia,LSD,2025-08-26,36.88645,10.215523,Domestic - Cattle,375
+298,Tunisia,LSD,2025-08-26,35.468139,10.894417,Domestic - Cattle,387
+297,Tunisia,LSD,2025-08-26,36.94554,9.169453,Domestic - Cattle,385
+148,Tunisia,LSD,2025-08-26,36.574737,9.390056,Domestic - Cattle,385
+296,Tunisia,LSD,2025-08-26,34.8355,9.115387,Domestic - Cattle,400
+295,Tunisia,LSD,2025-08-26,36.763514,9.10253,Domestic - Cattle,373
+122,Tunisia,LSD,2025-08-26,36.547478,9.444491,Domestic - Cattle,385
+294,Tunisia,LSD,2025-08-26,36.758452,9.08937,Domestic - Cattle,373
+152,Tunisia,LSD,2025-08-26,36.569655,9.383523,Domestic - Cattle,385
+102,Italy,LSD,2025-09-03,40.41825,9.14141,Domestic - Cattle,394
+89,France,LSD,2025-09-08,46.045431,5.80043,Domestic - Cattle,396
+90,Italy,LSD,2025-09-10,40.3627,9.13178,Domestic - Cattle,394
+87,Italy,LSD,2025-09-10,40.388023,9.08036,Domestic - Cattle,394
+91,Italy,LSD,2025-09-10,40.206077,9.135627,Domestic - Cattle,394
+84,Italy,LSD,2025-09-16,40.56471,9.30423,Domestic - Cattle,394
+85,Italy,LSD,2025-09-16,40.25731,9.31228,Domestic - Cattle,394
+98,Italy,LSD,2025-09-16,40.529482,9.309159,Domestic - Cattle,394
+88,Italy,LSD,2025-09-16,40.24868,9.1688,Domestic - Cattle,394
+99,Italy,LSD,2025-09-16,40.528846,9.316482,Domestic - Cattle,394
+101,Italy,LSD,2025-09-16,40.414723,9.128721,Domestic - Cattle,394
+82,France,LSD,2025-09-18,45.72,4.47,Domestic - Cattle,401
+83,Italy,LSD,2025-09-24,40.58388,9.3029,Domestic - Cattle,394
+96,Indonesia,LSD,2025-09-25,-7.873252,110.413375,Domestic - Cattle,316
+94,Indonesia,LSD,2025-09-25,-7.766097,112.27735,Domestic - Cattle,315
+97,Indonesia,LSD,2025-09-25,-6.863998,107.616626,Domestic - Cattle,319
+137,Indonesia,LSD,2025-09-25,-7.766097,112.27735,Domestic - Cattle,315
+135,Indonesia,LSD,2025-09-25,-7.306041,109.852467,Domestic - Cattle,312
+138,Indonesia,LSD,2025-09-25,-7.689638,110.381366,Domestic - Cattle,316
+93,Indonesia,LSD,2025-09-25,-7.306041,109.852467,Domestic - Cattle,312
+86,Italy,LSD,2025-10-01,40.3283,9.5911,Domestic - Cattle,394
+81,Italy,LSD,2025-10-01,40.547176,9.337898,Domestic - Cattle,394
+80,Italy,LSD,2025-10-01,40.392806,9.196006,Domestic - Cattle,394
+75,Spain,LSD,2025-10-03,42.2481926,3.0622671,Domestic - Cattle,402
+70,Spain,LSD,2025-10-06,42.288368,3.046417,Domestic - Cattle,402
+69,Spain,LSD,2025-10-08,42.241592,3.070942,Domestic - Cattle,402
+79,Italy,LSD,2025-10-09,40.34821,9.59222,Domestic - Cattle,394
+78,Italy,LSD,2025-10-09,40.23846,9.28072,Domestic - Cattle,394
+77,Italy,LSD,2025-10-09,40.236442,9.358689,Domestic - Cattle,394
+73,Italy,LSD,2025-10-09,40.139252,9.329541,Domestic - Cattle,394
+67,France,LSD,2025-10-12,47.00450194,5.7322602,Domestic - Cattle,403
+72,Spain,LSD,2025-10-13,42.2885875,3.0585562,Domestic - Cattle,402
+71,Spain,LSD,2025-10-13,42.3039561,3.06794,Domestic - Cattle,402
+66,Spain,LSD,2025-10-14,42.309629,3.067868,Domestic - Cattle,402
+63,Spain,LSD,2025-10-14,42.278319,3.072766,Domestic - Cattle,402
+68,Spain,LSD,2025-10-14,42.279593,3.133496,Domestic - Cattle,402
+55,France,LSD,2025-10-15,47.004163,5.740313,Domestic - Cattle,403
+60,France,LSD,2025-10-15,46.159925,5.027928,Domestic - Cattle,404
+61,France,LSD,2025-10-15,47.004848,5.736577,Domestic - Cattle,403
+65,Spain,LSD,2025-10-16,41.873041,2.863842,Domestic - Cattle,402
+52,France,LSD,2025-10-17,42.518277,2.497947,Domestic - Cattle,405
+56,France,LSD,2025-10-17,42.543992,2.592868,Domestic - Cattle,405
+59,France,LSD,2025-10-17,42.532104,2.710085,Domestic - Cattle,402
+64,Italy,LSD,2025-10-17,40.200046,9.340078,Domestic - Cattle,394
+76,Italy,LSD,2025-10-17,40.258,9.2563,Domestic - Cattle,394
+74,Italy,LSD,2025-10-17,40.24263,9.33967,Domestic - Cattle,394
+92,Cambodia,LSD,2025-10-20,13.219203,103.269665,Domestic - Cattle,231
+95,Cambodia,LSD,2025-10-20,13.200576,103.318095,Domestic - Cattle,231
+106,Cambodia,LSD,2025-10-20,11.8875,105.9048,Domestic - Cattle,252
+130,Cambodia,LSD,2025-10-20,12.127181,105.425673,Domestic - Cattle,291
+188,Cambodia,LSD,2025-10-20,11.90896,106.187928,Domestic - Cattle,252
+220,Cambodia,LSD,2025-10-20,11.895679,106.121375,Domestic - Cattle,252
+49,Spain,LSD,2025-10-21,42.236997,3.098194,Domestic - Cattle,402
+58,Spain,LSD,2025-10-21,42.299906,3.086293,Domestic - Cattle,402
+54,Spain,LSD,2025-10-21,42.260257,3.023723,Domestic - Cattle,402
+51,Spain,LSD,2025-10-21,42.298997,3.099052,Domestic - Cattle,402
+50,Spain,LSD,2025-10-21,42.224853,3.083086,Domestic - Cattle,402
+47,Spain,LSD,2025-10-21,42.219076,3.00735,Domestic - Cattle,402
+57,Spain,LSD,2025-10-21,42.287789,3.024086,Domestic - Cattle,402
+62,Italy,LSD,2025-10-22,40.165,9.488219,Domestic - Cattle,394
+46,France,LSD,2025-10-23,42.577953,2.523485,Domestic - Cattle,405
+44,France,LSD,2025-10-23,42.440158,2.535608,Domestic - Cattle,402
+45,France,LSD,2025-10-23,42.545325,2.59246,Domestic - Cattle,405
+43,France,LSD,2025-10-23,47.011402,5.736306,Domestic - Cattle,403
+38,France,LSD,2025-10-27,47.01393,5.729117,Domestic - Cattle,403
+39,France,LSD,2025-10-27,42.548884,2.282419,Domestic - Cattle,405
+41,France,LSD,2025-10-27,42.464879,2.223496,Domestic - Cattle,405
+42,France,LSD,2025-10-27,46.987742,5.693966,Domestic - Cattle,403
+48,Spain,LSD,2025-10-27,42.265294,3.090814,Domestic - Cattle,402
+33,Italy,LSD,2025-10-29,40.090098,8.720283,Domestic - Cattle,394
+40,Italy,LSD,2025-10-29,40.07977,9.37082,Domestic - Cattle,394
+35,France,LSD,2025-10-30,42.55447,2.56569,Domestic - Cattle,405
+2289,Indonesia,LSD,2025-10-31,1.885558,100.601021,Domestic - Cattle,406
+2290,Indonesia,LSD,2025-10-31,-7.654668,111.335794,Domestic - Cattle,407
+2291,Indonesia,LSD,2025-10-31,-7.306041,109.852467,Domestic - Cattle,312
+2293,Indonesia,LSD,2025-10-31,-7.89,110.313,Domestic - Cattle,316
+2294,Indonesia,LSD,2025-10-31,-2.795115,106.289551,Domestic - Cattle,408
+2292,Indonesia,LSD,2025-10-31,-7.074733,106.736169,Domestic - Cattle,409
+2297,Indonesia,LSD,2025-11-04,-7.074733,106.736169,Domestic - Cattle,409
+2298,Indonesia,LSD,2025-11-04,-7.89565,110.385188,Domestic - Cattle,316
+2295,Indonesia,LSD,2025-11-04,-7.821595,111.99896,Domestic - Cattle,410
+32,France,LSD,2025-11-04,42.460836,2.447824,Domestic - Cattle,405
+2296,Indonesia,LSD,2025-11-04,-7.026213,110.384541,Domestic - Cattle,411
+34,Italy,LSD,2025-11-05,40.19251,9.094149,Domestic - Cattle,394
+36,Italy,LSD,2025-11-05,40.18562,9.10301,Domestic - Cattle,394
+31,France,LSD,2025-11-06,42.61782,2.495403,Domestic - Cattle,405
+30,France,LSD,2025-11-10,42.548319,2.399184,Domestic - Cattle,405
+26,France,LSD,2025-11-10,42.522269,3.001465,Domestic - Cattle,402
+27,France,LSD,2025-11-10,47.009138,5.721092,Domestic - Cattle,403
+28,France,LSD,2025-11-10,42.522166,2.215155,Domestic - Cattle,405
+24,France,LSD,2025-11-17,42.601299,2.485882,Domestic - Cattle,405
+22,France,LSD,2025-11-21,42.613526,2.490823,Domestic - Cattle,405
+23,France,LSD,2025-11-21,42.566058,2.524515,Domestic - Cattle,405
+21,France,LSD,2025-11-27,42.649746,2.422529,Domestic - Cattle,405
+19,France,LSD,2025-11-28,42.41569,2.487739,Domestic - Cattle,405
+18,France,LSD,2025-12-01,47.201434,5.840909,Domestic - Cattle,403
+20,France,LSD,2025-12-01,42.615165,2.459242,Domestic - Cattle,405
+16,France,LSD,2025-12-10,43.297579,0.293031,Domestic - Cattle,412
+14,France,LSD,2025-12-10,43.116041,1.397057,Domestic - Cattle,413
+15,France,LSD,2025-12-12,43.088034,0.985774,Domestic - Cattle,413
+13,France,LSD,2025-12-22,42.649444,2.396255,Domestic - Cattle,405
+10,France,LSD,2025-12-22,42.978929,0.748399,Domestic - Cattle,414
+17,France,LSD,2025-12-22,43.11067,2.270267,Domestic - Cattle,415
+12,France,LSD,2025-12-22,42.539663,2.613216,Domestic - Cattle,402
+25,Tunisia,LSD,2025-12-26,36.484467,9.057254,Domestic - Cattle,373
+53,Tunisia,LSD,2025-12-26,36.09357,9.570189,Domestic - Cattle,391
+110,Tunisia,LSD,2025-12-26,36.597012,9.260937,Domestic - Cattle,385
+37,Tunisia,LSD,2025-12-26,36.085081,9.578157,Domestic - Cattle,391
+103,Tunisia,LSD,2025-12-26,36.674451,9.600117,Domestic - Cattle,385
+100,Tunisia,LSD,2025-12-26,36.7174,9.8849,Domestic - Cattle,386
+2286,Indonesia,LSD,2025-12-31,-7.306041,109.852467,Domestic - Cattle,312
+2285,Indonesia,LSD,2025-12-31,-7.766097,112.27735,Domestic - Cattle,315
+2288,Indonesia,LSD,2025-12-31,-7.689638,110.381366,Domestic - Cattle,316
+2287,Indonesia,LSD,2025-12-31,-7.074733,106.736169,Domestic - Cattle,409
+8,France,LSD,2026-01-02,42.967137,1.909978,Domestic - Cattle,413
+2284,Spain,LSD,2026-01-07,42.24,3.06,Domestic - Cattle,402
+7,France,LSD,2026-01-12,42.947077,0.959417,Domestic - Cattle,413
+9,Spain,LSD,2026-01-19,42.373191,2.893808,Domestic - Cattle,402
+104,Malaysia,LSD,2026-01-21,1.9695,103.225,Domestic - Cattle,202
+29,Malaysia,LSD,2026-01-21,3.690833,103.1764,Domestic - Cattle,174
+6,Spain,LSD,2026-03-02,42.488549,-0.110845,Domestic - Cattle,416
+5,Spain,LSD,2026-03-03,42.487081,-0.11225,Domestic - Cattle,416
+11,Malaysia,LSD,2026-03-04,4.191276,100.758735,Domestic - Cattle,171
+3,Italy,LSD,2026-04-16,39.33943,9.566,Domestic - Cattle,417
+1,Italy,LSD,2026-04-16,39.428312,9.613409,Domestic - Cattle,417
+2,Italy,LSD,2026-04-17,39.347847,9.577812,Domestic - Cattle,417
+4,Cambodia,LSD,2026-04-28,13.168341,103.243307,Domestic - Cattle,231
