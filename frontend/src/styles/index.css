@@ -1,0 +1,6 @@
+:root {
+  --primary-green: #10b981;
+}
+
+/* Import app-wide styles (bundle or small overrides can go here) */
+@import url('/public/style.css');
