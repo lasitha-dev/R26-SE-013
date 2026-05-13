@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#86948a",
+                    "surface-container-low": "#131b2e",
+                    "surface-container-high": "#222a3d",
+                    "surface-container": "#171f33",
+                    "secondary-fixed-dim": "#68dba9",
+                    "on-error-container": "#ffdad6",
+                    "surface-variant": "#2d3449",
+                    "on-secondary-container": "#00311f",
+                    "on-primary-fixed-variant": "#005236",
+                    "on-primary-fixed": "#002113",
+                    "surface-bright": "#31394d",
+                    "secondary-fixed": "#85f8c4",
+                    "secondary": "#68dba9",
+                    "on-error": "#690005",
+                    "tertiary": "#bcc7de",
+                    "on-secondary-fixed-variant": "#005137",
+                    "primary-container": "#10b981",
+                    "on-surface": "#dae2fd",
+                    "on-tertiary": "#263143",
+                    "inverse-on-surface": "#283044",
+                    "inverse-primary": "#006c49",
+                    "surface-dim": "#0b1326",
+                    "surface-container-highest": "#2d3449",
+                    "on-tertiary-container": "#2e394c",
+                    "on-surface-variant": "#bbcabf",
+                    "tertiary-fixed": "#d8e3fb",
+                    "on-tertiary-fixed": "#111c2d",
+                    "primary": "#4edea3",
+                    "tertiary-fixed-dim": "#bcc7de",
+                    "primary-fixed": "#6ffbbe",
+                    "on-primary-container": "#00422b",
+                    "surface": "#0b1326",
+                    "inverse-surface": "#dae2fd",
+                    "background": "#0b1326",
+                    "surface-tint": "#4edea3",
+                    "tertiary-container": "#98a3ba",
+                    "on-primary": "#003824",
+                    "outline-variant": "#3c4a42",
+                    "on-tertiary-fixed-variant": "#3c475a",
+                    "on-background": "#dae2fd",
+                    "error-container": "#93000a",
+                    "primary-fixed-dim": "#4edea3",
+                    "on-secondary": "#003825",
+                    "secondary-container": "#25a475",
+                    "error": "#ffb4ab",
+                    "surface-container-lowest": "#060e20",
+                    "on-secondary-fixed": "#002114"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "1rem",
+                    "xl": "1.25rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "display": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            font-family: 'Inter', sans-serif;
+        }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-72 bg-[#131b2e] flex flex-col py-8 z-50">
+<!-- Logo & Branding -->
+<div class="px-8 mb-10 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div>
+<h1 class="text-white font-black text-xl tracking-tight leading-none">ADRS CORE</h1>
+<p class="text-[10px] font-bold tracking-widest text-slate-500 mt-1 uppercase">CLINICAL PRECISION</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-grow space-y-1">
+<!-- Active Item -->
+<a class="flex items-center gap-4 px-8 py-3 text-[#4edea3] bg-[#222a3d] border-r-2 border-[#4edea3] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="pets">pets</span>
+<span class="text-sm font-semibold tracking-wide uppercase">Herd Registry</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-slate-400 hover:text-white hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="health_and_safety">health_and_safety</span>
+<span class="text-sm font-medium">Wellness &amp; BCS</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-slate-400 hover:text-white hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="text-sm font-medium">AI Smart Diagnosis</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-slate-400 hover:text-white hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span class="text-sm font-medium">Geospatial Intelligence</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-slate-400 hover:text-white hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="wb_sunny">wb_sunny</span>
+<span class="text-sm font-medium">Seasonal Forecasting</span>
+</a>
+</nav>
+<!-- Sidebar Footer Actions -->
+<div class="px-4 mt-auto space-y-4">
+<div class="pt-4 border-t border-white/5 space-y-1">
+<a class="flex items-center gap-4 px-4 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-xs font-semibold tracking-wider uppercase">Settings</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="text-xs font-semibold tracking-wider uppercase">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-grow ml-72 relative flex flex-col h-screen overflow-y-auto no-scrollbar bg-surface">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 w-full flex justify-between items-center px-8 py-6 z-40 bg-surface/80 backdrop-blur-md">
+<div>
+<nav class="flex items-center gap-2 text-xs font-bold tracking-widest text-slate-500 uppercase">
+<span class="hover:text-primary transition-colors cursor-pointer">SENTINEL</span>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="text-on-surface">HERD REGISTRY</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="text-right">
+<p class="text-sm font-bold text-white leading-none">Kamal Perera</p>
+<p class="text-[10px] font-semibold text-primary tracking-widest uppercase mt-1">Dairy Farmer</p>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5">
+<img alt="User profile avatar for Kamal Perera" class="w-full h-full object-cover rounded-full" data-alt="A professional headshot of a mature South Asian male dairy farmer in outdoor attire. The lighting is warm and natural, suggesting a sunset at a farm. The image has a clean, high-end editorial quality with a shallow depth of field, focusing on his friendly yet authoritative expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCUBz6RWQYgosV0oUM6lWrPFEIMBYiwilWzfSt3LRrGcoVOLrvjHu2vsXad_NMJNsJrIjap0IKxNPoKFc_w-H0rXhKQbb9ZKtVginXodaQlTN9QgMP6TbdGDlbo6EB9izFG09mpv2ryFU3ciI8ouVVWek5LP7nxFBL8AbrqcfXtX1-z3pe_auyHymhjuQodX3zpRHf7hTDFMhrXNLkr-3dNCz6ns0ex1p1iwx9y7ojaNL6Flm_NinXt4BRoZ2WiMIhBrZ_KCk0eeHQ"/>
+</div>
+</div>
+</header>
+<!-- Form Section -->
+<section class="flex-grow flex items-center justify-center px-8 pb-12">
+<div class="max-w-2xl w-full">
+<!-- Layering: Card Surface -->
+<div class="bg-surface-container-high rounded-xl p-10 relative overflow-hidden border border-outline-variant/10 shadow-2xl">
+<!-- Subtle Glow Accent -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
+<div class="relative">
+<header class="mb-10">
+<h2 class="text-2xl font-black text-white tracking-tight uppercase">Register New Animal</h2>
+<p class="text-sm text-on-surface-variant mt-2 font-medium">Add a new subject to the Sentinel intelligence network.</p>
+</header>
+<form class="space-y-6">
+<!-- Identifier Field -->
+<div class="space-y-2">
+<label class="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">Identifier (Tag ID or Name)</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all" placeholder="e.g., #BT-8842 or Sudu" type="text"/>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Gender Field -->
+<div class="space-y-2">
+<label class="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">Gender</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all">
+<option disabled="" selected="" value="">Select Gender</option>
+<option value="female">Female</option>
+<option value="male">Male</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- DOB Field -->
+<div class="space-y-2">
+<label class="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">Date of Birth (DOB)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all [color-scheme:dark]" type="date"/>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Breed Field -->
+<div class="space-y-2">
+<label class="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">Breed</label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all">
+<option disabled="" selected="" value="">Select Breed</option>
+<option value="friesian">Friesian</option>
+<option value="jersey">Jersey</option>
+<option value="sahiwal">Sahiwal</option>
+<option value="local">Local</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Weight Field -->
+<div class="space-y-2">
+<label class="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">Initial Body Weight (KG)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all" placeholder="0.00" type="number"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 uppercase">KG</span>
+</div>
+</div>
+</div>
+<!-- Form Actions -->
+<div class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+<a class="text-sm font-bold text-slate-400 hover:text-white transition-colors tracking-wide underline underline-offset-8 decoration-slate-800 hover:decoration-white" href="#">Cancel</a>
+<button class="w-full md:w-auto px-10 py-4 bg-gradient-to-br from-[#4edea3] to-[#10b981] text-[#003824] rounded-lg font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 transition-transform active:scale-[0.98]" type="submit">
+                                    Save Animal Record
+                                </button>
+</div>
+</form>
+</div>
+</div>
+<!-- Footer Contextual Meta -->
+<div class="mt-8 flex items-center justify-center gap-6 text-[10px] font-bold tracking-[0.2em] text-slate-600 uppercase">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+                        Encrypted Connection
+                    </div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-primary rounded-full"></span>
+                        AI Validation Active
+                    </div>
+</div>
+</div>
+</section>
+<!-- Decorative Element -->
+<div class="fixed bottom-0 right-0 p-12 opacity-5 pointer-events-none select-none">
+<span class="material-symbols-outlined text-[300px]" style="font-variation-settings: 'wght' 100;">pets</span>
+</div>
+</main>
+</body></html>

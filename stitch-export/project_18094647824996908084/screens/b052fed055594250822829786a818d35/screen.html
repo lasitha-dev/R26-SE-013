@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ADRS Core - Diagnostic Triage Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "on-tertiary-container": "#2e394c",
+                "on-surface-variant": "#bbcabf",
+                "surface-container-lowest": "#060e20",
+                "on-background": "#dae2fd",
+                "primary-container": "#10b981",
+                "secondary-container": "#25a475",
+                "inverse-on-surface": "#283044",
+                "inverse-surface": "#dae2fd",
+                "tertiary-fixed-dim": "#bcc7de",
+                "outline": "#86948a",
+                "on-secondary-container": "#00311f",
+                "secondary": "#68dba9",
+                "on-primary-container": "#00422b",
+                "primary": "#4edea3",
+                "primary-fixed": "#6ffbbe",
+                "on-primary": "#003824",
+                "on-error": "#690005",
+                "on-secondary-fixed": "#002114",
+                "surface-container-highest": "#2d3449",
+                "surface": "#0b1326",
+                "error-container": "#93000a",
+                "outline-variant": "#3c4a42",
+                "tertiary-fixed": "#d8e3fb",
+                "surface-dim": "#0b1326",
+                "on-secondary": "#003825",
+                "on-tertiary-fixed-variant": "#3c475a",
+                "on-primary-fixed": "#002113",
+                "secondary-fixed": "#85f8c4",
+                "inverse-primary": "#006c49",
+                "background": "#0b1326",
+                "primary-fixed-dim": "#4edea3",
+                "surface-variant": "#2d3449",
+                "error": "#ffb4ab",
+                "surface-container-low": "#131b2e",
+                "tertiary-container": "#98a3ba",
+                "on-tertiary-fixed": "#111c2d",
+                "surface-tint": "#4edea3",
+                "secondary-fixed-dim": "#68dba9",
+                "tertiary": "#bcc7de",
+                "surface-container": "#171f33",
+                "surface-container-high": "#222a3d",
+                "on-tertiary": "#263143",
+                "on-primary-fixed-variant": "#005236",
+                "on-error-container": "#ffdad6",
+                "surface-bright": "#31394d",
+                "on-surface": "#dae2fd",
+                "on-secondary-fixed-variant": "#005137"
+              },
+              "borderRadius": {
+                "DEFAULT": "0.5rem",
+                "lg": "1rem",
+                "xl": "1.25rem",
+                "full": "9999px"
+              },
+              "fontFamily": {
+                "headline": ["Inter"],
+                "display": ["Inter"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary selection:text-on-primary">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-72 flex flex-col py-8 px-4 bg-[#131b2e] z-50 border-none">
+<div class="mb-10 px-4">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">shield</span>
+<div>
+<h1 class="text-xl font-black tracking-tighter text-white leading-none">ADRS CORE</h1>
+<p class="text-[10px] font-bold tracking-[0.2em] text-slate-500 uppercase mt-1">CLINICAL PRECISION</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2"><a class="flex items-center gap-3 py-3 px-4 text-slate-400 hover:text-[#4edea3] hover:bg-[#171f33] transition-all duration-300" href="#">
+<span class="material-symbols-outlined">pets</span>
+<span class="text-sm tracking-tight">Herd Registry</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-[#4edea3] font-bold bg-[#222a3d] rounded-r-full transition-all duration-300" href="#">
+<span class="material-symbols-outlined">health_metrics</span>
+<span class="text-sm tracking-tight">Wellness &amp; BCS</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400 hover:text-[#4edea3] hover:bg-[#171f33] transition-all duration-300" href="#">
+<span class="material-symbols-outlined">memory</span>
+<span class="text-sm tracking-tight">AI Smart Diagnosis</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400 hover:text-[#4edea3] hover:bg-[#171f33] transition-all duration-300" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="text-sm tracking-tight">Geospatial Intelligence</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400 hover:text-[#4edea3] hover:bg-[#171f33] transition-all duration-300" href="#">
+<span class="material-symbols-outlined">partly_cloudy_day</span>
+<span class="text-sm tracking-tight">Seasonal Forecasting</span>
+</a>
+</nav>
+<div class="mt-auto px-4">
+<button class="w-full py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-lg text-sm tracking-wide shadow-lg shadow-primary/10 active:scale-95 transition-transform">
+                NEW DIAGNOSTIC
+            </button>
+<div class="mt-4 flex flex-col gap-3 px-1">
+<a class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span class="text-xs font-medium tracking-wide">Settings</span>
+</a>
+<a class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">help</span>
+<span class="text-xs font-medium tracking-wide">Support</span>
+</a>
+</div></div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-72 right-0 h-16 bg-[#0b1326]/80 backdrop-blur-xl z-40 flex items-center justify-between px-8 border-none">
+<div class="flex items-center bg-surface-container rounded-full px-4 py-1.5 focus-within:ring-1 focus-within:ring-[#10b981]/20 transition-all">
+<span class="material-symbols-outlined text-slate-400 text-xl">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-slate-500 w-64" placeholder="Search parameters..." type="text"/>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<span class="material-symbols-outlined text-slate-400 cursor-pointer hover:text-white transition-colors">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border border-surface"></span>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-bold text-white leading-none">Kamal Perera</p>
+<p class="text-[10px] text-slate-400 uppercase tracking-tighter mt-1">Dairy Farmer</p>
+</div>
+<img alt="Kamal Perera Profile" class="w-10 h-10 rounded-full object-cover border-2 border-surface-container-high" data-alt="A professional close-up portrait of a South Asian man in his mid-40s with a kind expression and neat hair. He is wearing a clean, modern utility vest suitable for agricultural management. The background is a soft-focus laboratory or control center with cool blue and emerald green ambient lighting. The overall visual style is sharp, clean, and highly sophisticated, reflecting a modern dairy management environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZF8mVpbD44AHi9FM07rmlcFkPpMAFUyOVWcLNDPNSahltG4dsdlfZ-ZGqduPFwRFgSxqcF7iVSX6qiBFxt9cRROr26JejY714CvkMjivDVMso7tTHNCwwycUmrGvirWWJhxNjZc0vmhNsf73cXr05JKJ69S2kU-MH0f1k_bzx6VURNFEb3LgrGNqV1Py0rWDAp-SENJCLEwmGi-vvo84a1ok02t-IR915HoCj7Jz8raNBc5yf70F20Ozcl8tCNNel78mg7mDq1MNO"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-72 mt-16 p-8 min-h-screen">
+<!-- Header Section -->
+<header class="mb-8">
+<div class="flex items-center gap-2 mb-2">
+<span class="inline-block w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+<span class="text-[10px] font-bold tracking-[0.2em] text-primary uppercase">Active Session: Animal ID-8842</span>
+</div>
+<h2 class="text-4xl font-extrabold tracking-tighter text-white mb-2">DIAGNOSTIC TRIAGE RESULTS</h2>
+<div class="h-1 w-24 bg-gradient-to-r from-primary to-transparent rounded-full"></div>
+</header>
+<!-- Top Section: 2 Columns -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+<!-- Left: XAI Feature Extraction Map -->
+<section class="lg:col-span-7 bg-surface-container-low rounded-xl overflow-hidden p-1 shadow-2xl relative">
+<div class="absolute top-6 left-6 z-10 bg-surface-container-highest/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm">visibility</span>
+<span class="text-[10px] font-bold tracking-wider text-white uppercase">XAI Feature Extraction map</span>
+</div>
+<div class="aspect-[16/10] bg-surface-container-lowest rounded-lg overflow-hidden flex items-center justify-center">
+<div class="w-full h-full bg-slate-800 relative flex items-center justify-center overflow-hidden">
+<!-- Thermal Heatmap Simulation Overlay -->
+<div class="absolute inset-0 opacity-60" style="background: radial-gradient(circle at 30% 40%, rgba(239, 68, 68, 0.8) 0%, transparent 40%), radial-gradient(circle at 70% 60%, rgba(249, 115, 22, 0.7) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.4) 0%, transparent 70%);"></div>
+<!-- Technical Grid Lines -->
+<div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(#94a3b8 1px, transparent 1px), linear-gradient(90deg, #94a3b8 1px, transparent 1px); background-size: 40px 40px;"></div>
+<!-- Target Crosshairs -->
+<div class="absolute inset-0 pointer-events-none opacity-20">
+<div class="absolute top-1/2 left-0 w-full h-[1px] bg-white"></div>
+<div class="absolute top-0 left-1/2 w-[1px] h-full bg-white"></div>
+</div>
+<!-- Center Placeholder Box -->
+<div class="relative z-10 bg-slate-900/80 backdrop-blur-md border border-slate-700 px-6 py-4 rounded-lg shadow-2xl">
+<p class="text-xs md:text-sm font-mono text-white tracking-wider text-center">
+            [ Grad-CAM XAI Output: Insert YOLOv8 Inference Image Here ]
+        </p>
+</div>
+</div>
+<!-- SVG Overlay for Heatmap simulation visuals -->
+<div class="absolute inset-0 pointer-events-none mix-blend-screen bg-gradient-to-b from-transparent via-primary/5 to-transparent"></div>
+</div>
+<div class="p-4 flex justify-between items-center bg-surface-container-low">
+<p class="text-xs text-slate-400 font-medium">Grad-CAM Score: <span class="text-primary">0.942 Intensity</span></p>
+<div class="flex gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Ver 4.2 AI</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Bovine-Specific</span>
+</div>
+</div>
+</section>
+<!-- Right: Metric Display -->
+<section class="lg:col-span-5 flex flex-col gap-8">
+<!-- BCS Result Card -->
+<div class="bg-surface-container-high rounded-xl p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors"></div>
+<p class="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase mb-4">Calculated BCS</p>
+<div class="flex items-baseline gap-2">
+<h3 class="text-7xl font-black text-on-surface tracking-tighter">2.25</h3>
+</div>
+<p class="mt-4 px-4 py-1.5 bg-error-container text-on-error-container rounded-full text-xs font-bold uppercase tracking-wide">
+                        Under-conditioned
+                    </p>
+<div class="mt-8 w-full bg-surface-container-lowest h-2 rounded-full overflow-hidden">
+<div class="bg-error h-full" style="width: 45%;"></div>
+</div>
+<div class="w-full flex justify-between mt-2 px-1">
+<span class="text-[10px] text-slate-500 font-bold uppercase">Severe</span>
+<span class="text-[10px] text-slate-500 font-bold uppercase">Optimal</span>
+<span class="text-[10px] text-slate-500 font-bold uppercase">Obese</span>
+</div>
+</div>
+<!-- Wellness Status Card -->
+<div class="bg-surface-container-high rounded-xl p-8 border-l-4 border-error/50">
+<div class="flex items-start justify-between mb-6">
+<div>
+<p class="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Overall Wellness Status</p>
+<h4 class="text-2xl font-extrabold text-error tracking-tight mt-1">AT RISK</h4>
+</div>
+<span class="material-symbols-outlined text-error text-3xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-xl">thermostat</span>
+</div>
+<div>
+<p class="text-xs font-bold text-on-surface">Metabolic Stress Detected</p>
+<p class="text-[10px] text-slate-400 mt-1 leading-relaxed">Detected high probability of ketosis risk due to rapid energy balance shift.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Bottom Section: Protocols -->
+<section class="bg-surface-container-low rounded-xl p-8 relative overflow-hidden">
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-3">
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary text-2xl">assignment_turned_in</span>
+</div>
+<h3 class="text-xl font-bold text-white tracking-tight">Actionable Management Protocols</h3>
+</div>
+<button class="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-widest hover:opacity-80 transition-opacity">
+                    Export PDF
+                    <span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Protocol 1 -->
+<div class="bg-surface-container h-full p-6 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-black text-primary uppercase tracking-widest px-2 py-1 bg-primary/5 rounded">Immediate</span>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">air</span>
+</div>
+<p class="text-sm font-semibold text-white leading-relaxed">
+                        1. Immediate Action: Increase stall ventilation; local THI indicates severe heat stress.
+                    </p>
+</div>
+<!-- Protocol 2 -->
+<div class="bg-surface-container h-full p-6 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-black text-primary uppercase tracking-widest px-2 py-1 bg-primary/5 rounded">Nutrition</span>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">restaurant</span>
+</div>
+<p class="text-sm font-semibold text-white leading-relaxed">
+                        2. Feeding: Shift 40% of feed ration to cooler evening hours to minimize digestive metabolic heat.
+                    </p>
+</div>
+<!-- Protocol 3 -->
+<div class="bg-surface-container h-full p-6 rounded-lg group hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-black text-primary uppercase tracking-widest px-2 py-1 bg-primary/5 rounded">Monitoring</span>
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors">medical_services</span>
+</div>
+<p class="text-sm font-semibold text-white leading-relaxed">
+                        3. Monitoring: Isolate animal to a shaded pen and ensure ad-libitum water access.
+                    </p>
+</div>
+</div>
+<!-- Subtle background branding element -->
+<div class="absolute -bottom-10 -right-10 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-[12rem]">verified_user</span>
+</div>
+</section>
+</main>
+</body></html>

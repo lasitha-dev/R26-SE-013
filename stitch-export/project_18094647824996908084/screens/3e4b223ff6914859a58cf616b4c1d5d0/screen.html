@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#003825",
+                        "on-primary": "#003824",
+                        "primary": "#4edea3",
+                        "outline": "#86948a",
+                        "on-background": "#dae2fd",
+                        "tertiary-fixed": "#d8e3fb",
+                        "on-tertiary-fixed-variant": "#3c475a",
+                        "surface-container": "#171f33",
+                        "tertiary": "#bcc7de",
+                        "secondary": "#68dba9",
+                        "on-primary-fixed-variant": "#005236",
+                        "surface-tint": "#4edea3",
+                        "surface-container-high": "#222a3d",
+                        "on-secondary-fixed-variant": "#005137",
+                        "on-secondary-fixed": "#002114",
+                        "on-tertiary": "#263143",
+                        "on-primary-fixed": "#002113",
+                        "primary-fixed-dim": "#4edea3",
+                        "error": "#ffb4ab",
+                        "secondary-fixed": "#85f8c4",
+                        "outline-variant": "#3c4a42",
+                        "tertiary-container": "#98a3ba",
+                        "surface-container-lowest": "#060e20",
+                        "on-tertiary-fixed": "#111c2d",
+                        "inverse-on-surface": "#283044",
+                        "surface-variant": "#2d3449",
+                        "on-secondary-container": "#00311f",
+                        "tertiary-fixed-dim": "#bcc7de",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "on-surface-variant": "#bbcabf",
+                        "on-tertiary-container": "#2e394c",
+                        "primary-container": "#10b981",
+                        "secondary-container": "#25a475",
+                        "surface-container-highest": "#2d3449",
+                        "on-error": "#690005",
+                        "primary-fixed": "#6ffbbe",
+                        "surface": "#0b1326",
+                        "surface-container-low": "#131b2e",
+                        "on-primary-container": "#00422b",
+                        "secondary-fixed-dim": "#68dba9",
+                        "background": "#0b1326",
+                        "surface-dim": "#0b1326",
+                        "surface-bright": "#31394d",
+                        "inverse-surface": "#dae2fd",
+                        "on-surface": "#dae2fd",
+                        "inverse-primary": "#006c49"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "display": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1326;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen flex items-center justify-center p-6 selection:bg-primary/30 selection:text-primary">
+<!-- Confirmation Modal Container -->
+<main class="w-full max-w-xl">
+<!-- Success Card -->
+<div class="bg-surface-container rounded-xl border border-primary-container/20 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+<div class="p-8 md:p-12 flex flex-col items-center text-center">
+<!-- 1. ADRS Core Logo Section -->
+<div class="flex flex-col items-center mb-10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-4xl text-primary" style="font-variation-settings: 'FILL' 1;">shield</span>
+<span class="text-2xl font-extrabold tracking-tighter text-on-surface">ADRS CORE</span>
+</div>
+<span class="text-[10px] uppercase tracking-[0.2em] font-semibold text-tertiary mt-1 opacity-60">CLINICAL PRECISION</span>
+</div>
+<!-- 2. Glowing Checkmark -->
+<div class="relative mb-8">
+<div class="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150"></div>
+<div class="relative bg-surface-container-high p-6 rounded-full border border-primary/30 shadow-[0_0_20px_rgba(78,222,163,0.15)]">
+<span class="material-symbols-outlined text-6xl text-primary leading-none" style="font-variation-settings: 'wght' 600;">check_circle</span>
+</div>
+</div>
+<!-- 3. Headline -->
+<h1 class="text-3xl font-bold text-on-surface mb-3 tracking-tight">Farm Registered Successfully</h1>
+<!-- 4. Subtitle -->
+<p class="text-on-surface-variant leading-relaxed max-w-sm mb-12">
+                    Your clinical monitoring node is now active and ready for data synchronization.
+                </p>
+<!-- 5. Next Steps Section -->
+<div class="w-full space-y-4 mb-10">
+<button class="w-full py-4 px-6 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-xl">arrow_right_alt</span>
+                        Proceed to Login
+                    </button>
+<button class="w-full py-4 px-6 bg-surface-container-highest/40 text-primary border border-primary/20 font-semibold rounded-lg hover:bg-surface-container-highest transition-all active:scale-[0.98]">
+                        Set up Farm Profile
+                    </button>
+</div>
+<!-- 6. Subtle Note -->
+<div class="pt-6 border-t border-outline-variant/10 w-full">
+<div class="flex items-center justify-center gap-2 text-tertiary/60 text-sm">
+<span class="material-symbols-outlined text-lg">mail</span>
+<p>A confirmation email has been sent to your registered address.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- System Meta Info -->
+<div class="mt-8 flex justify-center items-center gap-6 opacity-40">
+<div class="flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface">Cloud Sync: Active</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface">Encrypted Node: #8F-221</span>
+</div>
+</div>
+</main>
+<!-- Visual Background Element (Subtle Ambient Glow) -->
+<div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+</body></html>
