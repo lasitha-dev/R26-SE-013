@@ -1,0 +1,35 @@
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# macOS / OS generated files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Datasets (DO NOT TRACK)
+data/raw/
+data/processed/
+data/final/
+*.csv
+*.xlsx
+*.tif
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
