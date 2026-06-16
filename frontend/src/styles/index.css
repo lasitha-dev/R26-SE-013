@@ -3,4 +3,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* App-wide custom styles are loaded via public/style.css in index.html */
+/* Material Symbols icon defaults */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Glassmorphism panel used in overlays */
+.glass-panel {
+  background: rgba(45, 52, 73, 0.6);
+  backdrop-filter: blur(20px);
+}
+
+/* Primary gradient for buttons and accents */
+.primary-gradient {
+  background: linear-gradient(135deg, #4edea3 0%, #10b981 100%);
+}
+
+/* Scan-line animation for symptom analysis */
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.scan-line {
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(to right, transparent, #4edea3, transparent);
+  position: absolute;
+  z-index: 20;
+  box-shadow: 0 0 15px #4edea3;
+}
+
+.scanning .scan-line {
+  animation: scan 2s linear infinite;
+}
+
+/* Image filter states for symptom analysis view */
+.image-dimmed {
+  filter: brightness(0.3) saturate(0.5);
+}
+
+.lesion-focused {
+  filter: brightness(1.2) saturate(1.5);
+  z-index: 10;
+}
+
+/* Hidden override */
+[hidden] {
+  display: none !important;
+}
