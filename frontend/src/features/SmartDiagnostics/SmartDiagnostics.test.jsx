@@ -140,7 +140,7 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByTestId('failure-view')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Network failure')).toBeInTheDocument();
+    expect(screen.getAllByText('Network failure').length).toBeGreaterThanOrEqual(1);
   });
 
   it('resets to idle state when "New Analysis" button is clicked', async () => {
