@@ -43,7 +43,7 @@ const SmartDiagnostics = () => {
   const disease = result?.disease;
   const profile = getDiseaseProfile(disease?.name);
   const confidence = disease?.confidence
-    ? (disease.confidence * 100).toFixed(1)
+    ? disease.confidence.toFixed(1)
     : '0.0';
 
   // Get best detection bounding box for lesion overlay

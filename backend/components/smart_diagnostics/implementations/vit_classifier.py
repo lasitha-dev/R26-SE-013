@@ -1,7 +1,11 @@
+import time
+import logging
 from typing import Dict, List
 from PIL.Image import Image
 
 from ..interfaces.classifier import ClassifierInterface
+
+logger = logging.getLogger("smart_diagnostics.vit")
 
 
 class ViTClassifier(ClassifierInterface):
@@ -19,17 +23,26 @@ class ViTClassifier(ClassifierInterface):
         self._transform = None
         self._device = None
 
+    @property
+    def is_loaded(self) -> bool:
+        """Return True if the underlying ViT model has been loaded into memory."""
+        return self._model is not None
+
     def _ensure_loaded(self):
         if self._model is not None:
             return
+        logger.info("Loading ViT classifier from '%s' ...", self.model_path)
+        t0 = time.perf_counter()
         try:
             import torch
             from torchvision import models, transforms
         except Exception as e:
+            logger.error("Failed to import torch/torchvision: %s", e)
             raise RuntimeError("torch and torchvision are required for ViTClassifier") from e
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._device = device
+        logger.info("ViT device: %s", device)
 
         vit = models.vit_b_16(weights=None)
         # Adapt classifier head
@@ -54,9 +67,14 @@ class ViTClassifier(ClassifierInterface):
                         state_dict = checkpoint[key]
                         break
             vit.load_state_dict(state_dict)
-        except Exception:
-            # We intentionally do not raise here; the model may be unavailable during development/tests.
-            pass
+            logger.info("ViT weights loaded successfully from checkpoint.")
+        except Exception as e:
+            # Log a warning instead of silently ignoring — the model will run with random weights!
+            logger.warning(
+                "Failed to load ViT weights from '%s': %s  — model will use RANDOM weights!",
+                self.model_path,
+                e,
+            )
 
         vit.to(device)
         vit.eval()
@@ -66,6 +84,13 @@ class ViTClassifier(ClassifierInterface):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
+        elapsed = time.perf_counter() - t0
+        logger.info(
+            "ViT classifier loaded successfully in %.2fs  (classes: %s, device: %s)",
+            elapsed,
+            self.class_names,
+            device,
+        )
 
     def predict(self, image: Image) -> Dict:
         self._ensure_loaded()

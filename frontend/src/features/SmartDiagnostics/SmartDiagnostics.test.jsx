@@ -70,8 +70,8 @@ describe('SmartDiagnostics', () => {
       },
       disease: {
         name: 'Lumpy Skin Disease',
-        confidence: 0.942,
-        all_probabilities: { 'Lumpy Skin Disease': 0.942, Healthy: 0.03 },
+        confidence: 94.2,
+        all_probabilities: { 'Lumpy Skin Disease': 94.2, Healthy: 3.0 },
       },
       cropped_image: null,
       image_size: { width: 640, height: 480 },
@@ -155,8 +155,8 @@ describe('SmartDiagnostics', () => {
       },
       disease: {
         name: 'Healthy',
-        confidence: 0.98,
-        all_probabilities: { Healthy: 0.98 },
+        confidence: 98.0,
+        all_probabilities: { Healthy: 98.0 },
       },
       cropped_image: null,
       image_size: { width: 640, height: 480 },
@@ -193,5 +193,45 @@ describe('SmartDiagnostics', () => {
   it('renders the top header with AI Diagnostics Panel title', () => {
     render(<SmartDiagnostics />);
     expect(screen.getByText('AI Diagnostics Panel')).toBeInTheDocument();
+  });
+
+  it('displays confidence as a percentage without double multiplication', async () => {
+    const detectImage = await getDetectImage();
+    // Backend returns confidence already as a percentage (e.g. 74.3, not 0.743)
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Lumpy Skin Disease',
+        confidence: 74.3,
+        all_probabilities: { 'Lumpy Skin Disease': 74.3, Healthy: 12.1 },
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+
+    render(<SmartDiagnostics />);
+
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // Must show 74.3%, NOT 7430.0% (the old double-multiplication bug)
+    const scoreEl = screen.getByTestId('confidence-score');
+    expect(scoreEl).toHaveTextContent('74.3%');
+    expect(scoreEl).not.toHaveTextContent('7430');
   });
 });

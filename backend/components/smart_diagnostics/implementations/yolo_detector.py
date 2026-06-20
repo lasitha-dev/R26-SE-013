@@ -1,7 +1,11 @@
+import time
+import logging
 from typing import List, Dict
 from PIL.Image import Image
 
 from ..interfaces.detector import DetectorInterface
+
+logger = logging.getLogger("smart_diagnostics.yolo")
 
 
 class YOLODetector(DetectorInterface):
@@ -16,17 +20,31 @@ class YOLODetector(DetectorInterface):
         self._model = None
         self._names = {}
 
+    @property
+    def is_loaded(self) -> bool:
+        """Return True if the underlying YOLO model has been loaded into memory."""
+        return self._model is not None
+
     def _ensure_loaded(self):
         if self._model is None:
+            logger.info("Loading YOLO model from '%s' ...", self.model_path)
+            t0 = time.perf_counter()
             try:
                 from ultralytics import YOLO
             except Exception as e:
+                logger.error("Failed to import ultralytics: %s", e)
                 raise RuntimeError("ultralytics is required for YOLODetector") from e
             self._model = YOLO(self.model_path)
             try:
                 self._names = getattr(self._model, "names", {}) or {}
             except Exception:
                 self._names = {}
+            elapsed = time.perf_counter() - t0
+            logger.info(
+                "YOLO model loaded successfully in %.2fs  (classes: %s)",
+                elapsed,
+                list(self._names.values()) if self._names else "unknown",
+            )
 
     def predict(self, image: Image) -> List[Dict]:
         self._ensure_loaded()

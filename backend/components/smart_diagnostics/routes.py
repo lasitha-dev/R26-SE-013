@@ -13,6 +13,32 @@ from .schemas import (
 router = APIRouter(prefix="")
 
 
+@router.get("/api/health")
+async def health(request: Request):
+    """Report model loading status and device info."""
+    detector = getattr(request.app.state, "detector", None)
+    classifier = getattr(request.app.state, "classifier", None)
+    device = getattr(request.app.state, "device", "unknown")
+
+    detector_loaded = getattr(detector, "is_loaded", False) if detector else False
+    classifier_loaded = getattr(classifier, "is_loaded", False) if classifier else False
+
+    return {
+        "status": "ok" if (detector_loaded and classifier_loaded) else "degraded",
+        "models": {
+            "yolo_detector": {
+                "registered": detector is not None,
+                "loaded": detector_loaded,
+            },
+            "vit_classifier": {
+                "registered": classifier is not None,
+                "loaded": classifier_loaded,
+            },
+        },
+        "device": str(device),
+    }
+
+
 @router.post("/api/detect", response_model=DetectResponse)
 async def detect(request: Request, image: UploadFile = File(...)):
     contents = await image.read()
