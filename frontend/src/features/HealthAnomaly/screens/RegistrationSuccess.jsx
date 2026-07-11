@@ -1,4 +1,9 @@
+import React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+
 export default function RegistrationSuccess() {
+  const navigate = useNavigate()
+
   return (
     <div className="bg-background min-h-screen flex items-center justify-center p-6 selection:bg-primary/30 selection:text-primary text-on-surface">
       <main className="w-full max-w-xl">
@@ -38,6 +43,7 @@ export default function RegistrationSuccess() {
 
             <div className="w-full space-y-4 mb-10">
               <button
+                onClick={() => navigate('/health/login')}
                 className="w-full py-4 px-6 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.98]"
                 type="button"
               >
@@ -45,6 +51,7 @@ export default function RegistrationSuccess() {
                 Proceed to Login
               </button>
               <button
+                onClick={() => navigate('/health/dashboard')}
                 className="w-full py-4 px-6 bg-surface-container-highest/40 text-primary border border-primary/20 font-semibold rounded-lg hover:bg-surface-container-highest transition-all active:scale-[0.98]"
                 type="button"
               >

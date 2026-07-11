@@ -59,6 +59,8 @@ function ForecastingMock() {
 export default function HealthAnomalyRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="login" replace />} />
+
       {/* Auth routes without sidebar/header layout */}
       <Route path="login" element={<SystemLogin />} />
       <Route path="registration" element={<RegistrationLanding />} />
@@ -67,7 +69,6 @@ export default function HealthAnomalyRoutes() {
 
       {/* Main app routes wrapped with DashboardLayout */}
       <Route element={<DashboardLayout />}>
-        <Route path="/" element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<WellnessDashboard />} />
         <Route path="settings" element={<SettingsFarmConfiguration />} />
         <Route path="herd-registry" element={<HerdRegistry />} />
