@@ -182,7 +182,7 @@ export default function SystemLogin() {
             End-to-End Encryption Enabled • Precision Engineered Intelligence
           </p>
           <p className="text-[0.625rem] tracking-[0.05em] uppercase text-slate-700">
-            © 2024 Sentinel AI Veterinary Diagnostics.
+            © 2026 Sentinel AI Veterinary Diagnostics.
           </p>
         </footer>
       </main>

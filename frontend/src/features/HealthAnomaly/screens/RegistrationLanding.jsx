@@ -12,10 +12,28 @@ export default function RegistrationLanding() {
     setLoading(true)
 
     const formData = new FormData(e.target)
+    const email = formData.get("email")
+    const password = formData.get("password")
+
+    // Client-side email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Please enter a valid email address.")
+      setLoading(false)
+      return
+    }
+
+    // Client-side password validation
+    if (password.length < 4) {
+      setErrorMessage("Password must be at least 4 characters long.")
+      setLoading(false)
+      return
+    }
+
     const payload = {
       owner_name: formData.get("owner_name"),
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email: email,
+      password: password,
       location_district: formData.get("location_district"),
       registration_number: formData.get("registration_number") || null,
       veterinarian_name: formData.get("veterinarian_name"),
@@ -35,7 +53,16 @@ export default function RegistrationLanding() {
       if (response.ok) {
         navigate('/health/registration-success')
       } else {
-        setErrorMessage(data.detail || "Registration failed. Please check details and try again.")
+        // Render server validation errors clearly
+        let errorMsg = "Registration failed. Please check details and try again."
+        if (data && data.detail) {
+          if (typeof data.detail === "string") {
+            errorMsg = data.detail
+          } else if (Array.isArray(data.detail)) {
+            errorMsg = data.detail.map(err => `${err.loc[err.loc.length - 1]}: ${err.msg}`).join(", ")
+          }
+        }
+        setErrorMessage(errorMsg)
       }
     } catch (err) {
       setErrorMessage("Cannot connect to server. Ensure backend is running.")
