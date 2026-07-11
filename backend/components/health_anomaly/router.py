@@ -3,8 +3,24 @@ from components.health_anomaly.database import farms_collection, cattles_collect
 from core.security import get_password_hash, verify_password, create_access_token
 from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
 
-
 router = APIRouter()
+
+# Helper function to propagate the most recent weight log to cattle details
+async def propagate_latest_weight(cattle_id: str):
+    from bson import ObjectId
+    if not ObjectId.is_valid(cattle_id):
+        return
+    
+    # Sort by date descending, then ID descending to find the latest recorded entry
+    recent_log = await daily_logs_collection.find_one(
+        {"cattle_id": cattle_id},
+        sort=[("date", -1), ("_id", -1)]
+    )
+    if recent_log:
+        await cattles_collection.update_one(
+            {"_id": ObjectId(cattle_id)},
+            {"$set": {"weight": recent_log["weight"]}}
+        )
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_farm(farm_data: FarmRegister):
@@ -138,14 +154,9 @@ async def create_daily_log(log_data: DailyLogCreate):
         from bson import ObjectId
         doc = log_data.model_dump()
         result = await daily_logs_collection.insert_one(doc)
-
         
-        # Update main cattle weight
-        if ObjectId.is_valid(log_data.cattle_id):
-            await cattles_collection.update_one(
-                {"_id": ObjectId(log_data.cattle_id)},
-                {"$set": {"weight": log_data.weight}}
-            )
+        # Propagate latest weight
+        await propagate_latest_weight(log_data.cattle_id)
         
         doc["id"] = str(result.inserted_id)
         doc.pop("_id", None)
@@ -166,13 +177,10 @@ async def create_daily_logs_bulk(logs_data: list[DailyLogCreate]):
         docs = [log.model_dump() for log in logs_data]
         result = await daily_logs_collection.insert_many(docs)
         
-        # Update cattle weights in bulk
-        for log in logs_data:
-            if ObjectId.is_valid(log.cattle_id):
-                await cattles_collection.update_one(
-                    {"_id": ObjectId(log.cattle_id)},
-                    {"$set": {"weight": log.weight}}
-                )
+        # Update weights for all affected cattle
+        affected_cattle = set(log.cattle_id for log in logs_data)
+        for cattle_id in affected_cattle:
+            await propagate_latest_weight(cattle_id)
                 
         return {
             "message": f"Successfully imported {len(result.inserted_ids)} logs and updated cattle weights.",
@@ -237,12 +245,8 @@ async def update_daily_log(id: str, log_data: DailyLogCreate):
                 detail="Daily log entry not found."
             )
             
-        # Update main cattle weight
-        if ObjectId.is_valid(log_data.cattle_id):
-            await cattles_collection.update_one(
-                {"_id": ObjectId(log_data.cattle_id)},
-                {"$set": {"weight": log_data.weight}}
-            )
+        # Propagate latest weight
+        await propagate_latest_weight(log_data.cattle_id)
             
         result["id"] = str(result["_id"])
         result.pop("_id", None)
@@ -286,6 +290,42 @@ async def update_cattle(id: str, cattle_data: CattleCreate):
             detail=f"Database error while updating cattle details: {str(e)}"
         )
 
+@router.delete("/daily-logs/{id}", status_code=status.HTTP_200_OK)
+async def delete_daily_log(id: str):
+    try:
+        from bson import ObjectId
+        if not ObjectId.is_valid(id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid daily log ID format."
+            )
+        
+        # 1. Fetch log entry to find cattle_id before deleting
+        log_entry = await daily_logs_collection.find_one({"_id": ObjectId(id)})
+        if not log_entry:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Daily log entry not found."
+            )
+        
+        cattle_id = log_entry["cattle_id"]
 
-
-
+        # 2. Delete the log entry
+        result = await daily_logs_collection.delete_one({"_id": ObjectId(id)})
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Daily log entry not found."
+            )
+        
+        # 3. Propagate latest weight to cattle
+        await propagate_latest_weight(cattle_id)
+        
+        return {"message": "Daily log deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error during daily log deletion: {str(e)}"
+        )

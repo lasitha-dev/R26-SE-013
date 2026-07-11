@@ -13,6 +13,11 @@ export default function AnimalProfile() {
   const [showEditCattleModal, setShowEditCattleModal] = useState(false)
   const [editErrorMessage, setEditErrorMessage] = useState('')
 
+  // Edit Log Modal states
+  const [showEditLogModal, setShowEditLogModal] = useState(false)
+  const [editingLog, setEditingLog] = useState(null)
+  const [editLogErrorMessage, setEditLogErrorMessage] = useState('')
+
   // Default date configurations
   const todayDateString = new Date().toISOString().split('T')[0]
 
@@ -202,6 +207,83 @@ export default function AnimalProfile() {
       }
     } catch (err) {
       setEditErrorMessage('Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Edit Log submit handler
+  const handleEditLogSubmit = async (e) => {
+    e.preventDefault()
+    setEditLogErrorMessage('')
+
+    const formData = new FormData(e.target)
+    const milkYield = parseFloat(formData.get('edit_log_milk_yield'))
+    const weight = parseFloat(formData.get('edit_log_weight'))
+    const dateVal = formData.get('edit_log_date')
+
+    if (isNaN(milkYield) || milkYield < 0) {
+      setEditLogErrorMessage('Milk Yield must be a positive number or zero.')
+      return
+    }
+    if (isNaN(weight) || weight < 0.1) {
+      setEditLogErrorMessage('Weight must be a positive number greater than or equal to 0.1 KG.')
+      return
+    }
+
+    const payload = {
+      cattle_id: id,
+      date: dateVal,
+      milk_yield: milkYield,
+      weight: weight
+    }
+
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/daily-logs/${editingLog.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(payload),
+      })
+      if (response.ok) {
+        setShowEditLogModal(false)
+        fetchCattleAndLogs()
+      } else {
+        const data = await response.json()
+        setEditLogErrorMessage(data.detail || 'Failed to update daily log entry.')
+      }
+    } catch (err) {
+      setEditLogErrorMessage('Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Delete log handler
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm('Are you sure you want to delete this daily log entry?')) {
+      return
+    }
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/daily-logs/${logId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      })
+      if (response.ok) {
+        fetchCattleAndLogs()
+      } else {
+        alert('Failed to delete log entry.')
+      }
+    } catch (err) {
+      alert('Error connecting to backend during deletion.')
     } finally {
       setLoading(false)
     }
@@ -437,6 +519,67 @@ export default function AnimalProfile() {
         </div>
       </div>
 
+      {/* Dynamic Animal Specific Daily Logs Table */}
+      <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden shadow-2xl">
+        <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+          <div>
+            <h3 className="text-base font-bold text-white tracking-tight uppercase">Daily Health & Yield Logs</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Recorded metrics for this subject animal</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-surface-container-lowest/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-bold">
+                <th className="px-8 py-4">Date</th>
+                <th className="px-8 py-4">Daily Milk Yield</th>
+                <th className="px-8 py-4">Body Weight</th>
+                <th className="px-8 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {dailyLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-8 py-10 text-center text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    No records found
+                  </td>
+                </tr>
+              ) : (
+                dailyLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-surface-container-high/40 transition-colors">
+                    <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">{log.date}</td>
+                    <td className="px-8 py-4 text-sm font-semibold text-primary">{log.milk_yield} L</td>
+                    <td className="px-8 py-4 text-sm font-semibold text-secondary">{log.weight} KG</td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingLog(log)
+                            setEditLogErrorMessage('')
+                            setShowEditLogModal(true)
+                          }}
+                          className="px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLog(log.id)}
+                          className="px-3 py-1 bg-error/10 border border-error/20 text-error text-xs font-bold rounded hover:bg-error/20 transition-all active:scale-95"
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Historical Assessment Log */}
       <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden">
         <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
@@ -637,6 +780,88 @@ export default function AnimalProfile() {
                   type="submit"
                 >
                   Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Daily Log Modal ──────────────────────────────────────────── */}
+      {showEditLogModal && editingLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#171f33] border border-outline-variant/10 rounded-xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
+            <h3 className="text-xl font-black text-white tracking-tight uppercase mb-6">
+              Edit Daily Log Entry
+            </h3>
+
+            {editLogErrorMessage && (
+              <div className="mb-4 p-4 bg-error/15 border border-error/30 text-error rounded-lg text-xs font-bold uppercase tracking-wider">
+                {editLogErrorMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleEditLogSubmit} className="space-y-4">
+              {/* Date */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Logging Date
+                </label>
+                <input
+                  defaultValue={editingLog.date}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
+                  name="edit_log_date"
+                  required
+                  type="date"
+                  max={todayDateString}
+                />
+              </div>
+
+              {/* Milk Yield */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Daily Milk Yield (Liters)
+                </label>
+                <input
+                  defaultValue={editingLog.milk_yield}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                  name="edit_log_milk_yield"
+                  required
+                  type="number"
+                  step="0.1"
+                  min="0"
+                />
+              </div>
+
+              {/* Weight */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Body Weight (KG)
+                </label>
+                <input
+                  defaultValue={editingLog.weight}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                  name="edit_log_weight"
+                  required
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                />
+              </div>
+
+              <div className="pt-6 flex justify-between gap-4">
+                <button
+                  onClick={() => setShowEditLogModal(false)}
+                  className="px-6 py-3 bg-surface-container-high hover:bg-surface-bright text-slate-300 text-xs font-bold uppercase rounded-lg border border-white/5 transition-all"
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-8 py-3 bg-primary hover:opacity-90 text-on-primary font-black text-xs uppercase tracking-wider rounded-lg transition-all"
+                  type="submit"
+                >
+                  Save Log
                 </button>
               </div>
             </form>
