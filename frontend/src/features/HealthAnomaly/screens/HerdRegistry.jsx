@@ -76,7 +76,7 @@ export default function HerdRegistry() {
       </div>
 
       {/* Population & Breed Grid */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl p-6 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-symbols-outlined text-[120px] text-primary">analytics</span>

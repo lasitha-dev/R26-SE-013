@@ -68,7 +68,7 @@ export default function AnimalProfileBT8842() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Visual State & Photo */}
         <div className="col-span-12 lg:col-span-5 bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant/10">
           <div className="relative h-64">

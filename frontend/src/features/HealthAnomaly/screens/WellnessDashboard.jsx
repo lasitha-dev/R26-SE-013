@@ -15,7 +15,7 @@ export default function WellnessDashboard() {
       </div>
 
       {/* Overview Cards & THI Meter */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Environmental Stress Card */}
         <div className="col-span-12 lg:col-span-5 glass-card rounded-xl p-6 flex flex-col justify-between relative overflow-hidden">
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
@@ -173,7 +173,7 @@ export default function WellnessDashboard() {
       </div>
 
       {/* Assessments List & AI Insights */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8 bg-surface-container rounded-xl overflow-hidden border border-white/5">
           <div className="p-6 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-lg font-bold">Recent BCS Assessments</h3>
