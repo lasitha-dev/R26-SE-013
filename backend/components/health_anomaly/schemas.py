@@ -28,6 +28,7 @@ class CattleCreate(BaseModel):
     breed: str = Field(..., min_length=1)
     weight: float = Field(..., ge=0.1)
     profile_photo: Optional[str] = None
+    calving_date: Optional[str] = None
     status: str = "Healthy"
 
 class CattleResponse(BaseModel):
@@ -38,4 +39,20 @@ class CattleResponse(BaseModel):
     breed: str
     weight: float
     profile_photo: Optional[str] = None
+    calving_date: Optional[str] = None
     status: str
+
+
+class DailyLogCreate(BaseModel):
+    cattle_id: str = Field(..., min_length=1)
+    date: str = Field(..., min_length=1)
+    milk_yield: float = Field(..., ge=0.0)
+    weight: float = Field(..., ge=0.1)
+
+class DailyLogResponse(BaseModel):
+    id: str
+    cattle_id: str
+    date: str
+    milk_yield: float
+    weight: float
+

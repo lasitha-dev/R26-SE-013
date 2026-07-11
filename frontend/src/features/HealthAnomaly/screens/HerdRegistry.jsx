@@ -17,6 +17,50 @@ export default function HerdRegistry() {
     },
   }
 
+  // Static mock rows as fallback demo data
+  const mockRows = [
+    {
+      id: 'mock-8842',
+      identifier: '#BT-8842',
+      dot: 'bg-primary',
+      gender: 'Female',
+      dob: '2020-05-12 (4 Yrs, 2 Mos)',
+      breed: 'Friesian',
+      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      profile_photo: null,
+    },
+    {
+      id: 'mock-sudu',
+      identifier: 'Sudu',
+      dot: 'bg-error',
+      gender: 'Male',
+      dob: '2021-01-05 (3 Yrs, 6 Mos)',
+      breed: 'Jersey',
+      status: { label: 'At Risk', color: 'At Risk', pulse: true },
+      profile_photo: null,
+    },
+    {
+      id: 'mock-7729',
+      identifier: '#BT-7729',
+      dot: 'bg-primary',
+      gender: 'Female',
+      dob: '2019-10-20 (5 Yrs)',
+      breed: 'Sahiwal',
+      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      profile_photo: null,
+    },
+    {
+      id: 'mock-maanam',
+      identifier: 'Maanam',
+      dot: 'bg-primary',
+      gender: 'Female',
+      dob: '2022-03-15 (2 Yrs, 4 Mos)',
+      breed: 'Local',
+      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      profile_photo: null,
+    },
+  ]
+
   useEffect(() => {
     const fetchCattle = async () => {
       try {
@@ -56,19 +100,22 @@ export default function HerdRegistry() {
   }
 
   // Map API cattle array to table rows
-  const displayRows = cattleList.map((c) => ({
-    id: c.identifier,
-    dot: c.status === 'Healthy' ? 'bg-primary' : 'bg-error',
-    gender: c.gender,
-    dob: `${c.dob} (${calculateAge(c.dob)})`,
-    breed: c.breed,
-    status: {
-      label: c.status,
-      color: c.status === 'Healthy' ? 'Healthy' : 'At Risk',
-      pulse: c.status !== 'Healthy',
-    },
-    profile_photo: c.profile_photo,
-  }))
+  const displayRows = cattleList.length > 0
+    ? cattleList.map((c) => ({
+        id: c.id,
+        identifier: c.identifier,
+        dot: c.status === 'Healthy' ? 'bg-primary' : 'bg-error',
+        gender: c.gender,
+        dob: `${c.dob} (${calculateAge(c.dob)})`,
+        breed: c.breed,
+        status: {
+          label: c.status,
+          color: c.status === 'Healthy' ? 'Healthy' : 'At Risk',
+          pulse: c.status !== 'Healthy',
+        },
+        profile_photo: c.profile_photo,
+      }))
+    : mockRows
 
   return (
     <div className="space-y-8">
@@ -232,14 +279,14 @@ export default function HerdRegistry() {
                       <div className="flex items-center gap-3">
                         {r.profile_photo ? (
                           <img
-                            alt={r.id}
+                            alt={r.identifier}
                             className="w-8 h-8 rounded-full object-cover border border-primary/20"
                             src={r.profile_photo}
                           />
                         ) : (
                           <span className={`w-2 h-2 rounded-full ${r.dot}`}></span>
                         )}
-                        <span className="font-mono text-sm font-bold text-white">{r.id}</span>
+                        <span className="font-mono text-sm font-bold text-white">{r.identifier}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
@@ -271,7 +318,7 @@ export default function HerdRegistry() {
                     <td className="px-8 py-5 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <Link
-                          to="/health/animal-profile-bt-8842"
+                          to={`/health/animal-profile/${r.id}`}
                           className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"
                         >
                           <span className="material-symbols-outlined text-xl">visibility</span>

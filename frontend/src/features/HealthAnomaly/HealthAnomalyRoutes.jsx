@@ -9,7 +9,7 @@ import RegistrationLanding from './screens/RegistrationLanding.jsx'
 import PasswordReset from './screens/PasswordReset.jsx'
 import SettingsFarmConfiguration from './screens/SettingsFarmConfiguration.jsx'
 import HerdRegistry from './screens/HerdRegistry.jsx'
-import AnimalProfileBT8842 from './screens/AnimalProfileBT8842.jsx'
+import AnimalProfile from './screens/AnimalProfile.jsx'
 import AddNewAnimal from './screens/AddNewAnimal.jsx'
 import WellnessDataIntake from './screens/WellnessDataIntake.jsx'
 import SevenDayTriageScan from './screens/SevenDayTriageScan.jsx'
@@ -72,7 +72,7 @@ export default function HealthAnomalyRoutes() {
         <Route path="dashboard" element={<WellnessDashboard />} />
         <Route path="settings" element={<SettingsFarmConfiguration />} />
         <Route path="herd-registry" element={<HerdRegistry />} />
-        <Route path="animal-profile-bt-8842" element={<AnimalProfileBT8842 />} />
+        <Route path="animal-profile/:id" element={<AnimalProfile />} />
         <Route path="add-new-animal" element={<AddNewAnimal />} />
         <Route path="wellness-data-intake" element={<WellnessDataIntake />} />
         <Route path="7-day-triage-scan" element={<SevenDayTriageScan />} />

@@ -7,6 +7,14 @@ export const calculateAge = (dobString) => {
   const dob = new Date(dobString)
   const today = new Date()
 
+  // Reset hours to compare only dates
+  dob.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+
+  if (dob > today) {
+    return 'Not Born Yet'
+  }
+
   let years = today.getFullYear() - dob.getFullYear()
   let months = today.getMonth() - dob.getMonth()
 
@@ -35,6 +43,9 @@ export default function AddNewAnimal() {
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Get current date in YYYY-MM-DD format for HTML max attribute
+  const todayDateString = new Date().toISOString().split('T')[0]
+
   // Convert uploaded image file to Base64 string
   const handlePhotoChange = (e) => {
     const file = e.target.files[0]
@@ -60,20 +71,67 @@ export default function AddNewAnimal() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
-    setLoading(true)
 
     const formData = new FormData(e.target)
-    const payload = {
-      identifier: formData.get('identifier'),
-      gender: formData.get('gender'),
-      dob: formData.get('dob'),
-      breed: formData.get('breed'),
-      weight: parseFloat(formData.get('weight')),
-      profile_photo: photoBase64 || null,
-      status: 'Healthy', // default health status
+    const identifier = formData.get('identifier')
+    const gender = formData.get('gender')
+    const dob = formData.get('dob')
+    const breed = formData.get('breed')
+    const weightVal = formData.get('weight')
+
+    const calvingDateVal = formData.get('calving_date')
+
+    // 1. Required fields validation
+    if (!identifier || !gender || !dob || !breed || !weightVal) {
+      setErrorMessage('Please fill in all required fields.')
+      return
     }
 
-    // Retrieve JWT token to include in authorization header
+    // 2. Weight validation (must be positive & >= 0.1)
+    const weight = parseFloat(weightVal)
+    if (isNaN(weight) || weight < 0.1) {
+      setErrorMessage('Initial Body Weight must be a positive number greater than or equal to 0.1 KG.')
+      return
+    }
+
+    // 3. Date of birth validation (no future dates)
+    const dobDate = new Date(dob)
+    const today = new Date()
+    dobDate.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+    if (dobDate > today) {
+      setErrorMessage('Date of Birth cannot be in the future.')
+      return
+    }
+
+    // 4. Calving date validation (optional)
+    if (calvingDateVal) {
+      const calvingDate = new Date(calvingDateVal)
+      calvingDate.setHours(0, 0, 0, 0)
+      if (calvingDate > today) {
+        setErrorMessage('Last Calving Date cannot be in the future.')
+        return
+      }
+      if (calvingDate < dobDate) {
+        setErrorMessage('Last Calving Date cannot be before the Date of Birth.')
+        return
+      }
+    }
+
+    setLoading(true)
+
+    const payload = {
+      identifier: identifier.trim(),
+      gender,
+      dob,
+      breed,
+      weight,
+      profile_photo: photoBase64 || null,
+      calving_date: calvingDateVal || null,
+      status: 'Healthy',
+    }
+
+
     const token = localStorage.getItem('token')
 
     try {
@@ -119,7 +177,7 @@ export default function AddNewAnimal() {
               </div>
             )}
 
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
               {/* Profile Photo Upload */}
               <div className="space-y-2">
                 <label className="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">
@@ -210,6 +268,7 @@ export default function AddNewAnimal() {
                       name="dob"
                       required
                       type="date"
+                      max={todayDateString}
                     />
                   </div>
                 </div>
@@ -260,6 +319,21 @@ export default function AddNewAnimal() {
                       KG
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Last Calving Date (Optional) */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">
+                  Last Calving Date (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all [color-scheme:dark]"
+                    name="calving_date"
+                    type="date"
+                    max={todayDateString}
+                  />
                 </div>
               </div>
 
