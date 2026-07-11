@@ -15,3 +15,5 @@ db = client.adrs_core
 
 # Collections
 farms_collection = db.farms
+cattles_collection = db.cattle
+

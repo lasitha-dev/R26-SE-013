@@ -20,3 +20,22 @@ class TokenResponse(BaseModel):
     owner_name: str
     email: str
     veterinarian_name: str
+
+class CattleCreate(BaseModel):
+    identifier: str = Field(..., min_length=1)
+    gender: str = Field(..., min_length=1)
+    dob: str = Field(..., min_length=1)
+    breed: str = Field(..., min_length=1)
+    weight: float = Field(..., ge=0.1)
+    profile_photo: Optional[str] = None
+    status: str = "Healthy"
+
+class CattleResponse(BaseModel):
+    id: str
+    identifier: str
+    gender: str
+    dob: str
+    breed: str
+    weight: float
+    profile_photo: Optional[str] = None
+    status: str
