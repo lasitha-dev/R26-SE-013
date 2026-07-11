@@ -3,6 +3,46 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export default function RegistrationLanding() {
   const navigate = useNavigate()
+  const [errorMessage, setErrorMessage] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setErrorMessage("")
+    setLoading(true)
+
+    const formData = new FormData(e.target)
+    const payload = {
+      owner_name: formData.get("owner_name"),
+      email: formData.get("email"),
+      password: formData.get("password"),
+      location_district: formData.get("location_district"),
+      registration_number: formData.get("registration_number") || null,
+      veterinarian_name: formData.get("veterinarian_name"),
+      total_animals: parseInt(formData.get("total_animals") || "0", 10)
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        navigate('/health/registration-success')
+      } else {
+        setErrorMessage(data.detail || "Registration failed. Please check details and try again.")
+      }
+    } catch (err) {
+      setErrorMessage("Cannot connect to server. Ensure backend is running.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="bg-background text-on-surface font-body antialiased overflow-x-hidden min-h-screen">
@@ -63,12 +103,15 @@ export default function RegistrationLanding() {
               <p className="text-on-surface-variant">Initialize your diagnostic node within the Sentinel network.</p>
             </header>
 
+            {errorMessage && (
+              <div className="mb-6 p-4 bg-error/15 border border-error/30 text-error rounded-lg text-xs font-bold uppercase tracking-wider">
+                {errorMessage}
+              </div>
+            )}
+
             <form
               className="space-y-6"
-              onSubmit={(e) => {
-                e.preventDefault()
-                navigate('/health/registration-success')
-              }}
+              onSubmit={handleSubmit}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -77,7 +120,9 @@ export default function RegistrationLanding() {
                   </label>
                   <input
                     className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="owner_name"
                     placeholder="Dr. Julian Vane"
+                    required
                     type="text"
                   />
                 </div>
@@ -87,7 +132,9 @@ export default function RegistrationLanding() {
                   </label>
                   <input
                     className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="email"
                     placeholder="vane.j@sentinel-ai.vet"
+                    required
                     type="email"
                   />
                 </div>
@@ -100,7 +147,9 @@ export default function RegistrationLanding() {
                   </label>
                   <input
                     className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="password"
                     placeholder="••••••••"
+                    required
                     type="password"
                   />
                 </div>
@@ -113,14 +162,37 @@ export default function RegistrationLanding() {
                     <select
                       className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 pr-10 text-on-surface text-sm appearance-none transition-all duration-300"
                       defaultValue=""
+                      name="location_district"
+                      required
                     >
                       <option disabled value="">
                         Select District
                       </option>
-                      <option value="north">Northern Highlands</option>
-                      <option value="central">Central Plains</option>
-                      <option value="south">Southern Delta</option>
-                      <option value="east">Eastern Corridor</option>
+                      <option value="ampara">Ampara</option>
+                      <option value="anuradhapura">Anuradhapura</option>
+                      <option value="badulla">Badulla</option>
+                      <option value="batticaloa">Batticaloa</option>
+                      <option value="colombo">Colombo</option>
+                      <option value="galle">Galle</option>
+                      <option value="gampaha">Gampaha</option>
+                      <option value="hambantota">Hambantota</option>
+                      <option value="jaffna">Jaffna</option>
+                      <option value="kalutara">Kalutara</option>
+                      <option value="kandy">Kandy</option>
+                      <option value="kegalle">Kegalle</option>
+                      <option value="kilinochchi">Kilinochchi</option>
+                      <option value="kurunegala">Kurunegala</option>
+                      <option value="mannar">Mannar</option>
+                      <option value="matale">Matale</option>
+                      <option value="matara">Matara</option>
+                      <option value="moneragala">Moneragala</option>
+                      <option value="mullaitivu">Mullaitivu</option>
+                      <option value="nuwara-eliya">Nuwara Eliya</option>
+                      <option value="polonnaruwa">Polonnaruwa</option>
+                      <option value="puttalam">Puttalam</option>
+                      <option value="ratnapura">Ratnapura</option>
+                      <option value="trincomalee">Trincomalee</option>
+                      <option value="vavuniya">Vavuniya</option>
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary pointer-events-none">
                       expand_more
@@ -132,11 +204,12 @@ export default function RegistrationLanding() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
-                    Registration Number
+                    Registration Number (Optional)
                   </label>
                   <input
                     className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
-                    placeholder="REG-AI-9902"
+                    name="registration_number"
+                    placeholder="e.g., REG-AI-9902"
                     type="text"
                   />
                 </div>
@@ -146,7 +219,9 @@ export default function RegistrationLanding() {
                   </label>
                   <input
                     className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="veterinarian_name"
                     placeholder="Clinic Lead"
+                    required
                     type="text"
                   />
                 </div>
@@ -160,37 +235,20 @@ export default function RegistrationLanding() {
                   <input
                     className="w-full bg-surface-container-highest border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
                     min="0"
+                    name="total_animals"
                     placeholder="0"
+                    required
                     type="number"
                   />
-                </div>
-
-                <div className="space-y-3">
-                  <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
-                    Cattle Breeds (Multi-select)
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['Jersey', 'Friesian', 'Sahiwal', 'Angus'].map((breed) => (
-                      <label
-                        key={breed}
-                        className="flex items-center space-x-3 p-3 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors"
-                      >
-                        <input
-                          className="rounded text-primary focus:ring-primary bg-surface-container-highest border-none"
-                          type="checkbox"
-                        />
-                        <span className="text-sm font-medium">{breed}</span>
-                      </label>
-                    ))}
-                  </div>
                 </div>
               </div>
 
               <button
-                className="w-full py-4 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm tracking-widest uppercase rounded-lg shadow-[0_10px_30px_-10px_rgba(78,222,163,0.3)] hover:brightness-110 active:opacity-70 transition-all duration-300"
+                className="w-full py-4 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm tracking-widest uppercase rounded-lg shadow-[0_10px_30px_-10px_rgba(78,222,163,0.3)] hover:brightness-110 active:opacity-70 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
+                disabled={loading}
               >
-                Register Farm
+                {loading ? "Registering Node..." : "Register Farm"}
               </button>
             </form>
 

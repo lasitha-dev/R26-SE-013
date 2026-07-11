@@ -1,8 +1,17 @@
 import React, { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const navigate = useNavigate()
+
+  const token = localStorage.getItem("token")
+  if (!token) {
+    return <Navigate to="/health/login" replace />
+  }
+
+  const ownerName = localStorage.getItem("owner_name") || "Julian Vane"
+  const vetName = localStorage.getItem("veterinarian_name") || "Clinical Lead"
 
   const navLinks = [
     { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety' },
@@ -94,13 +103,17 @@ export default function DashboardLayout() {
             <span className="material-symbols-outlined text-[20px]">settings</span>
             <span>Settings</span>
           </NavLink>
-          <a
-            className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-emerald-200 transition-colors text-sm"
-            href="#support"
+          <button
+            onClick={() => {
+              localStorage.clear()
+              navigate('/health/login')
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-red-400 transition-colors text-sm text-left"
+            type="button"
           >
-            <span className="material-symbols-outlined text-[20px]">help</span>
-            <span>Support</span>
-          </a>
+            <span className="material-symbols-outlined text-[20px] text-red-400/80">logout</span>
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
@@ -148,8 +161,8 @@ export default function DashboardLayout() {
             <div className="h-6 w-px bg-white/10 mx-1"></div>
             <div className="flex items-center gap-3 pl-2 border-l border-white/10">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-on-surface">Kamal Perera</p>
-                <p className="text-[10px] text-slate-500">Dairy Farmer</p>
+                <p className="text-xs font-bold text-on-surface">{ownerName}</p>
+                <p className="text-[10px] text-slate-500">{vetName}</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-emerald-500/20">
                 <img

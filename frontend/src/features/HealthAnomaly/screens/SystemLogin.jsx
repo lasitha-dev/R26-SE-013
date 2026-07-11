@@ -3,6 +3,43 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export default function SystemLogin() {
   const navigate = useNavigate()
+  const [errorMessage, setErrorMessage] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setErrorMessage("")
+    setLoading(true)
+
+    const formData = new FormData(e.target)
+    const email = formData.get("email")
+    const password = formData.get("password")
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        localStorage.setItem("token", data.access_token)
+        localStorage.setItem("owner_name", data.owner_name)
+        localStorage.setItem("email", data.email)
+        localStorage.setItem("veterinarian_name", data.veterinarian_name)
+        navigate('/health/dashboard')
+      } else {
+        setErrorMessage(data.detail || "Authentication failed. Please verify credentials.")
+      }
+    } catch (err) {
+      setErrorMessage("Cannot connect to server. Ensure backend is running.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen p-6 overflow-hidden bg-surface text-on-surface">
@@ -35,12 +72,16 @@ export default function SystemLogin() {
               <h1 className="text-2xl font-bold tracking-tight text-on-surface">System Login</h1>
               <p className="text-sm text-slate-400 mt-2">Authorized clinical access only.</p>
             </div>
+
+            {errorMessage && (
+              <div className="mb-6 p-4 bg-error/15 border border-error/30 text-error rounded-lg text-xs font-bold uppercase tracking-wider">
+                {errorMessage}
+              </div>
+            )}
+
             <form
               className="space-y-6"
-              onSubmit={(e) => {
-                e.preventDefault()
-                navigate('/health/dashboard')
-              }}
+              onSubmit={handleLogin}
             >
               <div className="space-y-2">
                 <label
@@ -58,6 +99,7 @@ export default function SystemLogin() {
                     id="email"
                     name="email"
                     placeholder="clinician@sentinel.ai"
+                    required
                     type="email"
                   />
                 </div>
@@ -87,17 +129,19 @@ export default function SystemLogin() {
                     id="password"
                     name="password"
                     placeholder="••••••••"
+                    required
                     type="password"
                   />
                 </div>
               </div>
 
               <button
-                className="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold py-4 rounded shadow-lg shadow-primary/10 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold py-4 rounded shadow-lg shadow-primary/10 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
+                disabled={loading}
               >
                 <span className="material-symbols-outlined text-xl">login</span>
-                Secure Login
+                {loading ? "Authenticating..." : "Secure Login"}
               </button>
             </form>
 
