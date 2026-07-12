@@ -12,6 +12,7 @@ export default function AnimalProfile() {
   // Edit Cattle Modal states
   const [showEditCattleModal, setShowEditCattleModal] = useState(false)
   const [editErrorMessage, setEditErrorMessage] = useState('')
+  const [editPhotoBase64, setEditPhotoBase64] = useState('')
 
   // Edit Log Modal states
   const [showEditLogModal, setShowEditLogModal] = useState(false)
@@ -182,7 +183,7 @@ export default function AnimalProfile() {
       dob,
       breed,
       weight,
-      profile_photo: cattle.profile_photo || null,
+      profile_photo: editPhotoBase64 || null,
       calving_date: calvingDateVal || null,
       status: cattle.status
     }
@@ -341,7 +342,11 @@ export default function AnimalProfile() {
             <span className="material-symbols-outlined text-base">download</span>
           </button>
           <button
-            onClick={() => setShowEditCattleModal(true)}
+            onClick={() => {
+              setEditPhotoBase64(cattle.profile_photo || '')
+              setEditErrorMessage('')
+              setShowEditCattleModal(true)
+            }}
             className="px-5 py-2.5 bg-primary hover:opacity-90 text-on-primary text-xs font-bold rounded-lg transition-all shadow-lg shadow-primary/20"
             type="button"
           >
@@ -673,6 +678,53 @@ export default function AnimalProfile() {
             )}
 
             <form onSubmit={handleEditCattleSubmit} className="space-y-4">
+              
+              {/* Profile Photo Uploader */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Profile Photo
+                </label>
+                <div className="flex items-center gap-4 p-3 bg-surface-container-lowest rounded-lg border border-white/5">
+                  <div className="w-12 h-12 rounded-full bg-surface-container-highest overflow-hidden border border-primary/20 flex-shrink-0 flex items-center justify-center relative">
+                    {editPhotoBase64 ? (
+                      <img
+                        alt="Profile preview"
+                        className="w-full h-full object-cover"
+                        src={editPhotoBase64}
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined text-xl text-slate-500">
+                        photo_camera
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <input
+                      accept="image/*"
+                      className="hidden"
+                      id="edit-photo-upload"
+                      onChange={(e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onloadend = () => {
+                          setEditPhotoBase64(reader.result)
+                        }
+                        reader.readAsDataURL(file)
+                      }}
+                      type="file"
+                    />
+                    <label
+                      htmlFor="edit-photo-upload"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded cursor-pointer transition-all border border-primary/25"
+                    >
+                      <span className="material-symbols-outlined text-sm">upload</span>
+                      Change Photo
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Identifier */}
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">

@@ -329,3 +329,33 @@ async def delete_daily_log(id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error during daily log deletion: {str(e)}"
         )
+
+@router.delete("/cattle/{id}", status_code=status.HTTP_200_OK)
+async def delete_cattle(id: str):
+    try:
+        from bson import ObjectId
+        if not ObjectId.is_valid(id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid cattle ID format."
+            )
+        # Delete cattle record
+        result = await cattles_collection.delete_one({"_id": ObjectId(id)})
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cattle not found."
+            )
+        
+        # Clean up associated daily logs
+        await daily_logs_collection.delete_many({"cattle_id": id})
+        
+        return {"message": "Cattle and all associated logs deleted successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error during cattle deletion: {str(e)}"
+        )
+

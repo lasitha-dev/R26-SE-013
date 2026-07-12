@@ -61,27 +61,62 @@ export default function HerdRegistry() {
     },
   ]
 
-  useEffect(() => {
-    const fetchCattle = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        const response = await fetch('http://127.0.0.1:8000/api/cattle', {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : '',
-          },
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setCattleList(data || [])
-        }
-      } catch (err) {
-        console.error('Error fetching cattle list:', err)
-      } finally {
-        setLoading(false)
+  const fetchCattle = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/cattle', {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setCattleList(data || [])
       }
+    } catch (err) {
+      console.error('Error fetching cattle list:', err)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchCattle()
   }, [])
+
+  const handleDeleteCattle = async (cattleId) => {
+    if (cattleId.startsWith('mock-')) {
+      alert('Mock records cannot be deleted.')
+      return
+    }
+    if (
+      !window.confirm(
+        'Are you sure you want to delete this animal and all its associated logs? This action cannot be undone.'
+      )
+    ) {
+      return
+    }
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/cattle/${cattleId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      })
+      if (response.ok) {
+        // Refresh registry list
+        fetchCattle()
+      } else {
+        alert('Failed to delete cattle record.')
+      }
+    } catch (err) {
+      alert('Error connecting to backend during deletion.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // ─── Dynamic Top Statistics ────────────────────────────────────────────────
   const totalLivestock = cattleList.length
@@ -100,22 +135,23 @@ export default function HerdRegistry() {
   }
 
   // Map API cattle array to table rows
-  const displayRows = cattleList.length > 0
-    ? cattleList.map((c) => ({
-        id: c.id,
-        identifier: c.identifier,
-        dot: c.status === 'Healthy' ? 'bg-primary' : 'bg-error',
-        gender: c.gender,
-        dob: `${c.dob} (${calculateAge(c.dob)})`,
-        breed: c.breed,
-        status: {
-          label: c.status,
-          color: c.status === 'Healthy' ? 'Healthy' : 'At Risk',
-          pulse: c.status !== 'Healthy',
-        },
-        profile_photo: c.profile_photo,
-      }))
-    : mockRows
+  const displayRows =
+    cattleList.length > 0
+      ? cattleList.map((c) => ({
+          id: c.id,
+          identifier: c.identifier,
+          dot: c.status === 'Healthy' ? 'bg-primary' : 'bg-error',
+          gender: c.gender,
+          dob: `${c.dob} (${calculateAge(c.dob)})`,
+          breed: c.breed,
+          status: {
+            label: c.status,
+            color: c.status === 'Healthy' ? 'Healthy' : 'At Risk',
+            pulse: c.status !== 'Healthy',
+          },
+          profile_photo: c.profile_photo,
+        }))
+      : mockRows
 
   return (
     <div className="space-y-8">
@@ -323,13 +359,14 @@ export default function HerdRegistry() {
                         >
                           <span className="material-symbols-outlined text-xl">visibility</span>
                         </Link>
-                        <button
+                        <Link
+                          to={`/health/animal-profile/${r.id}`}
                           className="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"
-                          type="button"
                         >
                           <span className="material-symbols-outlined text-xl">edit</span>
-                        </button>
+                        </Link>
                         <button
+                          onClick={() => handleDeleteCattle(r.id)}
                           className="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"
                           type="button"
                         >
