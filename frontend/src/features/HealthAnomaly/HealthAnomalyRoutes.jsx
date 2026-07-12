@@ -16,6 +16,7 @@ import SevenDayTriageScan from './screens/SevenDayTriageScan.jsx'
 import AiWellnessReport from './screens/AiWellnessReport.jsx'
 import NotificationsCenter from './screens/NotificationsCenter.jsx'
 import SmartDiagnosticsPage from '../SmartDiagnostics/screens/SmartDiagnosticsPage.jsx'
+import { ProfileProvider } from '../../context/ProfileContext.jsx'
 
 // Quick responsive mock components for Geospatial and Forecasting modules
 function GeospatialMock() {
@@ -58,7 +59,9 @@ function ForecastingMock() {
 
 export default function HealthAnomalyRoutes() {
   return (
-    <Routes>
+    <ProfileProvider>
+      <Routes>
+
       <Route path="/" element={<Navigate to="login" replace />} />
 
       {/* Auth routes without sidebar/header layout */}
@@ -87,5 +90,7 @@ export default function HealthAnomalyRoutes() {
 
       <Route path="*" element={<div className="p-6">Not Found</div>} />
     </Routes>
-  )
+  </ProfileProvider>
+)
 }
+

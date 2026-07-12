@@ -1,9 +1,34 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Header
+from typing import Optional
+import jwt
+from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
 from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection
-from core.security import get_password_hash, verify_password, create_access_token
 from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
 
 router = APIRouter()
+
+# Helper function to decode JWT token and retrieve logged-in farm email
+async def get_current_user_email(authorization: Optional[str] = Header(None)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication token."
+        )
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token credentials."
+            )
+        return email
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is expired or invalid."
+        )
 
 # Helper function to propagate the most recent weight log to cattle details
 async def propagate_latest_weight(cattle_id: str):
@@ -104,6 +129,8 @@ async def list_cattle():
             doc.pop("_id", None)
             cattles.append(doc)
         return cattles
+
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -359,3 +386,90 @@ async def delete_cattle(id: str):
             detail=f"Database error during cattle deletion: {str(e)}"
         )
 
+# ─── User Profile & Settings Endpoints ────────────────────────────────────────
+
+@router.get("/user/profile")
+async def get_user_profile(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+    return {
+        "owner_name": farm.get("owner_name"),
+        "email": farm.get("email"),
+        "location_district": farm.get("location_district"),
+        "registration_number": farm.get("registration_number"),
+        "veterinarian_name": farm.get("veterinarian_name"),
+        "profile_photo": farm.get("profile_photo")
+    }
+
+@router.put("/user/profile")
+async def update_user_profile(profile_data: dict, authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    
+    update_fields = {}
+    if "owner_name" in profile_data:
+        update_fields["owner_name"] = profile_data["owner_name"]
+    if "veterinarian_name" in profile_data:
+        update_fields["veterinarian_name"] = profile_data["veterinarian_name"]
+    if "profile_photo" in profile_data:
+        update_fields["profile_photo"] = profile_data["profile_photo"]
+        
+    if not update_fields:
+        return {"message": "No changes submitted."}
+        
+    try:
+        await farms_collection.update_one(
+            {"email": email},
+            {"$set": update_fields}
+        )
+        return {"message": "Profile updated successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while updating profile: {str(e)}"
+        )
+
+@router.put("/user/change-password")
+async def change_password(pass_data: dict, authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    
+    current_pwd = pass_data.get("current_password")
+    new_pwd = pass_data.get("new_password")
+    
+    if not current_pwd or not new_pwd:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current and new password are required."
+        )
+        
+    farm = await farms_collection.find_one({"email": email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+        
+    # Verify current password
+    if not verify_password(current_pwd, farm["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password."
+        )
+        
+    # Hash new password and save
+    hashed = get_password_hash(new_pwd)
+    try:
+        await farms_collection.update_one(
+            {"email": email},
+            {"$set": {"password": hashed}}
+        )
+        return {"message": "Password changed successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while changing password: {str(e)}"
+        )

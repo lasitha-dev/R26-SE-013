@@ -316,15 +316,18 @@ export default function HerdRegistry() {
                         {r.profile_photo ? (
                           <img
                             alt={r.identifier}
-                            className="w-8 h-8 rounded-full object-cover border border-primary/20"
+                            className="w-8 h-8 rounded-full object-cover border border-primary/20 flex-shrink-0"
                             src={r.profile_photo}
                           />
                         ) : (
-                          <span className={`w-2 h-2 rounded-full ${r.dot}`}></span>
+                          <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center border border-white/5 flex-shrink-0">
+                            <span className="material-symbols-outlined text-sm text-slate-500">pets</span>
+                          </div>
                         )}
                         <span className="font-mono text-sm font-bold text-white">{r.identifier}</span>
                       </div>
                     </td>
+
                     <td className="px-6 py-5">
                       <span className="text-sm text-on-surface/80">{r.gender}</span>
                     </td>

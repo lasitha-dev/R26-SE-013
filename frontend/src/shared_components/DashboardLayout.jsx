@@ -1,16 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { ProfileContext } from '../context/ProfileContext.jsx'
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { profilePhoto, farmerName } = useContext(ProfileContext)
   const navigate = useNavigate()
 
+
   const token = localStorage.getItem("token")
+
   if (!token) {
     return <Navigate to="/health/login" replace />
   }
 
-  const ownerName = localStorage.getItem("owner_name") || "Julian Vane"
+  const ownerDisplayName = farmerName || localStorage.getItem("owner_name") || "Julian Vane"
   const vetName = localStorage.getItem("veterinarian_name") || "Clinical Lead"
 
   const navLinks = [
@@ -161,15 +165,21 @@ export default function DashboardLayout() {
             <div className="h-6 w-px bg-white/10 mx-1"></div>
             <div className="flex items-center gap-3 pl-2 border-l border-white/10">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-on-surface">{ownerName}</p>
+                <p className="text-xs font-bold text-on-surface">{ownerDisplayName}</p>
                 <p className="text-[10px] text-slate-500">{vetName}</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-emerald-500/20">
-                <img
-                  alt="User profile"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzZ15WNVDFyCeC9Q3qTqV9lyRW0nla5u5Jz521YpAqcWp8an1GRRSi2QTuY0whhQjJcZ77Zd6met8Q45dl7_9_6pc6IL-9kONKWf4CbdgoNnBCxm02CYZ2uL56R6_T6RTt8c3-jpOffYcb_tjqO8BXenfopVMbmbXm1RMeA8Gk4IGWmn2K99li1kDj-wOYPyQaea_IXPvhExE0SPjl7MhO7tkHMY8yyESjAltyTREMe-BoOC5PRNGwmK6E1gVxwJed1PTfHsL6_nii"
-                />
+                {profilePhoto ? (
+                  <img
+                    alt="User profile"
+                    className="w-full h-full object-cover"
+                    src={profilePhoto}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-emerald-500/10 text-emerald-400">
+                    <span className="material-symbols-outlined text-lg">person</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -707,11 +707,39 @@ export default function AnimalProfile() {
                         const file = e.target.files[0]
                         if (!file) return
                         const reader = new FileReader()
-                        reader.onloadend = () => {
-                          setEditPhotoBase64(reader.result)
-                        }
                         reader.readAsDataURL(file)
+                        reader.onload = (event) => {
+                          const img = new Image()
+                          img.src = event.target.result
+                          img.onload = () => {
+                            const canvas = document.createElement('canvas')
+                            let width = img.width
+                            let height = img.height
+                            const MAX_SIZE = 800
+
+                            if (width > height) {
+                              if (width > MAX_SIZE) {
+                                height = Math.round((height * MAX_SIZE) / width)
+                                width = MAX_SIZE
+                              }
+                            } else {
+                              if (height > MAX_SIZE) {
+                                width = Math.round((width * MAX_SIZE) / height)
+                                height = MAX_SIZE
+                              }
+                            }
+
+                            canvas.width = width
+                            canvas.height = height
+                            const ctx = canvas.getContext('2d')
+                            ctx.drawImage(img, 0, 0, width, height)
+
+                            const compressed = canvas.toDataURL('image/jpeg', 0.9)
+                            setEditPhotoBase64(compressed)
+                          }
+                        }
                       }}
+
                       type="file"
                     />
                     <label
