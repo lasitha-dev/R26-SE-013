@@ -794,10 +794,15 @@ export default function AnimalProfile() {
                     name="edit_breed"
                     required
                   >
+                    <option value="Holstein-Friesian">Holstein-Friesian</option>
                     <option value="Jersey">Jersey</option>
-                    <option value="Friesian">Friesian</option>
+                    <option value="Ayrshire">Ayrshire</option>
+                    <option value="Brown_Swiss">Brown_Swiss</option>
                     <option value="Sahiwal">Sahiwal</option>
-                    <option value="Local">Local</option>
+                    <option value="Gir">Gir</option>
+                    <option value="Exotic_Local_Cross">Exotic_Local_Cross</option>
+                    <option value="Boran">Boran</option>
+                    <option value="Ankole">Ankole</option>
                   </select>
                 </div>
               </div>

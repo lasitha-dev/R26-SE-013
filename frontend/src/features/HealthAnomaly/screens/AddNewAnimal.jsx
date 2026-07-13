@@ -290,10 +290,15 @@ export default function AddNewAnimal() {
                       <option disabled value="">
                         Select Breed
                       </option>
+                      <option value="Holstein-Friesian">Holstein-Friesian</option>
                       <option value="Jersey">Jersey</option>
-                      <option value="Friesian">Friesian</option>
+                      <option value="Ayrshire">Ayrshire</option>
+                      <option value="Brown_Swiss">Brown_Swiss</option>
                       <option value="Sahiwal">Sahiwal</option>
-                      <option value="Local">Local</option>
+                      <option value="Gir">Gir</option>
+                      <option value="Exotic_Local_Cross">Exotic_Local_Cross</option>
+                      <option value="Boran">Boran</option>
+                      <option value="Ankole">Ankole</option>
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
                       expand_more
