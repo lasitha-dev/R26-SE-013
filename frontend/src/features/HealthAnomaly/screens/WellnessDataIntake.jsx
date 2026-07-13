@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ProfileContext } from '../../../context/ProfileContext'
 
 export default function WellnessDataIntake() {
   const navigate = useNavigate()
@@ -22,7 +23,7 @@ export default function WellnessDataIntake() {
   const [csvFileName, setCsvFileName] = useState('')
   const [parsedLogs, setParsedLogs] = useState([])
 
-  // Modal warning triggers
+  // Modal warning triggers (kept for legacy support or bulk modal, but single uses predictionResult)
   const [showAnomalyModal, setShowAnomalyModal] = useState(false)
   const [pendingPayload, setPendingPayload] = useState(null)
 
@@ -30,6 +31,9 @@ export default function WellnessDataIntake() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingLog, setEditingLog] = useState(null)
   const [editErrorMessage, setEditErrorMessage] = useState('')
+
+  const { checkAlertsStatus } = useContext(ProfileContext)
+  const [predictionResult, setPredictionResult] = useState(null)
 
   // Default date configuration
   const todayDateString = new Date().toISOString().split('T')[0]
@@ -81,6 +85,7 @@ export default function WellnessDataIntake() {
     setSelectedCattleId(id)
     const animal = cattleList.find((c) => c.id === id)
     setSelectedCattle(animal || null)
+    setPredictionResult(null) // reset prediction banner on subject change
   }
 
   // ─── Native CSV Parser ───────────────────────────────────────────────────
@@ -158,18 +163,81 @@ export default function WellnessDataIntake() {
     return response
   }
 
+  // ─── Derived Features Helpers ───────────────────────────────────────────
+  const calculateAgeMonths = (dobStr) => {
+    if (!dobStr) return 0
+    const dob = new Date(dobStr)
+    const today = new Date()
+    return (today.getFullYear() - dob.getFullYear()) * 12 + (today.getMonth() - dob.getMonth())
+  }
+
+  const getDaysInMilk = (calvingDateStr, loggingDateStr) => {
+    if (!calvingDateStr) return 0
+    const calving = new Date(calvingDateStr)
+    const logDate = new Date(loggingDateStr)
+    calving.setHours(0, 0, 0, 0)
+    logDate.setHours(0, 0, 0, 0)
+    const diffTime = logDate - calving
+    if (diffTime < 0) return 0
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  }
+
+  const getLactationStage = (dim) => {
+    if (dim <= 100) return 'Early'
+    if (dim <= 200) return 'Mid'
+    return 'Late'
+  }
+
+  const getHistoricalMetrics = (cattleId, loggingDateStr, currentMilk, currentWeight) => {
+    const logDate = new Date(loggingDateStr)
+    
+    const cattleLogs = dailyLogsList
+      .filter((l) => l.cattle_id === cattleId)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      
+    // Previous Week Avg (7 days prior to logging date)
+    const sevenDaysAgo = new Date(logDate)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+    const weekLogs = cattleLogs.filter((l) => {
+      const d = new Date(l.date)
+      return d >= sevenDaysAgo && d < logDate
+    })
+    
+    const prevWeekAvg = weekLogs.length > 0 
+      ? weekLogs.reduce((sum, l) => sum + l.milk_yield, 0) / weekLogs.length 
+      : currentMilk
+      
+    // Day_Minus_3 (exactly 3 days ago)
+    const targetDate3DaysAgo = new Date(logDate)
+    targetDate3DaysAgo.setDate(targetDate3DaysAgo.getDate() - 3)
+    const targetDate3Str = targetDate3DaysAgo.toISOString().split('T')[0]
+    
+    const day3Log = cattleLogs.find((l) => l.date === targetDate3Str)
+    
+    const dayMinus3Milk = day3Log ? day3Log.milk_yield : currentMilk
+    const dayMinus3Weight = day3Log ? day3Log.weight : currentWeight
+    
+    return {
+      prevWeekAvg,
+      dayMinus3Milk,
+      dayMinus3Weight
+    }
+  }
+
   // ─── Form Submission Handler ─────────────────────────────────────────────
   const handleSubmitSingle = async (e) => {
     e.preventDefault()
     setErrorMessage('')
     setSuccessMessage('')
+    setPredictionResult(null)
 
     const formData = new FormData(e.target)
     const milkYield = parseFloat(formData.get('milk_yield'))
     const weight = parseFloat(formData.get('weight'))
     const dateVal = formData.get('date')
 
-    if (!selectedCattleId) {
+    if (!selectedCattleId || !selectedCattle) {
       setErrorMessage('Please select a subject animal.')
       return
     }
@@ -184,31 +252,75 @@ export default function WellnessDataIntake() {
       return
     }
 
-    const payload = {
+    // Calculate dynamic derived metrics
+    const ageMonths = calculateAgeMonths(selectedCattle.dob)
+    const daysInMilk = getDaysInMilk(selectedCattle.calving_date, dateVal)
+    const lactationStage = getLactationStage(daysInMilk)
+
+    // Calculate historical attributes or fall back to current values
+    const hist = getHistoricalMetrics(selectedCattleId, dateVal, milkYield, weight)
+
+    // Build the prediction payload
+    const predictPayload = {
       cattle_id: selectedCattleId,
-      date: dateVal,
-      milk_yield: milkYield,
-      weight: weight
+      Breed: selectedCattle.breed,
+      Age_Months: parseInt(ageMonths, 10),
+      Weight_kg: parseFloat(weight),
+      Milk_Yield_L: parseFloat(milkYield),
+      Days_in_Milk: parseInt(daysInMilk, 10),
+      Lactation_Stage: lactationStage,
+      Previous_Week_Avg_Yield: parseFloat(hist.prevWeekAvg),
+      Day_Minus_3_Milk: parseFloat(hist.dayMinus3Milk),
+      Day_Minus_3_Weight: parseFloat(hist.dayMinus3Weight)
     }
 
-    // Dual-trigger anomaly detection
-    const isMilkAnomaly = milkYield < 5
-    const isWeightAnomaly = selectedCattle && weight < selectedCattle.weight * 0.9
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      
+      // 1. Post to predict API
+      const predictRes = await fetch('http://127.0.0.1:8000/api/monitor/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(predictPayload)
+      })
 
-    if (isMilkAnomaly || isWeightAnomaly) {
-      setPendingPayload(payload)
-      setShowAnomalyModal(true)
-    } else {
-      setLoading(true)
-      const res = await postDailyLog(payload)
-      setLoading(false)
-      if (res.ok) {
-        setSuccessMessage('Daily log entry saved successfully!')
+      if (!predictRes.ok) {
+        throw new Error('Prediction service failed to respond.')
+      }
+
+      const predictData = await predictRes.json()
+
+      // 2. Post to save daily log API to ensure database persistence
+      const logPayload = {
+        cattle_id: selectedCattleId,
+        date: dateVal,
+        milk_yield: milkYield,
+        weight: weight
+      }
+      const saveRes = await postDailyLog(logPayload)
+
+      if (saveRes.ok) {
+        setPredictionResult(predictData)
+        if (predictData.is_anomaly) {
+          setErrorMessage('Potential health issue detected. Please initiate the 7-Day Triage.')
+        } else {
+          setSuccessMessage('Data Updated Successfully. Health status is normal.')
+        }
+        await checkAlertsStatus() // Sync global alerts notification count/status
         fetchData() // Refresh logs list
       } else {
-        const errData = await res.json()
-        setErrorMessage(errData.detail || 'Failed to save daily log.')
+        const errData = await saveRes.json()
+        setErrorMessage(errData.detail || 'Failed to save daily log details.')
       }
+
+    } catch (err) {
+      setErrorMessage(err.message || 'Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -246,7 +358,7 @@ export default function WellnessDataIntake() {
     }
   }
 
-  // ─── Anomaly Modal Actions ───────────────────────────────────────────────
+  // ─── Anomaly Modal Actions (Bulk backup) ──────────────────────────────────
   const handleModalTriage = async () => {
     if (!pendingPayload) return
     setLoading(true)
@@ -363,6 +475,7 @@ export default function WellnessDataIntake() {
                   setActiveTab('single')
                   setErrorMessage('')
                   setSuccessMessage('')
+                  setPredictionResult(null)
                 }}
                 type="button"
               >
@@ -378,6 +491,7 @@ export default function WellnessDataIntake() {
                   setActiveTab('bulk')
                   setErrorMessage('')
                   setSuccessMessage('')
+                  setPredictionResult(null)
                 }}
                 type="button"
               >
@@ -385,13 +499,13 @@ export default function WellnessDataIntake() {
               </button>
             </div>
 
-            {errorMessage && (
+            {errorMessage && !predictionResult && (
               <div className="p-4 bg-error/15 border border-error/30 text-error rounded-lg text-xs font-bold uppercase tracking-wider">
                 {errorMessage}
               </div>
             )}
 
-            {successMessage && (
+            {successMessage && !predictionResult && (
               <div className="p-4 bg-primary/10 border border-primary/20 text-primary rounded-lg text-xs font-bold uppercase tracking-wider">
                 {successMessage}
               </div>
@@ -488,6 +602,8 @@ export default function WellnessDataIntake() {
                   </div>
                 </div>
 
+
+
                 <div className="bg-primary-container/5 border border-primary-container/10 rounded-lg p-4 flex items-start gap-4">
                   <span
                     className="material-symbols-outlined text-primary mt-0.5"
@@ -508,9 +624,32 @@ export default function WellnessDataIntake() {
                   type="submit"
                   disabled={loading}
                 >
-                  <span>{loading ? 'Processing...' : 'Save Daily Log'}</span>
+                  <span>{loading ? 'Processing Prediction...' : 'Update Yield'}</span>
                   <span className="material-symbols-outlined">send</span>
                 </button>
+
+                {/* AI Prediction Outcome Banner */}
+                {predictionResult && (
+                  <div className="pt-2">
+                    {predictionResult.is_anomaly ? (
+                      <div className="p-6 bg-error/15 border border-error/30 text-error rounded-xl flex flex-col items-center gap-4 text-center">
+                        <p className="font-bold text-sm">
+                          🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.
+                        </p>
+                        <Link
+                          to="/health/7-day-triage-scan"
+                          className="px-6 py-2.5 bg-error text-on-error text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-error/95 transition-all"
+                        >
+                          Start 7-Day Diagnosis
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-primary/10 border border-primary/20 text-primary rounded-lg text-xs font-bold uppercase tracking-wider text-center">
+                        ✅ Data Updated Successfully. Health status is normal.
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
             )}
 
@@ -564,7 +703,7 @@ export default function WellnessDataIntake() {
           </div>
         </div>
 
-        {/* Daily Logs List & Edit Table */}
+        {/* Daily Logs Table */}
         <div className="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden shadow-2xl">
           <div className="px-8 py-5 border-b border-white/5">
             <h3 className="text-base font-bold text-white tracking-tight uppercase">Daily Logs Registry</h3>
@@ -617,7 +756,7 @@ export default function WellnessDataIntake() {
         </div>
       </div>
 
-      {/* ─── Anomaly Warning Modal ─────────────────────────────────────────── */}
+      {/* Anomaly Warning Modal */}
       {showAnomalyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
           <div className="bg-[#171f33] border border-error/20 rounded-xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
@@ -656,7 +795,7 @@ export default function WellnessDataIntake() {
         </div>
       )}
 
-      {/* ─── Edit Daily Log Modal ──────────────────────────────────────────── */}
+      {/* Edit Daily Log Modal */}
       {showEditModal && editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
           <div className="bg-[#171f33] border border-outline-variant/10 rounded-xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">

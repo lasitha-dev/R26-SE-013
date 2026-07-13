@@ -64,9 +64,109 @@ export default function SettingsFarmConfiguration() {
     }
   }
 
+  // Breed Defaults State overrides
+  const [selectedBreed, setSelectedBreed] = useState('Holstein-Friesian')
+  const [breedAvgMilk, setBreedAvgMilk] = useState('')
+  const [breedAvgWeight, setBreedAvgWeight] = useState('')
+  const [breedSettingsList, setBreedSettingsList] = useState([])
+
+  const fetchBreedSettings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/user/breed-settings', {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setBreedSettingsList(data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching breed settings:', err)
+    }
+  }
+
+  useEffect(() => {
+    // Sync inputs when selected breed changes
+    const match = breedSettingsList.find(b => b.breed === selectedBreed)
+    if (match) {
+      setBreedAvgMilk(match.avg_milk !== null ? match.avg_milk.toString() : '')
+      setBreedAvgWeight(match.avg_weight !== null ? match.avg_weight.toString() : '')
+    } else {
+      setBreedAvgMilk('')
+      setBreedAvgWeight('')
+    }
+  }, [selectedBreed, breedSettingsList])
+
+  const handleSaveBreedSettings = async (e) => {
+    e.preventDefault()
+    setErrorMessage('')
+    setSuccessMessage('')
+    setLoading(true)
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/user/breed-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          breed: selectedBreed,
+          avg_milk: breedAvgMilk !== '' ? parseFloat(breedAvgMilk) : null,
+          avg_weight: breedAvgWeight !== '' ? parseFloat(breedAvgWeight) : null
+        })
+      })
+      
+      if (response.ok) {
+        setSuccessMessage(`Breed defaults for ${selectedBreed} saved successfully.`)
+        await fetchBreedSettings()
+      } else {
+        const data = await response.json()
+        setErrorMessage(data.detail || 'Failed to save breed settings.')
+      }
+    } catch (err) {
+      setErrorMessage('Cannot connect to server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResetBreedSettings = async () => {
+    setErrorMessage('')
+    setSuccessMessage('')
+    setLoading(true)
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/user/breed-settings/${selectedBreed}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      })
+      
+      if (response.ok) {
+        setSuccessMessage(`Defaults for ${selectedBreed} reset to system configuration.`)
+        setBreedAvgMilk('')
+        setBreedAvgWeight('')
+        await fetchBreedSettings()
+      } else {
+        const data = await response.json()
+        setErrorMessage(data.detail || 'Failed to reset breed defaults.')
+      }
+    } catch (err) {
+      setErrorMessage('Cannot connect to server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchProfile()
+    fetchBreedSettings()
   }, [])
+
 
   const handleAccountSubmit = async (e) => {
     e.preventDefault()
@@ -231,6 +331,7 @@ export default function SettingsFarmConfiguration() {
             { id: 'security', label: 'Security & Access', icon: 'security' },
             { id: 'notifications', label: 'Notifications', icon: 'notifications' },
             { id: 'system', label: 'System Configuration', icon: 'settings_suggest' },
+            { id: 'breed', label: 'Breed Defaults', icon: 'pets' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -595,6 +696,101 @@ export default function SettingsFarmConfiguration() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+          {/* Breed Settings Tab */}
+          {activeTab === 'breed' && (
+            <div className="space-y-8">
+              <div className="space-y-1 pb-4 border-b border-white/5">
+                <h4 className="text-base font-bold text-white uppercase tracking-tight">Breed Settings & Defaults</h4>
+                <p className="text-xs text-slate-400">Configure global average metrics per bovine breed for ML anomaly thresholds.</p>
+              </div>
+
+              <form onSubmit={handleSaveBreedSettings} className="space-y-6">
+                {/* Select Breed */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                    Select Breed
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm font-medium text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                      value={selectedBreed}
+                      onChange={(e) => setSelectedBreed(e.target.value)}
+                      required
+                    >
+                      <option value="Holstein-Friesian">Holstein-Friesian</option>
+                      <option value="Jersey">Jersey</option>
+                      <option value="Ayrshire">Ayrshire</option>
+                      <option value="Brown_Swiss">Brown_Swiss</option>
+                      <option value="Sahiwal">Sahiwal</option>
+                      <option value="Gir">Gir</option>
+                      <option value="Exotic_Local_Cross">Exotic_Local_Cross</option>
+                      <option value="Boran">Boran</option>
+                      <option value="Ankole">Ankole</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                      expand_more
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Override Avg Milk */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                      Override Breed Avg Milk (L)
+                    </label>
+                    <div className="relative">
+                      <input
+                        className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3.5 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                        placeholder="System default (e.g. 25.0)"
+                        value={breedAvgMilk}
+                        onChange={(e) => setBreedAvgMilk(e.target.value)}
+                        type="number"
+                        step="0.1"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Override Avg Weight */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                      Override Breed Avg Weight (kg)
+                    </label>
+                    <div className="relative">
+                      <input
+                        className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3.5 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                        placeholder="System default (e.g. 600.0)"
+                        value={breedAvgWeight}
+                        onChange={(e) => setBreedAvgWeight(e.target.value)}
+                        type="number"
+                        step="0.01"
+                        min="0.1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  <button
+                    onClick={handleResetBreedSettings}
+                    className="w-full sm:w-auto px-6 py-3 bg-error/10 hover:bg-error/20 text-error text-xs font-bold uppercase rounded-lg border border-error/25 transition-all"
+                    type="button"
+                    disabled={loading}
+                  >
+                    Reset to Default
+                  </button>
+                  <button
+                    className="w-full sm:w-auto px-8 py-3 bg-primary hover:opacity-90 text-on-primary font-black text-xs uppercase tracking-wider rounded-lg transition-all"
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>

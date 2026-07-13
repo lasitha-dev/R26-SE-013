@@ -30,6 +30,7 @@ class CattleCreate(BaseModel):
     profile_photo: Optional[str] = None
     calving_date: Optional[str] = None
     status: str = "Healthy"
+    health_status: str = "Healthy"
 
 class CattleResponse(BaseModel):
     id: str
@@ -41,6 +42,8 @@ class CattleResponse(BaseModel):
     profile_photo: Optional[str] = None
     calving_date: Optional[str] = None
     status: str
+    health_status: str = "Healthy"
+
 
 
 class DailyLogCreate(BaseModel):
@@ -55,4 +58,23 @@ class DailyLogResponse(BaseModel):
     date: str
     milk_yield: float
     weight: float
+
+class PredictPayload(BaseModel):
+    cattle_id: str
+    Breed: str
+    Age_Months: int
+    Weight_kg: float
+    Milk_Yield_L: float
+    Days_in_Milk: int
+    Lactation_Stage: str
+    Previous_Week_Avg_Yield: float
+    Day_Minus_3_Milk: float
+    Day_Minus_3_Weight: float
+    Manual_Avg_Milk: Optional[float] = None
+    Manual_Avg_Weight: Optional[float] = None
+
+
+class PredictResponse(BaseModel):
+    is_anomaly: bool
+
 

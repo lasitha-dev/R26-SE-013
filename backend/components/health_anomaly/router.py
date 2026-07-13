@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Header
 from typing import Optional
 import jwt
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection
 from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
 
 router = APIRouter()
@@ -473,3 +473,225 @@ async def change_password(pass_data: dict, authorization: Optional[str] = Header
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error while changing password: {str(e)}"
         )
+
+# ─── AI Anomaly Detection Prediction & Breed Settings Endpoints ──────────────
+
+import os
+import joblib
+import pandas as pd
+from bson import ObjectId
+from components.health_anomaly.schemas import PredictPayload, PredictResponse
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
+loaded_model = None
+
+def get_predict_model():
+    global loaded_model
+    if loaded_model is None:
+        if not os.path.exists(MODEL_PATH):
+            raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
+        loaded_model = joblib.load(MODEL_PATH)
+    return loaded_model
+
+@router.post("/monitor/predict", response_model=PredictResponse)
+async def predict_health_anomaly(payload: PredictPayload, authorization: Optional[str] = Header(None)):
+    try:
+        email = None
+        if authorization:
+            try:
+                email = await get_current_user_email(authorization)
+            except Exception:
+                pass
+
+        model = get_predict_model()
+        
+        # 1. Fetch custom overrides if logged in
+        custom_milk = None
+        custom_weight = None
+        if email:
+            custom_setting = await breed_settings_collection.find_one({"farm_email": email, "breed": payload.Breed})
+            if custom_setting:
+                custom_milk = custom_setting.get("avg_milk")
+                custom_weight = custom_setting.get("avg_weight")
+        
+        # Determine Breed defaults if manual values are null
+        breed_defaults = {
+            "Holstein-Friesian": {"milk": 25.0, "weight": 600.0},
+            "Jersey": {"milk": 18.0, "weight": 450.0},
+            "Ayrshire": {"milk": 20.0, "weight": 500.0},
+            "Brown_Swiss": {"milk": 22.0, "weight": 580.0},
+            "Sahiwal": {"milk": 12.0, "weight": 420.0},
+            "Gir": {"milk": 14.0, "weight": 400.0},
+            "Exotic_Local_Cross": {"milk": 10.0, "weight": 350.0},
+            "Boran": {"milk": 8.0, "weight": 380.0},
+            "Ankole": {"milk": 6.0, "weight": 450.0}
+        }
+        
+        breed_info = breed_defaults.get(payload.Breed, {"milk": 15.0, "weight": 450.0})
+        breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
+        breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
+        
+        # 2. Compute drop percentages
+        prev_avg = payload.Previous_Week_Avg_Yield if payload.Previous_Week_Avg_Yield > 0 else payload.Milk_Yield_L
+        milk_drop = (prev_avg - payload.Milk_Yield_L) / prev_avg if prev_avg > 0 else 0.0
+        
+        prev_wt = payload.Day_Minus_3_Weight if payload.Day_Minus_3_Weight > 0 else payload.Weight_kg
+        weight_drop = (prev_wt - payload.Weight_kg) / prev_wt if prev_wt > 0 else 0.0
+        
+        baseline_milk_drop = (breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk if breed_avg_milk > 0 else 0.0
+        baseline_weight_drop = (breed_avg_weight - payload.Weight_kg) / breed_avg_weight if breed_avg_weight > 0 else 0.0
+        
+        # 3. Construct input feature row matching exactly model's expectations (54 features)
+        feature_names = [
+            'Age_Months', 'Weight_kg', 'Milk_Yield_L', 'Days_in_Milk',
+            'Previous_Week_Avg_Yield', 'Breed_Avg_Milk', 'Breed_Avg_Weight',
+            'Day_Minus_3_Milk', 'Day_Minus_3_Weight', 'Milk_Drop_Percent',
+            'Weight_Drop_Percent', 'Baseline_Milk_Drop_Percent',
+            'Baseline_Weight_Drop_Percent', 'Breed_Ankole',
+            'Breed_Australian_Friesian_Sahiwal', 'Breed_Australian_Milking_Zebu',
+            'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss', 'Breed_Butana',
+            'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
+            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando',
+            'Breed_Guernsey', 'Breed_Hariana', 'Breed_Holstein-Friesian',
+            'Breed_Holstein_Zebu_Cross', 'Breed_Illawarra_Shorthorn', 'Breed_Jersey',
+            'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej', 'Breed_Kenana',
+            'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
+            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole',
+            'Breed_Rathi', 'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal',
+            'Breed_Simmental', 'Breed_Tharparkar', 'Breed_Tipo_Carora',
+            'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil', 'Lactation_Stage_Late',
+            'Lactation_Stage_Mid'
+        ]
+        
+        row = {f: 0.0 for f in feature_names}
+        row['Age_Months'] = float(payload.Age_Months)
+        row['Weight_kg'] = float(payload.Weight_kg)
+        row['Milk_Yield_L'] = float(payload.Milk_Yield_L)
+        row['Days_in_Milk'] = float(payload.Days_in_Milk)
+        row['Previous_Week_Avg_Yield'] = float(payload.Previous_Week_Avg_Yield)
+        row['Breed_Avg_Milk'] = float(breed_avg_milk)
+        row['Breed_Avg_Weight'] = float(breed_avg_weight)
+        row['Day_Minus_3_Milk'] = float(payload.Day_Minus_3_Milk)
+        row['Day_Minus_3_Weight'] = float(payload.Day_Minus_3_Weight)
+        row['Milk_Drop_Percent'] = float(milk_drop)
+        row['Weight_Drop_Percent'] = float(weight_drop)
+        row['Baseline_Milk_Drop_Percent'] = float(baseline_milk_drop)
+        row['Baseline_Weight_Drop_Percent'] = float(baseline_weight_drop)
+        
+        # Set breed one-hot column
+        breed_col = f"Breed_{payload.Breed}"
+        if breed_col in row:
+            row[breed_col] = 1.0
+            
+        # Set lactation stage one-hot column
+        stage_col = f"Lactation_Stage_{payload.Lactation_Stage}"
+        if stage_col in row:
+            row[stage_col] = 1.0
+            
+        df = pd.DataFrame([row], columns=feature_names)
+        prediction = model.predict(df)[0]
+        
+        is_anomaly = bool(prediction == 1 or prediction == "1")
+        
+        # Update cattle status inside database
+        new_status = "Alert" if is_anomaly else "Healthy"
+        if ObjectId.is_valid(payload.cattle_id):
+            await cattles_collection.update_one(
+                {"_id": ObjectId(payload.cattle_id)},
+                {"$set": {"health_status": new_status, "status": new_status}}
+            )
+
+        return {"is_anomaly": is_anomaly}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Inference error: {str(e)}"
+        )
+
+@router.post("/cattle/{id}/dismiss-alert")
+async def dismiss_alert(id: str, authorization: Optional[str] = Header(None)):
+    await get_current_user_email(authorization)
+    try:
+        if not ObjectId.is_valid(id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid cattle ID format."
+            )
+        result = await cattles_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"health_status": "Healthy", "status": "Healthy"}}
+        )
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cattle not found."
+            )
+        return {"message": "Alert dismissed. Cattle status set to Healthy."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while dismissing alert: {str(e)}"
+        )
+
+@router.get("/user/breed-settings")
+async def get_breed_settings(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    try:
+        cursor = breed_settings_collection.find({"farm_email": email})
+        settings = []
+        async for doc in cursor:
+            doc["id"] = str(doc["_id"])
+            doc.pop("_id", None)
+            settings.append(doc)
+        return settings
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while loading breed defaults: {str(e)}"
+        )
+
+@router.post("/user/breed-settings")
+async def save_breed_settings(settings_data: dict, authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    breed = settings_data.get("breed")
+    avg_milk = settings_data.get("avg_milk")
+    avg_weight = settings_data.get("avg_weight")
+    
+    if not breed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Breed name is required."
+        )
+        
+    try:
+        await breed_settings_collection.update_one(
+            {"farm_email": email, "breed": breed},
+            {"$set": {
+                "avg_milk": float(avg_milk) if avg_milk is not None else None,
+                "avg_weight": float(avg_weight) if avg_weight is not None else None
+            }},
+            upsert=True
+        )
+        return {"message": f"Breed settings for {breed} saved successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while saving breed settings: {str(e)}"
+        )
+
+@router.delete("/user/breed-settings/{breed}")
+async def reset_breed_settings(breed: str, authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    try:
+        await breed_settings_collection.delete_one({"farm_email": email, "breed": breed})
+        return {"message": f"Breed settings for {breed} reset to defaults successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while deleting breed settings: {str(e)}"
+        )
+
+

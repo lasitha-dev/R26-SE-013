@@ -4,7 +4,7 @@ import { ProfileContext } from '../context/ProfileContext.jsx'
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const { profilePhoto, farmerName } = useContext(ProfileContext)
+  const { profilePhoto, farmerName, hasAlerts } = useContext(ProfileContext)
   const navigate = useNavigate()
 
 
@@ -154,7 +154,14 @@ export default function DashboardLayout() {
               className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors relative"
             >
               <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-[#0b1326]"></span>
+              {hasAlerts ? (
+                <>
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0b1326] animate-ping"></span>
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0b1326]"></span>
+                </>
+              ) : (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-[#0b1326]"></span>
+              )}
             </NavLink>
             <NavLink
               to="/health/settings"

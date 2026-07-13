@@ -5,6 +5,26 @@ export const ProfileContext = createContext(null)
 export function ProfileProvider({ children }) {
   const [profilePhoto, setProfilePhoto] = useState('')
   const [farmerName, setFarmerName] = useState('')
+  const [hasAlerts, setHasAlerts] = useState(false)
+
+  const checkAlertsStatus = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const response = await fetch('http://127.0.0.1:8000/api/cattle', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const alertExists = data.some(c => c.health_status === 'Alert' || c.status === 'Alert')
+        setHasAlerts(alertExists)
+      }
+    } catch (err) {
+      console.error('Error loading initial alerts status:', err)
+    }
+  }
 
   useEffect(() => {
     // Clear out any stale localStorage photo chunks
@@ -34,11 +54,13 @@ export function ProfileProvider({ children }) {
     }
 
     fetchInitialProfile()
+    checkAlertsStatus()
   }, [])
 
   return (
-    <ProfileContext.Provider value={{ profilePhoto, setProfilePhoto, farmerName, setFarmerName }}>
+    <ProfileContext.Provider value={{ profilePhoto, setProfilePhoto, farmerName, setFarmerName, hasAlerts, checkAlertsStatus }}>
       {children}
     </ProfileContext.Provider>
   )
 }
+

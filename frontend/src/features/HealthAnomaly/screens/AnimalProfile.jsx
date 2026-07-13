@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { calculateAge } from './AddNewAnimal.jsx'
+import { ProfileContext } from '../../../context/ProfileContext.jsx'
 
 export default function AnimalProfile() {
   const { id } = useParams()
@@ -8,6 +9,63 @@ export default function AnimalProfile() {
   const [dailyLogs, setDailyLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { checkAlertsStatus } = useContext(ProfileContext)
+
+  const handleDismissAlert = async () => {
+    if (!cattle) return
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/cattle/${cattle.id}/dismiss-alert`, {
+        method: 'POST',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      })
+      if (response.ok) {
+        await checkAlertsStatus()
+        fetchCattleAndLogs()
+      } else {
+        alert('Failed to dismiss alert.')
+      }
+    } catch (err) {
+      alert('Error connecting to server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getHistoricalMetricsForProfile = (logDateStr, currentMilk, currentWeight) => {
+    const logDate = new Date(logDateStr)
+    const cattleLogs = [...dailyLogs].sort((a, b) => new Date(b.date) - new Date(a.date))
+    
+    const sevenDaysAgo = new Date(logDate)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+    const weekLogs = cattleLogs.filter((l) => {
+      const d = new Date(l.date)
+      return d >= sevenDaysAgo && d < logDate
+    })
+    
+    const prevWeekAvg = weekLogs.length > 0 
+      ? weekLogs.reduce((sum, l) => sum + l.milk_yield, 0) / weekLogs.length 
+      : currentMilk
+      
+    const targetDate3DaysAgo = new Date(logDate)
+    targetDate3DaysAgo.setDate(targetDate3DaysAgo.getDate() - 3)
+    const targetDate3Str = targetDate3DaysAgo.toISOString().split('T')[0]
+    
+    const day3Log = cattleLogs.find((l) => l.date === targetDate3Str)
+    const dayMinus3Milk = day3Log ? day3Log.milk_yield : currentMilk
+    const dayMinus3Weight = day3Log ? day3Log.weight : currentWeight
+    
+    return {
+      prevWeekAvg,
+      dayMinus3Milk,
+      dayMinus3Weight
+    }
+  }
+
 
   // Edit Cattle Modal states
   const [showEditCattleModal, setShowEditCattleModal] = useState(false)
@@ -252,6 +310,44 @@ export default function AnimalProfile() {
       })
       if (response.ok) {
         setShowEditLogModal(false)
+        
+        // Dynamic re-evaluation of health status via predict
+        try {
+          const ageMonths = (new Date() - new Date(cattle.dob)) / (1000 * 60 * 60 * 24 * 30.4)
+          const calving = cattle.calving_date ? new Date(cattle.calving_date) : null
+          const editDateObj = new Date(dateVal)
+          const daysInMilk = calving ? Math.max(0, Math.floor((editDateObj - calving) / (1000 * 60 * 60 * 24))) : 0
+          const stage = daysInMilk <= 100 ? 'Early' : daysInMilk <= 200 ? 'Mid' : 'Late'
+          
+          const hist = getHistoricalMetricsForProfile(dateVal, milkYield, weight)
+          
+          const predictPayload = {
+            cattle_id: cattle.id,
+            Breed: cattle.breed,
+            Age_Months: parseInt(ageMonths || 0, 10),
+            Weight_kg: parseFloat(weight),
+            Milk_Yield_L: parseFloat(milkYield),
+            Days_in_Milk: parseInt(daysInMilk, 10),
+            Lactation_Stage: stage,
+            Previous_Week_Avg_Yield: parseFloat(hist.prevWeekAvg),
+            Day_Minus_3_Milk: parseFloat(hist.dayMinus3Milk),
+            Day_Minus_3_Weight: parseFloat(hist.dayMinus3Weight)
+          }
+          
+          await fetch('http://127.0.0.1:8000/api/monitor/predict', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify(predictPayload)
+          })
+          
+          await checkAlertsStatus()
+        } catch (predictErr) {
+          console.error('Error re-running predict model:', predictErr)
+        }
+        
         fetchCattleAndLogs()
       } else {
         const data = await response.json()
@@ -290,8 +386,31 @@ export default function AnimalProfile() {
     }
   }
 
+  const rawStatus = cattle.health_status || cattle.status || 'Healthy'
+  const isHealthy = rawStatus === 'Healthy'
+
   return (
     <div className="space-y-8">
+      {/* Alert Warning Banner */}
+      {!isHealthy && (
+        <div className="bg-error/15 border border-error/30 text-error p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-3xl animate-bounce">warning</span>
+            <div>
+              <p className="font-bold text-sm">🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.</p>
+              <p className="text-xs text-slate-400 mt-1">This subject has breached standard clinical deviations. Check logs or perform triage.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleDismissAlert}
+            className="w-full md:w-auto px-6 py-2.5 bg-error text-on-error hover:bg-error/95 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98]"
+            type="button"
+          >
+            Ignore Alert (Own Risk)
+          </button>
+        </div>
+      )}
+
       {/* Back Button and Title Area */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
@@ -319,17 +438,17 @@ export default function AnimalProfile() {
             ))}
             <span
               className={`px-3 py-1 ${
-                cattle.status === 'Healthy'
+                isHealthy
                   ? 'bg-primary-container/20 text-primary border-primary/30'
                   : 'bg-error-container/20 text-error border-error/30'
               } text-[10px] font-black tracking-widest rounded border uppercase flex items-center gap-1.5`}
             >
               <span
                 className={`w-1.5 h-1.5 ${
-                  cattle.status === 'Healthy' ? 'bg-primary' : 'bg-error'
+                  isHealthy ? 'bg-primary' : 'bg-error'
                 } rounded-full animate-pulse`}
               ></span>
-              {cattle.status}
+              {isHealthy ? 'Healthy' : 'Alert'}
             </span>
           </div>
         </div>

@@ -120,8 +120,8 @@ export default function HerdRegistry() {
 
   // ─── Dynamic Top Statistics ────────────────────────────────────────────────
   const totalLivestock = cattleList.length
-  const healthyCount = cattleList.filter((c) => c.status === 'Healthy').length
-  const pendingAlertsCount = cattleList.filter((c) => c.status !== 'Healthy').length
+  const healthyCount = cattleList.filter((c) => (c.health_status || c.status || 'Healthy') === 'Healthy').length
+  const pendingAlertsCount = cattleList.filter((c) => (c.health_status || c.status || 'Healthy') !== 'Healthy').length
 
   const bioSecurityScore =
     totalLivestock > 0 ? Math.round((healthyCount / totalLivestock) * 100) : 100
@@ -137,20 +137,24 @@ export default function HerdRegistry() {
   // Map API cattle array to table rows
   const displayRows =
     cattleList.length > 0
-      ? cattleList.map((c) => ({
-          id: c.id,
-          identifier: c.identifier,
-          dot: c.status === 'Healthy' ? 'bg-primary' : 'bg-error',
-          gender: c.gender,
-          dob: `${c.dob} (${calculateAge(c.dob)})`,
-          breed: c.breed,
-          status: {
-            label: c.status,
-            color: c.status === 'Healthy' ? 'Healthy' : 'At Risk',
-            pulse: c.status !== 'Healthy',
-          },
-          profile_photo: c.profile_photo,
-        }))
+      ? cattleList.map((c) => {
+          const rawStatus = c.health_status || c.status || 'Healthy'
+          const isHealthy = rawStatus === 'Healthy'
+          return {
+            id: c.id,
+            identifier: c.identifier,
+            dot: isHealthy ? 'bg-primary' : 'bg-error',
+            gender: c.gender,
+            dob: `${c.dob} (${calculateAge(c.dob)})`,
+            breed: c.breed,
+            status: {
+              label: isHealthy ? 'Healthy' : 'Alert',
+              color: isHealthy ? 'Healthy' : 'At Risk',
+              pulse: !isHealthy,
+            },
+            profile_photo: c.profile_photo,
+          }
+        })
       : mockRows
 
   return (
