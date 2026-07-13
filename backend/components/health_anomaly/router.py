@@ -533,13 +533,13 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         
         # 2. Compute drop percentages
         prev_avg = payload.Previous_Week_Avg_Yield if payload.Previous_Week_Avg_Yield > 0 else payload.Milk_Yield_L
-        milk_drop = (prev_avg - payload.Milk_Yield_L) / prev_avg if prev_avg > 0 else 0.0
+        milk_drop = ((prev_avg - payload.Milk_Yield_L) / prev_avg) * 100.0 if prev_avg > 0 else 0.0
         
         prev_wt = payload.Day_Minus_3_Weight if payload.Day_Minus_3_Weight > 0 else payload.Weight_kg
-        weight_drop = (prev_wt - payload.Weight_kg) / prev_wt if prev_wt > 0 else 0.0
+        weight_drop = ((prev_wt - payload.Weight_kg) / prev_wt) * 100.0 if prev_wt > 0 else 0.0
         
-        baseline_milk_drop = (breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk if breed_avg_milk > 0 else 0.0
-        baseline_weight_drop = (breed_avg_weight - payload.Weight_kg) / breed_avg_weight if breed_avg_weight > 0 else 0.0
+        baseline_milk_drop = ((breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
+        baseline_weight_drop = ((breed_avg_weight - payload.Weight_kg) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
         
         # 3. Construct input feature row matching exactly model's expectations (54 features)
         feature_names = [

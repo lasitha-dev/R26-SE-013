@@ -85,15 +85,28 @@ export default function SettingsFarmConfiguration() {
     }
   }
 
+  const breedDefaults = {
+    'Holstein-Friesian': { milk: '25.0', weight: '600.0' },
+    'Jersey': { milk: '18.0', weight: '450.0' },
+    'Ayrshire': { milk: '20.0', weight: '500.0' },
+    'Brown_Swiss': { milk: '22.0', weight: '580.0' },
+    'Sahiwal': { milk: '12.0', weight: '420.0' },
+    'Gir': { milk: '14.0', weight: '400.0' },
+    'Exotic_Local_Cross': { milk: '10.0', weight: '350.0' },
+    'Boran': { milk: '8.0', weight: '380.0' },
+    'Ankole': { milk: '6.0', weight: '450.0' }
+  }
+
   useEffect(() => {
-    // Sync inputs when selected breed changes
+    // Sync inputs when selected breed changes: fetch database overrides or fall back to system defaults
     const match = breedSettingsList.find(b => b.breed === selectedBreed)
     if (match) {
-      setBreedAvgMilk(match.avg_milk !== null ? match.avg_milk.toString() : '')
-      setBreedAvgWeight(match.avg_weight !== null ? match.avg_weight.toString() : '')
+      setBreedAvgMilk(match.avg_milk !== null ? match.avg_milk.toString() : breedDefaults[selectedBreed]?.milk || '')
+      setBreedAvgWeight(match.avg_weight !== null ? match.avg_weight.toString() : breedDefaults[selectedBreed]?.weight || '')
     } else {
-      setBreedAvgMilk('')
-      setBreedAvgWeight('')
+      const defaults = breedDefaults[selectedBreed] || { milk: '', weight: '' }
+      setBreedAvgMilk(defaults.milk)
+      setBreedAvgWeight(defaults.weight)
     }
   }, [selectedBreed, breedSettingsList])
 
@@ -148,8 +161,9 @@ export default function SettingsFarmConfiguration() {
       
       if (response.ok) {
         setSuccessMessage(`Defaults for ${selectedBreed} reset to system configuration.`)
-        setBreedAvgMilk('')
-        setBreedAvgWeight('')
+        const defaults = breedDefaults[selectedBreed] || { milk: '', weight: '' }
+        setBreedAvgMilk(defaults.milk)
+        setBreedAvgWeight(defaults.weight)
         await fetchBreedSettings()
       } else {
         const data = await response.json()
