@@ -757,7 +757,6 @@ async def predict_bcs(
     if cv2 is None:
         try:
             import cv2 as cv2_imported
-            global cv2
             cv2 = cv2_imported
         except ImportError:
             pass
