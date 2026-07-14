@@ -861,7 +861,8 @@ async def predict_bcs(
                         should_update = True
                     else:
                         try:
-                            if target_date > existing_date:
+                            # Use >= so multiple uploads on the same day update to the latest score
+                            if target_date >= existing_date:
                                 should_update = True
                         except Exception:
                             should_update = True
