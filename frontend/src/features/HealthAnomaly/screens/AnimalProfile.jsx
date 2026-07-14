@@ -7,6 +7,7 @@ export default function AnimalProfile() {
   const { id } = useParams()
   const [cattle, setCattle] = useState(null)
   const [dailyLogs, setDailyLogs] = useState([])
+  const [bcsLogs, setBcsLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { checkAlertsStatus } = useContext(ProfileContext)
@@ -85,16 +86,19 @@ export default function AnimalProfile() {
       const token = localStorage.getItem('token')
       const headers = { Authorization: token ? `Bearer ${token}` : '' }
 
-      const [cattleRes, logsRes] = await Promise.all([
+      const [cattleRes, logsRes, bcsRes] = await Promise.all([
         fetch(`http://127.0.0.1:8000/api/cattle/${id}`, { headers }),
-        fetch(`http://127.0.0.1:8000/api/cattle/${id}/daily-logs`, { headers })
+        fetch(`http://127.0.0.1:8000/api/cattle/${id}/daily-logs`, { headers }),
+        fetch(`http://127.0.0.1:8000/api/cattle/${id}/bcs-logs`, { headers })
       ])
 
-      if (cattleRes.ok && logsRes.ok) {
+      if (cattleRes.ok && logsRes.ok && bcsRes.ok) {
         const cattleData = await cattleRes.json()
         const logsData = await logsRes.json()
+        const bcsData = await bcsRes.json()
         setCattle(cattleData)
         setDailyLogs(logsData || [])
+        setBcsLogs(bcsData || [])
       } else {
         setError('Failed to load profile details.')
       }
@@ -625,17 +629,25 @@ export default function AnimalProfile() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 bg-surface-container rounded-lg border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Current Score</span>
-                <p className="text-2xl font-black text-primary mt-2">3.75</p>
-                <span className="text-[10px] text-slate-400 mt-1">Normal / Healthy</span>
+                <p className="text-2xl font-black text-primary mt-2">
+                  {cattle.bcs_score ? cattle.bcs_score.toFixed(2) : 'N/A'}
+                </p>
+                <span className="text-[10px] text-slate-400 mt-1">
+                  {cattle.bcs_score ? (cattle.bcs_score >= 3.0 && cattle.bcs_score <= 3.5 ? 'Optimal' : 'Sub-Optimal') : 'No Score Recorded'}
+                </span>
               </div>
               <div className="p-4 bg-surface-container rounded-lg border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Last Scored</span>
-                <p className="text-2xl font-black text-slate-300 mt-2">3.50</p>
-                <span className="text-[10px] text-slate-400 mt-1">12-May-2024</span>
+                <p className="text-2xl font-black text-slate-300 mt-2">
+                  {cattle.last_scored_date || 'Never'}
+                </p>
+                <span className="text-[10px] text-slate-400 mt-1">Assessment Date</span>
               </div>
               <div className="p-4 bg-surface-container rounded-lg border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">AI Confidence</span>
-                <p className="text-2xl font-black text-secondary mt-2">94%</p>
+                <p className="text-2xl font-black text-secondary mt-2">
+                  {bcsLogs.length > 0 ? `${(bcsLogs[0].detection_conf * 100).toFixed(0)}%` : '94%'}
+                </p>
                 <span className="text-[10px] text-slate-400 mt-1">Sentinel Vision</span>
               </div>
             </div>
@@ -695,6 +707,52 @@ export default function AnimalProfile() {
                           Delete
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Historical BCS Logs */}
+      <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden shadow-2xl">
+        <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+          <div>
+            <h3 className="text-base font-bold text-white tracking-tight uppercase">Historical BCS Logs</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Vision-based condition score assessments history</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-surface-container-lowest/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-bold">
+                <th className="px-8 py-4">Date</th>
+                <th className="px-8 py-4">BCS Score</th>
+                <th className="px-8 py-4">Detection Confidence</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {bcsLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="3" className="px-8 py-8 text-center text-slate-500 text-xs">
+                    No historical BCS logs found for this animal.
+                  </td>
+                </tr>
+              ) : (
+                bcsLogs.map((log, idx) => (
+                  <tr key={log.id || idx} className="hover:bg-surface-container-high/40 transition-colors">
+                    <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">
+                      {log.date || 'Unknown'}
+                    </td>
+                    <td className="px-8 py-4">
+                      <span className="inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-primary/10 text-primary">
+                        {log.bcs_score ? log.bcs_score.toFixed(2) : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">
+                      {log.detection_conf ? `${(log.detection_conf * 100).toFixed(0)}%` : 'N/A'}
                     </td>
                   </tr>
                 ))

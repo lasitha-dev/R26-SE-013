@@ -12,6 +12,7 @@ export default function BCSAnalyzer() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [dragActive, setDragActive] = useState(false)
+  const [photoDate, setPhotoDate] = useState(new Date().toISOString().split('T')[0])
 
   useEffect(() => {
     const fetchCattle = async () => {
@@ -85,6 +86,7 @@ export default function BCSAnalyzer() {
     formData.append('confidence', confidence)
     if (selectedCattleId) {
       formData.append('cattle_id', selectedCattleId)
+      formData.append('photo_date', photoDate)
     }
 
     try {
@@ -183,6 +185,23 @@ export default function BCSAnalyzer() {
                 </span>
               </div>
             </div>
+
+            {/* Photo Capture Date - visible/required only if cattle is selected */}
+            {selectedCattleId && (
+              <div className="space-y-2 animate-fadeIn">
+                <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                  Photo Capture Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
+                  value={photoDate}
+                  onChange={(e) => setPhotoDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+            )}
 
             {/* Confidence Limit Slider */}
             <div className="space-y-2">

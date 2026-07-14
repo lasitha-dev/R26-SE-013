@@ -20,7 +20,7 @@ except ImportError:
     YOLO = None
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection
 from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
 
 router = APIRouter()
@@ -749,13 +749,15 @@ async def reset_breed_settings(breed: str, authorization: Optional[str] = Header
 async def predict_bcs(
     file: UploadFile = File(...),
     confidence: float = Form(0.5),
-    cattle_id: Optional[str] = Form(None)
+    cattle_id: Optional[str] = Form(None),
+    photo_date: Optional[str] = Form(None)
 ):
     global yolo_model, bcs_model, cv2
     # Lazy reload check in case modules were imported as None originally
     if cv2 is None:
         try:
             import cv2 as cv2_imported
+            global cv2
             cv2 = cv2_imported
         except ImportError:
             pass
@@ -839,14 +841,40 @@ async def predict_bcs(
     if cattle_id:
         try:
             if ObjectId.is_valid(cattle_id):
-                today_str = datetime.utcnow().strftime("%Y-%m-%d")
-                await cattles_collection.update_one(
-                    {"_id": ObjectId(cattle_id)},
-                    {"$set": {
-                        "bcs_score": bcs_score,
-                        "last_scored_date": today_str
-                    }}
-                )
+                target_date = photo_date if photo_date else datetime.utcnow().strftime("%Y-%m-%d")
+                
+                # Insert log document
+                log_doc = {
+                    "cattle_id": cattle_id,
+                    "date": target_date,
+                    "bcs_score": bcs_score,
+                    "detection_conf": det_conf
+                }
+                await bcs_logs_collection.insert_one(log_doc)
+                
+                # Fetch cattle doc to verify last_scored_date
+                cattle_doc = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+                if cattle_doc:
+                    existing_date = cattle_doc.get("last_scored_date")
+                    
+                    should_update = False
+                    if not existing_date:
+                        should_update = True
+                    else:
+                        try:
+                            if target_date > existing_date:
+                                should_update = True
+                        except Exception:
+                            should_update = True
+                            
+                    if should_update:
+                        await cattles_collection.update_one(
+                            {"_id": ObjectId(cattle_id)},
+                            {"$set": {
+                                "bcs_score": bcs_score,
+                                "last_scored_date": target_date
+                            }}
+                        )
         except Exception as e:
             print(f"Error updating cattle database record: {e}")
 
@@ -857,4 +885,22 @@ async def predict_bcs(
         "crop_image": crop_b64
     }
 
-
+@router.get("/cattle/{id}/bcs-logs")
+async def get_bcs_logs(id: str):
+    try:
+        cursor = bcs_logs_collection.find({"cattle_id": id}).sort("date", -1)
+        logs = []
+        async for doc in cursor:
+            logs.append({
+                "id": str(doc["_id"]),
+                "cattle_id": doc["cattle_id"],
+                "date": doc["date"],
+                "bcs_score": float(doc["bcs_score"]),
+                "detection_conf": float(doc["detection_conf"])
+            })
+        return logs
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while loading BCS history logs: {str(e)}"
+        )
