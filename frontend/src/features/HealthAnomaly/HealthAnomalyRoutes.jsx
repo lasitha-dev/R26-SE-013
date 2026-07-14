@@ -15,6 +15,7 @@ import WellnessDataIntake from './screens/WellnessDataIntake.jsx'
 import SevenDayTriageScan from './screens/SevenDayTriageScan.jsx'
 import AiWellnessReport from './screens/AiWellnessReport.jsx'
 import NotificationsCenter from './screens/NotificationsCenter.jsx'
+import BCSAnalyzer from './screens/BCSAnalyzer.jsx'
 import SmartDiagnosticsPage from '../SmartDiagnostics/screens/SmartDiagnosticsPage.jsx'
 import { ProfileProvider } from '../../context/ProfileContext.jsx'
 
@@ -82,6 +83,7 @@ export default function HealthAnomalyRoutes() {
         <Route path="ai-smart-diagnosis" element={<SmartDiagnosticsPage />} />
         <Route path="ai-wellness-report" element={<AiWellnessReport />} />
         <Route path="notifications" element={<NotificationsCenter />} />
+        <Route path="bcs-analyzer" element={<BCSAnalyzer />} />
         
         {/* Placeholder screens for other research domains */}
         <Route path="geospatial" element={<GeospatialMock />} />

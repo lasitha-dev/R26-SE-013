@@ -4,3 +4,8 @@ uvicorn
 pydantic
 motor
 python-dotenv
+ultralytics
+tensorflow
+opencv-python
+Pillow
+python-multipart

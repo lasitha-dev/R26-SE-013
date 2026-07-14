@@ -1,11 +1,62 @@
-from fastapi import APIRouter, HTTPException, status, Header
+from fastapi import APIRouter, HTTPException, status, Header, File, UploadFile, Form
 from typing import Optional
 import jwt
+import os
+import numpy as np
+import base64
+from datetime import datetime
+from bson import ObjectId
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    import tensorflow as tf
+    from ultralytics import YOLO
+except ImportError:
+    tf = None
+    YOLO = None
+
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
 from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection
 from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
 
 router = APIRouter()
+
+# Global models loading for vision BCS pipeline
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+YOLO_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
+BCS_MODEL_PATH = os.path.join(BASE_DIR, "Cow_BCS_Final_Master.h5")
+
+yolo_model = None
+bcs_model = None
+
+def load_ai_models():
+    global yolo_model, bcs_model
+    if YOLO is not None:
+        try:
+            if os.path.exists(YOLO_MODEL_PATH):
+                yolo_model = YOLO(YOLO_MODEL_PATH)
+                print(f"YOLOv8 Model loaded successfully from {YOLO_MODEL_PATH}")
+            else:
+                print(f"YOLO model not found at {YOLO_MODEL_PATH}")
+        except Exception as e:
+            print(f"Error loading YOLO model: {e}")
+    if tf is not None:
+        try:
+            if os.path.exists(BCS_MODEL_PATH):
+                bcs_model = tf.keras.models.load_model(BCS_MODEL_PATH, compile=False)
+                print(f"Keras BCS Model loaded successfully from {BCS_MODEL_PATH}")
+            else:
+                print(f"Keras BCS model not found at {BCS_MODEL_PATH}")
+        except Exception as e:
+            print(f"Error loading Keras BCS model: {e}")
+
+# Load models once
+load_ai_models()
+
 
 # Helper function to decode JWT token and retrieve logged-in farm email
 async def get_current_user_email(authorization: Optional[str] = Header(None)) -> str:
@@ -693,5 +744,117 @@ async def reset_breed_settings(breed: str, authorization: Optional[str] = Header
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error while deleting breed settings: {str(e)}"
         )
+
+@router.post("/monitor/predict-bcs")
+async def predict_bcs(
+    file: UploadFile = File(...),
+    confidence: float = Form(0.5),
+    cattle_id: Optional[str] = Form(None)
+):
+    global yolo_model, bcs_model, cv2
+    # Lazy reload check in case modules were imported as None originally
+    if cv2 is None:
+        try:
+            import cv2 as cv2_imported
+            cv2 = cv2_imported
+        except ImportError:
+            pass
+
+    if yolo_model is None or bcs_model is None:
+        load_ai_models()
+        
+    if cv2 is None or yolo_model is None or bcs_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI models or OpenCV libraries are not loaded. Please ensure cv2, best.pt, and Cow_BCS_Final_Master.h5 are present."
+        )
+
+    # 1. Read uploaded image bytes
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img_bgr is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image format."
+        )
+
+    h, w, _ = img_bgr.shape
+
+    # 2. Run YOLO prediction
+    results = yolo_model.predict(img_bgr, conf=confidence, verbose=False)
+    boxes = results[0].boxes
+    if boxes is None or len(boxes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No cow detected in the image. Try decreasing the confidence threshold."
+        )
+
+    # 3. Extract highest confidence bounding box
+    max_idx = int(np.argmax(boxes.conf.cpu().numpy()))
+    box = boxes[max_idx]
+    
+    # Coordinates: xyxy format
+    xyxy = box.xyxy[0].cpu().numpy()
+    x1, y1, x2, y2 = map(int, xyxy)
+    det_conf = float(box.conf[0].cpu().item())
+
+    # 4. Apply a dynamic 30-pixel padding clamped to image bounds
+    px1 = max(0, x1 - 30)
+    py1 = max(0, y1 - 30)
+    px2 = min(w, x2 + 30)
+    py2 = min(h, y2 + 30)
+
+    # 5. Crop the region
+    crop_bgr = img_bgr[py1:py2, px1:px2]
+    if crop_bgr.size == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cropped bounding box is empty."
+        )
+
+    # 6. Resize BGR crop directly (matching training/notebook flow), normalize, expand dimensions
+    crop_resized = cv2.resize(crop_bgr, (224, 224))
+    crop_normalized = crop_resized.astype(np.float32) / 255.0
+    crop_input = np.expand_dims(crop_normalized, axis=0) # shape: (1, 224, 224, 3)
+
+    # 7. Run Keras prediction to get float score
+    pred = bcs_model.predict(crop_input, verbose=False)
+    bcs_score = float(pred[0][0])
+
+    # 8. Draw bounding box on original image for visualization
+    annotated_bgr = img_bgr.copy()
+    label = f"Cow: {det_conf:.2f} | BCS: {bcs_score:.2f}"
+    cv2.rectangle(annotated_bgr, (x1, y1), (x2, y2), (46, 222, 163), 3) # emerald primary color
+    cv2.putText(annotated_bgr, label, (x1, max(y1 - 10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (46, 222, 163), 2)
+
+    # 9. Encode original annotated and cropped images to base64
+    _, annot_buf = cv2.imencode(".jpg", annotated_bgr)
+    annot_b64 = "data:image/jpeg;base64," + base64.b64encode(annot_buf).decode("utf-8")
+
+    _, crop_buf = cv2.imencode(".jpg", crop_bgr)
+    crop_b64 = "data:image/jpeg;base64," + base64.b64encode(crop_buf).decode("utf-8")
+
+    # 10. Database Update if cattle_id provided and is valid ObjectId
+    if cattle_id:
+        try:
+            if ObjectId.is_valid(cattle_id):
+                today_str = datetime.utcnow().strftime("%Y-%m-%d")
+                await cattles_collection.update_one(
+                    {"_id": ObjectId(cattle_id)},
+                    {"$set": {
+                        "bcs_score": bcs_score,
+                        "last_scored_date": today_str
+                    }}
+                )
+        except Exception as e:
+            print(f"Error updating cattle database record: {e}")
+
+    return {
+        "bcs_score": round(bcs_score, 2),
+        "detection_conf": round(det_conf, 2),
+        "annotated_image": annot_b64,
+        "crop_image": crop_b64
+    }
 
 

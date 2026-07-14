@@ -31,6 +31,8 @@ class CattleCreate(BaseModel):
     calving_date: Optional[str] = None
     status: str = "Healthy"
     health_status: str = "Healthy"
+    bcs_score: Optional[float] = None
+    last_scored_date: Optional[str] = None
 
 class CattleResponse(BaseModel):
     id: str
@@ -43,6 +45,8 @@ class CattleResponse(BaseModel):
     calving_date: Optional[str] = None
     status: str
     health_status: str = "Healthy"
+    bcs_score: Optional[float] = None
+    last_scored_date: Optional[str] = None
 
 
 

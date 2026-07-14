@@ -129,7 +129,7 @@ export default function WellnessDashboard() {
       </div>
 
       {/* Main Actions (Links to intake and scan) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <Link
           to="/health/wellness-data-intake"
           className="group relative overflow-hidden bg-surface-container-high rounded-xl p-8 flex flex-col text-left transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-primary/10"
@@ -168,6 +168,24 @@ export default function WellnessDashboard() {
           <div className="mt-auto flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all">
             <span>Launch Diagnosis</span>
             <span className="material-symbols-outlined">sensors</span>
+          </div>
+        </Link>
+
+        <Link
+          to="/health/bcs-analyzer"
+          className="group relative overflow-hidden bg-surface-container-high rounded-xl p-8 flex flex-col text-left transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-primary/10"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="mb-6 w-14 h-14 bg-primary/20 rounded-lg flex items-center justify-center text-primary shadow-[0_0_20px_rgba(78,222,163,0.15)] border border-primary/20">
+            <span className="material-symbols-outlined text-3xl">photo_camera</span>
+          </div>
+          <h4 className="text-2xl font-bold text-on-surface mb-2">Standalone BCS Analyzer</h4>
+          <p className="text-slate-400 mb-8 max-w-sm">
+            Leverage YOLOv8 vision and Keras CNN regression to automatically calculate localized Body Condition Scoring.
+          </p>
+          <div className="mt-auto flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all">
+            <span>Analyze Anatomy</span>
+            <span className="material-symbols-outlined">center_focus_strong</span>
           </div>
         </Link>
       </div>
