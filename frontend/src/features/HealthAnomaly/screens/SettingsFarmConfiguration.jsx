@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProfileContext } from '../../../context/ProfileContext.jsx'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
+// Fix Leaflet default marker icons (broken by Vite's asset pipeline)
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl:       'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl:     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+})
 export default function SettingsFarmConfiguration() {
   const navigate = useNavigate()
   const { setProfilePhoto, setFarmerName } = useContext(ProfileContext)
@@ -24,12 +34,25 @@ export default function SettingsFarmConfiguration() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  // Map Config Modal states
+  // Map Config Modal states (small GPS modal)
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [gpsLoading, setGpsLoading] = useState(false)
   const [mockCoords, setMockCoords] = useState('')
   const [mapSuccessMsg, setMapSuccessMsg] = useState('')
+
+  // ── Full-screen Leaflet map states ──────────────────────────────────────────
+  const [isFullMapOpen, setIsFullMapOpen] = useState(false)
+  const [tempCoords, setTempCoords] = useState(null)       // [lat, lon] | null
+  const [mapSearchQuery, setMapSearchQuery] = useState('')
+  const [flyTo, setFlyTo] = useState(null)                 // trigger fly animation
+  const [mapSearchLoading, setMapSearchLoading] = useState(false)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
+
+  // Sri Lanka bounding box
+  const isInSriLanka = (lat, lon) =>
+    lat >= 5.9 && lat <= 9.9 && lon >= 79.5 && lon <= 81.9
 
   const handleGPSFindLocation = () => {
     if (!navigator.geolocation) {
@@ -78,7 +101,6 @@ export default function SettingsFarmConfiguration() {
           const lat = data[0].lat
           const lon = data[0].lon
           const name = data[0].display_name.split(',')[0]
-          
           setProfile(prev => ({ ...prev, location_district: name }))
           setMockCoords(`${lat},${lon}`)
           setMapSuccessMsg(`Resolved search query to ${name}!`)
@@ -90,6 +112,71 @@ export default function SettingsFarmConfiguration() {
         console.error(err)
         alert("Error searching location via OpenStreetMap Nominatim.")
       })
+  }
+
+  // ── Full-screen map: search a place and fly the map to it ───────────────────
+  const handleFullMapSearch = (e) => {
+    e.preventDefault()
+    if (!mapSearchQuery.trim()) return
+    setMapSearchLoading(true)
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}`)
+      .then(res => res.json())
+      .then(data => {
+        setMapSearchLoading(false)
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat)
+          const lon = parseFloat(data[0].lon)
+          setTempCoords([lat, lon])
+          setFlyTo([lat, lon])
+        } else {
+          alert('Location not found. Try a different search term.')
+        }
+      })
+      .catch(err => { console.error(err); setMapSearchLoading(false) })
+  }
+
+  // ── Full-screen map: confirm pin → reverse-geocode → save district ──────────
+  const handleConfirmLocation = () => {
+    if (!tempCoords) return
+    const [lat, lon] = tempCoords
+    if (!isInSriLanka(lat, lon)) return
+    setConfirmLoading(true)
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+      .then(res => res.json())
+      .then(data => {
+        const addr = data.address || {}
+        const district =
+          addr.state_district || addr.city || addr.town ||
+          addr.suburb || addr.village || 'Unknown District'
+        setProfile(prev => ({ ...prev, location_district: district }))
+        setMockCoords(`${lat.toFixed(6)},${lon.toFixed(6)}`)
+        localStorage.setItem('registered_farm_district', district)
+        setConfirmLoading(false)
+        setIsFullMapOpen(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setConfirmLoading(false)
+        alert('Reverse geocoding failed. Please try again.')
+      })
+  }
+
+  // ── Leaflet helper: fires click events and signals tiles are ready ──────────
+  function MapClickHandler() {
+    useMapEvents({
+      click(e) { setTempCoords([e.latlng.lat, e.latlng.lng]) },
+    })
+    useEffect(() => { setMapReady(true) }, [])
+    return null
+  }
+
+  // ── Leaflet helper: smoothly flies map to searched coordinates ──────────────
+  function MapFlyTo({ coords }) {
+    const map = useMap()
+    useEffect(() => {
+      if (coords && map) map.flyTo(coords, 13)
+    }, [coords, map])
+    return null
   }
 
   // Notifications state toggles
@@ -552,6 +639,7 @@ export default function SettingsFarmConfiguration() {
                     </button>
                   </div>
                 </div>
+
               </div>
 
               <div className="pt-4 flex justify-end">
@@ -914,28 +1002,22 @@ export default function SettingsFarmConfiguration() {
 
             {/* Content */}
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              {/* Search input */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block">
-                  Search Location / District
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter district name (e.g., Kandy, Colombo, Galle)..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 bg-surface-container-lowest border border-white/5 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleManualSearch(searchQuery)}
-                    className="px-4 bg-primary text-on-primary rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
-                  >
-                    Search
-                  </button>
-                </div>
-              </div>
+              {/* Manual Select from Map button — opens full-screen Leaflet map */}
+              <button
+                type="button"
+                onClick={() => {
+                  setTempCoords(null)
+                  setFlyTo(null)
+                  setMapSearchQuery('')
+                  setMapReady(false)
+                  setIsMapModalOpen(false)
+                  setIsFullMapOpen(true)
+                }}
+                className="w-full py-3.5 bg-primary hover:opacity-90 text-on-primary font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">pin_drop</span>
+                Manual Select from Map
+              </button>
 
               {/* GPS button */}
               <button
@@ -995,6 +1077,162 @@ export default function SettingsFarmConfiguration() {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Full-Screen Interactive Leaflet Map Modal ─────────────────────── */}
+      {isFullMapOpen && (
+        <div className="fixed inset-0 z-[9999] bg-[#090d16] flex flex-col">
+
+          {/* Header bar */}
+          <div className="flex-shrink-0 px-5 py-4 bg-[#111827] border-b border-white/10 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">map</span>
+                Manual Location Selector
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Click anywhere on the map to drop a pin &mdash; then confirm to save your farm location.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFullMapOpen(false)}
+              className="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"
+            >
+              <span className="material-symbols-outlined text-2xl">close</span>
+            </button>
+          </div>
+
+          {/* Search bar overlay (positioned absolute inside map area) */}
+          <div className="flex-1 relative" style={{ minHeight: 0 }}>
+
+            {/* Search form floating over map */}
+            <form
+              onSubmit={handleFullMapSearch}
+              className="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-[1000] flex gap-2 bg-[#111827]/95 border border-white/15 p-2.5 rounded-xl shadow-2xl backdrop-blur-md"
+            >
+              <input
+                type="text"
+                placeholder="Search any location (e.g. Kandy, Sri Lanka)..."
+                value={mapSearchQuery}
+                onChange={(e) => setMapSearchQuery(e.target.value)}
+                className="flex-1 bg-[#060e20] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-primary transition-all"
+              />
+              <button
+                type="submit"
+                disabled={mapSearchLoading}
+                className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-60 flex items-center gap-1"
+              >
+                {mapSearchLoading
+                  ? <><span className="material-symbols-outlined text-sm animate-spin">progress_activity</span> Searching...</>
+                  : <><span className="material-symbols-outlined text-sm">search</span> Search</>
+                }
+              </button>
+            </form>
+
+            {/* Loading spinner until map tiles mount */}
+            {!mapReady && (
+              <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-[#090d16]">
+                <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+                  Loading Map...
+                </p>
+              </div>
+            )}
+
+            {/* The actual Leaflet map — always mounted so tiles load immediately */}
+            <MapContainer
+              center={[7.8731, 80.7718]}
+              zoom={7}
+              scrollWheelZoom={true}
+              style={{ width: '100%', height: '100%' }}
+              className="w-full h-full"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+              {/* Handles map clicks + signals tiles loaded */}
+              <MapClickHandler />
+
+              {/* Flies map to searched location */}
+              {flyTo && <MapFlyTo coords={flyTo} />}
+
+              {/* Draggable pin — only appears after user clicks or searches */}
+              {tempCoords && Array.isArray(tempCoords) && (
+                <Marker
+                  position={tempCoords}
+                  draggable={true}
+                  eventHandlers={{
+                    dragend: (e) => {
+                      const pos = e.target.getLatLng()
+                      setTempCoords([pos.lat, pos.lng])
+                    }
+                  }}
+                />
+              )}
+            </MapContainer>
+          </div>
+
+          {/* Footer: coordinates display + validation + confirm button */}
+          <div className="flex-shrink-0 px-5 py-4 bg-[#111827] border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+
+            {/* Left: coords + validation message */}
+            <div className="min-w-0">
+              {tempCoords && Array.isArray(tempCoords) && !isNaN(tempCoords[0]) ? (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Pinned Location
+                  </p>
+                  <p className="text-xs font-mono text-white">
+                    {tempCoords[0].toFixed(6)}, {tempCoords[1].toFixed(6)}
+                  </p>
+                  {!isInSriLanka(tempCoords[0], tempCoords[1]) && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="material-symbols-outlined text-amber-400 text-sm">warning</span>
+                      <p className="text-xs font-bold text-amber-400">
+                        This app is designed for Sri Lanka only. Please select a location within Sri Lanka.
+                      </p>
+                    </div>
+                  )}
+                  {isInSriLanka(tempCoords[0], tempCoords[1]) && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
+                      <p className="text-xs font-bold text-primary">Valid Sri Lanka location — ready to confirm.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="material-symbols-outlined text-sm animate-pulse">touch_app</span>
+                  <p className="text-xs font-bold uppercase tracking-wider">
+                    Click on the map to drop a pin
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right: confirm button */}
+            <button
+              type="button"
+              disabled={
+                !tempCoords ||
+                !Array.isArray(tempCoords) ||
+                isNaN(tempCoords[0]) ||
+                !isInSriLanka(tempCoords[0], tempCoords[1]) ||
+                confirmLoading
+              }
+              onClick={handleConfirmLocation}
+              className="w-full sm:w-auto flex-shrink-0 px-8 py-3.5 bg-primary disabled:bg-[#1e293b] text-on-primary disabled:text-slate-500 font-black text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              {confirmLoading ? (
+                <><span className="material-symbols-outlined text-sm animate-spin">progress_activity</span> Resolving District...</>
+              ) : (
+                <><span className="material-symbols-outlined text-sm">check</span> Confirm &amp; Save Location</>
+              )}
+            </button>
           </div>
         </div>
       )}
