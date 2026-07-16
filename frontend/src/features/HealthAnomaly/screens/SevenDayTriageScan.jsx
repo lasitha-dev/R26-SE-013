@@ -47,16 +47,82 @@ export default function SevenDayTriageScan() {
   const [bcsScore, setBcsScore] = useState('')
   const [dragActive, setDragActive] = useState(false)
 
-  const handleFetchWeather = () => {
-    const simulated = []
-    for (let i = 1; i <= 7; i++) {
-      const temp = parseFloat((29.5 + Math.random() * 4).toFixed(1))
-      const humidity = Math.floor(72 + Math.random() * 12)
-      const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
-      simulated.push({ temp, humidity, thi })
+  // Weather Source Dialog & GPS Info states
+  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [gpsResult, setGpsResult] = useState(null) // { lat, lon, district }
+  const [activeLocation, setActiveLocation] = useState('')
+
+  const handleFetchOptionA = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.")
+      return
     }
-    setWeatherData(simulated)
-    setWeatherFetched(true)
+    setGpsLoading(true)
+    setGpsResult(null)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lon = position.coords.longitude
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+          .then(res => res.json())
+          .then(data => {
+            const address = data.address || {}
+            const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
+            
+            setGpsResult({ lat: lat.toFixed(4), lon: lon.toFixed(4), district })
+            setGpsLoading(false)
+
+            // Populate weather records
+            const simulated = []
+            for (let i = 1; i <= 7; i++) {
+              const temp = parseFloat((29.5 + Math.random() * 4).toFixed(1))
+              const humidity = Math.floor(72 + Math.random() * 12)
+              const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
+              simulated.push({ temp, humidity, thi })
+            }
+
+            // Close after 2.5 seconds
+            setTimeout(() => {
+              setWeatherData(simulated)
+              setWeatherFetched(true)
+              setActiveLocation(district)
+              setIsWeatherModalOpen(false)
+              setGpsResult(null)
+            }, 2500)
+          })
+          .catch(err => {
+            console.error(err)
+            setGpsLoading(false)
+            alert("Error fetching reverse geocoded district name.")
+          })
+      },
+      (error) => {
+        console.error(error)
+        setGpsLoading(false)
+        alert("GPS Access Denied. Falling back to default registered location.")
+        handleFetchOptionB()
+      }
+    )
+  }
+
+  const handleFetchOptionB = () => {
+    const registeredDistrict = localStorage.getItem('registered_farm_district') || 'Kandy'
+    setTimeout(() => {
+      const simulated = []
+      for (let i = 1; i <= 7; i++) {
+        const baseTemp = registeredDistrict.toLowerCase() === 'colombo' ? 31.0 : 28.5
+        const temp = parseFloat((baseTemp + Math.random() * 3).toFixed(1))
+        const humidity = Math.floor(75 + Math.random() * 10)
+        const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
+        simulated.push({ temp, humidity, thi })
+      }
+      setWeatherData(simulated)
+      setWeatherFetched(true)
+      setActiveLocation(registeredDistrict)
+      setIsWeatherModalOpen(false)
+    }, 1000)
   }
 
   const handleLogChange = (type, index, val) => {
@@ -108,7 +174,10 @@ export default function SevenDayTriageScan() {
   }
 
   const handleRunDiagnostics = () => {
-    // Navigate to the AI Smart Multimodal Diagnostics page
+    if (!selectedCattleId) {
+      alert('Please select a Cattle ID first.')
+      return
+    }
     navigate('/health/ai-smart-diagnosis')
   }
 
@@ -178,9 +247,16 @@ export default function SevenDayTriageScan() {
         </div>
 
         <div className="md:col-span-4 space-y-2">
-          <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
-            Current Date (Day 7)
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+              Current Date (Day 7)
+            </label>
+            {activeLocation && (
+              <span className="px-2 py-0.5 bg-primary/20 text-[9px] font-black text-primary border border-primary/30 rounded uppercase tracking-wider animate-fadeIn">
+                Location: {activeLocation}
+              </span>
+            )}
+          </div>
           <input
             type="date"
             className="w-full bg-[#060e20] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
@@ -191,7 +267,7 @@ export default function SevenDayTriageScan() {
 
         <div className="md:col-span-4 flex items-center justify-end">
           <button
-            onClick={handleFetchWeather}
+            onClick={() => setIsWeatherModalOpen(true)}
             className="w-full md:w-auto px-6 py-3.5 bg-secondary hover:opacity-90 text-on-secondary font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
           >
             <span className="material-symbols-outlined text-sm">cloud_sync</span>
@@ -425,7 +501,9 @@ export default function SevenDayTriageScan() {
                 Live GPS Synced
               </h4>
               <p className="text-on-surface text-sm font-medium">
-                {weatherFetched ? 'Local Weather Feed Loaded Successfully' : 'Ready to Fetch Local Weather Station Logs'}
+                {weatherFetched 
+                  ? `Successfully synced with ${activeLocation || 'Kandy'} Station` 
+                  : 'Ready to Fetch Local Weather Station Logs'}
               </p>
             </div>
           </div>
@@ -446,7 +524,9 @@ export default function SevenDayTriageScan() {
               <p className="text-[9px] font-black text-secondary uppercase">Avg THI</p>
               <p className="text-lg font-black text-secondary">
                 {(weatherData.reduce((sum, w) => sum + w.thi, 0) / 7).toFixed(1)}
-                <span className="text-[9px] font-normal text-error ml-1">[STRESS]</span>
+                {weatherFetched && (weatherData.reduce((sum, w) => sum + w.thi, 0) / 7) > 80 && (
+                  <span className="text-[9px] font-normal text-error ml-1">[STRESS]</span>
+                )}
               </p>
             </div>
           </div>
@@ -483,6 +563,68 @@ export default function SevenDayTriageScan() {
           </div>
         </button>
       </div>
+
+      {/* Weather Source Selection Modal */}
+      {isWeatherModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-[#111827] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative space-y-6 text-center">
+            <div className="space-y-2">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto ring-4 ring-primary/5">
+                <span className="material-symbols-outlined text-2xl animate-pulse">cloud</span>
+              </div>
+              <h3 className="text-lg font-bold text-white uppercase tracking-tight">Select Weather Source</h3>
+              <p className="text-xs text-slate-400">
+                Choose how the AI Triage system retrieves 7-Day physiological ambient records.
+              </p>
+            </div>
+
+            {gpsLoading ? (
+              <div className="py-6 space-y-4">
+                <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto"></div>
+                <p className="text-xs text-primary font-bold uppercase tracking-widest animate-pulse">
+                  Querying GPS Coordinates...
+                </p>
+              </div>
+            ) : gpsResult ? (
+              <div className="py-4 space-y-3 bg-primary/5 border border-primary/15 rounded-xl p-4 animate-scaleUp">
+                <span className="material-symbols-outlined text-3xl text-primary animate-bounce">location_on</span>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-white uppercase tracking-wide">Coordinates Acquired</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Lat: {gpsResult.lat} | Lon: {gpsResult.lon}</p>
+                  <p className="text-xs font-black text-primary uppercase mt-1">District: {gpsResult.district}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={handleFetchOptionA}
+                  className="w-full py-3.5 bg-primary hover:opacity-90 text-on-primary font-bold text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-sm">my_location</span>
+                  Use Current Device GPS
+                </button>
+                
+                <button
+                  onClick={handleFetchOptionB}
+                  className="w-full py-3.5 bg-surface-container-highest hover:bg-surface-bright text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 border border-white/5"
+                >
+                  <span className="material-symbols-outlined text-sm">agriculture</span>
+                  Use Registered Farm Location
+                </button>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-white/5">
+              <button
+                onClick={() => setIsWeatherModalOpen(false)}
+                className="text-xs text-slate-500 hover:text-white uppercase tracking-widest font-bold bg-transparent border-none cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

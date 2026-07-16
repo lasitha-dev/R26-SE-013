@@ -24,6 +24,74 @@ export default function SettingsFarmConfiguration() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  // Map Config Modal states
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [mockCoords, setMockCoords] = useState('')
+  const [mapSuccessMsg, setMapSuccessMsg] = useState('')
+
+  const handleGPSFindLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.")
+      return
+    }
+    setGpsLoading(true)
+    setMapSuccessMsg('')
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lon = position.coords.longitude
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+          .then(res => res.json())
+          .then(data => {
+            const address = data.address || {}
+            const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
+            
+            setProfile(prev => ({ ...prev, location_district: district }))
+            setMockCoords(`${lat},${lon}`)
+            setGpsLoading(false)
+            setMapSuccessMsg(`Successfully resolved coordinates to ${district} District!`)
+          })
+          .catch(err => {
+            console.error(err)
+            setGpsLoading(false)
+            alert("Error reverse geocoding coordinates via OpenStreetMap Nominatim.")
+          })
+      },
+      (error) => {
+        console.error(error)
+        setGpsLoading(false)
+        alert("Unable to retrieve location. Please check browser permissions.")
+      }
+    )
+  }
+
+  const handleManualSearch = (query) => {
+    if (!query) return
+    setMapSuccessMsg('')
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          const lat = data[0].lat
+          const lon = data[0].lon
+          const name = data[0].display_name.split(',')[0]
+          
+          setProfile(prev => ({ ...prev, location_district: name }))
+          setMockCoords(`${lat},${lon}`)
+          setMapSuccessMsg(`Resolved search query to ${name}!`)
+        } else {
+          alert("Location not found.")
+        }
+      })
+      .catch(err => {
+        console.error(err)
+        alert("Error searching location via OpenStreetMap Nominatim.")
+      })
+  }
+
   // Notifications state toggles
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [pushAlerts, setPushAlerts] = useState(true)
@@ -44,10 +112,11 @@ export default function SettingsFarmConfiguration() {
       })
       if (response.ok) {
         const data = await response.json()
+        const localDistrict = localStorage.getItem('registered_farm_district')
         setProfile({
           owner_name: data.owner_name || '',
           email: data.email || '',
-          location_district: data.location_district || '',
+          location_district: localDistrict || data.location_district || '',
           registration_number: data.registration_number || '',
           veterinarian_name: data.veterinarian_name || '',
           profile_photo: data.profile_photo || ''
@@ -187,6 +256,8 @@ export default function SettingsFarmConfiguration() {
     setErrorMessage('')
     setSuccessMessage('')
     setLoading(true)
+
+    localStorage.setItem('registered_farm_district', profile.location_district)
 
     try {
       const token = localStorage.getItem('token')
@@ -458,16 +529,28 @@ export default function SettingsFarmConfiguration() {
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-455 uppercase tracking-widest">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-455 uppercase tracking-widest block">
                     Farm Location District (Disabled)
                   </label>
-                  <input
-                    value={profile.location_district}
-                    disabled
-                    className="w-full bg-surface-container-lowest/50 border border-white/5 rounded-lg px-4 py-3 text-sm text-slate-500 cursor-not-allowed outline-none"
-                    type="text"
-                  />
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        value={profile.location_district}
+                        disabled
+                        className="w-full bg-surface-container-lowest/50 border border-white/5 rounded-lg px-4 py-3 text-sm text-slate-500 cursor-not-allowed outline-none"
+                        type="text"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMapModalOpen(true)}
+                      className="px-4 py-3 bg-secondary hover:opacity-90 text-on-secondary text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-sm">map</span>
+                      Update Location
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -809,6 +892,112 @@ export default function SettingsFarmConfiguration() {
           )}
         </div>
       </div>
+
+      {/* Map Configuration Modal */}
+      {isMapModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-[#111827] border border-white/10 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">pin_drop</span>
+                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Configure Farm Location</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsMapModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Search input */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block">
+                  Search Location / District
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter district name (e.g., Kandy, Colombo, Galle)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 bg-surface-container-lowest border border-white/5 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleManualSearch(searchQuery)}
+                    className="px-4 bg-primary text-on-primary rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
+                  >
+                    Search
+                  </button>
+                </div>
+              </div>
+
+              {/* GPS button */}
+              <button
+                type="button"
+                onClick={handleGPSFindLocation}
+                disabled={gpsLoading}
+                className="w-full py-3.5 bg-secondary hover:opacity-90 text-on-secondary font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-sm animate-pulse">my_location</span>
+                {gpsLoading ? 'Accessing Device Hardware GPS...' : 'Find My Location (GPS)'}
+              </button>
+
+              {/* Real Google Maps Embed iframe or Placeholder */}
+              <div className="relative h-[200px] bg-[#090d16] border border-white/5 rounded-xl overflow-hidden flex items-center justify-center">
+                {mockCoords ? (
+                  <iframe 
+                    width="100%" 
+                    height="200px" 
+                    src={"https://maps.google.com/maps?q=" + mockCoords + "&z=15&output=embed"} 
+                    frameBorder="0" 
+                    scrolling="no" 
+                    marginHeight="0" 
+                    marginWidth="0" 
+                    className="rounded-xl border border-white/10"
+                  ></iframe>
+                ) : (
+                  <div className="text-center space-y-2">
+                    <span className="material-symbols-outlined text-3xl text-slate-500 animate-pulse">my_location</span>
+                    <p className="text-xs font-bold text-slate-400 font-mono uppercase tracking-wider">
+                      Waiting for GPS...
+                    </p>
+                  </div>
+                )}
+
+                {gpsLoading && (
+                  <div className="absolute inset-0 bg-primary/5 flex items-center justify-center backdrop-blur-xs">
+                    <div className="w-16 h-16 rounded-full border-2 border-primary/20 border-t-primary animate-spin"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Success Alert */}
+              {mapSuccessMsg && (
+                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-center animate-fadeIn">
+                  <p className="text-xs text-primary font-bold">{mapSuccessMsg}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-surface-container-low/30">
+              <button
+                type="button"
+                onClick={() => setIsMapModalOpen(false)}
+                className="px-6 py-3 bg-surface-container-highest text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
