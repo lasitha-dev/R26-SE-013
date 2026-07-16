@@ -1,17 +1,96 @@
-import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProfileContext } from '../../../context/ProfileContext.jsx'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// Fix Leaflet default marker icons (broken by Vite's asset pipeline)
+// Fix default marker icons broken by Vite's asset bundler
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl:       'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl:     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
+
+/**
+ * LeafletMapPanel — module-level stable component.
+ * Uses plain imperative Leaflet (L.map) instead of react-leaflet to avoid
+ * hook-context crashes that occur when components are re-created during render.
+ */
+function LeafletMapPanel({ onCoords, coords, flyToCoords, onReady }) {
+  const containerRef = useRef(null)
+  const mapRef = useRef(null)
+  const markerRef = useRef(null)
+
+  // Initialize map once on mount
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const map = L.map(containerRef.current, {
+      center: [7.8731, 80.7718],
+      zoom: 7,
+      scrollWheelZoom: true,
+    })
+    mapRef.current = map
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '\u00a9 <a href="https://osm.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map)
+
+    // Signal parent that map is ready
+    map.whenReady(() => { if (onReady) onReady(true) })
+
+    // Drop / move marker on click
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng])
+      } else {
+        markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map)
+        markerRef.current.on('dragend', (de) => {
+          const pos = de.target.getLatLng()
+          if (onCoords) onCoords([pos.lat, pos.lng])
+        })
+      }
+      if (onCoords) onCoords([lat, lng])
+    })
+
+    // Cleanup on unmount
+    return () => {
+      map.remove()
+      mapRef.current = null
+      markerRef.current = null
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync marker position when coords change externally (e.g. search result)
+  useEffect(() => {
+    if (!mapRef.current || !coords) return
+    if (markerRef.current) {
+      markerRef.current.setLatLng(coords)
+    } else {
+      markerRef.current = L.marker(coords, { draggable: true }).addTo(mapRef.current)
+      markerRef.current.on('dragend', (de) => {
+        const pos = de.target.getLatLng()
+        if (onCoords) onCoords([pos.lat, pos.lng])
+      })
+    }
+  }, [coords]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fly to location on search
+  useEffect(() => {
+    if (!mapRef.current || !flyToCoords) return
+    mapRef.current.flyTo(flyToCoords, 13, { animate: true, duration: 1 })
+  }, [flyToCoords])
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+    />
+  )
+}
 export default function SettingsFarmConfiguration() {
   const navigate = useNavigate()
   const { setProfilePhoto, setFarmerName } = useContext(ProfileContext)
@@ -159,24 +238,6 @@ export default function SettingsFarmConfiguration() {
         setConfirmLoading(false)
         alert('Reverse geocoding failed. Please try again.')
       })
-  }
-
-  // ── Leaflet helper: fires click events and signals tiles are ready ──────────
-  function MapClickHandler() {
-    useMapEvents({
-      click(e) { setTempCoords([e.latlng.lat, e.latlng.lng]) },
-    })
-    useEffect(() => { setMapReady(true) }, [])
-    return null
-  }
-
-  // ── Leaflet helper: smoothly flies map to searched coordinates ──────────────
-  function MapFlyTo({ coords }) {
-    const map = useMap()
-    useEffect(() => {
-      if (coords && map) map.flyTo(coords, 13)
-    }, [coords, map])
-    return null
   }
 
   // Notifications state toggles
@@ -1104,10 +1165,18 @@ export default function SettingsFarmConfiguration() {
             </button>
           </div>
 
-          {/* Search bar overlay (positioned absolute inside map area) */}
+          {/* Plain-Leaflet map panel — crash-safe, no react-leaflet hooks */}
           <div className="flex-1 relative" style={{ minHeight: 0 }}>
 
-            {/* Search form floating over map */}
+            {/* Loading overlay until map signals ready */}
+            {!mapReady && (
+              <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-[#090d16] pointer-events-none">
+                <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading Map...</p>
+              </div>
+            )}
+
+            {/* Search bar floated over map */}
             <form
               onSubmit={handleFullMapSearch}
               className="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-[1000] flex gap-2 bg-[#111827]/95 border border-white/15 p-2.5 rounded-xl shadow-2xl backdrop-blur-md"
@@ -1122,58 +1191,22 @@ export default function SettingsFarmConfiguration() {
               <button
                 type="submit"
                 disabled={mapSearchLoading}
-                className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-60 flex items-center gap-1"
+                className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-60 flex items-center gap-1.5"
               >
                 {mapSearchLoading
-                  ? <><span className="material-symbols-outlined text-sm animate-spin">progress_activity</span> Searching...</>
+                  ? <><span className="material-symbols-outlined text-sm" style={{animation:'spin 1s linear infinite'}}>progress_activity</span> Searching...</>
                   : <><span className="material-symbols-outlined text-sm">search</span> Search</>
                 }
               </button>
             </form>
 
-            {/* Loading spinner until map tiles mount */}
-            {!mapReady && (
-              <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-[#090d16]">
-                <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
-                  Loading Map...
-                </p>
-              </div>
-            )}
-
-            {/* The actual Leaflet map — always mounted so tiles load immediately */}
-            <MapContainer
-              center={[7.8731, 80.7718]}
-              zoom={7}
-              scrollWheelZoom={true}
-              style={{ width: '100%', height: '100%' }}
-              className="w-full h-full"
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              {/* Handles map clicks + signals tiles loaded */}
-              <MapClickHandler />
-
-              {/* Flies map to searched location */}
-              {flyTo && <MapFlyTo coords={flyTo} />}
-
-              {/* Draggable pin — only appears after user clicks or searches */}
-              {tempCoords && Array.isArray(tempCoords) && (
-                <Marker
-                  position={tempCoords}
-                  draggable={true}
-                  eventHandlers={{
-                    dragend: (e) => {
-                      const pos = e.target.getLatLng()
-                      setTempCoords([pos.lat, pos.lng])
-                    }
-                  }}
-                />
-              )}
-            </MapContainer>
+            {/* Imperative Leaflet map — mounted once, stable, no react-leaflet */}
+            <LeafletMapPanel
+              onCoords={setTempCoords}
+              coords={tempCoords}
+              flyToCoords={flyTo}
+              onReady={setMapReady}
+            />
           </div>
 
           {/* Footer: coordinates display + validation + confirm button */}
