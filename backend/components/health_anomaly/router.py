@@ -156,9 +156,11 @@ async def login_farm(credentials: FarmLogin):
     }
 
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)
-async def create_cattle(cattle_data: CattleCreate):
+async def create_cattle(cattle_data: CattleCreate, authorization: Optional[str] = Header(None)):
     try:
+        owner_email = await get_current_user_email(authorization)
         doc = cattle_data.model_dump()
+        doc["owner_email"] = owner_email
         result = await cattles_collection.insert_one(doc)
         doc["id"] = str(result.inserted_id)
         # remove mongo internal _id field
@@ -171,17 +173,16 @@ async def create_cattle(cattle_data: CattleCreate):
         )
 
 @router.get("/cattle", response_model=list[CattleResponse])
-async def list_cattle():
+async def list_cattle(authorization: Optional[str] = Header(None)):
     try:
-        cursor = cattles_collection.find({})
+        owner_email = await get_current_user_email(authorization)
+        cursor = cattles_collection.find({"owner_email": owner_email})
         cattles = []
         async for doc in cursor:
             doc["id"] = str(doc["_id"])
             doc.pop("_id", None)
             cattles.append(doc)
         return cattles
-
-
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

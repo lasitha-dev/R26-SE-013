@@ -30,32 +30,37 @@ export function ProfileProvider({ children }) {
     // Clear out any stale localStorage photo chunks
     localStorage.removeItem('user_profile_photo')
 
-    const fetchInitialProfile = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) return
-        const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
-          headers: {
-            Authorization: `Bearer ${token}`
+    let intervalId
+    const checkTokenAndFetch = async () => {
+      const token = localStorage.getItem('token')
+      if (token && !farmerName) {
+        try {
+          const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          })
+          if (response.ok) {
+            const data = await response.json()
+            if (data.profile_photo) {
+              setProfilePhoto(data.profile_photo)
+            }
+            if (data.owner_name) {
+              setFarmerName(data.owner_name)
+            }
+            checkAlertsStatus()
           }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          if (data.profile_photo) {
-            setProfilePhoto(data.profile_photo)
-          }
-          if (data.owner_name) {
-            setFarmerName(data.owner_name)
-          }
+        } catch (err) {
+          console.error('Error loading initial farmer details:', err)
         }
-      } catch (err) {
-        console.error('Error loading initial farmer details:', err)
       }
     }
 
-    fetchInitialProfile()
-    checkAlertsStatus()
-  }, [])
+    checkTokenAndFetch()
+    intervalId = setInterval(checkTokenAndFetch, 800)
+
+    return () => clearInterval(intervalId)
+  }, [farmerName])
 
   return (
     <ProfileContext.Provider value={{ profilePhoto, setProfilePhoto, farmerName, setFarmerName, hasAlerts, checkAlertsStatus }}>

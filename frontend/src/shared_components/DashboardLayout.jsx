@@ -4,7 +4,7 @@ import { ProfileContext } from '../context/ProfileContext.jsx'
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const { profilePhoto, farmerName, hasAlerts } = useContext(ProfileContext)
+  const { profilePhoto, farmerName, hasAlerts, setFarmerName, setProfilePhoto } = useContext(ProfileContext)
   const navigate = useNavigate()
 
 
@@ -109,6 +109,8 @@ export default function DashboardLayout() {
           </NavLink>
           <button
             onClick={() => {
+              setFarmerName('')
+              setProfilePhoto('')
               localStorage.clear()
               navigate('/health/login')
             }}
