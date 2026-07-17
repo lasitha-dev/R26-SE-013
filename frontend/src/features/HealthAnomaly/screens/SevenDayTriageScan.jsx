@@ -72,25 +72,58 @@ export default function SevenDayTriageScan() {
             const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
             
             setGpsResult({ lat: lat.toFixed(4), lon: lon.toFixed(4), district })
-            setGpsLoading(false)
 
-            // Populate weather records
-            const simulated = []
-            for (let i = 1; i <= 7; i++) {
-              const temp = parseFloat((29.5 + Math.random() * 4).toFixed(1))
-              const humidity = Math.floor(72 + Math.random() * 12)
-              const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
-              simulated.push({ temp, humidity, thi })
+            // Dynamic date calculation
+            const curDate = new Date(currentDate)
+            const start = new Date(curDate)
+            start.setDate(curDate.getDate() - 6)
+            
+            const formatDate = (d) => {
+              const yyyy = d.getFullYear()
+              const mm = String(d.getMonth() + 1).padStart(2, '0')
+              const dd = String(d.getDate()).padStart(2, '0')
+              return `${yyyy}-${mm}-${dd}`
             }
+            const startDate = formatDate(start)
+            const endDate = formatDate(curDate)
 
-            // Close after 2.5 seconds
-            setTimeout(() => {
-              setWeatherData(simulated)
-              setWeatherFetched(true)
-              setActiveLocation(district)
-              setIsWeatherModalOpen(false)
-              setGpsResult(null)
-            }, 2500)
+            // Fetch real weather data from Open-Meteo
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&hourly=temperature_2m,relative_humidity_2m&timezone=auto`)
+              .then(res => res.json())
+              .then(weatherDataJson => {
+                const hourly = weatherDataJson.hourly || {}
+                const temps = hourly.temperature_2m || []
+                const humidities = hourly.relative_humidity_2m || []
+                
+                const realWeather = []
+                for (let i = 0; i < 7; i++) {
+                  const hourIndex = i * 24 + 12
+                  const tempVal = temps[hourIndex] !== undefined ? temps[hourIndex] : (temps[temps.length - 1] || 28.0)
+                  const humidityVal = humidities[hourIndex] !== undefined ? humidities[hourIndex] : (humidities[humidities.length - 1] || 75)
+                  
+                  const temp = parseFloat(tempVal.toFixed(1))
+                  const humidity = Math.round(humidityVal)
+                  const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
+                  
+                  realWeather.push({ temp, humidity, thi })
+                }
+
+                // Brief timeout to let user see coordinates acquired card in UI
+                setTimeout(() => {
+                  setWeatherData(realWeather)
+                  setWeatherFetched(true)
+                  setActiveLocation(district)
+                  setIsWeatherModalOpen(false)
+                  setGpsResult(null)
+                  setGpsLoading(false)
+                }, 1500)
+              })
+              .catch(err => {
+                console.error(err)
+                setGpsLoading(false)
+                setGpsResult(null)
+                alert("Error fetching weather data from Open-Meteo API.")
+              })
           })
           .catch(err => {
             console.error(err)
@@ -108,21 +141,71 @@ export default function SevenDayTriageScan() {
   }
 
   const handleFetchOptionB = () => {
-    const registeredDistrict = localStorage.getItem('registered_farm_district') || 'Kandy'
-    setTimeout(() => {
-      const simulated = []
-      for (let i = 1; i <= 7; i++) {
-        const baseTemp = registeredDistrict.toLowerCase() === 'colombo' ? 31.0 : 28.5
-        const temp = parseFloat((baseTemp + Math.random() * 3).toFixed(1))
-        const humidity = Math.floor(75 + Math.random() * 10)
-        const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
-        simulated.push({ temp, humidity, thi })
-      }
-      setWeatherData(simulated)
-      setWeatherFetched(true)
-      setActiveLocation(registeredDistrict)
-      setIsWeatherModalOpen(false)
-    }, 1000)
+    const lat = parseFloat(localStorage.getItem('registered_farm_lat'))
+    const lon = parseFloat(localStorage.getItem('registered_farm_lon'))
+    const district = localStorage.getItem('registered_farm_district') || 'Unknown'
+
+    if (isNaN(lat) || isNaN(lon)) {
+      alert('Please pin your exact farm location in Settings first.')
+      return
+    }
+
+    setGpsLoading(true)
+    setGpsResult(null)
+
+    // Dynamic date calculation
+    const curDate = new Date(currentDate)
+    const start = new Date(curDate)
+    start.setDate(curDate.getDate() - 6)
+    
+    const formatDate = (d) => {
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      return `${yyyy}-${mm}-${dd}`
+    }
+    const startDate = formatDate(start)
+    const endDate = formatDate(curDate)
+
+    // Fetch real weather data from Open-Meteo directly
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&hourly=temperature_2m,relative_humidity_2m&timezone=auto`)
+      .then(res => res.json())
+      .then(weatherDataJson => {
+        const hourly = weatherDataJson.hourly || {}
+        const temps = hourly.temperature_2m || []
+        const humidities = hourly.relative_humidity_2m || []
+        
+        const realWeather = []
+        for (let i = 0; i < 7; i++) {
+          const hourIndex = i * 24 + 12
+          const tempVal = temps[hourIndex] !== undefined ? temps[hourIndex] : (temps[temps.length - 1] || 28.0)
+          const humidityVal = humidities[hourIndex] !== undefined ? humidities[hourIndex] : (humidities[humidities.length - 1] || 75)
+          
+          const temp = parseFloat(tempVal.toFixed(1))
+          const humidity = Math.round(humidityVal)
+          const thi = parseFloat((0.8 * temp + (humidity / 100) * (temp - 14.3) + 46.4).toFixed(1))
+          
+          realWeather.push({ temp, humidity, thi })
+        }
+
+        setGpsResult({ lat: lat.toFixed(4), lon: lon.toFixed(4), district })
+
+        // Brief timeout to let user see coordinates acquired card in UI
+        setTimeout(() => {
+          setWeatherData(realWeather)
+          setWeatherFetched(true)
+          setActiveLocation(district)
+          setIsWeatherModalOpen(false)
+          setGpsResult(null)
+          setGpsLoading(false)
+        }, 1500)
+      })
+      .catch(err => {
+        console.error(err)
+        setGpsLoading(false)
+        setGpsResult(null)
+        alert("Error fetching weather data from Open-Meteo API.")
+      })
   }
 
   const handleLogChange = (type, index, val) => {

@@ -34,7 +34,7 @@ export default function RegistrationLanding() {
       owner_name: formData.get("owner_name"),
       email: email,
       password: password,
-      location_district: formData.get("location_district"),
+      location_district: "Pending Map Selection",
       registration_number: formData.get("registration_number") || null,
       veterinarian_name: formData.get("veterinarian_name"),
       total_animals: parseInt(formData.get("total_animals") || "0", 10)
@@ -119,7 +119,7 @@ export default function RegistrationLanding() {
             </div>
           </div>
         </section>
-
+        
         <section className="w-full md:w-7/12 lg:w-1/2 bg-surface-container-lowest flex items-center justify-center p-8 lg:p-24">
           <div className="w-full max-w-lg">
             <header className="mb-12">
@@ -179,52 +179,6 @@ export default function RegistrationLanding() {
                     required
                     type="password"
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
-                    Farm Location (District)
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 pr-10 text-on-surface text-sm appearance-none transition-all duration-300"
-                      defaultValue=""
-                      name="location_district"
-                      required
-                    >
-                      <option disabled value="">
-                        Select District
-                      </option>
-                      <option value="ampara">Ampara</option>
-                      <option value="anuradhapura">Anuradhapura</option>
-                      <option value="badulla">Badulla</option>
-                      <option value="batticaloa">Batticaloa</option>
-                      <option value="colombo">Colombo</option>
-                      <option value="galle">Galle</option>
-                      <option value="gampaha">Gampaha</option>
-                      <option value="hambantota">Hambantota</option>
-                      <option value="jaffna">Jaffna</option>
-                      <option value="kalutara">Kalutara</option>
-                      <option value="kandy">Kandy</option>
-                      <option value="kegalle">Kegalle</option>
-                      <option value="kilinochchi">Kilinochchi</option>
-                      <option value="kurunegala">Kurunegala</option>
-                      <option value="mannar">Mannar</option>
-                      <option value="matale">Matale</option>
-                      <option value="matara">Matara</option>
-                      <option value="moneragala">Moneragala</option>
-                      <option value="mullaitivu">Mullaitivu</option>
-                      <option value="nuwara-eliya">Nuwara Eliya</option>
-                      <option value="polonnaruwa">Polonnaruwa</option>
-                      <option value="puttalam">Puttalam</option>
-                      <option value="ratnapura">Ratnapura</option>
-                      <option value="trincomalee">Trincomalee</option>
-                      <option value="vavuniya">Vavuniya</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-primary pointer-events-none">
-                      expand_more
-                    </span>
-                  </div>
                 </div>
               </div>
 

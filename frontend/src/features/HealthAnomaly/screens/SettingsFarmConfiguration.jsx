@@ -151,8 +151,13 @@ export default function SettingsFarmConfiguration() {
             const address = data.address || {}
             const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
             
-            setProfile(prev => ({ ...prev, location_district: district }))
+            const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
+            setProfile(prev => ({ ...prev, location_district: coordsString }))
             setMockCoords(`${lat},${lon}`)
+            localStorage.setItem('registered_farm_district', district)
+            localStorage.setItem('registered_farm_lat', lat)
+            localStorage.setItem('registered_farm_lon', lon)
+            localStorage.setItem('registered_farm_name', district)
             setGpsLoading(false)
             setMapSuccessMsg(`Successfully resolved coordinates to ${district} District!`)
           })
@@ -227,9 +232,13 @@ export default function SettingsFarmConfiguration() {
         const district =
           addr.state_district || addr.city || addr.town ||
           addr.suburb || addr.village || 'Unknown District'
-        setProfile(prev => ({ ...prev, location_district: district }))
+        const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
+        setProfile(prev => ({ ...prev, location_district: coordsString }))
         setMockCoords(`${lat.toFixed(6)},${lon.toFixed(6)}`)
         localStorage.setItem('registered_farm_district', district)
+        localStorage.setItem('registered_farm_lat', lat)
+        localStorage.setItem('registered_farm_lon', lon)
+        localStorage.setItem('registered_farm_name', district)
         setConfirmLoading(false)
         setIsFullMapOpen(false)
       })
@@ -260,7 +269,17 @@ export default function SettingsFarmConfiguration() {
       })
       if (response.ok) {
         const data = await response.json()
-        const localDistrict = localStorage.getItem('registered_farm_district')
+        const lat = localStorage.getItem('registered_farm_lat')
+        const lon = localStorage.getItem('registered_farm_lon')
+        const name = localStorage.getItem('registered_farm_name')
+        
+        let localDistrict = ''
+        if (lat && lon && name) {
+          localDistrict = `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)} (${name})`
+        } else {
+          localDistrict = localStorage.getItem('registered_farm_district')
+        }
+
         setProfile({
           owner_name: data.owner_name || '',
           email: data.email || '',
@@ -679,7 +698,7 @@ export default function SettingsFarmConfiguration() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-455 uppercase tracking-widest block">
-                    Farm Location District (Disabled)
+                    Exact Farm Location (Disabled)
                   </label>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
