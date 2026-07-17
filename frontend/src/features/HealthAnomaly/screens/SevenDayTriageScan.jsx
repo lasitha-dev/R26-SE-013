@@ -262,6 +262,7 @@ export default function SevenDayTriageScan() {
             className="w-full bg-[#060e20] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
             value={currentDate}
             onChange={(e) => setCurrentDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
           />
         </div>
 
