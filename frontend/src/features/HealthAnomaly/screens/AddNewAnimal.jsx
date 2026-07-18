@@ -1,6 +1,57 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+export const sriLankanBreeds = [
+  "Holstein-Friesian", "Jersey", "Ayrshire", "Brown_Swiss", "Guernsey", 
+  "Fleckvieh", "Simmental", "Milking_Shorthorn", "Illawarra_Shorthorn",
+  "Sahiwal", "Red_Sindhi", "Gir", "Tharparkar", "Hariana", "Kankrej", "Ongole",
+  "Australian_Friesian_Sahiwal", "Australian_Milking_Zebu",
+  "Holstein_Zebu_Cross", "Jersey_Zebu_Cross", "Exotic_Local_Cross"
+];
+
+export const allBreeds = [
+  { value: "Africander", label: "Africander" },
+  { value: "Ankole", label: "Ankole" },
+  { value: "Australian_Friesian_Sahiwal", label: "Australian Friesian Sahiwal" },
+  { value: "Australian_Milking_Zebu", label: "Australian Milking Zebu" },
+  { value: "Ayrshire", label: "Ayrshire" },
+  { value: "Boran", label: "Boran" },
+  { value: "Brown_Swiss", label: "Brown Swiss" },
+  { value: "Butana", label: "Butana" },
+  { value: "Danish_Red", label: "Danish Red" },
+  { value: "Deoni", label: "Deoni" },
+  { value: "Exotic_Local_Cross", label: "Exotic Local Cross" },
+  { value: "Fleckvieh", label: "Fleckvieh" },
+  { value: "Gangatiri", label: "Gangatiri" },
+  { value: "Gir", label: "Gir" },
+  { value: "Girolando", label: "Girolando" },
+  { value: "Guernsey", label: "Guernsey" },
+  { value: "Hariana", label: "Hariana" },
+  { value: "Holstein-Friesian", label: "Holstein-Friesian" },
+  { value: "Holstein_Zebu_Cross", label: "Holstein Zebu Cross" },
+  { value: "Illawarra_Shorthorn", label: "Illawarra Shorthorn" },
+  { value: "Jersey", label: "Jersey" },
+  { value: "Jersey_Zebu_Cross", label: "Jersey Zebu Cross" },
+  { value: "Kankrej", label: "Kankrej" },
+  { value: "Kenana", label: "Kenana" },
+  { value: "Krishna_Valley", label: "Krishna Valley" },
+  { value: "Milking_Shorthorn", label: "Milking Shorthorn" },
+  { value: "Montbeliarde", label: "Montbeliarde" },
+  { value: "NDama", label: "NDama" },
+  { value: "Normande", label: "Normande" },
+  { value: "Norwegian_Red", label: "Norwegian Red" },
+  { value: "Ongole", label: "Ongole" },
+  { value: "Rathi", label: "Rathi" },
+  { value: "Red_Poll_Africa", label: "Red Poll Africa" },
+  { value: "Red_Sindhi", label: "Red Sindhi" },
+  { value: "Sahiwal", label: "Sahiwal" },
+  { value: "Simmental", label: "Simmental" },
+  { value: "Tharparkar", label: "Tharparkar" },
+  { value: "Tipo_Carora", label: "Tipo Carora" },
+  { value: "White_Fulani", label: "White Fulani" },
+  { value: "Zebu_Cross_Brazil", label: "Zebu Cross Brazil" }
+];
+
 // Dynamic Age Calculation helper function
 export const calculateAge = (dobString) => {
   if (!dobString) return 'N/A'
@@ -290,46 +341,14 @@ export default function AddNewAnimal() {
                       <option disabled value="">
                         Select Breed
                       </option>
-                      <option value="Africander">Africander</option>
-                      <option value="Ankole">Ankole</option>
-                      <option value="Australian_Friesian_Sahiwal">Australian Friesian Sahiwal</option>
-                      <option value="Australian_Milking_Zebu">Australian Milking Zebu</option>
-                      <option value="Ayrshire">Ayrshire</option>
-                      <option value="Boran">Boran</option>
-                      <option value="Brown_Swiss">Brown Swiss</option>
-                      <option value="Butana">Butana</option>
-                      <option value="Danish_Red">Danish Red</option>
-                      <option value="Deoni">Deoni</option>
-                      <option value="Exotic_Local_Cross">Exotic Local Cross</option>
-                      <option value="Fleckvieh">Fleckvieh</option>
-                      <option value="Gangatiri">Gangatiri</option>
-                      <option value="Gir">Gir</option>
-                      <option value="Girolando">Girolando</option>
-                      <option value="Guernsey">Guernsey</option>
-                      <option value="Hariana">Hariana</option>
-                      <option value="Holstein-Friesian">Holstein-Friesian</option>
-                      <option value="Holstein_Zebu_Cross">Holstein Zebu Cross</option>
-                      <option value="Illawarra_Shorthorn">Illawarra Shorthorn</option>
-                      <option value="Jersey">Jersey</option>
-                      <option value="Jersey_Zebu_Cross">Jersey Zebu Cross</option>
-                      <option value="Kankrej">Kankrej</option>
-                      <option value="Kenana">Kenana</option>
-                      <option value="Krishna_Valley">Krishna Valley</option>
-                      <option value="Milking_Shorthorn">Milking Shorthorn</option>
-                      <option value="Montbeliarde">Montbeliarde</option>
-                      <option value="NDama">NDama</option>
-                      <option value="Normande">Normande</option>
-                      <option value="Norwegian_Red">Norwegian Red</option>
-                      <option value="Ongole">Ongole</option>
-                      <option value="Rathi">Rathi</option>
-                      <option value="Red_Poll_Africa">Red Poll Africa</option>
-                      <option value="Red_Sindhi">Red Sindhi</option>
-                      <option value="Sahiwal">Sahiwal</option>
-                      <option value="Simmental">Simmental</option>
-                      <option value="Tharparkar">Tharparkar</option>
-                      <option value="Tipo_Carora">Tipo Carora</option>
-                      <option value="White_Fulani">White Fulani</option>
-                      <option value="Zebu_Cross_Brazil">Zebu Cross Brazil</option>
+                      {allBreeds.map(breed => {
+                        const isAllowed = sriLankanBreeds.includes(breed.value);
+                        return (
+                          <option key={breed.value} value={breed.value} disabled={!isAllowed}>
+                            {breed.label} {!isAllowed ? "(N/A in SL)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
                       expand_more

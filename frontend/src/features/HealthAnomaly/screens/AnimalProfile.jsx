@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { calculateAge } from './AddNewAnimal.jsx'
+import { calculateAge, sriLankanBreeds, allBreeds } from './AddNewAnimal.jsx'
 import { ProfileContext } from '../../../context/ProfileContext.jsx'
 
 export default function AnimalProfile() {
@@ -971,46 +971,14 @@ export default function AnimalProfile() {
                     name="edit_breed"
                     required
                   >
-                    <option value="Africander">Africander</option>
-                    <option value="Ankole">Ankole</option>
-                    <option value="Australian_Friesian_Sahiwal">Australian Friesian Sahiwal</option>
-                    <option value="Australian_Milking_Zebu">Australian Milking Zebu</option>
-                    <option value="Ayrshire">Ayrshire</option>
-                    <option value="Boran">Boran</option>
-                    <option value="Brown_Swiss">Brown Swiss</option>
-                    <option value="Butana">Butana</option>
-                    <option value="Danish_Red">Danish Red</option>
-                    <option value="Deoni">Deoni</option>
-                    <option value="Exotic_Local_Cross">Exotic Local Cross</option>
-                    <option value="Fleckvieh">Fleckvieh</option>
-                    <option value="Gangatiri">Gangatiri</option>
-                    <option value="Gir">Gir</option>
-                    <option value="Girolando">Girolando</option>
-                    <option value="Guernsey">Guernsey</option>
-                    <option value="Hariana">Hariana</option>
-                    <option value="Holstein-Friesian">Holstein-Friesian</option>
-                    <option value="Holstein_Zebu_Cross">Holstein Zebu Cross</option>
-                    <option value="Illawarra_Shorthorn">Illawarra Shorthorn</option>
-                    <option value="Jersey">Jersey</option>
-                    <option value="Jersey_Zebu_Cross">Jersey Zebu Cross</option>
-                    <option value="Kankrej">Kankrej</option>
-                    <option value="Kenana">Kenana</option>
-                    <option value="Krishna_Valley">Krishna Valley</option>
-                    <option value="Milking_Shorthorn">Milking Shorthorn</option>
-                    <option value="Montbeliarde">Montbeliarde</option>
-                    <option value="NDama">NDama</option>
-                    <option value="Normande">Normande</option>
-                    <option value="Norwegian_Red">Norwegian Red</option>
-                    <option value="Ongole">Ongole</option>
-                    <option value="Rathi">Rathi</option>
-                    <option value="Red_Poll_Africa">Red Poll Africa</option>
-                    <option value="Red_Sindhi">Red Sindhi</option>
-                    <option value="Sahiwal">Sahiwal</option>
-                    <option value="Simmental">Simmental</option>
-                    <option value="Tharparkar">Tharparkar</option>
-                    <option value="Tipo_Carora">Tipo Carora</option>
-                    <option value="White_Fulani">White Fulani</option>
-                    <option value="Zebu_Cross_Brazil">Zebu Cross Brazil</option>
+                    {allBreeds.map(b => {
+                      const isAllowed = sriLankanBreeds.includes(b.value);
+                      return (
+                        <option key={b.value} value={b.value} disabled={!isAllowed}>
+                          {b.label} {!isAllowed ? "(N/A in SL)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

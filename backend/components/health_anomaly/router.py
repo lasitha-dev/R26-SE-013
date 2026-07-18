@@ -614,9 +614,9 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
         breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
         
-        # 2. Compute drop percentages
-        prev_avg = payload.Previous_Week_Avg_Yield if payload.Previous_Week_Avg_Yield > 0 else payload.Milk_Yield_L
-        milk_drop = ((prev_avg - payload.Milk_Yield_L) / prev_avg) * 100.0 if prev_avg > 0 else 0.0
+        # 2. Compute drop percentages (FIXED: Using Day_Minus_3_Milk)
+        prev_milk_3d = payload.Day_Minus_3_Milk if payload.Day_Minus_3_Milk > 0 else payload.Milk_Yield_L
+        milk_drop = ((prev_milk_3d - payload.Milk_Yield_L) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
         
         prev_wt = payload.Day_Minus_3_Weight if payload.Day_Minus_3_Weight > 0 else payload.Weight_kg
         weight_drop = ((prev_wt - payload.Weight_kg) / prev_wt) * 100.0 if prev_wt > 0 else 0.0
