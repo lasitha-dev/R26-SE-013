@@ -68,26 +68,33 @@ def load_ai_models():
 load_ai_models()
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
-    grad_model = tf.keras.models.Model(
-        model.inputs, [model.get_layer(last_conv_layer_name).output, model.output]
-    )
+    try:
+        grad_model = tf.keras.models.Model(
+            model.inputs, [model.get_layer(last_conv_layer_name).output, model.output]
+        )
+        img_tensor = tf.cast(img_array, tf.float32)
+        with tf.GradientTape() as tape:
+            tape.watch(img_tensor)
+            last_conv_layer_output, preds = grad_model(img_tensor)
+            if pred_index is None:
+                class_channel = preds[:, 0]
+            else:
+                class_channel = preds[:, pred_index]
 
-    with tf.GradientTape() as tape:
-        last_conv_layer_output, preds = grad_model(img_array)
-        if pred_index is None:
-            class_channel = preds[:, 0]
-        else:
-            class_channel = preds[:, pred_index]
+        grads = tape.gradient(class_channel, last_conv_layer_output)
+        if grads is None:
+            print("[GRAD-CAM] Gradients evaluated to None.")
+            return np.zeros((img_array.shape[1], img_array.shape[2]))
 
-    grads = tape.gradient(class_channel, last_conv_layer_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
-    last_conv_layer_output = last_conv_layer_output[0]
-    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-
-    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
-    return heatmap.numpy()
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        last_conv_layer_output = last_conv_layer_output[0]
+        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+        heatmap = tf.squeeze(heatmap)
+        heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+        return heatmap.numpy()
+    except Exception as e:
+        print(f"[GRAD-CAM INTERNAL ERROR]: {e}")
+        return np.zeros((img_array.shape[1], img_array.shape[2]))
 
 def overlay_gradcam(img, heatmap, alpha=0.4):
     heatmap = np.uint8(255 * heatmap)
@@ -895,6 +902,7 @@ async def predict_bcs(
     pred = bcs_model.predict(crop_input, verbose=False)
     bcs_score = float(pred[0][0])
 
+    import traceback
     gradcam_image = None
     try:
         last_conv_layer_name = None
@@ -902,13 +910,29 @@ async def predict_bcs(
             if "conv" in layer.name.lower():
                 last_conv_layer_name = layer.name
                 break
+        
         if last_conv_layer_name is not None:
+            print(f"[DEBUG] Input shape: {crop_input.shape}, dtype: {crop_input.dtype}")
+            print(f"[DEBUG] Found target layer: {last_conv_layer_name}")
+            
             heatmap = make_gradcam_heatmap(crop_input, bcs_model, last_conv_layer_name)
-            gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
-            _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
-            gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
+            
+            print(f"[DEBUG] Heatmap generated. Shape: {heatmap.shape}, Max: {np.max(heatmap)}")
+            
+            if np.max(heatmap) > 0:
+                gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
+                _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
+                gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
+                print("[DEBUG] Grad-CAM encoded successfully.")
+            else:
+                print("[DEBUG] Heatmap is entirely zero.")
+        else:
+            print("[DEBUG] No convolution layer found in model.")
     except Exception as e:
-        print(f"Silent Grad-CAM failure: {e}")
+        print(f"\n--- GRAD-CAM CRITICAL FAILURE ---")
+        print(f"Error: {str(e)}")
+        traceback.print_exc()
+        print(f"---------------------------------\n")
         gradcam_image = None
 
     # 8. Draw bounding box on original image for visualization
@@ -1030,33 +1054,36 @@ async def predict_7day(payload: TriagePredictPayload):
             ])
         X_ts = np.array([ts_data], dtype=np.float32)
 
-        # 2. Construct X_static: shape (1, 45)
-        static_features = [0.0] * 45
-        static_features[0] = float(payload.age_months) / 100.0
-        static_features[1] = float(payload.days_in_milk) / 305.0
-
-        breeds_list = [
-            'Africander', 'Ankole', 'Australian_Friesian_Sahiwal', 'Australian_Milking_Zebu',
-            'Ayrshire', 'Boran', 'Brown_Swiss', 'Butana', 'Danish_Red', 'Deoni',
-            'Exotic_Local_Cross', 'Fleckvieh', 'Gangatiri', 'Gir', 'Girolando',
-            'Guernsey', 'Hariana', 'Holstein-Friesian', 'Holstein_Zebu_Cross',
-            'Illawarra_Shorthorn', 'Jersey', 'Jersey_Zebu_Cross', 'Kankrej', 'Kenana',
-            'Krishna_Valley', 'Milking_Shorthorn', 'Montbeliarde', 'NDama', 'Normande',
-            'Norwegian_Red', 'Ongole', 'Rathi', 'Red_Poll_Africa', 'Red_Sindhi', 'Sahiwal',
-            'Simmental', 'Tharparkar', 'Tipo_Carora', 'White_Fulani', 'Zebu_Cross_Brazil'
+        import pandas as pd
+        # 2. Construct X_static: exact 45 columns matching drop_first=True training schema
+        dummy_columns = [
+            'Age_Months', 'Days_in_Milk', 'Breed_Ankole', 'Breed_Australian_Friesian_Sahiwal',
+            'Breed_Australian_Milking_Zebu', 'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss',
+            'Breed_Butana', 'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
+            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando', 'Breed_Guernsey',
+            'Breed_Hariana', 'Breed_Holstein-Friesian', 'Breed_Holstein_Zebu_Cross',
+            'Breed_Illawarra_Shorthorn', 'Breed_Jersey', 'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej',
+            'Breed_Kenana', 'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
+            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole', 'Breed_Rathi',
+            'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal', 'Breed_Simmental',
+            'Breed_Tharparkar', 'Breed_Tipo_Carora', 'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil',
+            'Genetic_Group_B', 'Genetic_Group_C', 'Lactation_Stage_Late', 'Lactation_Stage_Mid'
         ]
-        
-        if payload.breed in breeds_list:
-            breed_idx = breeds_list.index(payload.breed)
-            static_features[2 + breed_idx] = 1.0
 
-        stages_list = ['Early', 'Late', 'Mid']
-        stage_input = payload.lactation_stage.split(' ')[0].title() # e.g. "Early Lactation" -> "Early"
-        if stage_input in stages_list:
-            stage_idx = stages_list.index(stage_input)
-            static_features[42 + stage_idx] = 1.0
+        cow_static_df = pd.DataFrame([{
+            'Age_Months': float(payload.age_months),
+            'Days_in_Milk': float(payload.days_in_milk),
+            'Breed': payload.breed,
+            'Genetic_Group': payload.genetic_group,  # Must be 'A', 'B', or 'C'
+            'Lactation_Stage': payload.lactation_stage.split(' ')[0].title()  # 'Early', 'Mid', or 'Late'
+        }])
 
-        X_static = np.array([static_features], dtype=np.float32)
+        cow_dummy = pd.get_dummies(cow_static_df)
+        cow_dummy = cow_dummy.reindex(columns=dummy_columns, fill_value=0)
+
+        X_static = cow_dummy.values.astype(np.float32)
+        X_static[0, 0] = X_static[0, 0] / 100.0   # Scale Age_Months
+        X_static[0, 1] = X_static[0, 1] / 305.0   # Scale Days_in_Milk
 
         # 3. Construct X_vis: shape (1, 1)
         X_vis = np.array([[float(payload.bcs_score) / 5.0]], dtype=np.float32)

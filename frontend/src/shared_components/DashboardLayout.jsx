@@ -1,12 +1,12 @@
 import React, { useState, useContext } from 'react'
-import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { ProfileContext } from '../context/ProfileContext.jsx'
 
 export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const { profilePhoto, farmerName, hasAlerts, setFarmerName, setProfilePhoto } = useContext(ProfileContext)
   const navigate = useNavigate()
-
+  const { pathname } = useLocation()
 
   const token = localStorage.getItem("token")
 
@@ -17,10 +17,18 @@ export default function DashboardLayout() {
   const ownerDisplayName = farmerName || localStorage.getItem("owner_name") || "Julian Vane"
   const vetName = localStorage.getItem("veterinarian_name") || "Clinical Lead"
 
+  const wellnessRoutes = [
+    '/health/dashboard',
+    '/health/7-day-triage-scan',
+    '/health/ai-wellness-report',
+    '/health/wellness-data-intake',
+    '/health/bcs-analyzer',
+  ]
+
   const navLinks = [
-    { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety' },
+    { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety', matchPaths: wellnessRoutes },
     { to: '/health/herd-registry', label: 'Herd Registry', icon: 'pets' },
-    { to: '/health/ai-wellness-report', label: 'AI Smart Diagnosis', icon: 'memory' },
+    { to: '/health/ai-smart-diagnosis', label: 'AI Smart Diagnosis', icon: 'memory' },
     { to: '/health/geospatial', label: 'Geospatial Intelligence', icon: 'map' },
     { to: '/health/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
   ]
@@ -80,17 +88,27 @@ export default function DashboardLayout() {
 
         {/* Navigation Items */}
         <nav className="flex-grow px-3 space-y-1 overflow-y-auto no-scrollbar">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={linkClass}
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
-              <span className="text-sm">{link.label}</span>
-            </NavLink>
-          ))}
+          {navLinks.map((link) => {
+            const isActive = link.matchPaths
+              ? link.matchPaths.some(p => pathname.startsWith(p))
+              : pathname === link.to
+            const cls = `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/5'
+                : 'text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10'
+            }`
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={cls}
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
+                <span className="text-sm">{link.label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* Sidebar Footer */}

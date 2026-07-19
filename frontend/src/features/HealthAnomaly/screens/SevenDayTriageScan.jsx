@@ -253,97 +253,35 @@ export default function SevenDayTriageScan() {
       return
     }
 
+    const activeCattleObj = cattleList.find(c => c.id === selectedCattleId)
+    if (!activeCattleObj) {
+      alert('Selected cattle not found.')
+      return
+    }
+
+    // Convert image to base64 so it can be passed through navigation state
     setBcsUploading(true)
     try {
-      const activeCattleObj = cattleList.find(c => c.id === selectedCattleId)
-      if (!activeCattleObj) {
-        alert('Selected cattle not found.')
-        return
-      }
-
-      // Step 1: Vision (BCS Score & Grad-CAM Heatmap)
-      const formData = new FormData()
-      formData.append('file', imageFile)
-      formData.append('cattle_id', selectedCattleId)
-      formData.append('photo_date', currentDate)
-
-      const bcsRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-bcs', {
-        method: 'POST',
-        body: formData,
+      const imageBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(imageFile)
       })
 
-      if (!bcsRes.ok) {
-        const errorData = await bcsRes.json()
-        throw new Error(errorData.detail || 'BCS prediction failed.')
-      }
-
-      const bcsData = await bcsRes.json()
-      const calculatedBcs = bcsData.bcs_score
-      const gradcamImage = bcsData.gradcam_image
-
-      // Step 2: Data Prep & Calculations
-      const cur = new Date(currentDate)
-      const dob = new Date(activeCattleObj.dob)
-      const calving = activeCattleObj.calving_date ? new Date(activeCattleObj.calving_date) : new Date()
-
-      const ageMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)))
-      const daysInMilk = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)))
-
-      // Map time-series lists
-      const ambient_temp = weatherData.map(w => w.temp)
-      const humidity = weatherData.map(w => w.humidity)
-      const thi = weatherData.map(w => w.thi)
-      const body_temp = logsData.temp
-      const milk_yield = logsData.yields
-      const water_intake = logsData.water
-      const feed_intake = logsData.feed
-      const weight = logsData.weight
-
-      // Step 3: Fusion (7-day triage prediction)
-      const triagePayload = {
-        bcs_score: parseFloat(calculatedBcs),
-        age_months: parseInt(ageMonths, 10),
-        days_in_milk: parseInt(daysInMilk, 10),
-        breed: activeCattleObj.breed,
-        genetic_group: 'Exotic',
-        lactation_stage: daysInMilk <= 100 ? 'Early' : daysInMilk <= 200 ? 'Mid' : 'Late',
-        ambient_temp,
-        humidity,
-        thi,
-        body_temp,
-        milk_yield,
-        water_intake,
-        feed_intake,
-        weight
-      }
-
-      const triageRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-7day', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(triagePayload),
-      })
-
-      if (!triageRes.ok) {
-        const errorData = await triageRes.json()
-        throw new Error(errorData.detail || '7-Day triage prediction failed.')
-      }
-
-      const triageData = await triageRes.json()
-
-      // Step 4: Routing
+      // Navigate immediately — AiWellnessReport will make the actual API calls
       navigate('/health/ai-wellness-report', {
         state: {
-          triageClass: triageData.class,
-          bcsScore: calculatedBcs,
-          gradcamImage: gradcamImage,
-          activeCattle: activeCattleObj
+          imageBase64,
+          cattleId: selectedCattleId,
+          activeCattle: activeCattleObj,
+          weatherData,
+          logsData,
+          currentDate,
         }
       })
-
     } catch (err) {
-      alert(`Diagnostics Error: ${err.message}`)
+      alert(`Error preparing image: ${err.message}`)
     } finally {
       setBcsUploading(false)
     }
@@ -352,6 +290,8 @@ export default function SevenDayTriageScan() {
   let calculatedAge = 'N/A'
   let calculatedDim = 'N/A'
   let activeCattle = null
+  let calculatedGeneticGroup = 'Cross / Local';
+  let calculatedLactationStage = 'N/A';
 
   if (selectedCattleId && currentDate) {
     activeCattle = cattleList.find(c => c.id === selectedCattleId)
@@ -368,6 +308,23 @@ export default function SevenDayTriageScan() {
         calculatedDim = `${diffDimDays} Days`
       } else {
         calculatedDim = 'N/A'
+      }
+
+      const GROUP_A = ['Ayrshire', 'Brown_Swiss', 'Danish_Red', 'Fleckvieh', 'Guernsey', 'Holstein-Friesian', 'Illawarra_Shorthorn', 'Jersey', 'Milking_Shorthorn', 'Montbeliarde', 'Normande', 'Norwegian_Red', 'Red_Poll_Africa', 'Simmental'];
+      const GROUP_B = ['Ankole', 'Boran', 'Butana', 'Deoni', 'Gangatiri', 'Gir', 'Hariana', 'Kankrej', 'Kenana', 'Krishna_Valley', 'NDama', 'Ongole', 'Rathi', 'Red_Sindhi', 'Sahiwal', 'Tharparkar', 'White_Fulani', 'Local']; // Added Local
+
+      if (GROUP_A.includes(activeCattle.breed)) calculatedGeneticGroup = 'Exotic';
+      else if (GROUP_B.includes(activeCattle.breed)) calculatedGeneticGroup = 'Local_Indigenous';
+      else calculatedGeneticGroup = 'Crossbred';
+
+      if (activeCattle.calving_date) {
+        const curDateVal = new Date(currentDate);
+        const calvingDateVal = new Date(activeCattle.calving_date);
+        const dimDays = Math.max(0, Math.floor((curDateVal - calvingDateVal) / (1000 * 60 * 60 * 24)));
+        if (dimDays <= 100) calculatedLactationStage = 'Early Lactation';
+        else if (dimDays <= 200) calculatedLactationStage = 'Mid Lactation';
+        else if (dimDays <= 305) calculatedLactationStage = 'Late Lactation';
+        else calculatedLactationStage = 'Dry Period';
       }
     }
   }
@@ -459,11 +416,11 @@ export default function SevenDayTriageScan() {
             </div>
             <div className="bg-[#060e20]/60 border border-white/5 rounded-xl p-3 text-center">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Genetic Group</p>
-              <p className="text-xs font-bold text-white mt-1 uppercase">{activeCattle.geneticGroup}</p>
+              <p className="text-xs font-bold text-white mt-1 uppercase">{calculatedGeneticGroup}</p>
             </div>
             <div className="bg-[#060e20]/60 border border-white/5 rounded-xl p-3 text-center">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Lactation Stage</p>
-              <p className="text-xs font-bold text-white mt-1 uppercase">{activeCattle.lactationStage}</p>
+              <p className="text-xs font-bold text-white mt-1 uppercase">{calculatedLactationStage}</p>
             </div>
             <div className="bg-[#060e20]/60 border border-white/5 rounded-xl p-3 text-center">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Age (Months)</p>

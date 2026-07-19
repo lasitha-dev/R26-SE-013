@@ -16,7 +16,21 @@ import SevenDayTriageScan from './screens/SevenDayTriageScan.jsx'
 import AiWellnessReport from './screens/AiWellnessReport.jsx'
 import NotificationsCenter from './screens/NotificationsCenter.jsx'
 import BCSAnalyzer from './screens/BCSAnalyzer.jsx'
-import SmartDiagnosticsPage from '../SmartDiagnostics/screens/SmartDiagnosticsPage.jsx'
+function ComingSoon() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-fadeIn">
+      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center ring-8 ring-primary/5">
+        <span className="material-symbols-outlined text-4xl text-primary animate-pulse">construction</span>
+      </div>
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Coming Soon</h2>
+        <p className="text-slate-400 text-sm max-w-sm">
+          This feature is currently under development and will be available in a future release.
+        </p>
+      </div>
+    </div>
+  )
+}
 import { ProfileProvider } from '../../context/ProfileContext.jsx'
 
 // Quick responsive mock components for Geospatial and Forecasting modules
@@ -80,7 +94,7 @@ export default function HealthAnomalyRoutes() {
         <Route path="add-new-animal" element={<AddNewAnimal />} />
         <Route path="wellness-data-intake" element={<WellnessDataIntake />} />
         <Route path="7-day-triage-scan" element={<SevenDayTriageScan />} />
-        <Route path="ai-smart-diagnosis" element={<SmartDiagnosticsPage />} />
+        <Route path="ai-smart-diagnosis" element={<ComingSoon />} />
         <Route path="ai-wellness-report" element={<AiWellnessReport />} />
         <Route path="notifications" element={<NotificationsCenter />} />
         <Route path="bcs-analyzer" element={<BCSAnalyzer />} />
