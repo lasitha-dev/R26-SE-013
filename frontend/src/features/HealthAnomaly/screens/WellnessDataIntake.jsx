@@ -243,6 +243,11 @@ export default function WellnessDataIntake() {
     }
 
     // Dynamic validations check (Front-end)
+    if (selectedCattle && selectedCattle.calving_date && dateVal < selectedCattle.calving_date) {
+      setErrorMessage(`Logging date cannot be prior to the cow's milking start date (${selectedCattle.calving_date}).`)
+      return
+    }
+
     if (isNaN(milkYield) || milkYield < 0) {
       setErrorMessage('Daily Milk Yield must be a positive number or zero.')
       return
@@ -393,6 +398,12 @@ export default function WellnessDataIntake() {
     const weight = parseFloat(formData.get('edit_weight'))
     const dateVal = formData.get('edit_date')
     const cattleId = formData.get('edit_cattle_id')
+
+    const editCattle = cattleList.find(c => c.id === cattleId)
+    if (editCattle && editCattle.calving_date && dateVal < editCattle.calving_date) {
+      setEditErrorMessage(`Logging date cannot be prior to the cow's milking start date (${editCattle.calving_date}).`)
+      return
+    }
 
     if (isNaN(milkYield) || milkYield < 0) {
       setEditErrorMessage('Daily Milk Yield must be a positive number or zero.')
@@ -554,6 +565,7 @@ export default function WellnessDataIntake() {
                       required
                       type="date"
                       max={todayDateString}
+                      min={selectedCattle ? selectedCattle.calving_date : undefined}
                     />
                   </div>
                 </div>
@@ -824,6 +836,10 @@ export default function WellnessDataIntake() {
                   required
                   type="date"
                   max={todayDateString}
+                  min={(() => {
+                    const editCattleObj = cattleList.find(c => c.id === editingLog.cattle_id)
+                    return editCattleObj ? editCattleObj.calving_date : undefined
+                  })()}
                 />
               </div>
 

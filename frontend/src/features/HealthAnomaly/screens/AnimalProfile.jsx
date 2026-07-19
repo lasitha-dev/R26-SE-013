@@ -285,6 +285,11 @@ export default function AnimalProfile() {
     const weight = parseFloat(formData.get('edit_log_weight'))
     const dateVal = formData.get('edit_log_date')
 
+    if (cattle && cattle.calving_date && dateVal < cattle.calving_date) {
+      setEditLogErrorMessage(`Logging date cannot be prior to the cow's milking start date (${cattle.calving_date}).`)
+      return
+    }
+
     if (isNaN(milkYield) || milkYield < 0) {
       setEditLogErrorMessage('Milk Yield must be a positive number or zero.')
       return
@@ -1075,6 +1080,7 @@ export default function AnimalProfile() {
                   required
                   type="date"
                   max={todayDateString}
+                  min={cattle ? cattle.calving_date : undefined}
                 />
               </div>
 
