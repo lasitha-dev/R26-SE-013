@@ -1,33 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-
-const MOCK_CATTLE = {
-  C001: {
-    breed: 'Holstein-Friesian',
-    geneticGroup: 'Exotic',
-    lactationStage: 'Early Lactation',
-    dob: '2020-03-12',
-    lastCalving: '2026-05-10',
-  },
-  C002: {
-    breed: 'Jersey',
-    geneticGroup: 'Exotic',
-    lactationStage: 'Mid Lactation',
-    dob: '2021-06-25',
-    lastCalving: '2026-03-14',
-  },
-  C003: {
-    breed: 'Sahiwal',
-    geneticGroup: 'Local_Indigenous',
-    lactationStage: 'Late Lactation',
-    dob: '2019-09-05',
-    lastCalving: '2025-11-20',
-  },
-}
 
 export default function SevenDayTriageScan() {
   const navigate = useNavigate()
 
+  const [cattleList, setCattleList] = useState([])
+  const [imageFile, setImageFile] = useState(null)
   const [selectedCattleId, setSelectedCattleId] = useState('')
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0])
   const [weatherFetched, setWeatherFetched] = useState(false)
@@ -46,6 +24,23 @@ export default function SevenDayTriageScan() {
   const [bcsUploading, setBcsUploading] = useState(false)
   const [bcsScore, setBcsScore] = useState('')
   const [dragActive, setDragActive] = useState(false)
+
+  useEffect(() => {
+    const fetchCattle = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const headers = { Authorization: token ? `Bearer ${token}` : '' }
+        const res = await fetch('http://127.0.0.1:8000/api/cattle', { headers })
+        if (res.ok) {
+          const data = await res.json()
+          setCattleList(data || [])
+        }
+      } catch (err) {
+        console.error('Error fetching cattle:', err)
+      }
+    }
+    fetchCattle()
+  }, [])
 
   // Weather Source Dialog & GPS Info states
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
@@ -220,13 +215,9 @@ export default function SevenDayTriageScan() {
   const handleImageUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      setImageFile(file)
       setBcsPreview(URL.createObjectURL(file))
-      setBcsUploading(true)
       setBcsScore('')
-      setTimeout(() => {
-        setBcsUploading(false)
-        setBcsScore('2.75')
-      }, 2000)
     }
   }
 
@@ -246,22 +237,116 @@ export default function SevenDayTriageScan() {
     setDragActive(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0]
+      setImageFile(file)
       setBcsPreview(URL.createObjectURL(file))
-      setBcsUploading(true)
       setBcsScore('')
-      setTimeout(() => {
-        setBcsUploading(false)
-        setBcsScore('2.75')
-      }, 2000)
     }
   }
 
-  const handleRunDiagnostics = () => {
+  const handleRunDiagnostics = async () => {
     if (!selectedCattleId) {
       alert('Please select a Cattle ID first.')
       return
     }
-    navigate('/health/ai-smart-diagnosis')
+    if (!imageFile) {
+      alert('Please upload a top-down cattle image first.')
+      return
+    }
+
+    setBcsUploading(true)
+    try {
+      const activeCattleObj = cattleList.find(c => c.id === selectedCattleId)
+      if (!activeCattleObj) {
+        alert('Selected cattle not found.')
+        return
+      }
+
+      // Step 1: Vision (BCS Score & Grad-CAM Heatmap)
+      const formData = new FormData()
+      formData.append('file', imageFile)
+      formData.append('cattle_id', selectedCattleId)
+      formData.append('photo_date', currentDate)
+
+      const bcsRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-bcs', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!bcsRes.ok) {
+        const errorData = await bcsRes.json()
+        throw new Error(errorData.detail || 'BCS prediction failed.')
+      }
+
+      const bcsData = await bcsRes.json()
+      const calculatedBcs = bcsData.bcs_score
+      const gradcamImage = bcsData.gradcam_image
+
+      // Step 2: Data Prep & Calculations
+      const cur = new Date(currentDate)
+      const dob = new Date(activeCattleObj.dob)
+      const calving = activeCattleObj.calving_date ? new Date(activeCattleObj.calving_date) : new Date()
+
+      const ageMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)))
+      const daysInMilk = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)))
+
+      // Map time-series lists
+      const ambient_temp = weatherData.map(w => w.temp)
+      const humidity = weatherData.map(w => w.humidity)
+      const thi = weatherData.map(w => w.thi)
+      const body_temp = logsData.temp
+      const milk_yield = logsData.yields
+      const water_intake = logsData.water
+      const feed_intake = logsData.feed
+      const weight = logsData.weight
+
+      // Step 3: Fusion (7-day triage prediction)
+      const triagePayload = {
+        bcs_score: parseFloat(calculatedBcs),
+        age_months: parseInt(ageMonths, 10),
+        days_in_milk: parseInt(daysInMilk, 10),
+        breed: activeCattleObj.breed,
+        genetic_group: 'Exotic',
+        lactation_stage: daysInMilk <= 100 ? 'Early' : daysInMilk <= 200 ? 'Mid' : 'Late',
+        ambient_temp,
+        humidity,
+        thi,
+        body_temp,
+        milk_yield,
+        water_intake,
+        feed_intake,
+        weight
+      }
+
+      const triageRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-7day', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(triagePayload),
+      })
+
+      if (!triageRes.ok) {
+        const errorData = await triageRes.json()
+        throw new Error(errorData.detail || '7-Day triage prediction failed.')
+      }
+
+      const triageData = await triageRes.json()
+
+      // Step 4: Routing
+      navigate('/health/ai-wellness-report', {
+        state: {
+          triageClass: triageData.class,
+          bcsScore: calculatedBcs,
+          gradcamImage: gradcamImage,
+          activeCattle: activeCattleObj
+        }
+      })
+
+    } catch (err) {
+      alert(`Diagnostics Error: ${err.message}`)
+    } finally {
+      setBcsUploading(false)
+    }
   }
 
   let calculatedAge = 'N/A'
@@ -269,16 +354,22 @@ export default function SevenDayTriageScan() {
   let activeCattle = null
 
   if (selectedCattleId && currentDate) {
-    activeCattle = MOCK_CATTLE[selectedCattleId]
-    const cur = new Date(currentDate)
-    const dob = new Date(activeCattle.dob)
-    const calving = new Date(activeCattle.lastCalving)
+    activeCattle = cattleList.find(c => c.id === selectedCattleId)
+    if (activeCattle) {
+      const cur = new Date(currentDate)
+      const dob = new Date(activeCattle.dob)
+      const calving = activeCattle.calving_date ? new Date(activeCattle.calving_date) : null
 
-    const diffAgeMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)))
-    calculatedAge = `${diffAgeMonths} Months`
+      const diffAgeMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)))
+      calculatedAge = `${diffAgeMonths} Months`
 
-    const diffDimDays = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)))
-    calculatedDim = `${diffDimDays} Days`
+      if (calving) {
+        const diffDimDays = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)))
+        calculatedDim = `${diffDimDays} Days`
+      } else {
+        calculatedDim = 'N/A'
+      }
+    }
   }
 
   return (
@@ -317,9 +408,9 @@ export default function SevenDayTriageScan() {
               onChange={(e) => setSelectedCattleId(e.target.value)}
             >
               <option value="">-- Choose Cattle ID --</option>
-              {Object.keys(MOCK_CATTLE).map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {cattleList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.identifier} ({c.breed})
                 </option>
               ))}
             </select>

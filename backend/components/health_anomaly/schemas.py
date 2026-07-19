@@ -82,3 +82,22 @@ class PredictResponse(BaseModel):
     is_anomaly: bool
 
 
+from typing import List
+
+class TriagePredictPayload(BaseModel):
+    bcs_score: float
+    age_months: int
+    days_in_milk: int
+    breed: str
+    genetic_group: str
+    lactation_stage: str
+    ambient_temp: List[float]
+    humidity: List[float]
+    thi: List[float]
+    body_temp: List[float]
+    milk_yield: List[float]
+    water_intake: List[float]
+    feed_intake: List[float]
+    weight: List[float]
+
+

@@ -21,7 +21,7 @@ except ImportError:
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
 from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection
-from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse
+from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
 
 router = APIRouter()
 
@@ -29,12 +29,14 @@ router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 YOLO_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 BCS_MODEL_PATH = os.path.join(BASE_DIR, "Cow_BCS_Final_Master.h5")
+LATE_FUSION_MODEL_PATH = os.path.join(BASE_DIR, "adrs_late_fusion_model.h5")
 
 yolo_model = None
 bcs_model = None
+late_fusion_model = None
 
 def load_ai_models():
-    global yolo_model, bcs_model
+    global yolo_model, bcs_model, late_fusion_model
     if YOLO is not None:
         try:
             if os.path.exists(YOLO_MODEL_PATH):
@@ -53,9 +55,47 @@ def load_ai_models():
                 print(f"Keras BCS model not found at {BCS_MODEL_PATH}")
         except Exception as e:
             print(f"Error loading Keras BCS model: {e}")
+        try:
+            if os.path.exists(LATE_FUSION_MODEL_PATH):
+                late_fusion_model = tf.keras.models.load_model(LATE_FUSION_MODEL_PATH, compile=False)
+                print(f"Late Fusion Model loaded successfully from {LATE_FUSION_MODEL_PATH}")
+            else:
+                print(f"Late Fusion Model not found at {LATE_FUSION_MODEL_PATH}")
+        except Exception as e:
+            print(f"Error loading Late Fusion model: {e}")
 
 # Load models once
 load_ai_models()
+
+def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+    grad_model = tf.keras.models.Model(
+        model.inputs, [model.get_layer(last_conv_layer_name).output, model.output]
+    )
+
+    with tf.GradientTape() as tape:
+        last_conv_layer_output, preds = grad_model(img_array)
+        if pred_index is None:
+            class_channel = preds[:, 0]
+        else:
+            class_channel = preds[:, pred_index]
+
+    grads = tape.gradient(class_channel, last_conv_layer_output)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    last_conv_layer_output = last_conv_layer_output[0]
+    heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    return heatmap.numpy()
+
+def overlay_gradcam(img, heatmap, alpha=0.4):
+    heatmap = np.uint8(255 * heatmap)
+    jet = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    jet = cv2.resize(jet, (img.shape[1], img.shape[0]))
+    superimposed_img = jet * alpha + img * (1 - alpha)
+    superimposed_img = np.clip(superimposed_img, 0, 255).astype(np.uint8)
+    return superimposed_img
 
 
 # Helper function to decode JWT token and retrieve logged-in farm email
@@ -855,6 +895,22 @@ async def predict_bcs(
     pred = bcs_model.predict(crop_input, verbose=False)
     bcs_score = float(pred[0][0])
 
+    gradcam_image = None
+    try:
+        last_conv_layer_name = None
+        for layer in reversed(bcs_model.layers):
+            if "conv" in layer.name.lower():
+                last_conv_layer_name = layer.name
+                break
+        if last_conv_layer_name is not None:
+            heatmap = make_gradcam_heatmap(crop_input, bcs_model, last_conv_layer_name)
+            gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
+            _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
+            gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
+    except Exception as e:
+        print(f"Silent Grad-CAM failure: {e}")
+        gradcam_image = None
+
     # 8. Draw bounding box on original image for visualization
     annotated_bgr = img_bgr.copy()
     label = f"Cow: {det_conf:.2f} | BCS: {bcs_score:.2f}"
@@ -914,7 +970,8 @@ async def predict_bcs(
         "bcs_score": round(bcs_score, 2),
         "detection_conf": round(det_conf, 2),
         "annotated_image": annot_b64,
-        "crop_image": crop_b64
+        "crop_image": crop_b64,
+        "gradcam_image": gradcam_image
     }
 
 @router.get("/cattle/{id}/bcs-logs")
@@ -935,4 +992,83 @@ async def get_bcs_logs(id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error while loading BCS history logs: {str(e)}"
+        )
+
+@router.post("/monitor/predict-7day")
+async def predict_7day(payload: TriagePredictPayload):
+    global late_fusion_model
+    if late_fusion_model is None:
+        load_ai_models()
+    if late_fusion_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Late Fusion model is not loaded. Please ensure adrs_late_fusion_model.h5 is present."
+        )
+
+    try:
+        # Validate time series lengths
+        if (len(payload.ambient_temp) != 7 or len(payload.humidity) != 7 or len(payload.thi) != 7 or
+            len(payload.body_temp) != 7 or len(payload.milk_yield) != 7 or len(payload.water_intake) != 7 or
+            len(payload.feed_intake) != 7 or len(payload.weight) != 7):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All time series arrays must have exactly 7 elements."
+            )
+
+        # 1. Construct X_ts: shape (1, 7, 8)
+        ts_data = []
+        for i in range(7):
+            ts_data.append([
+                float(payload.ambient_temp[i]) / 50.0,
+                float(payload.humidity[i]) / 100.0,
+                float(payload.thi[i]) / 100.0,
+                float(payload.body_temp[i]) / 50.0,
+                float(payload.milk_yield[i]) / 50.0,
+                float(payload.water_intake[i]) / 150.0,
+                float(payload.feed_intake[i]) / 50.0,
+                float(payload.weight[i]) / 1000.0
+            ])
+        X_ts = np.array([ts_data], dtype=np.float32)
+
+        # 2. Construct X_static: shape (1, 45)
+        static_features = [0.0] * 45
+        static_features[0] = float(payload.age_months) / 100.0
+        static_features[1] = float(payload.days_in_milk) / 305.0
+
+        breeds_list = [
+            'Africander', 'Ankole', 'Australian_Friesian_Sahiwal', 'Australian_Milking_Zebu',
+            'Ayrshire', 'Boran', 'Brown_Swiss', 'Butana', 'Danish_Red', 'Deoni',
+            'Exotic_Local_Cross', 'Fleckvieh', 'Gangatiri', 'Gir', 'Girolando',
+            'Guernsey', 'Hariana', 'Holstein-Friesian', 'Holstein_Zebu_Cross',
+            'Illawarra_Shorthorn', 'Jersey', 'Jersey_Zebu_Cross', 'Kankrej', 'Kenana',
+            'Krishna_Valley', 'Milking_Shorthorn', 'Montbeliarde', 'NDama', 'Normande',
+            'Norwegian_Red', 'Ongole', 'Rathi', 'Red_Poll_Africa', 'Red_Sindhi', 'Sahiwal',
+            'Simmental', 'Tharparkar', 'Tipo_Carora', 'White_Fulani', 'Zebu_Cross_Brazil'
+        ]
+        
+        if payload.breed in breeds_list:
+            breed_idx = breeds_list.index(payload.breed)
+            static_features[2 + breed_idx] = 1.0
+
+        stages_list = ['Early', 'Late', 'Mid']
+        stage_input = payload.lactation_stage.split(' ')[0].title() # e.g. "Early Lactation" -> "Early"
+        if stage_input in stages_list:
+            stage_idx = stages_list.index(stage_input)
+            static_features[42 + stage_idx] = 1.0
+
+        X_static = np.array([static_features], dtype=np.float32)
+
+        # 3. Construct X_vis: shape (1, 1)
+        X_vis = np.array([[float(payload.bcs_score) / 5.0]], dtype=np.float32)
+
+        # 4. Predict
+        preds = late_fusion_model.predict([X_ts, X_static, X_vis], verbose=False)
+        pred_class = int(np.argmax(preds[0]))
+
+        return {"class": pred_class}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Late Fusion prediction failure: {str(e)}"
         )
