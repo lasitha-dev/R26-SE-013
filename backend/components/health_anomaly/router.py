@@ -67,11 +67,48 @@ def load_ai_models():
 # Load models once
 load_ai_models()
 
-def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
+def get_last_conv_layer(model):
+    """Forcefully extract the last convolution layer by string matching, bypassing output_shape."""
+    for layer in reversed(model.layers):
+        if isinstance(layer, tf.keras.models.Model):
+            nested_layer, nested_model = get_last_conv_layer(layer)
+            if nested_layer is not None:
+                return nested_layer, nested_model
+
+        # String match works across all Keras versions and wrapper types
+        layer_name = layer.name.lower()
+        class_name = layer.__class__.__name__.lower()
+        if 'conv' in layer_name or 'conv2d' in class_name:
+            return layer, model
+
+    return None, None
+
+
+def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=None):
     try:
-        grad_model = tf.keras.models.Model(
-            model.inputs, [model.get_layer(last_conv_layer_name).output, model.output]
-        )
+        # Keras 3 restricts .output/.inputs access on Sequential models that haven't been called yet.
+        # We manually trace through layers to build a Functional extraction model instead.
+        if isinstance(target_model, tf.keras.Sequential):
+            inputs = tf.keras.Input(shape=target_model.input_shape[1:])
+            x = inputs
+            last_conv_output = None
+
+            for layer in target_model.layers:
+                x = layer(x)
+                if layer.name == target_layer_name:
+                    last_conv_output = x
+
+            if last_conv_output is None:
+                raise ValueError(f"Layer '{target_layer_name}' not found in Sequential model.")
+
+            grad_model = tf.keras.Model(inputs, [last_conv_output, x])
+        else:
+            # Standard Functional API approach
+            grad_model = tf.keras.Model(
+                target_model.inputs,
+                [target_model.get_layer(target_layer_name).output, target_model.output]
+            )
+
         img_tensor = tf.cast(img_array, tf.float32)
         with tf.GradientTape() as tape:
             tape.watch(img_tensor)
@@ -90,13 +127,23 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         last_conv_layer_output = last_conv_layer_output[0]
         heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
-        heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+
+        # Linear Regression heatmap magnitude extraction — tf.abs preserves negative gradient signal
+        heatmap = tf.abs(heatmap)
+
+        max_heat = tf.math.reduce_max(heatmap)
+        if max_heat == 0:
+            return np.zeros((img_array.shape[1], img_array.shape[2]))
+
+        heatmap = heatmap / max_heat
         return heatmap.numpy()
+
     except Exception as e:
-        print(f"[GRAD-CAM INTERNAL ERROR]: {e}")
         import traceback
+        print(f"[GRAD-CAM INTERNAL ERROR]: {e}")
         traceback.print_exc()
         return np.zeros((img_array.shape[1], img_array.shape[2]))
+
 
 def overlay_gradcam(img, heatmap, alpha=0.4):
     heatmap = np.uint8(255 * heatmap)
@@ -904,30 +951,35 @@ async def predict_bcs(
     pred = bcs_model.predict(crop_input, verbose=False)
     bcs_score = float(pred[0][0])
 
-    import traceback
     gradcam_image = None
     try:
-        target_model = bcs_model
-        # Check if the model has a nested base model (Transfer Learning)
-        for layer in bcs_model.layers:
-            if isinstance(layer, tf.keras.models.Model):
-                target_model = layer
-                break
-                
-        last_conv_layer_name = None
-        for layer in reversed(target_model.layers):
-            # Look for 4D output shapes (Batch, H, W, Channels) which indicate Conv layers
-            if len(layer.output_shape) == 4 and layer.name != target_model.layers[-1].name:
-                last_conv_layer_name = layer.name
-                break
-        
-        if last_conv_layer_name is not None:
-            heatmap = make_gradcam_heatmap(crop_input, target_model, last_conv_layer_name)
+        last_conv_layer, target_model_for_cam = get_last_conv_layer(bcs_model)
+
+        if last_conv_layer is not None and target_model_for_cam is not None:
+            print(f"[DEBUG] Found target layer: {last_conv_layer.name} in model: {target_model_for_cam.name}")
+
+            # If the conv layer lives inside a nested base model, pass crop_input through
+            # all parent layers that precede the base model to get compatible input shape.
+            cam_input = crop_input
+            if target_model_for_cam is not bcs_model:
+                for layer in bcs_model.layers:
+                    if layer is target_model_for_cam:
+                        break
+                    cam_input = layer(cam_input)
+
+            heatmap = make_gradcam_heatmap(cam_input, target_model_for_cam, last_conv_layer.name)
+
             if np.max(heatmap) > 0:
                 gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
                 _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
                 gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
+                print("[DEBUG] Grad-CAM encoded successfully.")
+            else:
+                print("[DEBUG] Heatmap is entirely zero.")
+        else:
+            print("[DEBUG] No convolution layer found for Grad-CAM.")
     except Exception as e:
+        import traceback
         print(f"\n--- GRAD-CAM CRITICAL FAILURE ---")
         print(f"Error: {str(e)}")
         traceback.print_exc()
