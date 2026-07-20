@@ -94,6 +94,8 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
         return heatmap.numpy()
     except Exception as e:
         print(f"[GRAD-CAM INTERNAL ERROR]: {e}")
+        import traceback
+        traceback.print_exc()
         return np.zeros((img_array.shape[1], img_array.shape[2]))
 
 def overlay_gradcam(img, heatmap, alpha=0.4):
@@ -905,34 +907,30 @@ async def predict_bcs(
     import traceback
     gradcam_image = None
     try:
+        target_model = bcs_model
+        # Check if the model has a nested base model (Transfer Learning)
+        for layer in bcs_model.layers:
+            if isinstance(layer, tf.keras.models.Model):
+                target_model = layer
+                break
+                
         last_conv_layer_name = None
-        for layer in reversed(bcs_model.layers):
-            if "conv" in layer.name.lower():
+        for layer in reversed(target_model.layers):
+            # Look for 4D output shapes (Batch, H, W, Channels) which indicate Conv layers
+            if len(layer.output_shape) == 4 and layer.name != target_model.layers[-1].name:
                 last_conv_layer_name = layer.name
                 break
         
         if last_conv_layer_name is not None:
-            print(f"[DEBUG] Input shape: {crop_input.shape}, dtype: {crop_input.dtype}")
-            print(f"[DEBUG] Found target layer: {last_conv_layer_name}")
-            
-            heatmap = make_gradcam_heatmap(crop_input, bcs_model, last_conv_layer_name)
-            
-            print(f"[DEBUG] Heatmap generated. Shape: {heatmap.shape}, Max: {np.max(heatmap)}")
-            
+            heatmap = make_gradcam_heatmap(crop_input, target_model, last_conv_layer_name)
             if np.max(heatmap) > 0:
                 gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
                 _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
                 gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
-                print("[DEBUG] Grad-CAM encoded successfully.")
-            else:
-                print("[DEBUG] Heatmap is entirely zero.")
-        else:
-            print("[DEBUG] No convolution layer found in model.")
     except Exception as e:
         print(f"\n--- GRAD-CAM CRITICAL FAILURE ---")
         print(f"Error: {str(e)}")
         traceback.print_exc()
-        print(f"---------------------------------\n")
         gradcam_image = None
 
     # 8. Draw bounding box on original image for visualization

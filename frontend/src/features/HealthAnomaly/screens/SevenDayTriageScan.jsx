@@ -259,6 +259,24 @@ export default function SevenDayTriageScan() {
       return
     }
 
+    const GROUP_A = ['Ayrshire', 'Brown_Swiss', 'Danish_Red', 'Fleckvieh', 'Guernsey', 'Holstein-Friesian', 'Illawarra_Shorthorn', 'Jersey', 'Milking_Shorthorn', 'Montbeliarde', 'Normande', 'Norwegian_Red', 'Red_Poll_Africa', 'Simmental'];
+    const GROUP_B = ['Ankole', 'Boran', 'Butana', 'Deoni', 'Gangatiri', 'Gir', 'Hariana', 'Kankrej', 'Kenana', 'Krishna_Valley', 'NDama', 'Ongole', 'Rathi', 'Red_Sindhi', 'Sahiwal', 'Tharparkar', 'White_Fulani', 'Local'];
+    const GROUP_C = ['Australian_Friesian_Sahiwal', 'Australian_Milking_Zebu', 'Exotic_Local_Cross', 'Girolando', 'Holstein_Zebu_Cross', 'Jersey_Zebu_Cross', 'Tipo_Carora', 'Zebu_Cross_Brazil'];
+
+    let calculatedGeneticGroup = 'Unknown';
+    let modelGeneticGroup = 'C'; // Fallback to Crossbreed
+
+    if (activeCattleObj && GROUP_A.includes(activeCattleObj.breed)) {
+        calculatedGeneticGroup = 'Exotic / Temperate';
+        modelGeneticGroup = 'A';
+    } else if (activeCattleObj && GROUP_B.includes(activeCattleObj.breed)) {
+        calculatedGeneticGroup = 'Tropical Indigenous';
+        modelGeneticGroup = 'B';
+    } else if (activeCattleObj && GROUP_C.includes(activeCattleObj.breed)) {
+        calculatedGeneticGroup = 'Tropical Crossbreeds';
+        modelGeneticGroup = 'C';
+    }
+
     // Convert image to base64 so it can be passed through navigation state
     setBcsUploading(true)
     try {
@@ -278,6 +296,8 @@ export default function SevenDayTriageScan() {
           weatherData,
           logsData,
           currentDate,
+          modelGeneticGroup,
+          calculatedGeneticGroup
         }
       })
     } catch (err) {
@@ -290,7 +310,7 @@ export default function SevenDayTriageScan() {
   let calculatedAge = 'N/A'
   let calculatedDim = 'N/A'
   let activeCattle = null
-  let calculatedGeneticGroup = 'Cross / Local';
+  let calculatedGeneticGroup = 'Unknown';
   let calculatedLactationStage = 'N/A';
 
   if (selectedCattleId && currentDate) {
@@ -311,11 +331,18 @@ export default function SevenDayTriageScan() {
       }
 
       const GROUP_A = ['Ayrshire', 'Brown_Swiss', 'Danish_Red', 'Fleckvieh', 'Guernsey', 'Holstein-Friesian', 'Illawarra_Shorthorn', 'Jersey', 'Milking_Shorthorn', 'Montbeliarde', 'Normande', 'Norwegian_Red', 'Red_Poll_Africa', 'Simmental'];
-      const GROUP_B = ['Ankole', 'Boran', 'Butana', 'Deoni', 'Gangatiri', 'Gir', 'Hariana', 'Kankrej', 'Kenana', 'Krishna_Valley', 'NDama', 'Ongole', 'Rathi', 'Red_Sindhi', 'Sahiwal', 'Tharparkar', 'White_Fulani', 'Local']; // Added Local
+      const GROUP_B = ['Ankole', 'Boran', 'Butana', 'Deoni', 'Gangatiri', 'Gir', 'Hariana', 'Kankrej', 'Kenana', 'Krishna_Valley', 'NDama', 'Ongole', 'Rathi', 'Red_Sindhi', 'Sahiwal', 'Tharparkar', 'White_Fulani', 'Local'];
+      const GROUP_C = ['Australian_Friesian_Sahiwal', 'Australian_Milking_Zebu', 'Exotic_Local_Cross', 'Girolando', 'Holstein_Zebu_Cross', 'Jersey_Zebu_Cross', 'Tipo_Carora', 'Zebu_Cross_Brazil'];
 
-      if (GROUP_A.includes(activeCattle.breed)) calculatedGeneticGroup = 'Exotic';
-      else if (GROUP_B.includes(activeCattle.breed)) calculatedGeneticGroup = 'Local_Indigenous';
-      else calculatedGeneticGroup = 'Crossbred';
+      if (activeCattle && GROUP_A.includes(activeCattle.breed)) {
+          calculatedGeneticGroup = 'Exotic / Temperate';
+      } else if (activeCattle && GROUP_B.includes(activeCattle.breed)) {
+          calculatedGeneticGroup = 'Tropical Indigenous';
+      } else if (activeCattle && GROUP_C.includes(activeCattle.breed)) {
+          calculatedGeneticGroup = 'Tropical Crossbreeds';
+      } else {
+          calculatedGeneticGroup = 'Unknown';
+      }
 
       if (activeCattle.calving_date) {
         const curDateVal = new Date(currentDate);
