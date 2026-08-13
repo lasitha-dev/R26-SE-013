@@ -33,5 +33,6 @@ class DetectResponse(BaseModel):
     best_detection: Optional[BestDetection]
     disease: Optional[Disease]
     cropped_image: Optional[str]
+    symptoms_image: Optional[str] = None
     image_size: Optional[Dict[str, int]]
     device: Optional[str]

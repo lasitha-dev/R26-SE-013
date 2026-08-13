@@ -18,13 +18,17 @@ async def health(request: Request):
     """Report model loading status and device info."""
     detector = getattr(request.app.state, "detector", None)
     classifier = getattr(request.app.state, "classifier", None)
+    segmenter = getattr(request.app.state, "segmenter", None)
     device = getattr(request.app.state, "device", "unknown")
 
     detector_loaded = getattr(detector, "is_loaded", False) if detector else False
     classifier_loaded = getattr(classifier, "is_loaded", False) if classifier else False
+    segmenter_loaded = getattr(segmenter, "is_loaded", False) if segmenter else False
+
+    all_loaded = detector_loaded and classifier_loaded and segmenter_loaded
 
     return {
-        "status": "ok" if (detector_loaded and classifier_loaded) else "degraded",
+        "status": "ok" if all_loaded else "degraded",
         "models": {
             "yolo_detector": {
                 "registered": detector is not None,
@@ -33,6 +37,10 @@ async def health(request: Request):
             "vit_classifier": {
                 "registered": classifier is not None,
                 "loaded": classifier_loaded,
+            },
+            "mask_rcnn_segmenter": {
+                "registered": segmenter is not None,
+                "loaded": segmenter_loaded,
             },
         },
         "device": str(device),
@@ -46,6 +54,7 @@ async def detect(request: Request, image: UploadFile = File(...)):
 
     detector = getattr(request.app.state, "detector", None)
     classifier = getattr(request.app.state, "classifier", None)
+    segmenter = getattr(request.app.state, "segmenter", None)
     device = getattr(request.app.state, "device", "cpu")
 
     if detector is None or classifier is None:
@@ -56,6 +65,7 @@ async def detect(request: Request, image: UploadFile = File(...)):
             best_detection=None,
             disease=None,
             cropped_image=None,
+            symptoms_image=None,
             image_size={"width": pil.width, "height": pil.height},
             device=str(device),
         )
@@ -69,6 +79,7 @@ async def detect(request: Request, image: UploadFile = File(...)):
             best_detection=None,
             disease=None,
             cropped_image=None,
+            symptoms_image=None,
             image_size={"width": pil.width, "height": pil.height},
             device=str(device),
         )
@@ -81,6 +92,14 @@ async def detect(request: Request, image: UploadFile = File(...)):
     disease = await run_in_threadpool(classifier.predict, cropped)
 
     crop_b64 = image_service.encode_image_base64(cropped)
+    
+    # Run segmentation only if the animal is diseased (not "cattle" / healthy)
+    symptoms_b64 = None
+    predicted_name = disease.get("name", "").lower()
+    is_healthy = predicted_name in ("cattle", "cattle (healthy)")
+    if segmenter and predicted_name and not is_healthy:
+        symptoms_img = await run_in_threadpool(segmenter.predict, cropped)
+        symptoms_b64 = image_service.encode_image_base64(symptoms_img)
 
     img_w, img_h = pil.size
     bbox_norm = BoundingBoxNormalized(x1=x1 / img_w, y1=y1 / img_h, x2=x2 / img_w, y2=y2 / img_h)
@@ -96,6 +115,8 @@ async def detect(request: Request, image: UploadFile = File(...)):
         best_detection=best_det,
         disease=disease_model,
         cropped_image=f"data:image/jpeg;base64,{crop_b64}",
+        symptoms_image=f"data:image/jpeg;base64,{symptoms_b64}" if symptoms_b64 else None,
         image_size={"width": img_w, "height": img_h},
         device=str(device),
     )
+

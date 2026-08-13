@@ -20,26 +20,21 @@ except Exception:
 
 class Settings(BaseSettings):
     YOLO_MODEL_PATH: str = Field("components/smart_diagnostics/models/best.pt", env="YOLO_MODEL_PATH")
-    VIT_MODEL_PATH: str = Field("components/smart_diagnostics/models/vision_transformer_cow_disease.pth", env="VIT_MODEL_PATH")
+    VIT_MODEL_PATH: str = Field("components/smart_diagnostics/models/best_vit_model.pth", env="VIT_MODEL_PATH")
+    MASK_RCNN_MODEL_PATH: str = Field("components/smart_diagnostics/models/mask_rcnn_cow_symptoms_refined.keras", env="MASK_RCNN_MODEL_PATH")
     VIT_IMAGE_SIZE: int = Field(224, env="VIT_IMAGE_SIZE")
     YOLO_CONF_THRESHOLD: float = Field(0.25, env="YOLO_CONF_THRESHOLD")
     CLASS_NAMES: List[str] = Field(default_factory=lambda: [
-        "dermatophilosis",
-        "fmd",
-        "healthy",
-        "lumpy",
+        "cattle",
+        "foot_and_mouth",
+        "lumpy_skin",
         "mastitis",
-        "pediculosis",
-        "ringworm",
     ])
     CLASS_DISPLAY_NAMES: Dict[str, str] = Field(default_factory=lambda: {
-        "dermatophilosis": "Dermatophilosis",
-        "fmd": "Foot and Mouth Disease",
-        "healthy": "Healthy",
-        "lumpy": "Lumpy Skin Disease",
+        "cattle": "Cattle (Healthy)",
+        "foot_and_mouth": "Foot and Mouth Disease",
+        "lumpy_skin": "Lumpy Skin Disease",
         "mastitis": "Mastitis",
-        "pediculosis": "Pediculosis",
-        "ringworm": "Ringworm",
     })
 
     if _PYDANTIC_V2:
