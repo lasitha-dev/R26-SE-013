@@ -60,7 +60,7 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT_DIR / "data" / "processed" / "FMD_model_ready_main refined_final_dataset.csv"
+DATA_PATH = ROOT_DIR / "data" / "processed" / "FMD_dataset_with_spatial_and_climate_indices.csv"
 MODEL_DIR = ROOT_DIR / "models"
 STAGE1_SHAP_PATH = ROOT_DIR / "data" / "processed" / "stage1_shap_values.csv"
 STAGE2_SHAP_PATH = ROOT_DIR / "data" / "processed" / "stage2_shap_values.csv"
@@ -107,6 +107,13 @@ def load_models() -> dict:
         models["stage1_model"] = joblib.load(MODEL_DIR / "stage1_lr_model.pkl")
         models["stage1_scaler"] = joblib.load(MODEL_DIR / "stage1_scaler.pkl")
         models["stage1_features"] = joblib.load(MODEL_DIR / "stage1_feature_cols.pkl")
+        
+        # Phase 9 31-feature ROC-AUC model artifacts
+        if (MODEL_DIR / "stage1_31feat_lr_model.pkl").exists():
+            models["stage1_31feat_model"] = joblib.load(MODEL_DIR / "stage1_31feat_lr_model.pkl")
+            models["stage1_31feat_scaler"] = joblib.load(MODEL_DIR / "stage1_31feat_scaler.pkl")
+            models["stage1_31feat_features"] = joblib.load(MODEL_DIR / "stage1_31feat_feature_cols.pkl")
+
         models["stage2_model"] = joblib.load(MODEL_DIR / "stage2_rf_model.pkl")
         models["stage2_encoder"] = joblib.load(MODEL_DIR / "stage2_label_encoder.pkl")
         models["stage2_features"] = joblib.load(MODEL_DIR / "stage2_feature_cols.pkl")
