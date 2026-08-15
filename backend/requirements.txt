@@ -10,3 +10,4 @@ torchvision>=0.15
 ultralytics>=8.0
 tensorflow>=2.13.0
 opencv-python>=4.8.0
+openai>=1.0
