@@ -1,5 +1,12 @@
 # PIPELINE DOCUMENTATION
 
+> [!IMPORTANT]
+> **This document reflects an earlier version of the pipeline (pre-audit baseline, 21-feature model).**
+> For the definitive, fully audited and reconciled methodology, metrics, and thesis defense language, refer to:
+> - **FMD:** [`docs/FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md`](FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md)
+> - **LSD:** [`docs/LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md`](LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md)
+
+
 ## 1. Project Aim and Scope
 The objective of this project is to build a practical, explainable, district-level Foot-and-Mouth Disease (FMD) early warning system for Sri Lanka.
 

@@ -1,6 +1,14 @@
 # FMD Outbreak Prediction Model — Sri Lanka (2017–2024)
 
+> [!IMPORTANT]
+> **The performance metrics cited in this README (ROC-AUC 0.843, 21-feature model) reflect an early project stage and have been superseded by the full 9-phase audited pipeline.** For current, audited results with bootstrap significance testing and Bonferroni corrections, see:
+> - **FMD:** [`docs/FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md`](docs/FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md)
+> - **LSD:** [`docs/LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md`](docs/LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md)
+>
+> Setup and project structure instructions below remain current.
+
 This repository contains the research code and an interactive dashboard for predicting Foot-and-Mouth Disease (FMD) outbreaks across 25 districts in Sri Lanka, using machine learning techniques on environmental, spatial, and meteorological data.
+
 
 ## 🏆 Key Achievements & Implementations
 

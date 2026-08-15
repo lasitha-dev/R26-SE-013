@@ -1,5 +1,12 @@
 # Research Progress Report: Climate-Informed Seasonal Livestock Disease Forecasting
 
+> [!IMPORTANT]
+> **This document reflects an earlier version of the pipeline (pre-audit baseline, 21-feature model).**
+> For the definitive, fully audited and reconciled methodology, metrics, and thesis defense language, refer to:
+> - **FMD:** [`docs/FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md`](docs/FULL_PROJECT_TECHNICAL_SPEC_AND_AUDIT_CHRONICLE.md)
+> - **LSD:** [`docs/LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md`](docs/LSD_PROJECT_EXHAUSTIVE_TECHNICAL_CHRONICLE.md)
+
+
 **Component Phase 1:** FMD Outbreak Prediction — Sri Lanka (2017–2024)
 **Prepared for:** Supervisor Review
 
