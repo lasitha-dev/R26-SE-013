@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AppShell from '../../shared_components/AppShell';
 import UploadDropzone from './components/UploadDropzone';
+import ReasoningBriefing from './components/ReasoningBriefing';
 import useDetection from './hooks/useDetection';
 import { getDiseaseProfile } from './diseaseProfiles';
 
@@ -14,7 +15,10 @@ import { getDiseaseProfile } from './diseaseProfiles';
  * - Model Reasoning & Evidence (rationale + confidence score)
  */
 const SmartDiagnostics = () => {
-  const { status, result, error, imagePreview, detect, reset } = useDetection();
+  const {
+    status, result, error, imagePreview, detect, reset,
+    reasoning, reasoningStatus, reasoningError,
+  } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
 
   // Determine effective status for UI rendering
@@ -350,6 +354,13 @@ const SmartDiagnostics = () => {
                 </div>
               </div>
             </div>
+
+            {/* Tier 3 — AI Clinical Briefing (LLM Reasoning) */}
+            <ReasoningBriefing
+              reasoning={reasoning}
+              reasoningStatus={reasoningStatus}
+              reasoningError={reasoningError}
+            />
           </div>
         )}
 

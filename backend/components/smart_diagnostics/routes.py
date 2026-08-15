@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, UploadFile, File, Request
 from starlette.concurrency import run_in_threadpool
 
@@ -8,7 +10,11 @@ from .schemas import (
     BestDetection,
     BoundingBoxNormalized,
     Disease,
+    ReasoningRequest,
+    ReasoningResponse,
 )
+
+logger = logging.getLogger("smart_diagnostics.routes")
 
 router = APIRouter(prefix="")
 
@@ -120,3 +126,82 @@ async def detect(request: Request, image: UploadFile = File(...)):
         device=str(device),
     )
 
+
+# ---------------------------------------------------------------------------
+# Tier 3 — LLM Clinical Reasoning
+# ---------------------------------------------------------------------------
+
+@router.post("/api/reason", response_model=ReasoningResponse)
+async def reason(body: ReasoningRequest):
+    """Generate a Veterinary Diagnostic Briefing via the local LLM.
+
+    Accepts the structured detection/classification results from /api/detect
+    and passes them through the pipeline's LLM reasoner (Qwen 2.5 via
+    LM Studio).  The call is blocking (~15-20 s) so it runs in a threadpool.
+    """
+    from .pipeline.llm_reasoner import generate_veterinary_report
+    from .pipeline import config as pipeline_cfg
+
+    # Transform the detection result into the shape expected by the reasoner.
+    # The reasoner expects a dict with "detections" (list of per-box dicts)
+    # and "image_size".
+    best = body.best_detection
+    disease = body.disease
+
+    # Build a single-detection entry matching the pipeline's vision_engine
+    # output format so the LLM prompt is consistent regardless of whether
+    # the request came from the CLI pipeline or the web frontend.
+    detections_for_llm = []
+    if best and disease:
+        bbox = best.bbox
+        img_w = (body.image_size or {}).get("width", 1)
+        img_h = (body.image_size or {}).get("height", 1)
+        bbox_w = round(bbox[2] - bbox[0], 1) if len(bbox) == 4 else 0
+        bbox_h = round(bbox[3] - bbox[1], 1) if len(bbox) == 4 else 0
+        frame_area = img_w * img_h if img_w and img_h else 1
+        box_area = bbox_w * bbox_h
+        area_pct = round((box_area / frame_area) * 100, 2)
+
+        detections_for_llm.append({
+            "bbox": bbox,
+            "bbox_width_px": bbox_w,
+            "bbox_height_px": bbox_h,
+            "bbox_area_pct": area_pct,
+            "yolo_class": body.detections[0].class_name if body.detections else "cattle",
+            "yolo_confidence": best.confidence,
+            "vit_predicted_class": disease.name,
+            "vit_predicted_display": disease.name,
+            "vit_confidence_pct": disease.confidence,
+            "vit_probabilities": disease.all_probabilities,
+        })
+
+    vision_results = {
+        "status": "PROCESSED",
+        "image_size": body.image_size or {},
+        "detections": detections_for_llm,
+    }
+
+    # Convert optional farm metadata.
+    farm_metadata = dict(body.farm_metadata) if body.farm_metadata else None
+
+    try:
+        report = await run_in_threadpool(
+            generate_veterinary_report, vision_results, farm_metadata
+        )
+
+        # Determine if the report is an error message from the reasoner.
+        is_error = report.startswith("⚠")
+
+        return ReasoningResponse(
+            status="error" if is_error else "ok",
+            reasoning_report=report,
+            model_name=pipeline_cfg.LLM_MODEL_NAME,
+        )
+
+    except Exception as exc:
+        logger.exception("LLM reasoning failed.")
+        return ReasoningResponse(
+            status="error",
+            reasoning_report=f"Tier 3 error: {exc}",
+            model_name=None,
+        )
