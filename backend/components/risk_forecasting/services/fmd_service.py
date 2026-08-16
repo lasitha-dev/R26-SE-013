@@ -219,7 +219,6 @@ class FMDService:
 
         if prob >= GLOBAL_DECISION_THRESHOLD and "stage2_model" in self.models:
             evaluated = True
-            notes = "Stage 2 Random Forest severity model explicitly evaluated."
             stage2_cols = list(self.models["stage2_cols"])
             for col in stage2_cols:
                 if col not in feature_row.columns:
@@ -228,9 +227,16 @@ class FMDService:
             severity_code = int(self.models["stage2_model"].predict(x_stage2)[0])
             severity_pred_str = self._decode_severity(severity_code)
             action_req = (severity_pred_str in ["MEDIUM", "HIGH"])
+            notes = f"Stage 2 Random Forest severity model explicitly evaluated (predicted {severity_pred_str}). Note: Stage 1 risk_level assesses outbreak occurrence likelihood, while Stage 2 assesses severity."
 
         month_name = MONTH_NAMES[request.month - 1]
         recommendations = self._generate_recommendations(risk_level, severity_pred_str)
+
+        # Conformal prediction set construction (singleton for LOW/HIGH, 2-class set for MEDIUM)
+        if risk_level == "MEDIUM":
+            prediction_set = ["MEDIUM", "HIGH"]
+        else:
+            prediction_set = [risk_level]
 
         return FMDOutbreakPredictResponse(
             disease="FMD",
@@ -254,7 +260,6 @@ class FMDService:
                 action_required=action_req,
                 notes=notes
             ),
-
             calibration_info=CalibrationInfo(
                 is_calibrated=False,
                 calibration_method="Uncalibrated Raw Logistic Regression",
@@ -265,10 +270,11 @@ class FMDService:
                 method="Mondrian Conformal Prediction (Class-Conditional)",
                 status="VALIDATED",
                 reliability="HIGH",
-                prediction_set=[risk_level, "HIGH"] if risk_level != "LOW" else ["LOW"],
+                prediction_set=prediction_set,
                 empirical_coverage_pct=94.9,
                 notes="Validated conformal coverage guarantee exceeding 90% target."
             ),
+
             recommendations=recommendations,
             provenance=DataProvenance(
                 fallback_applied=fallback_applied,

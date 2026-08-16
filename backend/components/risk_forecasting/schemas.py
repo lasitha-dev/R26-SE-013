@@ -67,7 +67,8 @@ class Stage2Prediction(BaseModel):
     model_name: str = Field(..., example="RandomForestClassifier", description="Trained Stage 2 classifier name.")
     evaluated: bool = Field(..., example=True, description="Whether Stage 2 model was explicitly evaluated (True when Stage 1 prob >= 0.40; False when bypassed).")
     discriminator_validated: bool = Field(..., example=True, description="Whether Stage 2 is statistically validated for active outbreak discrimination.")
-    action_required: bool = Field(..., example=True, description="Whether Stage 2 severity triggers emergency escalation.")
+    action_required: bool = Field(..., example=True, description="Whether Stage 2 severity triggers emergency escalation. Note: Stage 1 risk_level assesses outbreak occurrence likelihood, whereas Stage 2 assesses severity. A HIGH outbreak likelihood with LOW predicted severity means an outbreak is likely but mild, so action_required is False.")
+
     notes: Optional[str] = Field(default=None, example="Stage 2 model evaluated.", description="Explanatory notes on Stage 2 evaluation status.")
 
 
