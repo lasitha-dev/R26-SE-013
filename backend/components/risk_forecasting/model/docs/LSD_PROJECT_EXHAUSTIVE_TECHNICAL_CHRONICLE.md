@@ -249,7 +249,8 @@ Adding `own_outbreak_lag1` (district target lagged by 1 month) to the 27-feature
 ## 14. Phase D: Inner-CV Platt Scaling Calibration Audit
 
 ### 14.1 Calibration & Rank Preservation Summary
-* **Brier Score & ECE Impact:** Platt scaling fit inside training folds (`CalibratedClassifierCV`, $cv=4$) reduced Brier score from `0.2492` $\rightarrow$ `0.1717` in 2023 ($\Delta\text{Brier} = -0.0909, p = 0.0000$) and overall ECE from `0.2200` $\rightarrow$ `0.0493` ($\Delta\text{ECE} = -0.1958, p = 0.0000$).
+* **Brier Score & ECE Impact:** Platt scaling fit inside training folds (`CalibratedClassifierCV`, $cv=4$) reduced Brier score from `0.2492` $\rightarrow$ `0.1717` in 2023 ($\Delta\text{Brier} = -0.0909, p = 0.0000$) and full-dataset out-of-fold ECE from `0.2236` (raw) $\rightarrow$ `0.0212` (calibrated) ($\Delta\text{ECE} = -0.2024, p = 0.0000$); on active outbreak years specifically (2020, 2021, 2023), ECE improved from `0.2667` $\rightarrow$ `0.0467` ($\Delta\text{ECE} = -0.2200, p = 0.0000$).
+
 * **Discrimination Rank Preservation:** Side-by-side metric comparison confirmed ROC-AUC and PR-AUC deltas remained within $\pm 0.002$ (2023 ROC: $0.6700 \rightarrow 0.6704$; 2023 PR: $0.3670 \rightarrow 0.3694$).
 * **Temporal Calibration Comparison:** K-fold calibration ($cv=4$) performed as well as or better than strict single-year temporal calibration in 2 of 3 test years (2023 Brier: $0.1717$ vs. $0.2132$; 2024 Brier: $0.0169$ vs. $0.0307$), because it aggregates a larger and more stable calibration sample from within the training years rather than relying on a single prior year — supporting k-fold calibration as the primary reported method, with the temporal variant included as a robustness check.
 
