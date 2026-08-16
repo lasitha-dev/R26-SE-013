@@ -6,6 +6,7 @@ import SmartDiagnostics from './index';
 // Mock the API service to avoid real network calls
 vi.mock('./services/api', () => ({
   detectImage: vi.fn(),
+  fetchReasoning: vi.fn(),
 }));
 
 // Mock URL.createObjectURL / revokeObjectURL for jsdom
@@ -21,10 +22,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Helper to get the mocked detectImage */
+/** Helper to get the mocked API functions */
 const getDetectImage = async () => {
   const { detectImage } = await import('./services/api');
   return detectImage;
+};
+
+const getFetchReasoning = async () => {
+  const { fetchReasoning } = await import('./services/api');
+  return fetchReasoning;
 };
 
 describe('SmartDiagnostics', () => {
@@ -233,5 +239,171 @@ describe('SmartDiagnostics', () => {
     const scoreEl = screen.getByTestId('confidence-score');
     expect(scoreEl).toHaveTextContent('74.3%');
     expect(scoreEl).not.toHaveTextContent('7430');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // New integration tests — bounding box overlay + ReasoningBriefing
+  // ═══════════════════════════════════════════════════════════════════════
+
+  it('shows bounding box overlay when bestBbox is present in detection result', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.05, y1: 0.1, x2: 0.5, y2: 0.6 },
+      },
+      disease: {
+        name: 'Lumpy Skin Disease',
+        confidence: 91.5,
+        all_probabilities: { 'Lumpy Skin Disease': 91.5 },
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## 1. Test\nContent',
+      model_name: 'qwen',
+    });
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // The bounding box overlay div should exist with LESION_01 label
+    expect(screen.getByText('LESION_01')).toBeInTheDocument();
+  });
+
+  it('renders ReasoningBriefing with clinical report after successful detection + reasoning', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Mastitis',
+        confidence: 88.0,
+        all_probabilities: { 'Mastitis': 88.0, 'Cattle (Healthy)': 12.0 },
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## 1. Primary Diagnostic Assessment\nMastitis confirmed with high certainty.\n## 2. Pathological Rationale\nUdder swelling detected.',
+      model_name: 'qwen2.5',
+    });
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reasoning-briefing')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('AI Clinical Briefing')).toBeInTheDocument();
+  });
+
+  it('shows reasoning loading skeleton while LLM reasoning is in progress', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Cattle (Healthy)',
+        confidence: 95.0,
+        all_probabilities: { 'Cattle (Healthy)': 95.0 },
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    // Make reasoning hang so we stay in loading state
+    fetchReasoning.mockImplementation(() => new Promise(() => {}));
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // ReasoningBriefing should show loading skeleton
+    expect(screen.getByText(/Generating Clinical Briefing/)).toBeInTheDocument();
+  });
+
+  it('shows reasoning error fallback when LLM reasoning API fails', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Cattle (Healthy)',
+        confidence: 95.0,
+        all_probabilities: { 'Cattle (Healthy)': 95.0 },
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockRejectedValue(new Error('LM Studio connection refused'));
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // ReasoningBriefing should show error fallback
+    await waitFor(() => {
+      expect(screen.getByText('Clinical Reasoning Unavailable')).toBeInTheDocument();
+    });
   });
 });
