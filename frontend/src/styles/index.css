@@ -1,0 +1,36 @@
+/* Tailwind base layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Material Symbols icon defaults */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Glassmorphism panel used in overlays */
+.glass-panel {
+  background: rgba(45, 52, 73, 0.6);
+  backdrop-filter: blur(20px);
+}
+
+/* Primary gradient for buttons and accents */
+.primary-gradient {
+  background: linear-gradient(135deg, #4edea3 0%, #10b981 100%);
+}
+
+/* Forecasting risk ripple animation */
+@keyframes risk-pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.animate-risk-pulse {
+  animation: risk-pulse 2s ease-in-out infinite;
+}
+
+/* Hidden override */
+[hidden] {
+  display: none !important;
+}

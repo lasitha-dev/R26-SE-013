@@ -1,9 +1,8 @@
-import React from 'react'
+// LOCAL DEV CONVENIENCE for component/disease-forecasting branch
+// Renders RiskForecasting feature module directly inside the shared AppShell
+import React from 'react';
+import RiskForecasting from './features/RiskForecasting/index';
 
 export default function App() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <h1 className="text-2xl font-bold">Animal Farm Reporting</h1>
-    </div>
-  )
+  return <RiskForecasting />;
 }
