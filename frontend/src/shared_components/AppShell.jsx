@@ -17,14 +17,14 @@ const AppShell = ({ activeNavItem = 'smart-diagnosis', headerTitle = 'AI Diagnos
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   return (
-    <div className="flex min-h-screen bg-surface font-body text-on-surface selection:bg-primary selection:text-on-primary">
+    <div className="flex min-h-screen bg-surface font-body text-on-surface selection:bg-primary selection:text-on-primary relative">
       <SideNavBar
         activeItem={activeNavItem}
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
       />
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 w-full">
         <TopHeader
           title={headerTitle}
           onMenuToggle={toggleSidebar}

@@ -55,14 +55,61 @@ module.exports = {
       },
       borderRadius: {
         DEFAULT: "0.5rem",
-        lg: "1rem",
-        xl: "0.75rem",
+        sm: "0.375rem",
+        md: "0.5rem",
+        lg: "0.75rem",
+        xl: "1rem",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem",
         full: "9999px",
       },
       fontFamily: {
         headline: ["Inter", "sans-serif"],
         body: ["Inter", "sans-serif"],
         label: ["Inter", "sans-serif"],
+        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+      },
+      fontSize: {
+        "3xs": ["0.5625rem", { lineHeight: "0.75rem" }],
+        "2xs": ["0.6875rem", { lineHeight: "0.875rem" }],
+      },
+      boxShadow: {
+        "glow-sm": "0 0 10px rgba(78, 222, 163, 0.25)",
+        "glow-md": "0 0 20px rgba(78, 222, 163, 0.35)",
+        "glow-lg": "0 0 35px rgba(78, 222, 163, 0.45)",
+        "card-subtle": "0 8px 30px rgba(0, 0, 0, 0.35)",
+        "inner-glow": "inset 0 1px 0 0 rgba(255, 255, 255, 0.08)",
+      },
+      animation: {
+        "shimmer": "shimmer 2s infinite linear",
+        "scan": "scan 2.5s ease-in-out infinite",
+        "pulse-subtle": "pulseSubtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "fade-in": "fadeIn 0.4s ease-out forwards",
+        "slide-up": "slideUp 0.4s ease-out forwards",
+      },
+      keyframes: {
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        scan: {
+          "0%": { top: "0%", opacity: "0" },
+          "15%": { opacity: "1" },
+          "85%": { opacity: "1" },
+          "100%": { top: "100%", opacity: "0" },
+        },
+        pulseSubtle: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
     },
   },
