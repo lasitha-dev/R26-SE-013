@@ -406,4 +406,164 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByText('Clinical Reasoning Unavailable')).toBeInTheDocument();
     });
   });
+
+  it('renders Mask R-CNN symptom overlay when symptoms_image is provided', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Lumpy Skin Disease',
+        confidence: 94.2,
+        all_probabilities: { 'Lumpy Skin Disease': 94.2 },
+      },
+      cropped_image: 'data:image/jpeg;base64,mock-cropped-base64',
+      symptoms_image: 'data:image/jpeg;base64,mock-symptoms-mask-base64',
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## Diagnostic Briefing',
+      model_name: 'qwen',
+    });
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // Mask R-CNN overlay image should be rendered
+    const maskOverlay = screen.getByTestId('mask-rcnn-overlay');
+    expect(maskOverlay).toBeInTheDocument();
+    expect(maskOverlay).toHaveAttribute('src', 'data:image/jpeg;base64,mock-symptoms-mask-base64');
+    expect(screen.getByText('Mask R-CNN Active')).toBeInTheDocument();
+    expect(screen.getByText('MASK_RCNN_LESION')).toBeInTheDocument();
+  });
+
+  it('toggles Mask R-CNN symptom overlay visibility', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Lumpy Skin Disease',
+        confidence: 94.2,
+        all_probabilities: { 'Lumpy Skin Disease': 94.2 },
+      },
+      cropped_image: 'data:image/jpeg;base64,mock-cropped-base64',
+      symptoms_image: 'data:image/jpeg;base64,mock-symptoms-mask-base64',
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## Diagnostic Briefing',
+      model_name: 'qwen',
+    });
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    const toggleBtn = screen.getByTestId('toggle-symptom-mask-btn');
+    expect(toggleBtn).toHaveTextContent('VISIBLE');
+    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+
+    // Click toggle to hide mask
+    await userEvent.click(toggleBtn);
+    expect(toggleBtn).toHaveTextContent('HIDDEN');
+    expect(screen.queryByTestId('mask-rcnn-overlay')).not.toBeInTheDocument();
+    expect(screen.getByTestId('raw-crop-overlay')).toBeInTheDocument();
+
+    // Click toggle again to restore mask
+    await userEvent.click(toggleBtn);
+    expect(toggleBtn).toHaveTextContent('VISIBLE');
+    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+  });
+
+  it('switches between Full Scan and Lesion Focus views', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.95,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Mastitis',
+        confidence: 90.0,
+        all_probabilities: { Mastitis: 90.0 },
+      },
+      cropped_image: 'data:image/jpeg;base64,mock-cropped-base64',
+      symptoms_image: 'data:image/jpeg;base64,mock-symptoms-mask-base64',
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## Diagnostic Briefing',
+      model_name: 'qwen',
+    });
+
+    render(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('success-view')).toBeInTheDocument();
+    });
+
+    // Default is Full Scan
+    expect(screen.queryByTestId('lesion-focus-image')).not.toBeInTheDocument();
+
+    // Click "Lesion Focus" button
+    const lesionBtn = screen.getByTestId('view-mode-lesion-btn');
+    await userEvent.click(lesionBtn);
+
+    // Lesion Focus image and pathology legend should be displayed
+    expect(screen.getByTestId('lesion-focus-image')).toBeInTheDocument();
+    expect(screen.getByText('Mask R-CNN Pathological Area')).toBeInTheDocument();
+    expect(screen.getByText('YOLO Bounding Margin')).toBeInTheDocument();
+
+    // Click "Full Scan" button to switch back
+    const fullScanBtn = screen.getByTestId('view-mode-full-btn');
+    await userEvent.click(fullScanBtn);
+    expect(screen.queryByTestId('lesion-focus-image')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+  });
 });

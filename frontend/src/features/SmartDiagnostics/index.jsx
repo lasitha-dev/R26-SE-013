@@ -20,6 +20,8 @@ const SmartDiagnostics = () => {
     reasoning, reasoningStatus, reasoningError,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
+  const [showSymptomMask, setShowSymptomMask] = useState(true);
+  const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
 
   // Determine effective status for UI rendering
   const isIdle = status === 'idle';
@@ -50,8 +52,10 @@ const SmartDiagnostics = () => {
     ? disease.confidence.toFixed(1)
     : '0.0';
 
-  // Get best detection bounding box for lesion overlay
+  // Get best detection bounding box and Mask R-CNN segmentation image
   const bestBbox = result?.best_detection?.bbox_normalized;
+  const symptomsImage = result?.symptoms_image;
+  const croppedImage = result?.cropped_image;
 
   const handleFile = (file) => {
     detect(file);
@@ -78,7 +82,11 @@ const SmartDiagnostics = () => {
         </div>
         {!isIdle && !isLoading && (
           <button
-            onClick={reset}
+            onClick={() => {
+              setActiveView('full');
+              setShowSymptomMask(true);
+              reset();
+            }}
             className="text-primary hover:text-on-primary hover:bg-primary font-bold text-xs flex items-center gap-2 border border-primary/30 px-4 py-2.5 rounded-xl bg-primary/10 transition-all shadow-sm hover:shadow-glow-sm shrink-0 active:scale-95"
             id="new-analysis-btn"
           >
@@ -127,7 +135,7 @@ const SmartDiagnostics = () => {
               <div className="lg:col-span-7">
                 <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 h-full flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle">
                   {/* Section header */}
-                  <div className="flex items-center justify-between mb-4 md:mb-5 pb-3 border-b border-outline-variant/10">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3 md:mb-4 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
                       <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/20">
                         <span className="material-symbols-outlined text-primary text-base">visibility</span>
@@ -135,19 +143,81 @@ const SmartDiagnostics = () => {
                       <span className="text-xs font-bold text-primary tracking-widest uppercase font-mono">
                         02 Symptom Analysis
                       </span>
-                      <span className="px-2 py-0.5 bg-primary/15 text-primary text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-primary/30 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                        Live Scan
-                      </span>
+                      {symptomsImage ? (
+                        <span className="px-2 py-0.5 bg-rose-500/15 text-rose-400 text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-rose-500/30 flex items-center gap-1.5 shadow-sm">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+                          Mask R-CNN Active
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-primary/15 text-primary text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-primary/30 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                          Live Scan
+                        </span>
+                      )}
                     </div>
                     <div className="text-3xs font-mono text-outline">
-                      SEGMENTATION_LAYER_01
+                      {symptomsImage ? 'MASK_RCNN_LAYER_03' : 'YOLO_LAYER_01'}
                     </div>
                   </div>
 
-                  {/* Image with clinical scan overlay & spotlight */}
+                  {/* Diagnostic Layer & View Controls Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    {/* View Switcher: Full Scan vs Lesion Focus */}
+                    <div className="flex items-center p-0.5 bg-surface-container rounded-lg border border-outline-variant/20">
+                      <button
+                        type="button"
+                        onClick={() => setActiveView('full')}
+                        className={`px-2.5 py-1 rounded-md text-3xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                          activeView === 'full'
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'text-on-surface-variant hover:text-on-surface'
+                        }`}
+                        id="view-mode-full-btn"
+                        data-testid="view-mode-full-btn"
+                      >
+                        <span className="material-symbols-outlined text-xs">aspect_ratio</span>
+                        Full Scan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveView('lesion')}
+                        className={`px-2.5 py-1 rounded-md text-3xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                          activeView === 'lesion'
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'text-on-surface-variant hover:text-on-surface'
+                        }`}
+                        id="view-mode-lesion-btn"
+                        data-testid="view-mode-lesion-btn"
+                      >
+                        <span className="material-symbols-outlined text-xs">zoom_in</span>
+                        Lesion Focus
+                      </button>
+                    </div>
+
+                    {/* Mask R-CNN Symptom Overlay Toggle */}
+                    {symptomsImage && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSymptomMask((prev) => !prev)}
+                        className={`px-2.5 py-1 rounded-lg text-3xs font-mono font-bold uppercase tracking-wider border flex items-center gap-1.5 transition-all cursor-pointer ${
+                          showSymptomMask
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-glow-sm'
+                            : 'bg-surface-container text-on-surface-variant border-outline-variant/20 hover:text-on-surface'
+                        }`}
+                        id="toggle-symptom-mask-btn"
+                        data-testid="toggle-symptom-mask-btn"
+                      >
+                        <span className="material-symbols-outlined text-xs">
+                          {showSymptomMask ? 'layers' : 'layers_clear'}
+                        </span>
+                        Symptom Mask: <span className="font-bold">{showSymptomMask ? 'VISIBLE' : 'HIDDEN'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Image Viewer Container */}
                   <div
-                    className="relative flex-1 min-h-[280px] md:min-h-[420px] rounded-xl overflow-hidden group scanning bg-surface-container-lowest/90 border border-outline-variant/20 select-none"
+                    className="relative flex-1 min-h-[280px] md:min-h-[420px] rounded-xl overflow-hidden group scanning bg-surface-container-lowest/90 border border-outline-variant/20 select-none flex items-center justify-center"
                     id="image-container"
                   >
                     {/* Clinical Framing Corner Brackets */}
@@ -159,45 +229,104 @@ const SmartDiagnostics = () => {
                     {/* Scan Line */}
                     <div className="scan-line" />
 
-                    {/* Cattle Image (darkened to draw contrast to detected region) */}
-                    <img
-                      className="w-full h-full object-cover transition-all duration-700 image-dimmed"
-                      src={imagePreview}
-                      alt="Uploaded clinical image"
-                    />
+                    {/* ===== FULL SCAN VIEW ===== */}
+                    {activeView === 'full' && (
+                      <>
+                        {/* Cattle Image (darkened to draw contrast to detected region) */}
+                        <img
+                          className="w-full h-full object-cover transition-all duration-700 image-dimmed"
+                          src={imagePreview}
+                          alt="Uploaded clinical image"
+                        />
 
-                    {/* Bounding box / lesion spotlight overlay */}
-                    {bestBbox && (
-                      <div className="absolute inset-0 opacity-100 transition-opacity duration-500 pointer-events-none">
-                        {/* High-illumination spotlight area */}
-                        <div
-                          className="absolute rounded-xl border-2 border-primary animate-pulse lesion-spotlight lesion-focused"
-                          style={{
-                            left: `${bestBbox.x1 * 100}%`,
-                            top: `${bestBbox.y1 * 100}%`,
-                            width: `${(bestBbox.x2 - bestBbox.x1) * 100}%`,
-                            height: `${(bestBbox.y2 - bestBbox.y1) * 100}%`,
-                          }}
-                        >
-                          {/* Inner corner reticle accents */}
-                          <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t-2 border-l-2 border-primary shadow-glow-sm" />
-                          <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t-2 border-r-2 border-primary shadow-glow-sm" />
-                          <div className="absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b-2 border-l-2 border-primary shadow-glow-sm" />
-                          <div className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-2 border-r-2 border-primary shadow-glow-sm" />
+                        {/* Bounding box / lesion spotlight overlay */}
+                        {bestBbox && (
+                          <div className="absolute inset-0 opacity-100 transition-opacity duration-500 pointer-events-none">
+                            {/* High-illumination spotlight area & Mask R-CNN overlay */}
+                            <div
+                              className={`absolute rounded-xl border-2 transition-all duration-300 overflow-hidden ${
+                                symptomsImage && showSymptomMask
+                                  ? 'border-rose-400 symptom-mask-container'
+                                  : 'border-primary animate-pulse lesion-spotlight lesion-focused'
+                              }`}
+                              style={{
+                                left: `${bestBbox.x1 * 100}%`,
+                                top: `${bestBbox.y1 * 100}%`,
+                                width: `${(bestBbox.x2 - bestBbox.x1) * 100}%`,
+                                height: `${(bestBbox.y2 - bestBbox.y1) * 100}%`,
+                              }}
+                            >
+                              {/* Mask R-CNN pixel segmentation overlay (red symptom heatmap) */}
+                              {symptomsImage && showSymptomMask ? (
+                                <img
+                                  src={symptomsImage}
+                                  alt="Mask R-CNN Symptom Segmentation Overlay"
+                                  className="w-full h-full object-cover pointer-events-none opacity-95 transition-opacity duration-300"
+                                  data-testid="mask-rcnn-overlay"
+                                />
+                              ) : croppedImage ? (
+                                <img
+                                  src={croppedImage}
+                                  alt="Cropped lesion region"
+                                  className="w-full h-full object-cover pointer-events-none opacity-90 transition-opacity duration-300"
+                                  data-testid="raw-crop-overlay"
+                                />
+                              ) : null}
+
+                              {/* Inner corner reticle accents */}
+                              <div className={`absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t-2 border-l-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
+                              <div className={`absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t-2 border-r-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
+                              <div className={`absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b-2 border-l-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
+                              <div className={`absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-2 border-r-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
+                            </div>
+
+                            {/* Label Badge */}
+                            <div
+                              className="absolute pointer-events-auto z-30"
+                              style={{
+                                left: `${Math.min(bestBbox.x2 * 100, 68)}%`,
+                                top: `${Math.max(bestBbox.y1 * 100 - 5, 2)}%`,
+                              }}
+                            >
+                              <div className="bg-surface-container-highest/95 backdrop-blur-md px-2.5 py-1 rounded-lg text-3xs md:text-2xs border border-primary/60 shadow-xl whitespace-nowrap flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${symptomsImage && showSymptomMask ? 'bg-rose-400 animate-ping' : 'bg-primary animate-pulse'}`} />
+                                <span className="text-primary font-mono font-bold">
+                                  {symptomsImage && showSymptomMask ? 'MASK_RCNN_LESION' : 'LESION_01'}
+                                </span>
+                                <span className="hidden sm:inline text-on-surface-variant font-medium">
+                                  {symptomsImage && showSymptomMask ? ': Symptom segmented' : ': Detected region'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* ===== LESION FOCUS (ZOOMED CROP INSPECTION) ===== */}
+                    {activeView === 'lesion' && (
+                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 lesion-crop-container">
+                        <div className="relative max-w-md max-h-[340px] rounded-xl overflow-hidden border-2 border-rose-500/50 shadow-2xl symptom-mask-glow">
+                          <img
+                            src={showSymptomMask && symptomsImage ? symptomsImage : (croppedImage || imagePreview)}
+                            alt="Lesion High-Resolution Focus"
+                            className="w-full h-full object-contain"
+                            data-testid="lesion-focus-image"
+                          />
+                          <div className="absolute top-2 left-2 bg-surface-container-highest/90 px-2 py-0.5 rounded text-3xs font-mono text-primary border border-primary/30">
+                            MAGNIFIED LESION ROI (224×224)
+                          </div>
                         </div>
 
-                        {/* Label Badge */}
-                        <div
-                          className="absolute pointer-events-auto z-30"
-                          style={{
-                            left: `${Math.min(bestBbox.x2 * 100, 68)}%`,
-                            top: `${Math.max(bestBbox.y1 * 100 - 5, 2)}%`,
-                          }}
-                        >
-                          <div className="bg-surface-container-highest/95 backdrop-blur-md px-2.5 py-1 rounded-lg text-3xs md:text-2xs border border-primary/60 shadow-xl whitespace-nowrap flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                            <span className="text-primary font-mono font-bold">LESION_01</span>
-                            <span className="hidden sm:inline text-on-surface-variant font-medium">: Detected region</span>
+                        {/* Pathology Legend */}
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-4 bg-surface-container-highest/80 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-outline-variant/20 text-3xs font-mono">
+                          <div className="flex items-center gap-1.5 text-rose-300">
+                            <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
+                            <span>Mask R-CNN Pathological Area</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <span className="w-2.5 h-2.5 rounded border border-primary inline-block" />
+                            <span>YOLO Bounding Margin</span>
                           </div>
                         </div>
                       </div>
@@ -208,12 +337,25 @@ const SmartDiagnostics = () => {
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
                         <span className="text-3xs md:text-2xs font-mono font-bold tracking-tight text-on-surface uppercase">
-                          AI SEGMENTATION CONFIDENCE: {confidence}%
+                          AI DIAGNOSTIC CONFIDENCE: {confidence}%
                         </span>
+                        {symptomsImage && (
+                          <span className="hidden md:inline text-rose-400 text-3xs font-mono font-bold">
+                            • MASK R-CNN SEGMENTATION VERIFIED
+                          </span>
+                        )}
                       </div>
-                      <span className="material-symbols-outlined text-sm text-tertiary hover:text-on-surface cursor-pointer">
-                        fullscreen
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveView((prev) => (prev === 'full' ? 'lesion' : 'full'))}
+                        className="text-tertiary hover:text-on-surface flex items-center gap-1 text-3xs font-mono"
+                        title="Toggle View Mode"
+                      >
+                        <span className="material-symbols-outlined text-sm">
+                          {activeView === 'full' ? 'zoom_in' : 'aspect_ratio'}
+                        </span>
+                        <span className="hidden sm:inline">{activeView === 'full' ? 'Focus Lesion' : 'Full Scan'}</span>
+                      </button>
                     </div>
                   </div>
                 </div>

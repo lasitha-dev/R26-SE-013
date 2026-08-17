@@ -19,18 +19,27 @@ class MaskRCNNSegmenter:
         self.model_path = model_path
         self.image_size = image_size
         self.model = None
-        self.is_loaded = False
-        try:
-            self._load_model()
-        except Exception as e:
-            logger.error("Failed to load Mask R-CNN model from %s: %s", model_path, e)
 
-    def _load_model(self):
-        import tensorflow as tf
+    @property
+    def is_loaded(self) -> bool:
+        """Return True if the underlying Mask R-CNN model has been loaded into memory."""
+        return self.model is not None
+
+    def _ensure_loaded(self):
+        if self.model is not None:
+            return
+        import os
+        if not os.path.isfile(self.model_path):
+            logger.warning("Mask R-CNN checkpoint not found at: %s", self.model_path)
+            return
+
         logger.info("Loading Mask R-CNN model from %s ...", self.model_path)
-        self.model = tf.keras.models.load_model(self.model_path, compile=False)
-        self.is_loaded = True
-        logger.info("Mask R-CNN model loaded successfully.")
+        try:
+            import tensorflow as tf
+            self.model = tf.keras.models.load_model(self.model_path, compile=False)
+            logger.info("Mask R-CNN model loaded successfully.")
+        except Exception as e:
+            logger.error("Failed to load Mask R-CNN model from %s: %s", self.model_path, e)
 
     def predict(self, image: Image.Image) -> Image.Image:
         """Run inference and overlay the predicted symptom mask on the image.
@@ -38,6 +47,7 @@ class MaskRCNNSegmenter:
         Returns a PIL Image with a semi-transparent red overlay where
         symptoms were detected.
         """
+        self._ensure_loaded()
         if not self.is_loaded or self.model is None:
             logger.warning("Mask R-CNN model not loaded, returning original image.")
             return image
