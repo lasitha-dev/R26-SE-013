@@ -8,3 +8,7 @@ RUNBOOK.md
 
 # Issue 8 temporary audit script
 backend/components/risk_forecasting/model/scratch_audit_issue8.py
+
+# Design mockups & exports
+frontend/public/design/
+design.png
