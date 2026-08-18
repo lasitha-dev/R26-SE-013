@@ -54,7 +54,7 @@ export default function useRiskPrediction() {
           district: selectedDistrict,
           year: Number(selectedYear),
           month: Number(selectedMonth),
-          use_31_features: use31Features,
+          use31Features,
         });
       } else {
         data = await predictLSD({

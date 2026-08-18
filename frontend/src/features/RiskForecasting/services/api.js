@@ -16,15 +16,21 @@ export async function fetchDistricts() {
 
 /**
  * Request single-district outbreak prediction for Foot-and-Mouth Disease (FMD).
- * @param {object} payload - { district: string, year: number, month: number, use_31_features?: boolean }
+ * @param {object} payload - { district: string, year: number, month: number, use31Features?: boolean }
  * @returns {Promise<object>} FMD prediction response object
  */
-export async function predictFMD(payload) {
+export async function predictFMD({ district, year, month, use31Features = false }) {
   const url = `${API_BASE}/api/v1/risk-forecasting/predict/fmd`;
+  const body = {
+    district,
+    year: Number(year),
+    month: Number(month),
+    model_variant: use31Features ? '31_feature_autocorrelation' : '30_feature_baseline',
+  };
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const txt = await res.text();

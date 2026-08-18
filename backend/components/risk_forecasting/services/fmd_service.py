@@ -6,7 +6,7 @@ Stage 2 Random Forest severity classification, Mondrian Conformal Prediction UQ,
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 
 import joblib
 import numpy as np
@@ -22,11 +22,47 @@ from backend.components.risk_forecasting.config import (
 )
 from backend.components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest, FMDOutbreakPredictResponse,
-    Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance,
-    DistrictForecastResponse, DistrictForecastItem
+    Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance, FMDDataProvenance,
+    DistrictForecastResponse, FMDDistrictForecastResponse, DistrictForecastItem,
+    FeatureContribution, ExplanationInfo
 )
 
 logger = logging.getLogger(__name__)
+
+
+FMD_FEATURE_DISPLAY_LABELS = {
+    "own_outbreak_lag1": "Previous-Month Same-District Outbreak Status",
+    "neighbor_outbreak_lag1": "Previous-Month Neighboring-District Outbreak Status",
+    "neighbor_outbreak_count_lag1": "Previous-Month Neighboring-District Outbreak Count",
+    "neighbor_outbreak_fraction_lag1": "Previous-Month Neighboring-District Outbreak Fraction",
+    "neighbor_outbreak_lag2": "Outbreak Status in Neighboring Districts (2-Month Lag)",
+    "rainfall_mm": "Monthly Rainfall (mm)",
+    "rain_lag1": "Previous-Month Rainfall (mm)",
+    "rain_lag2": "Rainfall 2 Months Prior (mm)",
+    "r3h": "3-Hour Relative Humidity (%)",
+    "rfq": "Rainfall Frequency Quantity Index",
+    "rfq_lag1": "Previous-Month Rainfall Frequency Index",
+    "humidity": "Average Relative Humidity (%)",
+    "humidity_lag1": "Previous-Month Relative Humidity (%)",
+    "temp_lag1": "Previous-Month Mean Temperature (°C)",
+    "wind_speed": "Mean Wind Speed (m/s)",
+    "wind_lag1": "Previous-Month Mean Wind Speed (m/s)",
+    "cattle_density": "Cattle Population Density (heads/km²)",
+    "buffalo_density": "Buffalo Population Density (heads/km²)",
+    "goat_density": "Goat Population Density (heads/km²)",
+    "livestock_density": "Total Livestock Population Density (heads/km²)",
+    "nino34": "El Niño-Southern Oscillation (NINO3.4 Index)",
+    "nino34_lag3": "El Niño Index (3-Month Lag)",
+    "iod_dmi": "Indian Ocean Dipole (Dipole Mode Index)",
+    "iod_dmi_lag2": "Indian Ocean Dipole Index (2-Month Lag)",
+    "sin_month": "Seasonal Cycle Component A (Sine)",
+    "cos_month": "Seasonal Cycle Component B (Cosine)",
+    "monsoon_phase_First_Inter_Monsoon": "First Inter-Monsoon Season (Mar–Apr)",
+    "monsoon_phase_SW_Monsoon": "Southwest Monsoon Season (May–Sep)",
+    "monsoon_phase_Second_Inter_Monsoon": "Second Inter-Monsoon Season (Oct–Nov)",
+    "monsoon_phase_NE_Monsoon": "Northeast Monsoon Season (Dec–Feb)",
+    "district_enc": "District Baseline Susceptibility Code"
+}
 
 
 class FMDService:
@@ -72,9 +108,35 @@ class FMDService:
             logger.error(f"Error loading FMD resources: {e}")
             self.models_loaded = False
 
-    def _get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str]:
-        """Extracts or imputes feature row from historical dataset."""
-        # Compute district_enc using stage2_encoder (which is the fitted LabelEncoder for district names)
+    def _get_valid_lag1(self, district: str, year: int, month: int) -> Optional[float]:
+        """
+        Retrieves the exact ground-truth Outbreak status (0.0 or 1.0) for the 
+        immediately preceding calendar month (t-1) for a given district.
+        Returns None if no genuine previous-month surveillance record exists.
+        """
+        if self.df.empty:
+            return None
+
+        if month == 1:
+            prev_year = year - 1
+            prev_month = 12
+        else:
+            prev_year = year
+            prev_month = month - 1
+
+        prev_match = self.df[
+            (self.df["district"] == district) & 
+            (self.df["year"] == prev_year) & 
+            (self.df["month_num"] == prev_month)
+        ]
+
+        if not prev_match.empty and pd.notnull(prev_match["Outbreak status"].iloc[0]):
+            return float(prev_match["Outbreak status"].iloc[0])
+
+        return None
+
+    def _get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:
+        """Extracts or imputes feature row from historical dataset with explicit data freshness provenance."""
         district_enc_val = 0.0
         if "stage2_encoder" in self.models:
             try:
@@ -83,39 +145,42 @@ class FMDService:
                 district_enc_val = 0.0
 
         if self.df.empty:
-            empty_row = pd.DataFrame(0.0, index=[0], columns=feature_cols)
-            if "district_enc" in feature_cols:
-                empty_row["district_enc"] = district_enc_val
-            return empty_row, True, "Dataset empty. Imputed zeros."
+            raise RuntimeError("Forecasting input dataset is empty or unavailable.")
 
         exact = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num) & (self.df["year"] == year)]
         if not exact.empty:
             row_df = exact.iloc[[0]].copy()
             if "district_enc" in feature_cols:
                 row_df["district_enc"] = district_enc_val
-            return row_df, False, "Exact match found in DAPH surveillance ground truth."
+            return row_df, False, f"Exact feature row found for {district} ({year}-{month_num:02d}).", year, month_num, 0, "EXACT_REQUESTED_PERIOD"
 
         district_month = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num)]
         if not district_month.empty:
             latest = district_month.sort_values("year", ascending=False).iloc[[0]].copy()
             latest_year = int(latest["year"].iloc[0])
+            latest_month = int(latest["month_num"].iloc[0])
             if "district_enc" in feature_cols:
                 latest["district_enc"] = district_enc_val
-            return latest, True, f"No exact year match for {year}. Used latest available surveillance year: {latest_year}."
+            age = ((year - latest_year) * 12) + (month_num - latest_month)
+            month_name = MONTH_NAMES[month_num - 1]
+            src_month_name = MONTH_NAMES[latest_month - 1]
+            msg = f"No exact year match for {year}. Used latest available surveillance year: {latest_year} ({src_month_name} historical same-month proxy)."
+            return latest, True, msg, latest_year, latest_month, age, "HISTORICAL_SAME_MONTH_PROXY"
 
+        cols_in_df = [c for c in feature_cols if c in self.df.columns]
         district_rows = self.df[self.df["district"] == district]
         if not district_rows.empty:
-            medians = district_rows[feature_cols].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
+            medians = district_rows[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
             row_df = pd.DataFrame([medians], columns=feature_cols)
             if "district_enc" in feature_cols:
                 row_df["district_enc"] = district_enc_val
-            return row_df, True, "No month-level record found. Imputed district historical medians."
+            return row_df, True, f"No month-level record found for {district}. Imputed district historical medians.", None, None, None, "DISTRICT_HISTORICAL_MEDIAN"
 
-        global_medians = self.df[feature_cols].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
+        global_medians = self.df[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
         row_df = pd.DataFrame([global_medians], columns=feature_cols)
         if "district_enc" in feature_cols:
             row_df["district_enc"] = district_enc_val
-        return row_df, True, "District not found in historical data. Imputed national medians."
+        return row_df, True, f"District '{district}' not found in historical data. Imputed national medians.", None, None, None, "NATIONAL_HISTORICAL_MEDIAN"
 
     def _decode_severity(self, pred_val: int) -> str:
         """Decodes Stage 2 severity prediction integer code (0: LOW, 1: MEDIUM, 2: HIGH)."""
@@ -127,17 +192,17 @@ class FMDService:
         """Generates actionable field-veterinary recommendations based on risk and severity."""
         if risk_level == "HIGH" and severity == "HIGH":
             return [
-                "EMERGENCY RESPONSE REQUIRED",
-                "Immediately notify DAPH Animal Health Division",
-                "Activate emergency vaccination campaign in district",
-                "Impose movement restrictions on livestock within 24 hours",
-                "Deploy rapid response veterinary officer teams"
+                "ADVISORY DECISION SUPPORT — Veterinary/DAPH confirmation required before intervention",
+                "Notify DAPH Animal Health Division for field evaluation",
+                "Consider activating emergency vaccination campaign in high-risk zones",
+                "Evaluate livestock movement restrictions within district",
+                "Deploy rapid response veterinary officer teams for field investigation"
             ]
         elif risk_level == "HIGH":
             return [
-                "TARGETED VACCINATION RESPONSE REQUIRED",
-                "Alert district veterinary surgeons immediately",
-                "Begin targeted ring vaccination in high-density livestock zones",
+                "ADVISORY DECISION SUPPORT — Veterinary/DAPH confirmation required before intervention",
+                "Alert district veterinary surgeons for advisory review",
+                "Consider targeted ring vaccination in high-density livestock zones",
                 "Increase farm biosecurity and active surveillance frequency"
             ]
         elif risk_level == "MEDIUM":
@@ -151,58 +216,75 @@ class FMDService:
             return [
                 "ROUTINE MONITORING",
                 "Standard surveillance protocols apply",
-                "No immediate emergency intervention required",
-                "Continue routine monthly DAPH farm visits"
+                "Maintain baseline disease reporting and farm biosecurity awareness"
             ]
 
     def predict(self, request: FMDOutbreakPredictRequest) -> FMDOutbreakPredictResponse:
-        """Executes full FMD two-stage outbreak risk and severity prediction."""
+        """Executes full FMD prediction using selected 30-feature or 31-feature model variant."""
         if not self.models_loaded:
             raise RuntimeError("FMD model artifacts not loaded. Check model paths.")
 
-        use_31feat = request.model_variant == "31_feature_autocorrelation"
-        if use_31feat and "stage1_31_model" in self.models:
-            model = self.models["stage1_31_model"]
-            scaler = self.models["stage1_31_scaler"]
-            feat_cols = list(self.models["stage1_31_cols"])
-            variant_name = "31_feature_autocorrelation"
+        use_31feat_requested = (request.model_variant == "31_feature_autocorrelation")
+        has_31feat_artifacts = (
+            "stage1_31_model" in self.models and
+            "stage1_31_scaler" in self.models and
+            "stage1_31_cols" in self.models
+        )
+
+        model_fallback_applied = False
+        model_fallback_reason = None
+        lag1_val = None
+
+        if use_31feat_requested:
+            lag1_val = self._get_valid_lag1(request.district, request.year, request.month)
+            if lag1_val is None:
+                model = self.models["stage1_30_model"]
+                scaler = self.models["stage1_30_scaler"]
+                feat_cols = list(self.models["stage1_30_cols"])
+                variant_name = "30_feature_baseline"
+                model_fallback_applied = True
+                model_fallback_reason = f"Requested 31_feature_autocorrelation, but previous-month surveillance data was unavailable for {request.district} ({request.year}-{request.month:02d}). Automatically executed 30_feature_baseline."
+            elif not has_31feat_artifacts:
+                model = self.models["stage1_30_model"]
+                scaler = self.models["stage1_30_scaler"]
+                feat_cols = list(self.models["stage1_30_cols"])
+                variant_name = "30_feature_baseline"
+                model_fallback_applied = True
+                model_fallback_reason = "Requested 31_feature_autocorrelation, but required 31-feature model runtime artifacts (stage1_31_model/scaler/cols) were not loaded. Automatically executed 30_feature_baseline."
+            else:
+                model = self.models["stage1_31_model"]
+                scaler = self.models["stage1_31_scaler"]
+                feat_cols = list(self.models["stage1_31_cols"])
+                variant_name = "31_feature_autocorrelation"
         else:
             model = self.models["stage1_30_model"]
             scaler = self.models["stage1_30_scaler"]
             feat_cols = list(self.models["stage1_30_cols"])
             variant_name = "30_feature_baseline"
 
-        # Feature row retrieval
-        feature_row, fallback_applied, fallback_msg = self.get_feature_row(
+        # Feature retrieval with data freshness provenance
+        x_raw, fallback_applied, fallback_msg, src_yr, src_m, data_age, data_qual = self._get_feature_row(
             district=request.district,
             month_num=request.month,
             year=request.year,
             feature_cols=feat_cols
         )
 
-        # Handle 31-feature own_outbreak_lag1 if needed
-        if use_31feat and "own_outbreak_lag1" not in feature_row.columns:
-            if not self.df.empty:
-                df_sorted = self.df.sort_values(["district", "year", "month_num"])
-                df_sorted["own_outbreak_lag1"] = df_sorted.groupby("district")["Outbreak status"].shift(1).fillna(0)
-                match = df_sorted[(df_sorted["district"] == request.district) & (df_sorted["year"] == request.year) & (df_sorted["month_num"] == request.month)]
-                feature_row["own_outbreak_lag1"] = float(match["own_outbreak_lag1"].iloc[0]) if not match.empty else 0.0
-            else:
-                feature_row["own_outbreak_lag1"] = 0.0
+        # Inject lag1 for 31-feature variant if present
+        if variant_name == "31_feature_autocorrelation" and lag1_val is not None:
+            x_raw["own_outbreak_lag1"] = lag1_val
 
         for col in feat_cols:
-            if col not in feature_row.columns:
-                feature_row[col] = 0.0
+            if col not in x_raw.columns:
+                x_raw[col] = 0.0
 
-        # Stage 1 Inference
-        x_stage1 = feature_row[feat_cols].fillna(0.0).astype(float)
+        x_stage1 = x_raw[feat_cols].fillna(0.0).astype(float)
         x_stage1_scaled = scaler.transform(x_stage1)
-        prob = float(model.predict_proba(x_stage1_scaled)[:, 1][0])
 
+        # Stage 1 prediction
+        prob = float(model.predict_proba(x_stage1_scaled)[0, 1])
+        prob_pct = round(prob * 100.0, 1)
 
-        prob_pct = round(prob * 100, 1)
-
-        # Risk level mapping based on audited t = 0.40 boundary
         if prob >= HIGH_RISK_THRESHOLD:
             risk_level = "HIGH"
         elif prob >= GLOBAL_DECISION_THRESHOLD:
@@ -210,33 +292,52 @@ class FMDService:
         else:
             risk_level = "LOW"
 
-        # Stage 2 Severity Inference
-        severity_pred_str = "LOW"
-        severity_code = 0
-        action_req = False
+        # Stage 2 severity prediction
         evaluated = False
+        severity_code = 0
+        severity_pred_str = "LOW"
         notes = "Stage 2 evaluation bypassed because Stage 1 outbreak risk is below decision threshold (t=0.40)."
 
         if prob >= GLOBAL_DECISION_THRESHOLD and "stage2_model" in self.models:
             evaluated = True
-            stage2_cols = list(self.models["stage2_cols"])
-            for col in stage2_cols:
-                if col not in feature_row.columns:
-                    feature_row[col] = 0.0
-            x_stage2 = feature_row[stage2_cols].fillna(0.0).astype(float)
-            severity_code = int(self.models["stage2_model"].predict(x_stage2)[0])
+            s2_cols = list(self.models["stage2_cols"])
+            x_s2_raw, _, _, _, _, _, _ = self._get_feature_row(
+                district=request.district,
+                month_num=request.month,
+                year=request.year,
+                feature_cols=s2_cols
+            )
+            for col in s2_cols:
+                if col not in x_s2_raw.columns:
+                    x_s2_raw[col] = 0.0
+            x_s2 = x_s2_raw[s2_cols].fillna(0.0).astype(float)
+            severity_code = int(self.models["stage2_model"].predict(x_s2)[0])
             severity_pred_str = self._decode_severity(severity_code)
-            action_req = (severity_pred_str in ["MEDIUM", "HIGH"])
-            notes = f"Stage 2 Random Forest severity model explicitly evaluated (predicted {severity_pred_str}). Note: Stage 1 risk_level assesses outbreak occurrence likelihood, while Stage 2 assesses severity."
+            notes = f"Stage 2 Random Forest severity model evaluated (predicted {severity_pred_str}). ADVISORY ONLY: Stage 2 has limited multi-class severity discrimination; veterinary/DAPH review is required prior to operational intervention."
 
-        month_name = MONTH_NAMES[request.month - 1]
         recommendations = self._generate_recommendations(risk_level, severity_pred_str)
+        month_name = MONTH_NAMES[request.month - 1]
 
-        # Conformal prediction set construction (singleton for LOW/HIGH, 2-class set for MEDIUM)
         if risk_level == "MEDIUM":
             prediction_set = ["MEDIUM", "HIGH"]
         else:
             prediction_set = [risk_level]
+
+        # Local Explainability (Closed-Form Linear Log-Odds Decomposition)
+        explanation_info = self._compute_explanation(
+            model=model,
+            scaler=scaler,
+            feat_cols=feat_cols,
+            x_stage1=x_stage1,
+            x_stage1_scaled=x_stage1_scaled,
+            variant_name=variant_name,
+            fallback_applied=fallback_applied,
+            data_quality=data_qual,
+            requested_year=request.year,
+            requested_month=request.month,
+            source_year=src_yr,
+            source_month=src_m
+        )
 
         return FMDOutbreakPredictResponse(
             disease="FMD",
@@ -252,12 +353,12 @@ class FMDService:
                 model_variant=variant_name
             ),
             stage2=Stage2Prediction(
-                severity_predicted=severity_pred_str,
+                severity_predicted=severity_pred_str if evaluated else "N/A",
                 severity_code=severity_code,
                 model_name="RandomForestClassifier",
                 evaluated=evaluated,
-                discriminator_validated=True,
-                action_required=action_req,
+                discriminator_validated=False,
+                action_required=(severity_pred_str in ["MEDIUM", "HIGH"]) if evaluated else False,
                 notes=notes
             ),
             calibration_info=CalibrationInfo(
@@ -267,37 +368,126 @@ class FMDService:
                 notes="FMD uses raw walk-forward logistic regression probabilities per validated baseline."
             ),
             uncertainty=UncertaintyInfo(
-                method="Mondrian Conformal Prediction (Class-Conditional)",
-                status="VALIDATED",
-                reliability="HIGH",
+                method="Rule-Based Risk Tier Uncertainty",
+                status="HEURISTIC",
+                reliability="MEDIUM",
                 prediction_set=prediction_set,
-                empirical_coverage_pct=94.9,
-                notes="Validated conformal coverage guarantee exceeding 90% target."
+                empirical_coverage_pct=None,
+                notes="Prediction sets are generated using a heuristic risk-tier mapping. Offline Phase 7 research demonstrated 95.3% overall coverage (94.9% outbreak class) for Split Conformal Prediction, but live conformal calibration is not currently deployed."
             ),
-
             recommendations=recommendations,
-            provenance=DataProvenance(
+            provenance=FMDDataProvenance(
                 fallback_applied=fallback_applied,
-                fallback_message=fallback_msg
-            )
+                fallback_message=fallback_msg,
+                requested_year=request.year,
+                requested_month=request.month,
+                source_year=src_yr,
+                source_month=src_m,
+                data_age_months=data_age,
+                data_quality=data_qual,
+                model_fallback_applied=model_fallback_applied,
+                model_fallback_reason=model_fallback_reason
+            ),
+            explanation_info=explanation_info
         )
 
-    def get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str]:
+    def _compute_explanation(
+        self,
+        model: Any,
+        scaler: Any,
+        feat_cols: List[str],
+        x_stage1: pd.DataFrame,
+        x_stage1_scaled: np.ndarray,
+        variant_name: str,
+        fallback_applied: bool,
+        data_quality: str,
+        requested_year: int,
+        requested_month: int,
+        source_year: Optional[int],
+        source_month: Optional[int]
+    ) -> ExplanationInfo:
+        intercept = float(model.intercept_[0])
+        coefs = model.coef_[0]
+
+        contributions = coefs * x_stage1_scaled[0]
+        reconstructed_score = float(intercept + np.sum(contributions))
+        reconstructed_prob = float(1.0 / (1.0 + np.exp(-reconstructed_score)))
+
+        items: List[FeatureContribution] = []
+        for i, col in enumerate(feat_cols):
+            val = float(x_stage1[col].iloc[0])
+            c_val = float(contributions[i])
+
+            label = FMD_FEATURE_DISPLAY_LABELS.get(col, col.replace("_", " ").title())
+
+            if c_val > 1e-6:
+                direction = "RISK_INCREASING"
+            elif c_val < -1e-6:
+                direction = "RISK_DECREASING"
+            else:
+                direction = "NEUTRAL"
+
+            items.append(FeatureContribution(
+                feature=col,
+                display_label=label,
+                raw_value=round(val, 4),
+                contribution_log_odds=round(c_val, 4),
+                direction=direction
+            ))
+
+        positives = sorted([it for it in items if it.direction == "RISK_INCREASING"], key=lambda x: x.contribution_log_odds, reverse=True)[:5]
+        negatives = sorted([it for it in items if it.direction == "RISK_DECREASING"], key=lambda x: x.contribution_log_odds)[:5]
+
+        provenance_warning = None
+        if fallback_applied:
+            if data_quality == "HISTORICAL_SAME_MONTH_PROXY" and source_year is not None and source_month is not None:
+                src_m_name = MONTH_NAMES[source_month - 1]
+                req_m_name = MONTH_NAMES[requested_month - 1]
+                provenance_warning = f"This explanation uses a {src_m_name} {source_year} historical feature row as a proxy for the requested {req_m_name} {requested_year} period."
+            else:
+                provenance_warning = "This explanation uses aggregated historical median feature values."
+
+        notes = "Feature contributions represent additive impacts on Logistic Regression log-odds score relative to training-mean baseline. Factors influencing this model prediction."
+
+        return ExplanationInfo(
+            method="Linear Log-Odds Decomposition",
+            model_variant=variant_name,
+            explanation_scope="LOCAL_PREDICTION",
+            contribution_unit="LOG_ODDS",
+            baseline_description="Model decision score relative to training-mean standardized baseline.",
+            top_risk_increasing=positives,
+            top_risk_decreasing=negatives,
+            decision_score=round(reconstructed_score, 6),
+            reconstructed_probability=round(reconstructed_prob, 6),
+            provenance_warning=provenance_warning,
+            notes=notes
+        )
+
+    def get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:
         return self._get_feature_row(district, month_num, year, feature_cols)
 
-    def compute_forecast(self, target_month: int, year: int = 2024, model_variant: str = "30_feature_baseline") -> DistrictForecastResponse:
-        """Computes all-district FMD risk forecast for a given month."""
+    def compute_forecast(self, target_month: int, year: int = 2024, model_variant: str = "30_feature_baseline") -> FMDDistrictForecastResponse:
+        """Computes all-district FMD risk forecast for a given month using 30_feature_baseline with data quality summary."""
         results: List[DistrictForecastItem] = []
         high_cnt, med_cnt, low_cnt = 0, 0, 0
+        exact_cnt, proxy_cnt, median_cnt = 0, 0, 0
+        executed_variant = "30_feature_baseline"
 
         for district in SRI_LANKA_DISTRICTS:
             req = FMDOutbreakPredictRequest(
                 district=district,
                 year=year,
                 month=target_month,
-                model_variant=model_variant
+                model_variant=executed_variant
             )
             res = self.predict(req)
+
+            if res.provenance.data_quality == "EXACT_REQUESTED_PERIOD":
+                exact_cnt += 1
+            elif res.provenance.data_quality == "HISTORICAL_SAME_MONTH_PROXY":
+                proxy_cnt += 1
+            else:
+                median_cnt += 1
 
             if res.stage1.risk_level == "HIGH":
                 high_cnt += 1
@@ -315,16 +505,34 @@ class FMDService:
 
         results.sort(key=lambda x: x.probability_pct, reverse=True)
         month_name = MONTH_NAMES[target_month - 1]
+        total_d = len(results)
 
-        return DistrictForecastResponse(
+        if exact_cnt == total_d:
+            dq_status = "EXACT"
+            dq_msg = f"All {total_d} districts evaluated using exact requested period ({year}-{target_month:02d}) feature rows."
+        elif proxy_cnt == total_d:
+            dq_status = "HISTORICAL_PROXY"
+            dq_msg = f"All {total_d} districts evaluated using historical same-month proxy rows for target period ({year}-{target_month:02d})."
+        else:
+            dq_status = "MIXED"
+            dq_msg = f"Forecast evaluated using mixed feature data quality: {exact_cnt} exact, {proxy_cnt} historical proxy, {median_cnt} historical median districts."
+
+        return FMDDistrictForecastResponse(
             disease="FMD",
+            target_year=year,
             target_month=target_month,
             target_month_name=month_name,
-            total_districts=len(results),
+            model_variant=executed_variant,
+            total_districts=total_d,
             high_risk_count=high_cnt,
             medium_risk_count=med_cnt,
             low_risk_count=low_cnt,
-            districts=results
+            districts=results,
+            exact_data_district_count=exact_cnt,
+            historical_proxy_district_count=proxy_cnt,
+            historical_median_district_count=median_cnt,
+            data_quality_status=dq_status,
+            data_quality_message=dq_msg
         )
 
 

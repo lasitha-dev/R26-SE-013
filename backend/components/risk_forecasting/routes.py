@@ -9,7 +9,8 @@ from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONT
 from backend.components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest, FMDOutbreakPredictResponse,
     LSDOutbreakPredictRequest, LSDOutbreakPredictResponse,
-    ForecastRequest, DistrictForecastResponse,
+    FMDForecastRequest, LSDForecastRequest,
+    DistrictForecastResponse, FMDDistrictForecastResponse, LSDDistrictForecastResponse,
     HealthCheckResponse, DistrictListResponse
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
@@ -32,24 +33,29 @@ def health_check():
     )
 
 
-@router.get("/districts", response_model=DistrictListResponse, summary="List Supported Districts")
+@router.get("/districts", response_model=DistrictListResponse, summary="List Supported Sri Lankan Districts")
 def list_districts():
-    """Lists all 25 Sri Lankan administrative districts and supported month metadata."""
+    """Returns the list of 25 supported Sri Lankan administrative districts and 12 month names."""
     return DistrictListResponse(
         total_districts=len(SRI_LANKA_DISTRICTS),
-        districts=SRI_LANKA_DISTRICTS,
-        month_names=MONTH_NAMES
+        districts=list(SRI_LANKA_DISTRICTS),
+        month_names=list(MONTH_NAMES)
     )
 
 
 @router.post("/predict/fmd", response_model=FMDOutbreakPredictResponse, summary="Predict FMD Outbreak Risk & Severity")
 def predict_fmd(request: FMDOutbreakPredictRequest):
     """
-    Predicts Foot-and-Mouth Disease (FMD) outbreak probability, categorical risk tier (t=0.40),
-    Stage 2 severity classification, Mondrian Conformal UQ, and actionable field recommendations.
+    Predicts Foot-and-Mouth Disease (FMD) outbreak probability (Stage 1) and severity classification (Stage 2)
+    with operational decision thresholding (t=0.40), Mondrian conformal uncertainty coverage, and actionable recommendations.
     """
     try:
         return fmd_service.predict(request)
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"FMD service unavailable: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -65,6 +71,11 @@ def predict_lsd(request: LSDOutbreakPredictRequest):
     """
     try:
         return lsd_service.predict(request)
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LSD service unavailable: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -72,16 +83,20 @@ def predict_lsd(request: LSDOutbreakPredictRequest):
         )
 
 
-@router.post("/forecast/fmd", response_model=DistrictForecastResponse, summary="FMD All-District Forecast")
-def forecast_fmd(request: ForecastRequest):
+@router.post("/forecast/fmd", response_model=FMDDistrictForecastResponse, summary="FMD All-District Forecast")
+def forecast_fmd(request: FMDForecastRequest):
     """Generates an all-district climatological FMD risk forecast for the specified month."""
     try:
-        variant = request.model_variant or "30_feature_baseline"
         year = request.year or 2024
         return fmd_service.compute_forecast(
             target_month=request.target_month,
             year=year,
-            model_variant=variant
+            model_variant="30_feature_baseline"
+        )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"FMD forecast service unavailable: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
@@ -90,8 +105,8 @@ def forecast_fmd(request: ForecastRequest):
         )
 
 
-@router.post("/forecast/lsd", response_model=DistrictForecastResponse, summary="LSD All-District Forecast")
-def forecast_lsd(request: ForecastRequest):
+@router.post("/forecast/lsd", response_model=LSDDistrictForecastResponse, summary="LSD All-District Forecast")
+def forecast_lsd(request: LSDForecastRequest):
     """Generates an all-district climatological LSD risk forecast for the specified month."""
     try:
         year = request.year or 2024
@@ -99,8 +114,14 @@ def forecast_lsd(request: ForecastRequest):
             target_month=request.target_month,
             year=year
         )
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LSD forecast service unavailable: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"LSD forecast failed: {str(e)}"
         )
+

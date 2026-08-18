@@ -37,6 +37,11 @@ LSD_STAGE1_MODEL = MODELS_PATH / "lsd_stage1_elasticnet.pkl"  # Dedicated 28-fea
 LSD_STAGE1_SCALER = MODELS_PATH / "lsd_stage1_scaler.pkl"
 LSD_STAGE1_COLS = MODELS_PATH / "lsd_stage1_feature_cols.pkl"
 
+LSD_STAGE1_27FEAT_MODEL = MODELS_PATH / "lsd_stage1_27feat_elasticnet.pkl"  # Dedicated 27-feature Elastic Net Fallback Model
+LSD_STAGE1_27FEAT_SCALER = MODELS_PATH / "lsd_stage1_27feat_scaler.pkl"
+LSD_STAGE1_27FEAT_COLS = MODELS_PATH / "lsd_stage1_27feat_cols.pkl"
+LSD_STAGE1_27FEAT_META = MODELS_PATH / "lsd_stage1_27feat_metadata.json"
+
 LSD_STAGE2_MODEL = MODELS_PATH / "lsd_stage2_lr.pkl"  # Dedicated Logistic Regression Quiet-Period Suppressor Model
 LSD_STAGE2_LABEL_ENCODER = MODELS_PATH / "lsd_stage2_label_encoder.pkl"
 LSD_STAGE2_FEATURE_COLS = MODELS_PATH / "lsd_stage2_feature_cols.pkl"

@@ -21,11 +21,15 @@ Thumbs.db
 # VS Code settings
 .vscode/
 
-# Datasets (DO NOT TRACK)
+# Datasets (DO NOT TRACK EXCEPT PRODUCTION INFERENCE DATASETS)
 data/raw/
-data/processed/
 data/final/
+data/processed/*
+!data/processed/FMD_dataset_with_spatial_and_climate_indices.csv
+!data/processed/LSD_dataset_with_spatial_and_climate_indices.csv
 *.csv
+!FMD_dataset_with_spatial_and_climate_indices.csv
+!LSD_dataset_with_spatial_and_climate_indices.csv
 *.xlsx
 *.tif
 *.shp

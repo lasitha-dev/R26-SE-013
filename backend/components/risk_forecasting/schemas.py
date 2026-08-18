@@ -42,13 +42,18 @@ class LSDOutbreakPredictRequest(BasePredictRequest):
     pass
 
 
-class ForecastRequest(BaseModel):
+class FMDForecastRequest(BaseModel):
     target_month: int = Field(..., example=1, ge=1, le=12, description="Target forecast month (1-12).")
     year: Optional[int] = Field(default=2024, ge=2017, le=2030, description="Reference forecast year (default 2024).")
-    model_variant: Optional[Literal["30_feature_baseline", "31_feature_autocorrelation"]] = Field(
+    model_variant: Literal["30_feature_baseline"] = Field(
         default="30_feature_baseline",
-        description="FMD model variant (ignored for LSD)."
+        description="National FMD forecast model variant (standalone mode supports 30_feature_baseline only)."
     )
+
+
+class LSDForecastRequest(BaseModel):
+    target_month: int = Field(..., example=1, ge=1, le=12, description="Target forecast month (1-12).")
+    year: Optional[int] = Field(default=2024, ge=2017, le=2030, description="Reference forecast year (default 2024).")
 
 
 # ─── Response Components ─────────────────────────────────────────────────────
@@ -82,17 +87,83 @@ class CalibrationInfo(BaseModel):
 
 
 class UncertaintyInfo(BaseModel):
-    method: str = Field(..., example="Mondrian Conformal Prediction (Class-Conditional)", description="Uncertainty quantification technique.")
-    status: str = Field(..., example="VALIDATED", description="UQ validation status (VALIDATED vs UNRELIABLE_INSUFFICIENT_DATA).")
-    reliability: Literal["HIGH", "MEDIUM", "LOW"] = Field(..., example="HIGH", description="Reliability grade of uncertainty output.")
-    prediction_set: Optional[List[str]] = Field(default=None, example=["MEDIUM", "HIGH"], description="Conformal prediction set classes (null if unreliable).")
-    empirical_coverage_pct: Optional[float] = Field(default=None, example=94.9, description="Empirical coverage percentage (null if unreliable).")
-    notes: str = Field(..., description="Details regarding uncertainty coverage guarantees and sample-size caveats.")
+    method: str = Field(..., example="Rule-Based Risk Tier Uncertainty", description="Uncertainty quantification technique.")
+    status: str = Field(..., example="HEURISTIC", description="UQ status (HEURISTIC, VALIDATED, or UNRELIABLE_INSUFFICIENT_DATA).")
+    reliability: Literal["HIGH", "MEDIUM", "LOW"] = Field(..., example="MEDIUM", description="Reliability grade of uncertainty output.")
+    prediction_set: Optional[List[str]] = Field(default=None, example=["MEDIUM", "HIGH"], description="Prediction/uncertainty set returned by active uncertainty method; null when unavailable or unreliable.")
+    empirical_coverage_pct: Optional[float] = Field(default=None, example=None, description="Empirical coverage percentage on test data (null for heuristic or unreliable outputs).")
+    notes: str = Field(..., description="Details regarding uncertainty coverage guarantees, heuristic mappings, or sample-size caveats.")
 
 
 class DataProvenance(BaseModel):
     fallback_applied: bool = Field(..., example=False, description="Whether historical data fallback was applied for input features.")
-    fallback_message: str = Field(..., example="Exact match found in surveillance ground truth.", description="Data provenance message.")
+    fallback_message: str = Field(..., example="Exact feature row found for requested district and period.", description="Data provenance message.")
+    requested_year: int = Field(..., example=2024, description="Target prediction requested year.")
+    requested_month: int = Field(..., example=1, description="Target prediction requested month.")
+    source_year: Optional[int] = Field(default=None, example=2024, description="Actual historical year source of feature row (null for medians).")
+    source_month: Optional[int] = Field(default=None, example=1, description="Actual historical month source of feature row (null for medians).")
+    data_age_months: Optional[int] = Field(default=0, example=0, description="Age of feature row relative to requested period in months (0 for exact, null for medians).")
+    data_quality: Literal[
+        "EXACT_REQUESTED_PERIOD",
+        "HISTORICAL_SAME_MONTH_PROXY",
+        "DISTRICT_HISTORICAL_MEDIAN",
+        "NATIONAL_HISTORICAL_MEDIAN"
+    ] = Field(..., example="EXACT_REQUESTED_PERIOD", description="Classification of feature input data quality.")
+
+
+class FMDDataProvenance(DataProvenance):
+    model_fallback_applied: bool = Field(default=False, example=False, description="Whether 31-to-30 feature model variant fallback was applied.")
+    model_fallback_reason: Optional[str] = Field(default=None, example=None, description="Detailed rationale if model variant fallback occurred.")
+
+
+class LSDDataProvenance(DataProvenance):
+    lag1_status: Literal["VERIFIED_OBSERVATION", "UNAVAILABLE"] = Field(
+        ...,
+        example="VERIFIED_OBSERVATION",
+        description="Target autocorrelation lag-1 observation status for own_outbreak_lag1."
+    )
+    lag1_value: Optional[float] = Field(
+        default=None,
+        example=1.0,
+        description="Actual ground-truth Outbreak status value (0.0 or 1.0) if verified observation was available."
+    )
+    lag1_message: Optional[str] = Field(
+        default=None,
+        example=None,
+        description="Detailed rationale regarding target autocorrelation lag-1 observation status."
+    )
+    model_fallback_applied: bool = Field(
+        default=False,
+        example=False,
+        description="Whether 28-to-27 feature model variant fallback was applied due to missing 28-feature artifacts."
+    )
+    model_fallback_reason: Optional[str] = Field(
+        default=None,
+        example=None,
+        description="Detailed rationale if model variant fallback occurred."
+    )
+
+
+class FeatureContribution(BaseModel):
+    feature: str = Field(..., example="r3h", description="Technical feature name.")
+    display_label: str = Field(..., example="3-Hour Relative Humidity (%)", description="Human-readable feature label for UI display.")
+    raw_value: float = Field(..., example=88.4, description="Unscaled raw feature input value.")
+    contribution_log_odds: float = Field(..., example=-1.12, description="Additive contribution of feature to Logistic Regression log-odds decision score.")
+    direction: Literal["RISK_INCREASING", "RISK_DECREASING", "NEUTRAL"] = Field(..., example="RISK_DECREASING", description="Direction of feature influence on outbreak risk.")
+
+
+class ExplanationInfo(BaseModel):
+    method: str = Field(default="Linear Log-Odds Decomposition", example="Linear Log-Odds Decomposition", description="Explainability decomposition technique name.")
+    model_variant: str = Field(..., example="30_feature_baseline", description="Exact model variant artifact explained.")
+    explanation_scope: str = Field(default="LOCAL_PREDICTION", example="LOCAL_PREDICTION", description="Scope of explanation (e.g. LOCAL_PREDICTION).")
+    contribution_unit: str = Field(default="LOG_ODDS", example="LOG_ODDS", description="Unit of feature contributions (LOG_ODDS).")
+    baseline_description: str = Field(default="Model decision score relative to training-mean standardized baseline.", description="Description of reference baseline for contributions.")
+    top_risk_increasing: List[FeatureContribution] = Field(default_factory=list, description="Top positive feature contributions pushing risk higher.")
+    top_risk_decreasing: List[FeatureContribution] = Field(default_factory=list, description="Top negative feature contributions pushing risk lower.")
+    decision_score: float = Field(..., example=0.6253, description="Exact Logistic Regression log-odds decision score.")
+    reconstructed_probability: float = Field(..., example=0.6514, description="Reconstructed Stage 1 outbreak probability [1 / (1 + exp(-z))].")
+    provenance_warning: Optional[str] = Field(default=None, example="Some explanatory feature values were obtained from historical fallback data rather than exact target-period observations.", description="Warning if fallback data was used for explanation inputs.")
+    notes: str = Field(..., description="Methodological notes explaining local feature contributions and causality disclaimers.")
 
 
 # ─── Full Disease Outbreak Prediction Responses ──────────────────────────────
@@ -108,7 +179,8 @@ class FMDOutbreakPredictResponse(BaseModel):
     calibration_info: CalibrationInfo
     uncertainty: UncertaintyInfo
     recommendations: List[str]
-    provenance: DataProvenance
+    provenance: FMDDataProvenance
+    explanation_info: Optional[ExplanationInfo] = Field(default=None, description="Local explainability breakdown of Stage 1 prediction factors.")
 
 
 class LSDOutbreakPredictResponse(BaseModel):
@@ -127,7 +199,7 @@ class LSDOutbreakPredictResponse(BaseModel):
         example="LSD Stage 2 binary severity predictions serve strictly as a quiet-period false-alarm suppressor (LOW vs MOD/HIGH) and are NOT statistically validated to discriminate severity during active outbreak waves.",
         description="Mandatory scientific disclaimer regarding LSD Stage 2 limitations."
     )
-    provenance: DataProvenance
+    provenance: LSDDataProvenance
 
 
 # ─── Forecast Schemas ────────────────────────────────────────────────────────
@@ -141,13 +213,50 @@ class DistrictForecastItem(BaseModel):
 
 class DistrictForecastResponse(BaseModel):
     disease: str
-    target_month: int
-    target_month_name: str
+    target_year: int = Field(..., example=2024, description="Target forecast reference year (2017-2030).")
+    target_month: int = Field(..., example=1, ge=1, le=12, description="Target forecast month (1-12).")
+    target_month_name: str = Field(..., example="January", description="Target forecast month name.")
     total_districts: int
     high_risk_count: int
     medium_risk_count: int
     low_risk_count: int
     districts: List[DistrictForecastItem]
+    exact_data_district_count: int = Field(default=0, example=25, description="Number of districts using exact requested period data.")
+    historical_proxy_district_count: int = Field(default=0, example=0, description="Number of districts using historical same-month proxy rows.")
+    historical_median_district_count: int = Field(default=0, example=0, description="Number of districts using historical medians.")
+    data_quality_status: Literal["EXACT", "MIXED", "HISTORICAL_PROXY"] = Field(default="EXACT", example="EXACT", description="Overall input data quality status across forecasted districts.")
+    data_quality_message: str = Field(default="", example="All districts evaluated using exact requested period data.", description="Data quality rationale for forecast.")
+
+
+class FMDDistrictForecastResponse(DistrictForecastResponse):
+    model_variant: Literal["30_feature_baseline", "31_feature_autocorrelation"] = Field(
+        ...,
+        example="30_feature_baseline",
+        description="Model architecture variant executed for all-district FMD forecast."
+    )
+
+
+class LSDDistrictForecastResponse(DistrictForecastResponse):
+    lag1_data_status: Literal["VERIFIED_OBSERVATION", "UNAVAILABLE", "MIXED"] = Field(
+        ...,
+        example="UNAVAILABLE",
+        description="Target autocorrelation lag-1 data status across forecasted districts."
+    )
+    lag1_verified_district_count: int = Field(
+        ...,
+        example=0,
+        description="Number of districts with verified t-1 surveillance data."
+    )
+    lag1_unavailable_district_count: int = Field(
+        ...,
+        example=25,
+        description="Number of districts where t-1 surveillance data was unavailable."
+    )
+    lag1_message: Optional[str] = Field(
+        default=None,
+        example=None,
+        description="Top-level rationale explaining target autocorrelation lag-1 data status across districts."
+    )
 
 
 # ─── Metadata Schemas ────────────────────────────────────────────────────────

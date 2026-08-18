@@ -7,7 +7,7 @@ and climatological forecasting.
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 
 import joblib
 import numpy as np
@@ -16,14 +16,15 @@ import pandas as pd
 from backend.components.risk_forecasting.config import (
     LSD_DATASET_FILE,
     LSD_STAGE1_MODEL, LSD_STAGE1_SCALER, LSD_STAGE1_COLS,
+    LSD_STAGE1_27FEAT_MODEL, LSD_STAGE1_27FEAT_SCALER, LSD_STAGE1_27FEAT_COLS, LSD_STAGE1_27FEAT_META,
     LSD_STAGE2_MODEL, LSD_STAGE2_LABEL_ENCODER, LSD_STAGE2_FEATURE_COLS,
     GLOBAL_DECISION_THRESHOLD, HIGH_RISK_THRESHOLD,
     SRI_LANKA_DISTRICTS, MONTH_NAMES
 )
 from backend.components.risk_forecasting.schemas import (
     LSDOutbreakPredictRequest, LSDOutbreakPredictResponse,
-    Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance,
-    DistrictForecastResponse, DistrictForecastItem
+    Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance, LSDDataProvenance,
+    DistrictForecastResponse, LSDDistrictForecastResponse, DistrictForecastItem
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,13 @@ class LSDService:
                 self.models["stage1_cols"] = joblib.load(LSD_STAGE1_COLS)
                 self.loaded_artifacts.append("stage1_elastic_net_28feat")
 
+            # Stage 1 27-feature Elastic Net fallback model
+            if LSD_STAGE1_27FEAT_MODEL.exists():
+                self.models["stage1_27feat_model"] = joblib.load(LSD_STAGE1_27FEAT_MODEL)
+                self.models["stage1_27feat_scaler"] = joblib.load(LSD_STAGE1_27FEAT_SCALER)
+                self.models["stage1_27feat_cols"] = joblib.load(LSD_STAGE1_27FEAT_COLS)
+                self.loaded_artifacts.append("stage1_elastic_net_27feat_fallback")
+
             # Stage 2 Logistic Regression quiet-period suppressor model
             if LSD_STAGE2_MODEL.exists():
                 self.models["stage2_model"] = joblib.load(LSD_STAGE2_MODEL)
@@ -59,14 +67,41 @@ class LSDService:
                 self.df = pd.read_csv(LSD_DATASET_FILE)
                 self.loaded_artifacts.append("LSD_dataset")
 
-            self.models_loaded = "stage1_model" in self.models
+            self.models_loaded = ("stage1_model" in self.models) or ("stage1_27feat_model" in self.models)
             logger.info(f"LSDService successfully loaded {len(self.loaded_artifacts)} artifacts.")
         except Exception as e:
             logger.error(f"Error loading LSD resources: {e}")
             self.models_loaded = False
 
-    def _get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str]:
-        """Extracts or imputes feature row from historical dataset."""
+    def _get_valid_lag1(self, district: str, year: int, month: int) -> Optional[float]:
+        """
+        Retrieves the exact ground-truth Outbreak status (0.0 or 1.0) for the 
+        immediately preceding calendar month (t-1) for a given district.
+        Returns None if no genuine previous-month surveillance record exists.
+        """
+        if self.df.empty:
+            return None
+
+        if month == 1:
+            prev_year = year - 1
+            prev_month = 12
+        else:
+            prev_year = year
+            prev_month = month - 1
+
+        prev_match = self.df[
+            (self.df["district"] == district) & 
+            (self.df["year"] == prev_year) & 
+            (self.df["month_num"] == prev_month)
+        ]
+
+        if not prev_match.empty and pd.notnull(prev_match["Outbreak status"].iloc[0]):
+            return float(prev_match["Outbreak status"].iloc[0])
+
+        return None
+
+    def _get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:
+        """Extracts or imputes feature row from historical dataset with explicit data freshness provenance."""
         district_enc_val = 0.0
         if "stage2_encoder" in self.models:
             try:
@@ -75,45 +110,47 @@ class LSDService:
                 district_enc_val = 0.0
 
         if self.df.empty:
-            empty_row = pd.DataFrame(0.0, index=[0], columns=feature_cols)
-            if "district_enc" in feature_cols:
-                empty_row["district_enc"] = district_enc_val
-            return empty_row, True, "Dataset empty. Imputed zeros."
+            raise RuntimeError("Forecasting input dataset is empty or unavailable.")
 
         exact = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num) & (self.df["year"] == year)]
         if not exact.empty:
             row_df = exact.iloc[[0]].copy()
             if "district_enc" in feature_cols:
                 row_df["district_enc"] = district_enc_val
-            return row_df, False, "Exact match found in LSD surveillance ground truth."
+            return row_df, False, f"Exact feature row found for {district} ({year}-{month_num:02d}).", year, month_num, 0, "EXACT_REQUESTED_PERIOD"
 
         district_month = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num)]
         if not district_month.empty:
             latest = district_month.sort_values("year", ascending=False).iloc[[0]].copy()
             latest_year = int(latest["year"].iloc[0])
+            latest_month = int(latest["month_num"].iloc[0])
             if "district_enc" in feature_cols:
                 latest["district_enc"] = district_enc_val
-            return latest, True, f"No exact year match for {year}. Used latest available surveillance year: {latest_year}."
+            age = ((year - latest_year) * 12) + (month_num - latest_month)
+            month_name = MONTH_NAMES[month_num - 1]
+            src_month_name = MONTH_NAMES[latest_month - 1]
+            msg = f"No exact year match for {year}. Used latest available surveillance year: {latest_year} ({src_month_name} historical same-month proxy)."
+            return latest, True, msg, latest_year, latest_month, age, "HISTORICAL_SAME_MONTH_PROXY"
 
+        cols_in_df = [c for c in feature_cols if c in self.df.columns]
         district_rows = self.df[self.df["district"] == district]
         if not district_rows.empty:
-            medians = district_rows[feature_cols].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
+            medians = district_rows[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
             row_df = pd.DataFrame([medians], columns=feature_cols)
             if "district_enc" in feature_cols:
                 row_df["district_enc"] = district_enc_val
-            return row_df, True, "No month-level record found. Imputed district historical medians."
+            return row_df, True, f"No month-level record found for {district}. Imputed district historical medians.", None, None, None, "DISTRICT_HISTORICAL_MEDIAN"
 
-        global_medians = self.df[feature_cols].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
+        global_medians = self.df[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
         row_df = pd.DataFrame([global_medians], columns=feature_cols)
         if "district_enc" in feature_cols:
             row_df["district_enc"] = district_enc_val
-        return row_df, True, "District not found in historical data. Imputed national medians."
+        return row_df, True, f"District '{district}' not found in historical data. Imputed national medians.", None, None, None, "NATIONAL_HISTORICAL_MEDIAN"
 
     def _decode_severity(self, pred_val: int) -> str:
         """Decodes Stage 2 quiet-period suppressor output."""
         mapping = {0: "LOW", 1: "MOD_HIGH", 2: "HIGH"}
         return mapping.get(pred_val, "LOW")
-
 
     def _generate_recommendations(self, risk_level: str, probability: float) -> List[str]:
         """Generates actionable field-veterinary recommendations based on Stage 1 outbreak risk."""
@@ -142,32 +179,71 @@ class LSDService:
             ]
 
     def predict(self, request: LSDOutbreakPredictRequest) -> LSDOutbreakPredictResponse:
-        """Executes full LSD Platt-calibrated prediction with Stage 2 suppressor disclaimers."""
+        """Executes full LSD prediction using 28-feature model when lag-1 is verified, or 27-feature fallback model when lag-1 is unavailable."""
         if not self.models_loaded:
             raise RuntimeError("LSD model artifacts not loaded. Check model paths.")
 
-        model = self.models["stage1_model"]
-        scaler = self.models["stage1_scaler"]
-        feat_cols = list(self.models["stage1_cols"])
+        # Target autocorrelation lag-1 observation retrieval
+        lag1_val = self._get_valid_lag1(request.district, request.year, request.month)
 
-        # Feature row retrieval
-        feature_row, fallback_applied, fallback_msg = self._get_feature_row(
+        model_fallback_applied = False
+        model_fallback_reason = None
+
+        if lag1_val is not None:
+            lag1_status = "VERIFIED_OBSERVATION"
+            lag1_value = lag1_val
+            lag1_msg = f"Verified t-1 ground-truth surveillance observation used for own_outbreak_lag1 ({lag1_val})."
+            
+            if "stage1_model" in self.models:
+                model_variant = "28_feature_autocorrelation"
+                model = self.models["stage1_model"]
+                scaler = self.models["stage1_scaler"]
+                feat_cols = list(self.models["stage1_cols"])
+                use_28_model = True
+            elif "stage1_27feat_model" in self.models:
+                model_variant = "27_feature_fallback"
+                model = self.models["stage1_27feat_model"]
+                scaler = self.models["stage1_27feat_scaler"]
+                feat_cols = list(self.models["stage1_27feat_cols"])
+                use_28_model = False
+                model_fallback_applied = True
+                model_fallback_reason = "Executed 27-feature fallback model because 28-feature runtime model artifacts were missing."
+            else:
+                raise RuntimeError("No LSD Stage 1 model artifacts available.")
+        else:
+            lag1_status = "UNAVAILABLE"
+            lag1_value = None
+            lag1_msg = f"Previous-month surveillance data was unavailable for {request.district} ({request.year}-{request.month:02d}). Executed validated 27-feature fallback model without target autocorrelation."
+            
+            if "stage1_27feat_model" in self.models:
+                model_variant = "27_feature_fallback"
+                model = self.models["stage1_27feat_model"]
+                scaler = self.models["stage1_27feat_scaler"]
+                feat_cols = list(self.models["stage1_27feat_cols"])
+                use_28_model = False
+            else:
+                raise RuntimeError("LSD 27-feature fallback artifacts missing and previous-month surveillance data is unavailable.")
+
+        # Extract Environmental Feature Row with data freshness provenance
+        feature_row, fallback_applied, fallback_msg, src_yr, src_m, data_age, data_qual = self._get_feature_row(
             district=request.district,
             month_num=request.month,
             year=request.year,
             feature_cols=feat_cols
         )
 
+        # Inject lag-1 into feature row ONLY if using 28-feature model
+        if use_28_model:
+            feature_row["own_outbreak_lag1"] = lag1_val
+
         for col in feat_cols:
             if col not in feature_row.columns:
                 feature_row[col] = 0.0
 
-        # Stage 1 Inference (Inner-CV Platt Scaled Elastic Net)
+        # Stage 1 Inference
         x_stage1 = feature_row[feat_cols].fillna(0.0).astype(float)
         x_stage1_scaled = scaler.transform(x_stage1)
         prob = float(model.predict_proba(x_stage1_scaled)[:, 1][0])
-
-
         prob_pct = round(prob * 100, 1)
 
         # Risk level mapping based on audited t = 0.40 boundary
@@ -182,18 +258,28 @@ class LSDService:
         severity_pred_str = "LOW"
         severity_code = 0
         evaluated = False
-        notes = "Stage 2 evaluation bypassed because Stage 1 outbreak risk is below decision threshold (t=0.40)."
 
-        if prob >= GLOBAL_DECISION_THRESHOLD and "stage2_model" in self.models:
+        if lag1_status == "UNAVAILABLE":
+            notes = "Stage 2 evaluation bypassed because previous-month target autocorrelation lag-1 surveillance data is unavailable."
+        elif prob < GLOBAL_DECISION_THRESHOLD:
+            notes = "Stage 2 evaluation bypassed because Stage 1 outbreak risk is below decision threshold (t=0.40)."
+        elif "stage2_model" in self.models:
             evaluated = True
             notes = "Stage 2 quiet-period suppressor model explicitly evaluated."
             stage2_cols = list(self.models["stage2_cols"])
+            
+            # Inject lag-1 into Stage 2 feature row if lag was verified
+            if "own_outbreak_lag1" in stage2_cols and lag1_val is not None:
+                feature_row["own_outbreak_lag1"] = lag1_val
+
             for col in stage2_cols:
                 if col not in feature_row.columns:
                     feature_row[col] = 0.0
             x_stage2 = feature_row[stage2_cols].fillna(0.0).astype(float)
             severity_code = int(self.models["stage2_model"].predict(x_stage2)[0])
             severity_pred_str = self._decode_severity(severity_code)
+        else:
+            notes = "Stage 2 model artifacts unavailable."
 
         month_name = MONTH_NAMES[request.month - 1]
         recommendations = self._generate_recommendations(risk_level, prob)
@@ -215,7 +301,7 @@ class LSDService:
                 probability_pct=prob_pct,
                 risk_level=risk_level,
                 decision_threshold=GLOBAL_DECISION_THRESHOLD,
-                model_variant="28_feature_elastic_net"
+                model_variant=model_variant
             ),
             stage2=Stage2Prediction(
                 severity_predicted=severity_pred_str,
@@ -226,34 +312,48 @@ class LSDService:
                 action_required=False,
                 notes=notes
             ),
-
             calibration_info=CalibrationInfo(
                 is_calibrated=True,
                 calibration_method="Inner-CV Platt Scaling (CalibratedClassifierCV, cv=4)",
-                ece_score=0.0212,
-                notes="Probability calibration significantly reduced full-dataset out-of-fold ECE from 0.2236 to 0.0212 (p=0.0000). On active outbreak years specifically (2020, 2021, 2023), ECE improved from 0.2667 to 0.0467."
+                ece_score=0.0212 if use_28_model else 0.0511,
+                notes="Probability calibration significantly reduced full-dataset out-of-fold ECE. Evaluated under time-isolated LOYO validation protocol."
             ),
-
             uncertainty=UncertaintyInfo(
                 method="Mondrian Conformal Prediction (Class-Conditional)",
                 status="UNRELIABLE_INSUFFICIENT_DATA",
                 reliability="LOW",
                 prediction_set=None,
                 empirical_coverage_pct=None,
-                notes="Numeric conformal coverage bounds omitted due to small positive sample size (N_pos ~ 20). Empirical coverage ranged wildly (15.7% - 97.1%) in calibration split tests."
+                notes="Numeric conformal coverage bounds omitted due to small positive sample size (N_pos ~ 20)."
             ),
             recommendations=recommendations,
             disclaimer=disclaimer_text,
-            provenance=DataProvenance(
+            provenance=LSDDataProvenance(
                 fallback_applied=fallback_applied,
-                fallback_message=fallback_msg
+                fallback_message=fallback_msg,
+                requested_year=request.year,
+                requested_month=request.month,
+                source_year=src_yr,
+                source_month=src_m,
+                data_age_months=data_age,
+                data_quality=data_qual,
+                lag1_status=lag1_status,
+                lag1_value=lag1_value,
+                lag1_message=lag1_msg,
+                model_fallback_applied=model_fallback_applied,
+                model_fallback_reason=model_fallback_reason
             )
         )
 
-    def compute_forecast(self, target_month: int, year: int = 2024) -> DistrictForecastResponse:
-        """Computes all-district LSD risk forecast for a given month."""
+    def get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:
+        return self._get_feature_row(district, month_num, year, feature_cols)
+
+    def compute_forecast(self, target_month: int, year: int = 2024) -> LSDDistrictForecastResponse:
+        """Computes all-district LSD risk forecast for a given month with data quality summary."""
         results: List[DistrictForecastItem] = []
         high_cnt, med_cnt, low_cnt = 0, 0, 0
+        verified_cnt, unavailable_cnt = 0, 0
+        exact_cnt, proxy_cnt, median_cnt = 0, 0, 0
 
         for district in SRI_LANKA_DISTRICTS:
             req = LSDOutbreakPredictRequest(
@@ -262,6 +362,18 @@ class LSDService:
                 month=target_month
             )
             res = self.predict(req)
+
+            if res.provenance.data_quality == "EXACT_REQUESTED_PERIOD":
+                exact_cnt += 1
+            elif res.provenance.data_quality == "HISTORICAL_SAME_MONTH_PROXY":
+                proxy_cnt += 1
+            else:
+                median_cnt += 1
+
+            if res.provenance.lag1_status == "VERIFIED_OBSERVATION":
+                verified_cnt += 1
+            else:
+                unavailable_cnt += 1
 
             if res.stage1.risk_level == "HIGH":
                 high_cnt += 1
@@ -279,16 +391,47 @@ class LSDService:
 
         results.sort(key=lambda x: x.probability_pct, reverse=True)
         month_name = MONTH_NAMES[target_month - 1]
+        total_d = len(results)
 
-        return DistrictForecastResponse(
+        if verified_cnt == total_d:
+            lag1_data_status = "VERIFIED_OBSERVATION"
+            top_lag1_msg = f"Verified t-1 surveillance ground truth available for all {verified_cnt} forecasted districts."
+        elif unavailable_cnt == total_d:
+            lag1_data_status = "UNAVAILABLE"
+            top_lag1_msg = f"Target month forecast executed using 27-feature fallback model for all {unavailable_cnt} districts due to unavailable t-1 surveillance data."
+        else:
+            lag1_data_status = "MIXED"
+            top_lag1_msg = f"Target month forecast executed with mixed lag-1 availability ({verified_cnt} verified using 28-feature model, {unavailable_cnt} unavailable using 27-feature fallback model)."
+
+        if exact_cnt == total_d:
+            dq_status = "EXACT"
+            dq_msg = f"All {total_d} districts evaluated using exact requested period ({year}-{target_month:02d}) feature rows."
+        elif proxy_cnt == total_d:
+            dq_status = "HISTORICAL_PROXY"
+            dq_msg = f"All {total_d} districts evaluated using historical same-month proxy rows for target period ({year}-{target_month:02d})."
+        else:
+            dq_status = "MIXED"
+            dq_msg = f"Forecast evaluated using mixed feature data quality: {exact_cnt} exact, {proxy_cnt} historical proxy, {median_cnt} historical median districts."
+
+        return LSDDistrictForecastResponse(
             disease="LSD",
+            target_year=year,
             target_month=target_month,
             target_month_name=month_name,
-            total_districts=len(results),
+            total_districts=total_d,
             high_risk_count=high_cnt,
             medium_risk_count=med_cnt,
             low_risk_count=low_cnt,
-            districts=results
+            districts=results,
+            lag1_data_status=lag1_data_status,
+            lag1_verified_district_count=verified_cnt,
+            lag1_unavailable_district_count=unavailable_cnt,
+            lag1_message=top_lag1_msg,
+            exact_data_district_count=exact_cnt,
+            historical_proxy_district_count=proxy_cnt,
+            historical_median_district_count=median_cnt,
+            data_quality_status=dq_status,
+            data_quality_message=dq_msg
         )
 
 

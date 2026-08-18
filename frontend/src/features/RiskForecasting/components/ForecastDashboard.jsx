@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 const MONTH_NAMES = [
@@ -11,9 +11,18 @@ const MONTH_NAMES = [
  */
 const ForecastDashboard = ({ forecastData, onRunForecast, onBackToForm }) => {
   const [disease, setDisease] = useState(forecastData?.disease || 'FMD');
-  const [month, setMonth] = useState(forecastData?.month || 1);
+  const [month, setMonth] = useState(forecastData?.target_month ?? 1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortAsc, setSortAsc] = useState(false); // Default sort descending by probability
+
+  useEffect(() => {
+    if (forecastData?.target_month != null) {
+      setMonth(forecastData.target_month);
+    }
+    if (forecastData?.disease) {
+      setDisease(forecastData.disease);
+    }
+  }, [forecastData?.target_month, forecastData?.disease]);
 
   const results = forecastData?.districts || forecastData?.forecasts || forecastData?.results || [];
 
@@ -45,10 +54,10 @@ const ForecastDashboard = ({ forecastData, onRunForecast, onBackToForm }) => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl md:text-2xl font-bold text-on-surface">
-              All-District Climatological Risk Forecast
+              {forecastData?.target_month_name || MONTH_NAMES[month - 1]} {forecastData?.target_year || 2024} — All-District Risk Forecast
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-              {forecastData?.disease || disease}
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20" data-testid="forecast-model-variant-badge">
+              {forecastData?.disease || disease}{forecastData?.model_variant ? ` — ${forecastData.model_variant}` : ''}
             </span>
           </div>
           <p className="text-xs text-on-surface-variant mt-1">

@@ -42,11 +42,33 @@ describe('useRiskPrediction Custom Hook', () => {
       district: 'Anuradhapura',
       year: 2024,
       month: 1,
-      use_31_features: false,
+      use31Features: false,
     });
     expect(result.current.status).toBe('success');
     expect(result.current.viewMode).toBe('results');
     expect(result.current.predictionResult).toEqual(mockPrediction);
+  });
+
+  it('passes use31Features true to predictFMD when toggle is set to true', async () => {
+    const mockPrediction = { disease: 'FMD', district: 'Anuradhapura', stage1: { risk_level: 'HIGH' } };
+    api.predictFMD.mockResolvedValueOnce(mockPrediction);
+
+    const { result } = renderHook(() => useRiskPrediction());
+
+    act(() => {
+      result.current.setUse31Features(true);
+    });
+
+    await act(async () => {
+      await result.current.submitPrediction();
+    });
+
+    expect(api.predictFMD).toHaveBeenCalledWith({
+      district: 'Anuradhapura',
+      year: 2024,
+      month: 1,
+      use31Features: true,
+    });
   });
 
   it('handles prediction API failure and sets status to error', async () => {
