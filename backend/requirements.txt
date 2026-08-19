@@ -2,11 +2,12 @@
 fastapi
 uvicorn
 pydantic
-motor
+pymongo
 python-dotenv
 scikit-learn
 pandas
 numpy
 joblib
 imbalanced-learn
-
+PyJWT
+pwdlib[argon2]
