@@ -5,7 +5,7 @@ all-district climatological forecasts, district metadata, and health checks.
 """
 
 from typing import Optional, Literal
-from fastapi import APIRouter, HTTPException, Header, Query, status
+from fastapi import APIRouter, Body, HTTPException, Header, Query, status
 from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 from backend.components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest, FMDOutbreakPredictResponse,
@@ -13,11 +13,14 @@ from backend.components.risk_forecasting.schemas import (
     FMDForecastRequest, LSDForecastRequest,
     DistrictForecastResponse, FMDDistrictForecastResponse, LSDDistrictForecastResponse,
     HealthCheckResponse, DistrictListResponse,
-    GenerateForecastRecordRequest, ForecastDecisionRecord, ForecastRecordListResponse
+    GenerateForecastRecordRequest, ForecastDecisionRecord, ForecastRecordListResponse,
+    FarmerAdvisoryRecord, CreateAdvisoryDraftRequest, UpdateAdvisoryDraftRequest,
+    AdvisoryPreviewResponse, AdvisoryListResponse
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
 from backend.components.risk_forecasting.services.lsd_service import lsd_service
 from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
+from backend.components.risk_forecasting.services.advisory_service import advisory_service
 
 router = APIRouter()
 
@@ -224,8 +227,191 @@ def list_forecast_records(
             limit=limit,
             offset=offset
         )
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to query forecast decision records: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
         )
+
+
+# ─── Farmer Advisory Endpoints (Phase 3) ───────────────────────────────────
+
+@router.post(
+    "/advisories",
+    response_model=FarmerAdvisoryRecord,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Farmer Advisory Draft"
+)
+def create_advisory_draft(
+    request: CreateAdvisoryDraftRequest,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key")
+):
+    """
+    Creates a new FarmerAdvisoryRecord draft linked to an immutable ForecastDecisionRecord.
+    Supports optional header or body idempotency key.
+    """
+    if idempotency_key_header and request.idempotency_key:
+        if idempotency_key_header != request.idempotency_key:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Idempotency key mismatch: Header 'Idempotency-Key' ('{idempotency_key_header}') and request body 'idempotency_key' ('{request.idempotency_key}') must match when both are provided."
+            )
+    elif idempotency_key_header and not request.idempotency_key:
+        request.idempotency_key = idempotency_key_header
+
+    try:
+        return advisory_service.create_draft(request)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Idempotency key collision" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/advisories/preview",
+    response_model=AdvisoryPreviewResponse,
+    summary="Preview Farmer Advisory Message Resolution"
+)
+def preview_advisory(
+    advisory_id: Optional[str] = Query(None, description="Optional existing advisory ID to preview"),
+    draft_request: Optional[CreateAdvisoryDraftRequest] = Body(None, description="Optional draft request payload to preview before saving")
+):
+    """
+    Generates recipient-resolved previews and message breakdowns without persisting or sending any notifications.
+    """
+    try:
+        return advisory_service.preview_advisory(advisory_id=advisory_id, draft_req=draft_request)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/advisories/{advisory_id}",
+    response_model=FarmerAdvisoryRecord,
+    summary="Retrieve Farmer Advisory Record by ID"
+)
+def get_advisory(advisory_id: str):
+    """Retrieves a FarmerAdvisoryRecord by its unique advisory_id."""
+    try:
+        return advisory_service.get_advisory(advisory_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/advisories",
+    response_model=AdvisoryListResponse,
+    summary="List Farmer Advisory Records"
+)
+def list_advisories(
+    forecast_id: Optional[str] = Query(None, description="Filter by referenced forecast record ID"),
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None, description="Filter by disease type"),
+    district: Optional[str] = Query(None, description="Filter by district name"),
+    status_filter: Optional[Literal["DRAFT", "REVIEW_READY", "APPROVED", "CANCELLED"]] = Query(
+        None, alias="status", description="Filter by advisory status"
+    ),
+    limit: int = Query(50, ge=1, le=200, description="Maximum advisories to return (1-200)"),
+    offset: int = Query(0, ge=0, description="Advisory pagination offset")
+):
+    """Lists stored FarmerAdvisoryRecord instances matching specified query filters with pagination."""
+    try:
+        return advisory_service.list_advisories(
+            forecast_id=forecast_id,
+            disease=disease,
+            district=district,
+            status=status_filter,
+            limit=limit,
+            offset=offset
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.put(
+    "/advisories/{advisory_id}",
+    response_model=FarmerAdvisoryRecord,
+    summary="Update Editable Advisory Draft"
+)
+def update_advisory_draft(
+    advisory_id: str,
+    request: UpdateAdvisoryDraftRequest
+):
+    """Updates editable advisory draft content using optimistic version checking."""
+    try:
+        return advisory_service.update_draft(advisory_id, request)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Approved advisories are immutable" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/advisories/{advisory_id}/ready-for-review",
+    response_model=FarmerAdvisoryRecord,
+    summary="Mark Advisory Ready for Review"
+)
+def mark_advisory_ready_for_review(
+    advisory_id: str,
+    version: int = Query(..., ge=1, description="Expected current record version for optimistic locking")
+):
+    """Transitions advisory status from DRAFT -> REVIEW_READY."""
+    try:
+        return advisory_service.mark_ready_for_review(advisory_id, version)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/advisories/{advisory_id}/approve",
+    response_model=FarmerAdvisoryRecord,
+    summary="Approve Farmer Advisory"
+)
+def approve_advisory(
+    advisory_id: str,
+    version: int = Query(..., ge=1, description="Expected current record version for optimistic locking"),
+    approved_by: str = Query("vet_officer_01", description="Actor ID of the approver")
+):
+    """Transitions advisory status to APPROVED. Approved content becomes immutable."""
+    try:
+        return advisory_service.approve_advisory(advisory_id, version, approved_by)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Approved advisories are immutable" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/advisories/{advisory_id}/cancel",
+    response_model=FarmerAdvisoryRecord,
+    summary="Cancel Farmer Advisory"
+)
+def cancel_advisory(
+    advisory_id: str,
+    version: int = Query(..., ge=1, description="Expected current record version for optimistic locking")
+):
+    """Transitions advisory status to CANCELLED."""
+    try:
+        return advisory_service.cancel_advisory(advisory_id, version)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)

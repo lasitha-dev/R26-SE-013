@@ -353,3 +353,153 @@ class ForecastRecordListResponse(BaseModel):
     limit: int = Field(..., description="Query limit applied.")
     offset: int = Field(..., description="Query offset applied.")
     records: List[ForecastDecisionRecord] = Field(..., description="List of forecast decision records.")
+
+
+# ─── Farmer Advisory Schemas (Phase 3) ──────────────────────────────────────
+
+class PersonalizedOverride(BaseModel):
+    recipient_id: str = Field(..., description="Target recipient or farm ID.")
+    custom_note: str = Field(..., description="Personalized note or special advice for this specific recipient.")
+
+    @field_validator("recipient_id", "custom_note")
+    @classmethod
+    def validate_non_empty_str(cls, v: str) -> str:
+        trimmed = v.strip()
+        if not trimmed:
+            raise ValueError("Field cannot be empty or whitespace-only")
+        return trimmed
+
+
+class RecipientSummary(BaseModel):
+    total_assigned: int = Field(..., ge=0, description="Total farms/recipients assigned to the Vet across all districts.")
+    eligible_count: int = Field(..., ge=0, description="Farms assigned to the Vet located within the forecast district.")
+    selected_count: int = Field(..., ge=0, description="Number of recipients targeted by this advisory.")
+    standard_message_count: int = Field(..., ge=0, description="Number of recipients receiving the standard advisory message.")
+    personalized_count: int = Field(..., ge=0, description="Number of recipients receiving personalized override advice.")
+    excluded_count: int = Field(..., ge=0, description="Number of assigned recipients excluded from this advisory.")
+
+
+class RecipientResolvedPreview(BaseModel):
+    recipient_id: str = Field(..., description="Recipient or farm identifier.")
+    recipient_name: str = Field(..., description="Human-readable farm/recipient name or label.")
+    district: str = Field(..., description="Recipient district.")
+    is_personalized: bool = Field(..., description="True if recipient has a personalized override applied.")
+    final_message: str = Field(..., description="Final fully resolved message text for this recipient.")
+
+
+class FarmerAdvisoryRecord(BaseModel):
+    advisory_id: str = Field(..., example="adv_f1e2d3c4b5", description="Unique advisory record identifier.")
+    forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Referenced immutable forecast decision record ID.")
+    advisory_type: Literal[
+        "SYSTEM_FORECAST_ADVISORY", "VETERINARY_CUSTOM_ADVICE", "OFFICIAL_DAPH_NOTICE"
+    ] = Field(default="VETERINARY_CUSTOM_ADVICE", description="Type classification of advisory.")
+    disease: Literal["FMD", "LSD"] = Field(..., description="Disease type derived from authoritative forecast.")
+    district: str = Field(..., description="District name derived from authoritative forecast.")
+    target_year: int = Field(..., description="Target forecast year.")
+    target_month: int = Field(..., description="Target forecast month.")
+    risk_level: Literal["LOW", "MEDIUM", "HIGH"] = Field(..., description="Risk level derived from authoritative forecast.")
+    priority: Literal["ROUTINE", "IMPORTANT", "URGENT"] = Field(..., description="Advisory priority level.")
+    title: str = Field(..., description="Advisory title line.")
+    standard_message: str = Field(..., description="Core standard advisory body text.")
+    preventive_actions: List[str] = Field(default_factory=list, description="Recommended preventive biosecurity actions.")
+    symptoms_to_watch: List[str] = Field(default_factory=list, description="Clinical symptoms for farmers to observe.")
+    contact_instruction: str = Field(..., description="Instructions for contacting local Veterinary Officer.")
+    vet_custom_note: Optional[str] = Field(default=None, description="Optional Vet general custom note added to standard message.")
+    disclaimer: str = Field(..., description="Scientific decision-support disclaimer.")
+    recipient_scope: Literal["ALL_ASSIGNED", "SELECTED"] = Field(..., description="Recipient targeting scope.")
+    selected_recipient_ids: List[str] = Field(default_factory=list, description="Selected recipient IDs when scope is SELECTED.")
+    personalized_overrides: List[PersonalizedOverride] = Field(default_factory=list, description="Per-recipient personalized advice overrides.")
+    recipient_summary: RecipientSummary = Field(..., description="Recipient resolution metrics summary.")
+    status: Literal["DRAFT", "REVIEW_READY", "APPROVED", "CANCELLED"] = Field(
+        default="DRAFT", description="Advisory lifecycle status."
+    )
+    created_by: str = Field(..., description="Actor ID of the creator (e.g., vet_officer_01).")
+    approved_by: Optional[str] = Field(default=None, description="Actor ID of the approver (populated upon approval).")
+    created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
+    updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC update timestamp.")
+    approved_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC approval timestamp.")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
+    version: int = Field(default=1, ge=1, description="Optimistic concurrency control version integer.")
+
+
+class CreateAdvisoryDraftRequest(BaseModel):
+    forecast_id: str = Field(..., description="Referenced forecast decision record ID.")
+    advisory_type: Literal[
+        "SYSTEM_FORECAST_ADVISORY", "VETERINARY_CUSTOM_ADVICE", "OFFICIAL_DAPH_NOTICE"
+    ] = Field(
+        default="VETERINARY_CUSTOM_ADVICE",
+        description="Type classification of advisory ('SYSTEM_FORECAST_ADVISORY' or 'VETERINARY_CUSTOM_ADVICE')."
+    )
+    recipient_scope: Literal["ALL_ASSIGNED", "SELECTED"] = Field(
+        default="ALL_ASSIGNED", description="Scope of recipient selection ('ALL_ASSIGNED' or 'SELECTED')."
+    )
+    selected_recipient_ids: Optional[List[str]] = Field(
+        default=None, description="List of recipient/farm IDs when recipient_scope is 'SELECTED'."
+    )
+    vet_custom_note: Optional[str] = Field(
+        default=None, description="Optional custom advice note to supplement standard message."
+    )
+    personalized_overrides: Optional[List[PersonalizedOverride]] = Field(
+        default=None, description="Optional list of per-recipient personalized notes."
+    )
+    created_by: Optional[str] = Field(
+        default="vet_officer_01", description="Actor or Vet user ID creating the draft."
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None, description="Optional client idempotency key."
+    )
+
+    @field_validator("vet_custom_note")
+    @classmethod
+    def validate_optional_note(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        return trimmed if trimmed else None
+
+
+class UpdateAdvisoryDraftRequest(BaseModel):
+    version: int = Field(..., ge=1, description="Expected current record version for optimistic locking.")
+    recipient_scope: Optional[Literal["ALL_ASSIGNED", "SELECTED"]] = Field(
+        default=None, description="Updated recipient targeting scope."
+    )
+    selected_recipient_ids: Optional[List[str]] = Field(
+        default=None, description="Updated selected recipient/farm IDs."
+    )
+    vet_custom_note: Optional[str] = Field(
+        default=None, description="Updated optional Vet custom note."
+    )
+    personalized_overrides: Optional[List[PersonalizedOverride]] = Field(
+        default=None, description="Updated per-recipient personalized overrides."
+    )
+
+    @field_validator("vet_custom_note")
+    @classmethod
+    def validate_optional_note(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        return trimmed if trimmed else None
+
+
+class AdvisoryPreviewResponse(BaseModel):
+    advisory_id: Optional[str] = Field(default=None, description="Advisory ID if previewing an existing draft.")
+    forecast_id: str = Field(..., description="Referenced forecast decision record ID.")
+    disease: str = Field(..., description="Forecast disease type.")
+    district: str = Field(..., description="Forecast district.")
+    target_year: int = Field(..., description="Target forecast year.")
+    target_month: int = Field(..., description="Target forecast month.")
+    risk_level: str = Field(..., description="Forecast risk level.")
+    recommended_priority: str = Field(..., description="System recommended advisory priority.")
+    status: str = Field(..., description="Current or draft advisory status.")
+    recipient_summary: RecipientSummary = Field(..., description="Recipient metrics summary.")
+    previews: List[RecipientResolvedPreview] = Field(..., description="List of per-recipient resolved previews.")
+    forecast_summary: str = Field(..., description="Standard forecast summary text.")
+    disclaimer: str = Field(..., description="Scientific decision-support disclaimer.")
+
+
+class AdvisoryListResponse(BaseModel):
+    total_count: int = Field(..., description="Total matching advisory count.")
+    limit: int = Field(..., description="Query limit applied.")
+    offset: int = Field(..., description="Query offset applied.")
+    advisories: List[FarmerAdvisoryRecord] = Field(..., description="List of farmer advisory records.")
