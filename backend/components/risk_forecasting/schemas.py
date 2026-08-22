@@ -273,3 +273,83 @@ class DistrictListResponse(BaseModel):
     total_districts: int
     districts: List[str]
     month_names: List[str]
+
+
+# ─── Forecast Decision Record Schemas ────────────────────────────────────────
+
+class GenerateForecastRecordRequest(BaseModel):
+    disease: Literal["FMD", "LSD"] = Field(..., description="Disease type ('FMD' or 'LSD').")
+    district: str = Field(..., example="Anuradhapura", description="Sri Lankan district name.")
+    year: int = Field(..., example=2024, ge=2017, le=2030, description="Target forecast year (2017-2030).")
+    month: int = Field(..., example=1, ge=1, le=12, description="Target forecast month (1-12).")
+    model_variant: Optional[str] = Field(
+        default=None,
+        description="Optional model variant ('30_feature_baseline', '31_feature_autocorrelation', etc.)."
+    )
+    trigger_type: Literal["MANUAL", "SCHEDULED"] = Field(
+        default="MANUAL",
+        description="Trigger type for record generation ('MANUAL' or 'SCHEDULED')."
+    )
+    generated_by: Optional[str] = Field(
+        default=None,
+        example="user_123",
+        description="Optional actor or user reference ID triggering record generation."
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        example="idemp_fmd_colombo_2024_01",
+        description="Optional client-provided idempotency key for retry safeguarding."
+    )
+
+    @field_validator("district")
+    @classmethod
+    def validate_district(cls, v: str) -> str:
+        formatted = v.strip().title()
+        if formatted in ["Moneragala", "Monaragala"]:
+            formatted = "Monaragala"
+        elif formatted in ["Nuwaraeliya", "Nuwara Eliya"]:
+            formatted = "Nuwara Eliya"
+
+        if formatted not in SRI_LANKA_DISTRICTS:
+            raise ValueError(f"Invalid district '{v}'. Must be one of {SRI_LANKA_DISTRICTS}")
+        return formatted
+
+
+class ForecastDecisionRecord(BaseModel):
+    forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Unique forecast decision record identifier.")
+    disease: Literal["FMD", "LSD"] = Field(..., description="Disease type ('FMD' or 'LSD').")
+    district: str = Field(..., description="Target Sri Lankan district name.")
+    target_year: int = Field(..., description="Target forecast year.")
+    target_month: int = Field(..., description="Target forecast month (1-12).")
+    generated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC timestamp when record was generated.")
+    probability: float = Field(..., ge=0.0, le=1.0, description="Authoritative predicted outbreak probability (0.0 to 1.0).")
+    probability_pct: float = Field(..., ge=0.0, le=100.0, description="Authoritative outbreak probability percentage.")
+    risk_level: Literal["LOW", "MEDIUM", "HIGH"] = Field(..., description="Authoritative categorical outbreak risk tier.")
+    predicted_severity: Optional[str] = Field(default=None, description="Stage 2 predicted severity category (null if un-evaluated).")
+    model_variant: str = Field(..., description="Exact model architecture variant executed.")
+    fallback_applied: bool = Field(..., description="Whether historical data fallback was applied for input features.")
+    source_year: Optional[int] = Field(default=None, description="Actual historical year source of feature row (null for medians).")
+    source_month: Optional[int] = Field(default=None, description="Actual historical month source of feature row (null for medians).")
+    data_age_months: Optional[int] = Field(default=None, description="Age of feature row relative to requested period in months.")
+    data_quality: str = Field(..., description="Input feature data quality classification.")
+    fallback_message: Optional[str] = Field(default=None, description="Data provenance rationale message.")
+    status: Literal["GENERATED", "AVAILABLE", "REFERENCED", "SUPERSEDED"] = Field(
+        default="GENERATED",
+        description="Forecast decision record lifecycle status."
+    )
+    trigger_type: Literal["MANUAL", "SCHEDULED"] = Field(
+        default="MANUAL",
+        description="Trigger type for record generation."
+    )
+    generated_by: Optional[str] = Field(default=None, description="Optional actor/user reference ID.")
+    disclaimer: str = Field(..., description="Mandatory scientific disclaimer for model prediction.")
+    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key associated with this record.")
+    created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
+    updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC last update timestamp.")
+
+
+class ForecastRecordListResponse(BaseModel):
+    total_count: int = Field(..., description="Total matching record count.")
+    limit: int = Field(..., description="Query limit applied.")
+    offset: int = Field(..., description="Query offset applied.")
+    records: List[ForecastDecisionRecord] = Field(..., description="List of forecast decision records.")
