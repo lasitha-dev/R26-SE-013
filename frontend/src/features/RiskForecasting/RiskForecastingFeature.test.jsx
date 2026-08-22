@@ -151,9 +151,9 @@ describe('RiskForecastingFeature Component', () => {
 
   // 3. VETERINARY OFFICER Role Tests
   describe('VETERINARY OFFICER Role', () => {
-    it('initially renders My Surveillance Dashboard for VETERINARY_OFFICER', () => {
+    it('initially renders Forecast Overview for VETERINARY_OFFICER', () => {
       render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByRole('heading', { name: /My Surveillance Dashboard/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
     it('can activate VeterinaryDistrictForecasts', () => {
@@ -267,13 +267,13 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
 
       rerender(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByRole('heading', { name: /My Surveillance Dashboard/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).not.toBeInTheDocument();
     });
 
     it('resets screen when context changes from Vet to DAPH', () => {
       const { rerender } = render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByRole('heading', { name: /My Surveillance Dashboard/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
 
       rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
       expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
@@ -434,7 +434,7 @@ describe('RiskForecastingFeature Component', () => {
 
       // Change to Vet
       rerender(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByRole('heading', { name: /My Surveillance Dashboard/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
 
       // Change back to Farmer
@@ -522,7 +522,7 @@ describe('RiskForecastingFeature Component', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
       expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /My Surveillance Dashboard/i, level: 1 })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).not.toBeInTheDocument();
     });
 
     it('sub-navigation reports effective active item with aria-current="page"', () => {
@@ -549,7 +549,7 @@ describe('RiskForecastingFeature Component', () => {
 
     it('container itself performs zero direct fetch calls on render', () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
-      render(<RiskForecastingFeature viewerContext={validVetContext} />);
+      render(<RiskForecastingFeature viewerContext={validDaphContext} />);
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
     });

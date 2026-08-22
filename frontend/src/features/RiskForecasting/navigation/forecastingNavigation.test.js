@@ -80,19 +80,22 @@ describe('forecastingNavigation Helpers', () => {
 
   it('Farmer does not get Vet or DAPH items', () => {
     const ids = getForecastingNavigation(farmerContext).map((i) => i.id);
+    expect(ids).not.toContain('forecast-overview');
     expect(ids).not.toContain('surveillance-dashboard');
     expect(ids).not.toContain('surveillance-overview');
     expect(ids).not.toContain('data-quality');
   });
 
-  it('Vet gets Dashboard and District Forecasts only (no DEFER screens)', () => {
+  it('Vet gets Forecast Overview, District Forecasts, and Surveillance Dashboard', () => {
     const items = getForecastingNavigation(vetContext);
-    expect(items).toHaveLength(2);
-    expect(items[0]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toEqual(NAVIGATION_ITEMS.FORECAST_OVERVIEW);
     expect(items[1]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
+    expect(items[2]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD);
 
     const ids = items.map((i) => i.id);
-    expect(ids).not.toContain('surveillance-and-response');
+    expect(ids).not.toContain('trend');
+    expect(ids).not.toContain('outbox');
     expect(ids).not.toContain('history');
   });
 
@@ -139,6 +142,7 @@ describe('forecastingNavigation Helpers', () => {
 
   it('isForecastingNavigationItemAllowed validates item IDs correctly', () => {
     expect(isForecastingNavigationItemAllowed(farmerContext, 'disease-risk')).toBe(true);
+    expect(isForecastingNavigationItemAllowed(vetContext, 'forecast-overview')).toBe(true);
     expect(isForecastingNavigationItemAllowed(farmerContext, 'surveillance-dashboard')).toBe(false);
     expect(isForecastingNavigationItemAllowed(farmerContext, 'invalid-item')).toBe(false);
     expect(isForecastingNavigationItemAllowed(null, 'disease-risk')).toBe(false);

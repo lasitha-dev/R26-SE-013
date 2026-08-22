@@ -21,6 +21,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'Alerts & Guidance',
     icon: 'notifications_active',
   }),
+  FORECAST_OVERVIEW: Object.freeze({
+    id: 'forecast-overview',
+    label: 'Forecast Overview',
+    icon: 'query_stats',
+  }),
   SURVEILLANCE_DASHBOARD: Object.freeze({
     id: 'surveillance-dashboard',
     label: 'My Surveillance Dashboard',
@@ -67,8 +72,9 @@ export function getForecastingNavigation(viewerContext) {
     items.push({ ...NAVIGATION_ITEMS.DISEASE_RISK });
     items.push({ ...NAVIGATION_ITEMS.ALERTS_GUIDANCE });
   } else if (normalizedContext.role === ROLES.VETERINARY_OFFICER) {
-    items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
+    items.push({ ...NAVIGATION_ITEMS.FORECAST_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
+    items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
   } else if (normalizedContext.role === ROLES.DAPH_OFFICIAL) {
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });

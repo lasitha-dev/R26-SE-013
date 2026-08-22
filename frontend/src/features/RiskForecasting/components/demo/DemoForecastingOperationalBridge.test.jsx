@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { DemoForecastingOperationalBridge } from './DemoForecastingOperationalBridge.jsx';
 import * as opHooksModule from '../../hooks/useDemoOperationalData.js';
 import { OPERATIONAL_STATUS } from '../../hooks/useDemoOperationalData.js';
@@ -242,6 +242,9 @@ describe('DemoForecastingOperationalBridge & Connected Screens Unit Tests', () =
     });
 
     render(<DemoForecastingOperationalBridge viewerContext={mockVetContext} />);
+
+    const survBtn = screen.getByRole('button', { name: /Surveillance Dashboard/i });
+    fireEvent.click(survBtn);
 
     expect(screen.getByText('Jaffna Cattle Farm 001')).toBeInTheDocument();
     expect(screen.getByText('AI SCREENED (UNCONFIRMED)')).toBeInTheDocument();

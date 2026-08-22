@@ -10,6 +10,7 @@ import { ForecastingSubNavigation } from './components/ForecastingSubNavigation'
 
 import { FarmerDiseaseRisk } from './components/farmer/FarmerDiseaseRisk';
 import { FarmerAlertsGuidance } from './components/farmer/FarmerAlertsGuidance';
+import { VeterinaryForecastOverview } from './components/veterinary/VeterinaryForecastOverview';
 import { VeterinarySurveillanceDashboard } from './components/veterinary/VeterinarySurveillanceDashboard';
 import { VeterinaryDistrictForecasts } from './components/veterinary/VeterinaryDistrictForecasts';
 import { DaphSurveillanceOverview } from './components/daph/DaphSurveillanceOverview';
@@ -93,6 +94,12 @@ export function RiskForecastingFeature({ viewerContext, operationalData = null }
               }
             />
           );
+        }
+        break;
+
+      case 'forecast-overview':
+        if (role === ROLES.VETERINARY_OFFICER) {
+          return <VeterinaryForecastOverview viewerContext={normalizedContext} />;
         }
         break;
 
