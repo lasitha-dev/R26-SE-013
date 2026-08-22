@@ -13,6 +13,10 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from backend.components.risk_forecasting.integrations import (
+    ForecastDataProvider,
+    CsvForecastDataProvider,
+)
 from backend.components.risk_forecasting.config import (
     LSD_DATASET_FILE,
     LSD_STAGE1_MODEL, LSD_STAGE1_SCALER, LSD_STAGE1_COLS,
@@ -31,15 +35,35 @@ logger = logging.getLogger(__name__)
 
 
 class LSDService:
-    def __init__(self):
+    def __init__(self, data_provider: Optional[ForecastDataProvider] = None):
+        self.data_provider = data_provider or CsvForecastDataProvider()
         self.models_loaded = False
         self.loaded_artifacts = []
         self.models: Dict[str, Any] = {}
-        self.df: pd.DataFrame = pd.DataFrame()
         self._load_resources()
 
+    @property
+    def df(self) -> pd.DataFrame:
+        if isinstance(self.data_provider, CsvForecastDataProvider):
+            return self.data_provider._get_dataset("LSD")
+        return getattr(self, "_df", pd.DataFrame())
+
+    @df.setter
+    def df(self, value: pd.DataFrame):
+        if isinstance(self.data_provider, CsvForecastDataProvider):
+            self.data_provider._datasets["LSD"] = value
+        else:
+            self._df = value
+
+    @df.deleter
+    def df(self):
+        if isinstance(self.data_provider, CsvForecastDataProvider):
+            self.data_provider._load_datasets()
+        if hasattr(self, "_df"):
+            del self._df
+
     def _load_resources(self):
-        """Loads LSD model artifacts and feature dataset."""
+        """Loads LSD model artifacts and feature dataset via provider."""
         try:
             # Stage 1 28-feature Elastic Net baseline
             if LSD_STAGE1_MODEL.exists():
@@ -62,9 +86,8 @@ class LSDService:
                 self.models["stage2_cols"] = joblib.load(LSD_STAGE2_FEATURE_COLS)
                 self.loaded_artifacts.append("stage2_lr_quiet_period_suppressor")
 
-            # Dataset
-            if LSD_DATASET_FILE.exists():
-                self.df = pd.read_csv(LSD_DATASET_FILE)
+            # Dataset indicator via CSV provider
+            if isinstance(self.data_provider, CsvForecastDataProvider) and self.data_provider.lsd_dataset_path.exists():
                 self.loaded_artifacts.append("LSD_dataset")
 
             self.models_loaded = ("stage1_model" in self.models) or ("stage1_27feat_model" in self.models)
@@ -74,34 +97,11 @@ class LSDService:
             self.models_loaded = False
 
     def _get_valid_lag1(self, district: str, year: int, month: int) -> Optional[float]:
-        """
-        Retrieves the exact ground-truth Outbreak status (0.0 or 1.0) for the 
-        immediately preceding calendar month (t-1) for a given district.
-        Returns None if no genuine previous-month surveillance record exists.
-        """
-        if self.df.empty:
-            return None
-
-        if month == 1:
-            prev_year = year - 1
-            prev_month = 12
-        else:
-            prev_year = year
-            prev_month = month - 1
-
-        prev_match = self.df[
-            (self.df["district"] == district) & 
-            (self.df["year"] == prev_year) & 
-            (self.df["month_num"] == prev_month)
-        ]
-
-        if not prev_match.empty and pd.notnull(prev_match["Outbreak status"].iloc[0]):
-            return float(prev_match["Outbreak status"].iloc[0])
-
-        return None
+        """Delegates ground-truth t-1 lag observation lookup to data_provider."""
+        return self.data_provider.get_valid_lag1("LSD", district, year, month)
 
     def _get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:
-        """Extracts or imputes feature row from historical dataset with explicit data freshness provenance."""
+        """Delegates feature row extraction and provenance to data_provider."""
         district_enc_val = 0.0
         if "stage2_encoder" in self.models:
             try:
@@ -109,43 +109,14 @@ class LSDService:
             except Exception:
                 district_enc_val = 0.0
 
-        if self.df.empty:
-            raise RuntimeError("Forecasting input dataset is empty or unavailable.")
-
-        exact = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num) & (self.df["year"] == year)]
-        if not exact.empty:
-            row_df = exact.iloc[[0]].copy()
-            if "district_enc" in feature_cols:
-                row_df["district_enc"] = district_enc_val
-            return row_df, False, f"Exact feature row found for {district} ({year}-{month_num:02d}).", year, month_num, 0, "EXACT_REQUESTED_PERIOD"
-
-        district_month = self.df[(self.df["district"] == district) & (self.df["month_num"] == month_num)]
-        if not district_month.empty:
-            latest = district_month.sort_values("year", ascending=False).iloc[[0]].copy()
-            latest_year = int(latest["year"].iloc[0])
-            latest_month = int(latest["month_num"].iloc[0])
-            if "district_enc" in feature_cols:
-                latest["district_enc"] = district_enc_val
-            age = ((year - latest_year) * 12) + (month_num - latest_month)
-            month_name = MONTH_NAMES[month_num - 1]
-            src_month_name = MONTH_NAMES[latest_month - 1]
-            msg = f"No exact year match for {year}. Used latest available surveillance year: {latest_year} ({src_month_name} historical same-month proxy)."
-            return latest, True, msg, latest_year, latest_month, age, "HISTORICAL_SAME_MONTH_PROXY"
-
-        cols_in_df = [c for c in feature_cols if c in self.df.columns]
-        district_rows = self.df[self.df["district"] == district]
-        if not district_rows.empty:
-            medians = district_rows[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
-            row_df = pd.DataFrame([medians], columns=feature_cols)
-            if "district_enc" in feature_cols:
-                row_df["district_enc"] = district_enc_val
-            return row_df, True, f"No month-level record found for {district}. Imputed district historical medians.", None, None, None, "DISTRICT_HISTORICAL_MEDIAN"
-
-        global_medians = self.df[cols_in_df].median(numeric_only=True).reindex(feature_cols).fillna(0.0)
-        row_df = pd.DataFrame([global_medians], columns=feature_cols)
-        if "district_enc" in feature_cols:
-            row_df["district_enc"] = district_enc_val
-        return row_df, True, f"District '{district}' not found in historical data. Imputed national medians.", None, None, None, "NATIONAL_HISTORICAL_MEDIAN"
+        return self.data_provider.get_feature_row(
+            disease="LSD",
+            district=district,
+            month_num=month_num,
+            year=year,
+            feature_cols=feature_cols,
+            district_enc_val=district_enc_val
+        )
 
     def _decode_severity(self, pred_val: int) -> str:
         """Decodes Stage 2 quiet-period suppressor output."""
