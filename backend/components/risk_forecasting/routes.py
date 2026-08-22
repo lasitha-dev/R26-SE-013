@@ -17,13 +17,15 @@ from backend.components.risk_forecasting.schemas import (
     FarmerAdvisoryRecord, CreateAdvisoryDraftRequest, UpdateAdvisoryDraftRequest,
     AdvisoryPreviewResponse, AdvisoryListResponse,
     NotificationBatch, NotificationDelivery, EnqueueNotificationBatchRequest,
-    NotificationBatchListResponse, NotificationDeliveryListResponse
+    NotificationBatchListResponse, NotificationDeliveryListResponse,
+    RecipientSummaryItem, AssignedRecipientListResponse
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
 from backend.components.risk_forecasting.services.lsd_service import lsd_service
 from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
 from backend.components.risk_forecasting.services.advisory_service import advisory_service
 from backend.components.risk_forecasting.services.notification_service import notification_service
+from backend.components.risk_forecasting.services.recipient_query_service import recipient_query_service
 
 router = APIRouter()
 
@@ -51,6 +53,29 @@ def list_districts():
         districts=list(SRI_LANKA_DISTRICTS),
         month_names=list(MONTH_NAMES)
     )
+
+
+@router.get(
+    "/recipients",
+    response_model=AssignedRecipientListResponse,
+    summary="List Non-Sensitive Recipients Assigned to Veterinary Officer"
+)
+def list_assigned_recipients(
+    vet_id: str = Query(..., description="Veterinary Officer ID (standalone placeholder, required)"),
+    district: Optional[str] = Query(None, description="Optional Sri Lankan district name filter")
+):
+    """
+    Lists non-sensitive farm recipient metadata assigned to the given Vet, optionally filtered by district.
+    Exposes read-only directory lookups for frontend recipient selection without misusing advisory previews.
+    """
+    try:
+        return recipient_query_service.list_assigned_recipients(vet_id=vet_id, district=district)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
 
 
 @router.post("/predict/fmd", response_model=FMDOutbreakPredictResponse, summary="Predict FMD Outbreak Risk & Severity")

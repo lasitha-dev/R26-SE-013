@@ -573,3 +573,35 @@ class NotificationDeliveryListResponse(BaseModel):
     limit: int = Field(..., ge=1, description="Pagination limit.")
     offset: int = Field(..., ge=0, description="Pagination offset.")
     deliveries: List[NotificationDelivery] = Field(..., description="Paginated list of per-recipient delivery records.")
+
+
+# ─── Assigned Recipient List Schemas (Phase 5B-1) ─────────────────────────
+
+class RecipientSummaryItem(BaseModel):
+    """
+    Non-sensitive recipient farm summary for Veterinary Officer selection.
+    Contains NO sensitive PII (phone numbers, emails, addresses, owner names).
+    """
+    recipient_id: str = Field(..., example="DEMO_FARM_001", description="Unique recipient or farm identifier.")
+    recipient_name: str = Field(..., example="Maha Illuppallama Dairy Farm", description="Human-readable farm display name.")
+    district: str = Field(..., example="Anuradhapura", description="District where farm is located.")
+
+
+class AssignedRecipientListResponse(BaseModel):
+    """
+    Response schema for listing non-sensitive farm recipients assigned to a Vet.
+    Exposes read-only directory data to support UI recipient targeting without advisory-preview misuse.
+    """
+    vet_id: str = Field(..., example="vet_officer_01", description="Requesting Veterinary Officer ID.")
+    district_filter: Optional[str] = Field(default=None, example="Anuradhapura", description="Optional district filter applied to query.")
+    total_assigned: int = Field(..., ge=0, description="Total active farms assigned to the Vet across all districts.")
+    eligible_count: int = Field(..., ge=0, description="Count of eligible farms matching query criteria.")
+    recipients: List[RecipientSummaryItem] = Field(..., description="List of non-sensitive assigned farm recipient metadata.")
+    source: str = Field(
+        default="InMemoryRecipientDirectory (Standalone Test Double)",
+        description="Data source identifier. In production, this in-memory test double will be replaced by a shared Farm/Farmer microservice adapter."
+    )
+    integration_note: str = Field(
+        default="Standalone read-only recipient bridge. Exposes non-sensitive metadata only for UI targeting; no PII transmitted. Production deployment replaces this adapter with authenticated shared system calls.",
+        description="Integration and privacy disclaimer."
+    )
