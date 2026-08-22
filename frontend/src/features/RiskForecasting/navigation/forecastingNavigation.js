@@ -36,6 +36,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'District Forecasts',
     icon: 'analytics',
   }),
+  ADVISORY_CENTRE: Object.freeze({
+    id: 'advisory-centre',
+    label: 'Advisory Centre',
+    icon: 'campaign',
+  }),
   SURVEILLANCE_OVERVIEW: Object.freeze({
     id: 'surveillance-overview',
     label: 'Surveillance Overview',
@@ -74,6 +79,7 @@ export function getForecastingNavigation(viewerContext) {
   } else if (normalizedContext.role === ROLES.VETERINARY_OFFICER) {
     items.push({ ...NAVIGATION_ITEMS.FORECAST_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
+    items.push({ ...NAVIGATION_ITEMS.ADVISORY_CENTRE });
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
   } else if (normalizedContext.role === ROLES.DAPH_OFFICIAL) {
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW });
