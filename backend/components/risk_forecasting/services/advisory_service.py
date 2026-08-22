@@ -276,15 +276,41 @@ class AdvisoryService:
             forecast = self.forecast_service.get_record(record.forecast_id)
             vet_id = record.created_by
             scope = record.recipient_scope
-            selected_ids = record.selected_recipient_ids
+            selected_ids = record.selected_recipient_ids or []
             vet_note = record.vet_custom_note
-            overrides = record.personalized_overrides
+            overrides = record.personalized_overrides or []
             status_label = record.status
             rec_priority = record.priority
             title = record.title
             std_msg = record.standard_message
             disclaimer = record.disclaimer
             forecast_summary = f"{record.disease} risk in {record.district} for {record.target_year}-{record.target_month:02d} is {record.risk_level}."
+            summary = record.recipient_summary
+
+            # Use frozen selected_recipient_ids snapshot directly
+            dir_map = {}
+            try:
+                dir_recipients = self.recipient_dir.resolve_recipients(
+                    recipient_ids=selected_ids, vet_id=vet_id
+                )
+                dir_map = {r.recipient_id: r for r in dir_recipients}
+            except Exception:
+                pass
+
+            resolved_recipients: List[Recipient] = []
+            for rid in selected_ids:
+                if rid in dir_map:
+                    resolved_recipients.append(dir_map[rid])
+                else:
+                    resolved_recipients.append(
+                        Recipient(
+                            recipient_id=rid,
+                            recipient_name=f"Farm {rid}",
+                            district=forecast.district,
+                            assigned_vet_id=vet_id,
+                        )
+                    )
+            clean_overrides = overrides
         elif draft_req:
             forecast = self.forecast_service.get_record(draft_req.forecast_id)
             vet_id = draft_req.created_by or "vet_officer_01"
@@ -311,16 +337,16 @@ class AdvisoryService:
                 disclaimer=forecast.disclaimer,
             )
             forecast_summary = f"{forecast.disease} risk in {forecast.district} for {forecast.target_year}-{forecast.target_month:02d} is {forecast.risk_level}."
+
+            resolved_recipients, summary, clean_overrides = self._resolve_and_validate_recipients(
+                forecast=forecast,
+                recipient_scope=scope,
+                selected_ids=selected_ids,
+                vet_id=vet_id,
+                overrides=overrides,
+            )
         else:
             raise ValueError("Either advisory_id or draft_req must be provided for preview.")
-
-        resolved_recipients, summary, clean_overrides = self._resolve_and_validate_recipients(
-            forecast=forecast,
-            recipient_scope=scope,
-            selected_ids=selected_ids,
-            vet_id=vet_id,
-            overrides=overrides,
-        )
 
         override_map = {ov.recipient_id: ov.custom_note for ov in clean_overrides}
 

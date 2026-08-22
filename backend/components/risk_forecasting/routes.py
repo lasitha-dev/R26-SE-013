@@ -15,12 +15,15 @@ from backend.components.risk_forecasting.schemas import (
     HealthCheckResponse, DistrictListResponse,
     GenerateForecastRecordRequest, ForecastDecisionRecord, ForecastRecordListResponse,
     FarmerAdvisoryRecord, CreateAdvisoryDraftRequest, UpdateAdvisoryDraftRequest,
-    AdvisoryPreviewResponse, AdvisoryListResponse
+    AdvisoryPreviewResponse, AdvisoryListResponse,
+    NotificationBatch, NotificationDelivery, EnqueueNotificationBatchRequest,
+    NotificationBatchListResponse, NotificationDeliveryListResponse
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
 from backend.components.risk_forecasting.services.lsd_service import lsd_service
 from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
 from backend.components.risk_forecasting.services.advisory_service import advisory_service
+from backend.components.risk_forecasting.services.notification_service import notification_service
 
 router = APIRouter()
 
@@ -413,5 +416,218 @@ def cancel_advisory(
     except ValueError as e:
         err_msg = str(e)
         if "Optimistic lock conflict" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+# ─── Notification Outbox Endpoints (Phase 4) ───────────────────────────────
+
+"""
+POSTMAN-TESTABLE ADVISORY & NOTIFICATION WORKFLOW SEQUENCE:
+
+1. POST /api/v1/risk-forecasting/records
+   Body: {"disease": "FMD", "district": "Anuradhapura", "year": 2024, "month": 1, "trigger_type": "MANUAL"}
+   Save response.forecast_id (e.g. fdr_12345)
+
+2. POST /api/v1/risk-forecasting/advisories
+   Body: {"forecast_id": "<forecast_id>", "recipient_scope": "ALL_ASSIGNED", "vet_custom_note": "Check vaccination cards"}
+   Save response.advisory_id (e.g. adv_67890), status="DRAFT", version=1
+
+3. POST /api/v1/risk-forecasting/advisories/<advisory_id>/ready-for-review?version=1
+   Updates status to "REVIEW_READY", version=2
+
+4. POST /api/v1/risk-forecasting/advisories/<advisory_id>/approve?version=2&approved_by=vet_officer_01
+   Updates status to "APPROVED", version=3
+
+5. POST /api/v1/risk-forecasting/advisories/<advisory_id>/notification-batches
+   Header: Idempotency-Key: idemp_batch_001
+   Enqueues notification batch (status="QUEUED"). Save response.batch_id
+
+6. GET /api/v1/risk-forecasting/notification-batches/<batch_id>
+   GET /api/v1/risk-forecasting/notification-batches/<batch_id>/deliveries
+   Inspect batch status ("QUEUED") and per-recipient delivery payloads ("PENDING") before dispatch.
+
+7. POST /api/v1/risk-forecasting/notification-batches/<batch_id>/dispatch
+   Executes mock notification delivery dispatch through MockNotificationProvider.
+   Updates batch status to "COMPLETED" (or "PARTIALLY_FAILED" / "FAILED").
+
+8. GET /api/v1/risk-forecasting/notification-batches/<batch_id>/deliveries
+   Inspect per-recipient delivery statuses ("SUCCEEDED" or "FAILED") and provider_reference.
+
+9. POST /api/v1/risk-forecasting/notification-batches/<batch_id>/retry-failed
+   Retries any FAILED items. Verified that SUCCEEDED items are NOT redelivered.
+
+10. GET /api/v1/risk-forecasting/advisories/<advisory_id>
+    GET /api/v1/risk-forecasting/records/<forecast_id>
+    Confirm advisory status remains "APPROVED" and forecast record remains unchanged.
+"""
+
+
+@router.post(
+    "/advisories/{advisory_id}/notification-batches",
+    response_model=NotificationBatch,
+    status_code=status.HTTP_201_CREATED,
+    summary="Enqueue Approved Advisory for Notification Delivery"
+)
+def enqueue_notification_batch(
+    advisory_id: str,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    request: Optional[EnqueueNotificationBatchRequest] = Body(None)
+):
+    """
+    Enqueues an APPROVED advisory into the notification outbox for recipient delivery.
+    Creates frozen delivery payloads for all resolved recipients without invoking external services.
+    """
+    body_key = request.idempotency_key if request else None
+    actor = request.created_by if request and request.created_by else "vet_officer_01"
+
+    # Enforce idempotency header vs body consistency rule
+    if idempotency_key_header and body_key:
+        if idempotency_key_header != body_key:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Idempotency key mismatch: Header 'Idempotency-Key' ({idempotency_key_header}) "
+                       f"and request body 'idempotency_key' ({body_key}) must match when both are provided."
+            )
+        final_key = idempotency_key_header
+    else:
+        final_key = idempotency_key_header or body_key
+
+    try:
+        return notification_service.enqueue_approved_advisory(
+            advisory_id=advisory_id,
+            created_by=actor,
+            idempotency_key=final_key
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Idempotency key collision" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.get(
+    "/notification-batches/{batch_id}",
+    response_model=NotificationBatch,
+    summary="Retrieve Notification Batch Summary"
+)
+def get_notification_batch(batch_id: str):
+    """Retrieves notification batch summary by batch ID."""
+    try:
+        return notification_service.get_batch(batch_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/notification-batches",
+    response_model=NotificationBatchListResponse,
+    summary="List Notification Batches"
+)
+def list_notification_batches(
+    advisory_id: Optional[str] = Query(None, description="Filter by referenced advisory ID"),
+    forecast_id: Optional[str] = Query(None, description="Filter by referenced forecast ID"),
+    status_filter: Optional[Literal["QUEUED", "PROCESSING", "COMPLETED", "PARTIALLY_FAILED", "FAILED", "CANCELLED"]] = Query(
+        None, alias="status", description="Filter by batch status"
+    ),
+    limit: int = Query(50, ge=1, le=200, description="Maximum batches to return (1-200)"),
+    offset: int = Query(0, ge=0, description="Pagination offset")
+):
+    """Lists stored notification batches matching specified query filters with pagination."""
+    return notification_service.list_batches(
+        advisory_id=advisory_id,
+        forecast_id=forecast_id,
+        status=status_filter,
+        limit=limit,
+        offset=offset
+    )
+
+
+@router.get(
+    "/notification-batches/{batch_id}/deliveries",
+    response_model=NotificationDeliveryListResponse,
+    summary="List Per-Recipient Deliveries for Notification Batch"
+)
+def list_batch_deliveries(
+    batch_id: str,
+    status_filter: Optional[Literal["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "CANCELLED"]] = Query(
+        None, alias="status", description="Filter by delivery status"
+    ),
+    limit: int = Query(50, ge=1, le=200, description="Maximum items to return (1-200)"),
+    offset: int = Query(0, ge=0, description="Pagination offset")
+):
+    """Lists per-recipient delivery items for a specific notification batch."""
+    try:
+        return notification_service.list_batch_deliveries(
+            batch_id=batch_id,
+            status=status_filter,
+            limit=limit,
+            offset=offset
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/notification-batches/{batch_id}/dispatch",
+    response_model=NotificationBatch,
+    summary="Dispatch Pending Deliveries for Notification Batch"
+)
+def dispatch_notification_batch(batch_id: str):
+    """
+    Explicitly dispatches all PENDING delivery items in a batch through the mock provider.
+    Updates delivery items to SUCCEEDED or FAILED and recalculates batch status.
+    """
+    try:
+        return notification_service.dispatch_batch(batch_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "CANCELLED" in err_msg or "is no longer APPROVED" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/notification-batches/{batch_id}/retry-failed",
+    response_model=NotificationBatch,
+    summary="Retry Failed Deliveries for Notification Batch"
+)
+def retry_failed_notification_deliveries(batch_id: str):
+    """
+    Retries all FAILED delivery items in a batch through the mock provider.
+    Leaves SUCCEEDED items untouched.
+    """
+    try:
+        return notification_service.retry_failed_deliveries(batch_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "CANCELLED" in err_msg or "is no longer APPROVED" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/notification-batches/{batch_id}/cancel",
+    response_model=NotificationBatch,
+    summary="Cancel Safe Queued Notification Batch"
+)
+def cancel_notification_batch(batch_id: str):
+    """
+    Cancels a safe QUEUED notification batch prior to any delivery attempts.
+    Rejects cancellation with HTTP 409 if any delivery attempt has already commenced.
+    """
+    try:
+        return notification_service.cancel_notification_batch(batch_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Cannot cancel notification batch after delivery attempts" in err_msg:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)

@@ -499,7 +499,77 @@ class AdvisoryPreviewResponse(BaseModel):
 
 
 class AdvisoryListResponse(BaseModel):
-    total_count: int = Field(..., description="Total matching advisory count.")
-    limit: int = Field(..., description="Query limit applied.")
-    offset: int = Field(..., description="Query offset applied.")
-    advisories: List[FarmerAdvisoryRecord] = Field(..., description="List of farmer advisory records.")
+    total_count: int = Field(..., ge=0, description="Total matching advisory records.")
+    limit: int = Field(..., ge=1, description="Pagination limit.")
+    offset: int = Field(..., ge=0, description="Pagination offset.")
+    advisories: List[FarmerAdvisoryRecord] = Field(..., description="Paginated list of advisory records.")
+
+
+# =====================================================================
+# Phase 4 Notification Outbox & Delivery Schemas
+# =====================================================================
+
+class NotificationBatch(BaseModel):
+    batch_id: str = Field(..., example="batch_a1b2c3d4e5", description="Unique notification batch identifier.")
+    advisory_id: str = Field(..., example="adv_f1e2d3c4b5", description="Referenced approved advisory ID.")
+    forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Referenced immutable forecast decision record ID.")
+    provider_name: str = Field(
+        default="MockNotificationProvider",
+        description="Name of notification provider implementation (e.g. MockNotificationProvider identifies standalone mock execution)."
+    )
+    status: Literal["QUEUED", "PROCESSING", "COMPLETED", "PARTIALLY_FAILED", "FAILED", "CANCELLED"] = Field(
+        default="QUEUED", description="Overall batch delivery status."
+    )
+    recipient_count: int = Field(..., ge=0, description="Total recipients targeted in this batch.")
+    pending_count: int = Field(..., ge=0, description="Count of deliveries pending dispatch.")
+    processing_count: int = Field(..., ge=0, description="Count of deliveries currently in-flight.")
+    succeeded_count: int = Field(..., ge=0, description="Count of successfully delivered items (simulated success in mock mode).")
+    failed_count: int = Field(..., ge=0, description="Count of failed delivery attempts.")
+    cancelled_count: int = Field(default=0, ge=0, description="Count of cancelled delivery items.")
+    created_by: str = Field(..., description="Actor ID who enqueued the batch (e.g. vet_officer_01).")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
+    created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
+    updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC update timestamp.")
+    completed_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC completion timestamp.")
+    version: int = Field(default=1, ge=1, description="Optimistic concurrency control version integer.")
+
+
+class NotificationDelivery(BaseModel):
+    delivery_id: str = Field(..., example="del_f1e2d3c4b5", description="Unique delivery item identifier.")
+    batch_id: str = Field(..., example="batch_a1b2c3d4e5", description="Parent notification batch ID.")
+    advisory_id: str = Field(..., example="adv_f1e2d3c4b5", description="Referenced approved advisory ID.")
+    forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Referenced immutable forecast decision record ID.")
+    recipient_id: str = Field(..., description="Target recipient or farm ID.")
+    resolved_message: str = Field(..., description="Frozen final resolved advisory message for this recipient.")
+    status: Literal["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "CANCELLED"] = Field(
+        default="PENDING", description="Per-recipient delivery status. SUCCEEDED means mock provider simulation completed successfully; it does NOT mean the farmer received, opened, read or acknowledged a message."
+    )
+    attempt_count: int = Field(default=0, ge=0, description="Number of provider delivery attempts made.")
+    provider_reference: Optional[str] = Field(default=None, description="External provider transaction reference.")
+    last_error: Optional[str] = Field(default=None, description="Error message from most recent failed attempt.")
+    created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
+    updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC update timestamp.")
+    first_attempted_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC first attempt timestamp.")
+    last_attempted_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC last attempt timestamp.")
+    succeeded_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC success timestamp.")
+    next_retry_at: Optional[str] = Field(default=None, description="Timezone-aware ISO 8601 UTC retry timestamp.")
+    version: int = Field(default=1, ge=1, description="Optimistic concurrency control version integer.")
+
+
+class EnqueueNotificationBatchRequest(BaseModel):
+    created_by: Optional[str] = Field(default="vet_officer_01", description="Actor ID requesting enqueue.")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
+
+
+class NotificationBatchListResponse(BaseModel):
+    total_count: int = Field(..., ge=0, description="Total matching notification batch records.")
+    limit: int = Field(..., ge=1, description="Pagination limit.")
+    offset: int = Field(..., ge=0, description="Pagination offset.")
+    batches: List[NotificationBatch] = Field(..., description="Paginated list of notification batches.")
+
+
+class NotificationDeliveryListResponse(BaseModel):
+    total_count: int = Field(..., ge=0, description="Total matching notification delivery records.")
+    limit: int = Field(..., ge=1, description="Pagination limit.")
+    offset: int = Field(..., ge=0, description="Pagination offset.")
+    deliveries: List[NotificationDelivery] = Field(..., description="Paginated list of per-recipient delivery records.")
