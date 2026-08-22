@@ -15,6 +15,7 @@ import pandas as pd
 from backend.components.risk_forecasting.integrations import (
     ForecastDataProvider,
     CsvForecastDataProvider,
+    create_forecast_data_provider,
 )
 from backend.components.risk_forecasting.config import (
     FMD_DATASET_FILE,
@@ -71,7 +72,7 @@ FMD_FEATURE_DISPLAY_LABELS = {
 
 class FMDService:
     def __init__(self, data_provider: Optional[ForecastDataProvider] = None):
-        self.data_provider = data_provider or CsvForecastDataProvider()
+        self.data_provider = data_provider or create_forecast_data_provider()
         self.models_loaded = False
         self.loaded_artifacts = []
         self.models: Dict[str, Any] = {}

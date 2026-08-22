@@ -16,6 +16,7 @@ import pandas as pd
 from backend.components.risk_forecasting.integrations import (
     ForecastDataProvider,
     CsvForecastDataProvider,
+    create_forecast_data_provider,
 )
 from backend.components.risk_forecasting.config import (
     LSD_DATASET_FILE,
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 class LSDService:
     def __init__(self, data_provider: Optional[ForecastDataProvider] = None):
-        self.data_provider = data_provider or CsvForecastDataProvider()
+        self.data_provider = data_provider or create_forecast_data_provider()
         self.models_loaded = False
         self.loaded_artifacts = []
         self.models: Dict[str, Any] = {}
