@@ -4,7 +4,7 @@ Provides validation and documentation for FMD and LSD prediction and forecast en
 """
 
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 
 
@@ -605,3 +605,89 @@ class AssignedRecipientListResponse(BaseModel):
         default="Standalone read-only recipient bridge. Exposes non-sensitive metadata only for UI targeting; no PII transmitted. Production deployment replaces this adapter with authenticated shared system calls.",
         description="Integration and privacy disclaimer."
     )
+
+
+# ─── Forecast-Linked DAPH–Vet Follow-Up Schemas (Phase 6B-1) ───────────────
+
+FollowUpStatus = Literal["ISSUED", "ACKNOWLEDGED", "ACTION_IN_PROGRESS", "COMPLETED", "CANCELLED", "ESCALATED"]
+OperationalPriority = Literal["HIGH", "MEDIUM", "LOW"]
+FollowUpRole = Literal["DAPH_OFFICIAL", "VETERINARY_OFFICER", "FARMER", "SYSTEM"]
+FollowUpScope = Literal["NATIONAL", "PROVINCE", "DISTRICT"]
+
+
+class FollowUpActorContext(BaseModel):
+    """Context object representing actor identity, role, and authorized geographic scope."""
+    actor_id: str = Field(..., description="Unique user or actor ID.")
+    role: FollowUpRole = Field(..., description="Role of the acting user.")
+    scope_level: FollowUpScope = Field(default="NATIONAL", description="Geographic scope level.")
+    authorized_districts: List[str] = Field(default_factory=list, description="Districts accessible by this actor when scope_level is DISTRICT or PROVINCE.")
+
+
+class ForecastFollowUpRecord(BaseModel):
+    """
+    Authoritative domain record representing DAPH operational follow-up instruction
+    issued to a Veterinary Officer for an official disease forecast.
+    """
+    follow_up_id: str = Field(..., description="Unique follow-up record ID (prefix 'ffu_').")
+    forecast_id: str = Field(..., description="Referenced immutable ForecastDecisionRecord ID.")
+    district: str = Field(..., description="Frozen forecast district name (snapshot).")
+    disease: Literal["FMD", "LSD"] = Field(..., description="Frozen forecast disease type (snapshot).")
+    target_year: int = Field(..., description="Frozen forecast target year (snapshot).")
+    target_month: int = Field(..., description="Frozen forecast target month (snapshot).")
+    forecast_risk_level: Literal["HIGH", "MEDIUM", "LOW"] = Field(..., description="Frozen forecast risk level (snapshot).")
+    operational_priority: OperationalPriority = Field(..., description="Operational priority derived transparently from forecast risk level.")
+    instruction_summary: str = Field(..., min_length=1, max_length=1000, description="DAPH-authored operational instruction text.")
+    issued_by_daph_id: str = Field(..., description="User ID of the issuing DAPH official.")
+    assigned_vet_id: str = Field(..., description="User ID of the assigned Veterinary Officer.")
+    status: FollowUpStatus = Field(default="ISSUED", description="Current lifecycle status.")
+    version: int = Field(default=1, ge=1, description="Optimistic locking version counter.")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
+    issued_at: str = Field(..., description="Timezone-aware ISO 8601 UTC timestamp when follow-up was issued.")
+    acknowledged_at: Optional[str] = Field(default=None, description="ISO 8601 UTC timestamp when Vet acknowledged receipt.")
+    action_started_at: Optional[str] = Field(default=None, description="ISO 8601 UTC timestamp when Vet commenced action.")
+    completed_at: Optional[str] = Field(default=None, description="ISO 8601 UTC timestamp when action was completed.")
+    cancelled_at: Optional[str] = Field(default=None, description="ISO 8601 UTC timestamp if cancelled by DAPH.")
+    escalated_at: Optional[str] = Field(default=None, description="ISO 8601 UTC timestamp if escalated.")
+    cancellation_reason: Optional[str] = Field(default=None, description="Reason for cancellation if applicable.")
+    escalation_reason: Optional[str] = Field(default=None, description="Controlled reason for escalation if applicable.")
+    external_resource_request_id: Optional[str] = Field(default=None, description="Optional opaque reference to external supply chain resource request.")
+    created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
+    updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC update timestamp.")
+
+
+class CreateFollowUpRequest(BaseModel):
+    """
+    Request schema for DAPH to issue a follow-up instruction.
+    NOTE: Client does NOT submit scientific snapshot fields (district, disease, risk) or actor identity.
+    Scientific snapshots and issuer identity are derived server-side directly from stored ForecastDecisionRecord and trusted actor context.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    forecast_id: str = Field(..., description="ID of the target ForecastDecisionRecord.")
+    assigned_vet_id: str = Field(..., description="User ID of the assigned Veterinary Officer.")
+    instruction_summary: str = Field(..., min_length=1, max_length=1000, description="Detailed operational instruction summary.")
+    idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
+
+
+class TransitionFollowUpRequest(BaseModel):
+    """Request schema for status transitions with optimistic concurrency locking."""
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = Field(..., ge=1, description="Expected current record version for optimistic locking.")
+    reason: Optional[str] = Field(default=None, description="Optional explanation or reason (required for escalation).")
+
+
+class LinkExternalResourceRequest(BaseModel):
+    """Request schema for associating an external supply-chain resource request reference."""
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = Field(..., ge=1, description="Expected current record version.")
+    external_resource_request_id: str = Field(..., min_length=1, description="Opaque reference ID of external resource request.")
+
+
+class FollowUpListResponse(BaseModel):
+    """Paginated list response for follow-up records."""
+    total_count: int = Field(..., ge=0, description="Total count matching query filters.")
+    limit: int = Field(..., ge=1, description="Query limit.")
+    offset: int = Field(..., ge=0, description="Query offset.")
+    follow_ups: List[ForecastFollowUpRecord] = Field(..., description="List of follow-up records.")

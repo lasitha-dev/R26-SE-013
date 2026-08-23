@@ -18,7 +18,9 @@ from backend.components.risk_forecasting.schemas import (
     AdvisoryPreviewResponse, AdvisoryListResponse,
     NotificationBatch, NotificationDelivery, EnqueueNotificationBatchRequest,
     NotificationBatchListResponse, NotificationDeliveryListResponse,
-    RecipientSummaryItem, AssignedRecipientListResponse
+    RecipientSummaryItem, AssignedRecipientListResponse,
+    ForecastFollowUpRecord, CreateFollowUpRequest, TransitionFollowUpRequest,
+    LinkExternalResourceRequest, FollowUpListResponse, FollowUpActorContext
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
 from backend.components.risk_forecasting.services.lsd_service import lsd_service
@@ -26,6 +28,7 @@ from backend.components.risk_forecasting.services.forecast_record_service import
 from backend.components.risk_forecasting.services.advisory_service import advisory_service
 from backend.components.risk_forecasting.services.notification_service import notification_service
 from backend.components.risk_forecasting.services.recipient_query_service import recipient_query_service
+from backend.components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
 
 router = APIRouter()
 
@@ -655,4 +658,350 @@ def cancel_notification_batch(batch_id: str):
         err_msg = str(e)
         if "Cannot cancel notification batch after delivery attempts" in err_msg:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+# ─── Forecast-Linked DAPH–Vet Follow-Up Endpoints (Phase 6B-1) ─────────────
+
+@router.post(
+    "/follow-ups",
+    response_model=ForecastFollowUpRecord,
+    status_code=status.HTTP_201_CREATED,
+    summary="Issue DAPH Operational Follow-Up Instruction"
+)
+def issue_follow_up(
+    request: CreateFollowUpRequest,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """
+    Issues a new DAPH operational follow-up instruction linked to an official forecast record.
+    Copies scientific snapshots directly from stored ForecastDecisionRecord.
+    """
+    body_key = request.idempotency_key
+    if idempotency_key_header and body_key:
+        if idempotency_key_header != body_key:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Idempotency key mismatch: Header 'Idempotency-Key' ({idempotency_key_header}) "
+                       f"and request body 'idempotency_key' ({body_key}) must match when both are provided."
+            )
+        final_key = idempotency_key_header
+    else:
+        final_key = idempotency_key_header or body_key
+
+    req_with_key = request.model_copy(update={"idempotency_key": final_key})
+    actor_id = x_actor_id or "daph_hq_01"
+    actor_role = x_actor_role or "DAPH_OFFICIAL"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.issue_follow_up(req_with_key, actor=actor)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Idempotency key collision" in err_msg or "already exists" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.get(
+    "/follow-ups",
+    response_model=FollowUpListResponse,
+    summary="List Forecast Follow-Up Records"
+)
+def list_follow_ups(
+    forecast_id: Optional[str] = Query(None, description="Filter by referenced forecast ID"),
+    district: Optional[str] = Query(None, description="Filter by district name"),
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None, description="Filter by disease type"),
+    assigned_vet_id: Optional[str] = Query(None, description="Filter by assigned Veterinary Officer ID"),
+    issued_by_daph_id: Optional[str] = Query(None, description="Filter by issuing DAPH official ID"),
+    status_filter: Optional[Literal["ISSUED", "ACKNOWLEDGED", "ACTION_IN_PROGRESS", "COMPLETED", "CANCELLED", "ESCALATED"]] = Query(
+        None, alias="status", description="Filter by follow-up status"
+    ),
+    target_year: Optional[int] = Query(None, description="Filter by target forecast year"),
+    target_month: Optional[int] = Query(None, description="Filter by target forecast month"),
+    limit: int = Query(50, ge=1, le=200, description="Maximum items to return (1-200)"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Lists stored follow-up records matching specified query filters with pagination."""
+    actor = None
+    if x_actor_id or x_actor_role:
+        actor = FollowUpActorContext(actor_id=x_actor_id or "daph_hq_01", role=x_actor_role or "DAPH_OFFICIAL")
+
+    try:
+        return forecast_follow_up_service.list_follow_ups(
+            forecast_id=forecast_id,
+            district=district,
+            disease=disease,
+            assigned_vet_id=assigned_vet_id,
+            issued_by_daph_id=issued_by_daph_id,
+            status=status_filter,
+            target_year=target_year,
+            target_month=target_month,
+            limit=limit,
+            offset=offset,
+            actor=actor,
+        )
+    except ValueError as e:
+        err_msg = str(e)
+        if "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.get(
+    "/follow-ups/{follow_up_id}",
+    response_model=ForecastFollowUpRecord,
+    summary="Retrieve Follow-Up Record by ID"
+)
+def get_follow_up(
+    follow_up_id: str,
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Retrieves a single follow-up record by follow_up_id."""
+    actor = None
+    if x_actor_id or x_actor_role:
+        actor = FollowUpActorContext(actor_id=x_actor_id or "daph_hq_01", role=x_actor_role or "DAPH_OFFICIAL")
+
+    try:
+        return forecast_follow_up_service.get_follow_up(follow_up_id, actor=actor)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/acknowledge",
+    response_model=ForecastFollowUpRecord,
+    summary="Acknowledge Follow-Up Instruction (Assigned Vet Only)"
+)
+def acknowledge_follow_up(
+    follow_up_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Expected version for optimistic locking"),
+    request: Optional[TransitionFollowUpRequest] = Body(None),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Transitions status from ISSUED -> ACKNOWLEDGED. Only the assigned Veterinary Officer may acknowledge."""
+    expected_ver = request.version if request else version
+    if expected_ver is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query parameter or body 'version' is required.")
+
+    actor_id = x_actor_id or "vet_officer_01"
+    actor_role = x_actor_role or "VETERINARY_OFFICER"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.acknowledge_follow_up(
+            follow_up_id=follow_up_id,
+            expected_version=expected_ver,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot acknowledge" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "Only a Veterinary Officer" in err_msg or "not the assigned officer" in err_msg or "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/start",
+    response_model=ForecastFollowUpRecord,
+    summary="Start Follow-Up Action (Assigned Vet Only)"
+)
+def start_follow_up_action(
+    follow_up_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Expected version for optimistic locking"),
+    request: Optional[TransitionFollowUpRequest] = Body(None),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Transitions status from ACKNOWLEDGED -> ACTION_IN_PROGRESS."""
+    expected_ver = request.version if request else version
+    if expected_ver is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query parameter or body 'version' is required.")
+
+    actor_id = x_actor_id or "vet_officer_01"
+    actor_role = x_actor_role or "VETERINARY_OFFICER"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.start_follow_up_action(
+            follow_up_id=follow_up_id,
+            expected_version=expected_ver,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot start" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "Only assigned Veterinary Officer" in err_msg or "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/complete",
+    response_model=ForecastFollowUpRecord,
+    summary="Complete Follow-Up Action (Assigned Vet Only)"
+)
+def complete_follow_up(
+    follow_up_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Expected version for optimistic locking"),
+    request: Optional[TransitionFollowUpRequest] = Body(None),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Transitions status from ACTION_IN_PROGRESS -> COMPLETED."""
+    expected_ver = request.version if request else version
+    if expected_ver is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query parameter or body 'version' is required.")
+
+    actor_id = x_actor_id or "vet_officer_01"
+    actor_role = x_actor_role or "VETERINARY_OFFICER"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.complete_follow_up(
+            follow_up_id=follow_up_id,
+            expected_version=expected_ver,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot complete" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "Only assigned Veterinary Officer" in err_msg or "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/cancel",
+    response_model=ForecastFollowUpRecord,
+    summary="Cancel Follow-Up Instruction (DAPH Official Only)"
+)
+def cancel_follow_up(
+    follow_up_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Expected version for optimistic locking"),
+    request: Optional[TransitionFollowUpRequest] = Body(None),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Transitions status to CANCELLED. DAPH Official only from ISSUED or ACKNOWLEDGED."""
+    expected_ver = request.version if request else version
+    if expected_ver is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query parameter or body 'version' is required.")
+
+    reason = request.reason if request else None
+    actor_id = x_actor_id or "daph_hq_01"
+    actor_role = x_actor_role or "DAPH_OFFICIAL"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.cancel_follow_up(
+            follow_up_id=follow_up_id,
+            expected_version=expected_ver,
+            reason=reason,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot cancel" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "Only DAPH Officials" in err_msg or "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/escalate",
+    response_model=ForecastFollowUpRecord,
+    summary="Escalate Follow-Up Instruction"
+)
+def escalate_follow_up(
+    follow_up_id: str,
+    request: TransitionFollowUpRequest,
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Transitions status to ESCALATED. Requires explicit controlled reason."""
+    if not request.reason or not request.reason.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reason field is required for escalation.")
+
+    actor_id = x_actor_id or "vet_officer_01"
+    actor_role = x_actor_role or "VETERINARY_OFFICER"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.escalate_follow_up(
+            follow_up_id=follow_up_id,
+            expected_version=request.version,
+            reason=request.reason,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot escalate" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+@router.post(
+    "/follow-ups/{follow_up_id}/external-resource-reference",
+    response_model=ForecastFollowUpRecord,
+    summary="Link External Resource Request Reference ID"
+)
+def link_external_resource_reference(
+    follow_up_id: str,
+    request: LinkExternalResourceRequest,
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """Associates an opaque external supply-chain resource request reference ID."""
+    actor_id = x_actor_id or "daph_hq_01"
+    actor_role = x_actor_role or "DAPH_OFFICIAL"
+    actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)
+
+    try:
+        return forecast_follow_up_service.link_external_resource_request(
+            follow_up_id=follow_up_id,
+            expected_version=request.version,
+            external_resource_request_id=request.external_resource_request_id,
+            actor=actor,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        err_msg = str(e)
+        if "Optimistic lock conflict" in err_msg or "Cannot link" in err_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        elif "not authorized" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
