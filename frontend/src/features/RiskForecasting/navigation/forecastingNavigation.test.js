@@ -86,14 +86,15 @@ describe('forecastingNavigation Helpers', () => {
     expect(ids).not.toContain('data-quality');
   });
 
-  it('Vet gets Forecast Overview, District Forecasts, Advisory Centre, Forecast & Advisory History, and Surveillance Dashboard', () => {
+  it('Vet gets Forecast Overview, Assigned Follow-Ups, District Forecasts, Advisory Centre, Forecast & Advisory History, and Surveillance Dashboard', () => {
     const items = getForecastingNavigation(vetContext);
-    expect(items).toHaveLength(5);
+    expect(items).toHaveLength(6);
     expect(items[0]).toEqual(NAVIGATION_ITEMS.FORECAST_OVERVIEW);
-    expect(items[1]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
-    expect(items[2]).toEqual(NAVIGATION_ITEMS.ADVISORY_CENTRE);
-    expect(items[3]).toEqual(NAVIGATION_ITEMS.HISTORY);
-    expect(items[4]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD);
+    expect(items[1]).toEqual(NAVIGATION_ITEMS.ASSIGNED_FOLLOW_UPS);
+    expect(items[2]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
+    expect(items[3]).toEqual(NAVIGATION_ITEMS.ADVISORY_CENTRE);
+    expect(items[4]).toEqual(NAVIGATION_ITEMS.HISTORY);
+    expect(items[5]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD);
 
     const ids = items.map((i) => i.id);
     expect(ids).not.toContain('trend');

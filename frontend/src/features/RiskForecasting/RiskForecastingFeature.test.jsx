@@ -5,12 +5,17 @@ import { RiskForecastingFeature } from './RiskForecastingFeature';
 import { ROLES, SCOPE_LEVELS } from './contracts/viewerContext';
 import * as forecastingNav from './navigation/forecastingNavigation';
 
-vi.mock('./services/riskForecastingWorkflowApi', () => ({
-  listForecastDistricts: vi.fn().mockResolvedValue({ districts: ['Anuradhapura', 'Polonnaruwa'], month_names: [] }),
-  listForecastRecords: vi.fn().mockResolvedValue({ total: 0, records: [] }),
-  listAdvisories: vi.fn().mockResolvedValue({ advisories: [] }),
-  listNotificationBatches: vi.fn().mockResolvedValue({ batches: [] }),
-}));
+vi.mock('./services/riskForecastingWorkflowApi', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    listForecastDistricts: vi.fn().mockResolvedValue({ districts: ['Anuradhapura', 'Polonnaruwa'], month_names: [] }),
+    listForecastRecords: vi.fn().mockResolvedValue({ total: 0, records: [] }),
+    listAdvisories: vi.fn().mockResolvedValue({ advisories: [] }),
+    listNotificationBatches: vi.fn().mockResolvedValue({ batches: [] }),
+    listFollowUps: vi.fn().mockResolvedValue({ follow_ups: [] }),
+  };
+});
 
 describe('RiskForecastingFeature Component', () => {
   const validFarmerContext = Object.freeze({
@@ -185,6 +190,13 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Forecast & Advisory History/i, level: 2 })).toBeInTheDocument();
     });
 
+    it('can activate VeterinaryAssignedFollowUps', () => {
+      render(<RiskForecastingFeature viewerContext={validVetContext} />);
+      const followUpsBtn = screen.getByRole('button', { name: /Assigned Follow-Ups/i });
+      fireEvent.click(followUpsBtn);
+      expect(screen.getByRole('heading', { name: /Assigned Follow-Ups/i, level: 1 })).toBeInTheDocument();
+    });
+
     it('district-forecasts resolves to VeterinaryDistrictForecasts component for Vet', () => {
       render(<RiskForecastingFeature viewerContext={validVetContext} />);
       const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
@@ -268,12 +280,12 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('button', { name: /Model Transparency/i })).toBeInTheDocument();
     });
 
-    it('DAPH with empty authorizedDistricts fails closed', () => {
+    it('DAPH with empty or invalid authorizedDistricts fails closed', () => {
       const invalidDaphDistricts = {
         ...validDaphContext,
         authorization: {
           ...validDaphContext.authorization,
-          authorizedDistricts: [],
+          authorizedDistricts: null,
         },
       };
       render(<RiskForecastingFeature viewerContext={invalidDaphDistricts} />);

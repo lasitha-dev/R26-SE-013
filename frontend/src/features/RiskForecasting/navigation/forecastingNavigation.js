@@ -26,6 +26,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'Forecast Overview',
     icon: 'query_stats',
   }),
+  ASSIGNED_FOLLOW_UPS: Object.freeze({
+    id: 'assigned-follow-ups',
+    label: 'Assigned Follow-Ups',
+    icon: 'assignment_turned_in',
+  }),
   SURVEILLANCE_DASHBOARD: Object.freeze({
     id: 'surveillance-dashboard',
     label: 'My Surveillance Dashboard',
@@ -88,6 +93,7 @@ export function getForecastingNavigation(viewerContext) {
     items.push({ ...NAVIGATION_ITEMS.ALERTS_GUIDANCE });
   } else if (normalizedContext.role === ROLES.VETERINARY_OFFICER) {
     items.push({ ...NAVIGATION_ITEMS.FORECAST_OVERVIEW });
+    items.push({ ...NAVIGATION_ITEMS.ASSIGNED_FOLLOW_UPS });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
     items.push({ ...NAVIGATION_ITEMS.ADVISORY_CENTRE });
     items.push({ ...NAVIGATION_ITEMS.HISTORY });
