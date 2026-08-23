@@ -372,4 +372,51 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(screen.queryByRole('button', { name: /Generate/i })).not.toBeInTheDocument();
     });
   });
+
+  // 8. Operational Follow-Up Integration
+  describe('Operational Follow-Up Integration', () => {
+    it('opens DaphFollowUpComposer when Follow-up table action button is clicked', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/Anuradhapura/i)[0]).toBeInTheDocument();
+      });
+
+      const followUpButtons = screen.getAllByRole('button', { name: /Follow-up/i });
+      expect(followUpButtons.length).toBeGreaterThan(0);
+
+      fireEvent.click(followUpButtons[0]);
+
+      expect(screen.getByText('Issue Operational Follow-Up')).toBeInTheDocument();
+    });
+
+    it('opens DaphFollowUpComposer from Detail Drawer when Issue Operational Follow-Up is clicked', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/Anuradhapura/i)[0]).toBeInTheDocument();
+      });
+
+      const viewButtons = screen.getAllByRole('button', { name: /View/i });
+      fireEvent.click(viewButtons[0]);
+
+      const drawerIssueButton = screen.getByRole('button', { name: /Issue Operational Follow-Up/i });
+      fireEvent.click(drawerIssueButton);
+
+      expect(screen.getByText('Issue Operational Follow-Up')).toBeInTheDocument();
+    });
+
+    it('does not render Follow-up table action button or drawer button for missing-record placeholders', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /Follow-up/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Issue Operational Follow-Up/i })).not.toBeInTheDocument();
+    });
+  });
 });

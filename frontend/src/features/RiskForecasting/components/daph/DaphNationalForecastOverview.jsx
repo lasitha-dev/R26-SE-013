@@ -14,6 +14,7 @@ import {
   listAdvisories,
   listNotificationBatches,
 } from '../../services/riskForecastingWorkflowApi';
+import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 
 /**
  * Centralized Backend Bound Limitation Constant.
@@ -112,6 +113,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [offset, setOffset] = useState(0);
 
   const [selectedDetailRow, setSelectedDetailRow] = useState(null);
+  const [composingForecastRecord, setComposingForecastRecord] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [operationalWarning, setOperationalWarning] = useState(null);
@@ -938,13 +940,25 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
                       {/* View Details Action */}
                       <td className="py-3 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDetailRow(row)}
-                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-medium text-[11px] border border-slate-700 transition"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailRow(row)}
+                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-medium text-[11px] border border-slate-700 transition"
+                          >
+                            View
+                          </button>
+                          {!row.isMissingRecord && Boolean(row.record?.forecast_id) && String(row.record.forecast_id).trim() !== '' && (
+                            <button
+                              type="button"
+                              onClick={() => setComposingForecastRecord(row.record)}
+                              className="px-2.5 py-1 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 hover:text-amber-200 font-semibold text-[11px] border border-amber-600/40 transition"
+                              title="Issue operational follow-up to Veterinary Officer"
+                            >
+                              Follow-up
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1115,7 +1129,23 @@ export function DaphNationalForecastOverview({ viewerContext }) {
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-800 text-right">
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              {!selectedDetailRow.isMissingRecord && Boolean(selectedDetailRow.record?.forecast_id) && String(selectedDetailRow.record.forecast_id).trim() !== '' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const recordToCompose = selectedDetailRow.record;
+                    setSelectedDetailRow(null);
+                    setComposingForecastRecord(recordToCompose);
+                  }}
+                  className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow transition flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-sm">assignment_add</span>
+                  <span>Issue Operational Follow-Up</span>
+                </button>
+              ) : (
+                <div />
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedDetailRow(null)}
@@ -1126,6 +1156,18 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 8. Follow-up Issuing Composer Modal */}
+      {composingForecastRecord && (
+        <DaphFollowUpComposer
+          forecastRecord={composingForecastRecord}
+          viewerContext={viewerContext}
+          onClose={() => setComposingForecastRecord(null)}
+          onFollowUpCreated={() => {
+            fetchData();
+          }}
+        />
       )}
     </div>
   );
