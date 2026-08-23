@@ -1,0 +1,393 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Animal Profile: #BT-8842 | ADRS CORE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#3c475a",
+                    "on-tertiary-fixed": "#111c2d",
+                    "on-primary-container": "#00422b",
+                    "on-secondary-container": "#00311f",
+                    "secondary-container": "#25a475",
+                    "secondary": "#68dba9",
+                    "surface-container-high": "#222a3d",
+                    "error": "#ffb4ab",
+                    "tertiary": "#bcc7de",
+                    "surface-tint": "#4edea3",
+                    "primary": "#4edea3",
+                    "error-container": "#93000a",
+                    "outline-variant": "#3c4a42",
+                    "on-surface": "#dae2fd",
+                    "on-secondary-fixed": "#002114",
+                    "surface-container-highest": "#2d3449",
+                    "inverse-primary": "#006c49",
+                    "surface-bright": "#31394d",
+                    "on-secondary-fixed-variant": "#005137",
+                    "tertiary-fixed-dim": "#bcc7de",
+                    "primary-fixed": "#6ffbbe",
+                    "on-surface-variant": "#bbcabf",
+                    "on-error": "#690005",
+                    "inverse-surface": "#dae2fd",
+                    "tertiary-fixed": "#d8e3fb",
+                    "surface-container-low": "#131b2e",
+                    "on-primary-fixed-variant": "#005236",
+                    "surface-variant": "#2d3449",
+                    "primary-container": "#10b981",
+                    "on-secondary": "#003825",
+                    "on-background": "#dae2fd",
+                    "surface-container": "#171f33",
+                    "surface": "#0b1326",
+                    "tertiary-container": "#98a3ba",
+                    "on-tertiary-container": "#2e394c",
+                    "on-tertiary": "#263143",
+                    "inverse-on-surface": "#283044",
+                    "on-primary-fixed": "#002113",
+                    "secondary-fixed": "#85f8c4",
+                    "background": "#0b1326",
+                    "primary-fixed-dim": "#4edea3",
+                    "surface-container-lowest": "#060e20",
+                    "secondary-fixed-dim": "#68dba9",
+                    "surface-dim": "#0b1326",
+                    "outline": "#86948a",
+                    "on-error-container": "#ffdad6",
+                    "on-primary": "#003824"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "1rem",
+                    "xl": "1.25rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter", "sans-serif"],
+                    "display": ["Inter", "sans-serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["Inter", "sans-serif"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+        }
+        .glass-panel {
+            background: rgba(45, 52, 73, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0b1326;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #25a475;
+            border-radius: 10px;
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}[type='text'],input:where(:not([type])),[type='email'],[type='url'],[type='password'],[type='number'],[type='date'],[type='datetime-local'],[type='month'],[type='search'],[type='tel'],[type='time'],[type='week'],[multiple],textarea,select{-webkit-appearance:none;appearance:none;background-color:#fff;border-color:#6b7280;border-width:1px;border-radius:0px;padding-top:0.5rem;padding-right:0.75rem;padding-bottom:0.5rem;padding-left:0.75rem;font-size:1rem;line-height:1.5rem;--tw-shadow:0 0 #0000;}[type='text']:focus, input:where(:not([type])):focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus{outline:2px solid transparent;outline-offset:2px;--tw-ring-inset:var(--tw-empty,/*!*/ /*!*/);--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:#2563eb;--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);border-color:#2563eb}input::placeholder,textarea::placeholder{color:#6b7280;opacity:1}::-webkit-datetime-edit-fields-wrapper{padding:0}::-webkit-date-and-time-value{min-height:1.5em;text-align:inherit}::-webkit-datetime-edit{display:inline-flex}::-webkit-datetime-edit,::-webkit-datetime-edit-year-field,::-webkit-datetime-edit-month-field,::-webkit-datetime-edit-day-field,::-webkit-datetime-edit-hour-field,::-webkit-datetime-edit-minute-field,::-webkit-datetime-edit-second-field,::-webkit-datetime-edit-millisecond-field,::-webkit-datetime-edit-meridiem-field{padding-top:0;padding-bottom:0}select{background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 0.5rem center;background-repeat:no-repeat;background-size:1.5em 1.5em;padding-right:2.5rem;print-color-adjust:exact}[multiple],[size]:where(select:not([size="1"])){background-image:initial;background-position:initial;background-repeat:unset;background-size:initial;padding-right:0.75rem;print-color-adjust:unset}[type='checkbox'],[type='radio']{-webkit-appearance:none;appearance:none;padding:0;print-color-adjust:exact;display:inline-block;vertical-align:middle;background-origin:border-box;-webkit-user-select:none;user-select:none;flex-shrink:0;height:1rem;width:1rem;color:#2563eb;background-color:#fff;border-color:#6b7280;border-width:1px;--tw-shadow:0 0 #0000}[type='checkbox']{border-radius:0px}[type='radio']{border-radius:100%}[type='checkbox']:focus,[type='radio']:focus{outline:2px solid transparent;outline-offset:2px;--tw-ring-inset:var(--tw-empty,/*!*/ /*!*/);--tw-ring-offset-width:2px;--tw-ring-offset-color:#fff;--tw-ring-color:#2563eb;--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)}[type='checkbox']:checked,[type='radio']:checked{border-color:transparent;background-color:currentColor;background-size:100% 100%;background-position:center;background-repeat:no-repeat}[type='checkbox']:checked{background-image:url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");}@media (forced-colors: active) {[type='checkbox']:checked{-webkit-appearance:auto;appearance:auto}}[type='radio']:checked{background-image:url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");}@media (forced-colors: active) {[type='radio']:checked{-webkit-appearance:auto;appearance:auto}}[type='checkbox']:checked:hover,[type='checkbox']:checked:focus,[type='radio']:checked:hover,[type='radio']:checked:focus{border-color:transparent;background-color:currentColor}[type='checkbox']:indeterminate{background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");border-color:transparent;background-color:currentColor;background-size:100% 100%;background-position:center;background-repeat:no-repeat;}@media (forced-colors: active) {[type='checkbox']:indeterminate{-webkit-appearance:auto;appearance:auto}}[type='checkbox']:indeterminate:hover,[type='checkbox']:indeterminate:focus{border-color:transparent;background-color:currentColor}[type='file']{background:unset;border-color:inherit;border-width:0;border-radius:0;padding:0;font-size:unset;line-height:inherit}[type='file']:focus{outline:1px solid ButtonText;outline:1px auto -webkit-focus-ring-color}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.-right-1{right:-0.25rem}.-top-1{top:-0.25rem}.bottom-4{bottom:1rem}.left-0{left:0px}.left-6{left:1.5rem}.right-0{right:0px}.top-0{top:0px}.z-40{z-index:40}.col-span-12{grid-column:span 12 / span 12}.mb-1{margin-bottom:0.25rem}.mb-10{margin-bottom:2.5rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-8{margin-bottom:2rem}.ml-64{margin-left:16rem}.mt-1{margin-top:0.25rem}.mt-16{margin-top:4rem}.mt-4{margin-top:1rem}.mt-auto{margin-top:auto}.flex{display:flex}.grid{display:grid}.h-1\.5{height:0.375rem}.h-10{height:2.5rem}.h-16{height:4rem}.h-2{height:0.5rem}.h-32{height:8rem}.h-64{height:16rem}.h-8{height:2rem}.h-\[1024px\]{height:1024px}.h-\[60\%\]{height:60%}.h-\[62\%\]{height:62%}.h-\[65\%\]{height:65%}.h-\[70\%\]{height:70%}.h-\[75\%\]{height:75%}.h-\[78\%\]{height:78%}.h-\[80\%\]{height:80%}.h-\[82\%\]{height:82%}.h-\[85\%\]{height:85%}.h-\[88\%\]{height:88%}.h-\[90\%\]{height:90%}.h-\[95\%\]{height:95%}.h-full{height:100%}.h-px{height:1px}.min-h-\[1024px\]{min-height:1024px}.w-1\.5{width:0.375rem}.w-10{width:2.5rem}.w-12{width:3rem}.w-2{width:0.5rem}.w-64{width:16rem}.w-8{width:2rem}.w-\[calc\(100\%-16rem\)\]{width:calc(100% - 16rem)}.w-full{width:100%}.flex-1{flex:1 1 0%}.border-collapse{border-collapse:collapse}@keyframes pulse{50%{opacity:.5}}.animate-pulse{animation:pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite}.cursor-pointer{cursor:pointer}.grid-cols-12{grid-template-columns:repeat(12, minmax(0, 1fr))}.grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-1\.5{gap:0.375rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.divide-y > :not([hidden]) ~ :not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px * var(--tw-divide-y-reverse))}.divide-outline-variant\/10 > :not([hidden]) ~ :not([hidden]){border-color:rgb(60 74 66 / 0.1)}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.rounded{border-radius:0.5rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:1rem}.rounded-t{border-top-left-radius:0.5rem;border-top-right-radius:0.5rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-t-2{border-top-width:2px}.border-outline-variant\/10{border-color:rgb(60 74 66 / 0.1)}.border-primary{--tw-border-opacity:1;border-color:rgb(78 222 163 / var(--tw-border-opacity, 1))}.border-primary\/10{border-color:rgb(78 222 163 / 0.1)}.border-primary\/30{border-color:rgb(78 222 163 / 0.3)}.border-slate-800\/50{border-color:rgb(30 41 59 / 0.5)}.bg-\[\#0b1326\]{--tw-bg-opacity:1;background-color:rgb(11 19 38 / var(--tw-bg-opacity, 1))}.bg-\[\#0b1326\]\/80{background-color:rgb(11 19 38 / 0.8)}.bg-\[\#131b2e\]{--tw-bg-opacity:1;background-color:rgb(19 27 46 / var(--tw-bg-opacity, 1))}.bg-\[\#222a3d\]{--tw-bg-opacity:1;background-color:rgb(34 42 61 / var(--tw-bg-opacity, 1))}.bg-error{--tw-bg-opacity:1;background-color:rgb(255 180 171 / var(--tw-bg-opacity, 1))}.bg-on-tertiary-fixed-variant\/20{background-color:rgb(60 71 90 / 0.2)}.bg-orange-400\/10{background-color:rgb(251 146 60 / 0.1)}.bg-outline-variant\/30{background-color:rgb(60 74 66 / 0.3)}.bg-primary{--tw-bg-opacity:1;background-color:rgb(78 222 163 / var(--tw-bg-opacity, 1))}.bg-primary-container{--tw-bg-opacity:1;background-color:rgb(16 185 129 / var(--tw-bg-opacity, 1))}.bg-primary-container\/20{background-color:rgb(16 185 129 / 0.2)}.bg-primary\/10{background-color:rgb(78 222 163 / 0.1)}.bg-primary\/20{background-color:rgb(78 222 163 / 0.2)}.bg-primary\/30{background-color:rgb(78 222 163 / 0.3)}.bg-primary\/40{background-color:rgb(78 222 163 / 0.4)}.bg-primary\/50{background-color:rgb(78 222 163 / 0.5)}.bg-primary\/60{background-color:rgb(78 222 163 / 0.6)}.bg-secondary{--tw-bg-opacity:1;background-color:rgb(104 219 169 / var(--tw-bg-opacity, 1))}.bg-secondary-container\/20{background-color:rgb(37 164 117 / 0.2)}.bg-surface-container{--tw-bg-opacity:1;background-color:rgb(23 31 51 / var(--tw-bg-opacity, 1))}.bg-surface-container-high\/30{background-color:rgb(34 42 61 / 0.3)}.bg-surface-container-highest{--tw-bg-opacity:1;background-color:rgb(45 52 73 / var(--tw-bg-opacity, 1))}.bg-surface-container-low{--tw-bg-opacity:1;background-color:rgb(19 27 46 / var(--tw-bg-opacity, 1))}.bg-tertiary{--tw-bg-opacity:1;background-color:rgb(188 199 222 / var(--tw-bg-opacity, 1))}.bg-gradient-to-t{background-image:linear-gradient(to top, var(--tw-gradient-stops))}.from-surface-container-low{--tw-gradient-from:#131b2e var(--tw-gradient-from-position);--tw-gradient-to:rgb(19 27 46 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.via-transparent{--tw-gradient-to:rgb(0 0 0 / 0)  var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), transparent var(--tw-gradient-via-position), var(--tw-gradient-to)}.to-transparent{--tw-gradient-to:transparent var(--tw-gradient-to-position)}.object-cover{object-fit:cover}.p-8{padding:2rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-8{padding-left:2rem;padding-right:2rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-2\.5{padding-top:0.625rem;padding-bottom:0.625rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pt-6{padding-top:1.5rem}.text-left{text-align:left}.text-right{text-align:right}.font-\[\'Inter\'\]{font-family:'Inter'}.font-body{font-family:Inter, sans-serif}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.text-2xl{font-size:1.5rem;line-height:2rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-black{font-weight:900}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-\[0\.2em\]{letter-spacing:0.2em}.tracking-\[0\.3em\]{letter-spacing:0.3em}.tracking-tight{letter-spacing:-0.025em}.tracking-tighter{letter-spacing:-0.05em}.tracking-wide{letter-spacing:0.025em}.tracking-widest{letter-spacing:0.1em}.text-emerald-400{--tw-text-opacity:1;color:rgb(52 211 153 / var(--tw-text-opacity, 1))}.text-on-primary{--tw-text-opacity:1;color:rgb(0 56 36 / var(--tw-text-opacity, 1))}.text-on-surface{--tw-text-opacity:1;color:rgb(218 226 253 / var(--tw-text-opacity, 1))}.text-orange-400{--tw-text-opacity:1;color:rgb(251 146 60 / var(--tw-text-opacity, 1))}.text-primary{--tw-text-opacity:1;color:rgb(78 222 163 / var(--tw-text-opacity, 1))}.text-primary-fixed{--tw-text-opacity:1;color:rgb(111 251 190 / var(--tw-text-opacity, 1))}.text-secondary{--tw-text-opacity:1;color:rgb(104 219 169 / var(--tw-text-opacity, 1))}.text-slate-100{--tw-text-opacity:1;color:rgb(241 245 249 / var(--tw-text-opacity, 1))}.text-slate-200{--tw-text-opacity:1;color:rgb(226 232 240 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-400\/80{color:rgb(148 163 184 / 0.8)}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139 / var(--tw-text-opacity, 1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105 / var(--tw-text-opacity, 1))}.text-tertiary{--tw-text-opacity:1;color:rgb(188 199 222 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-40{opacity:0.4}.shadow-\[0_0_15px_rgba\(16\2c 185\2c 129\2c 0\.1\)\]{--tw-shadow:0 0 15px rgba(16,185,129,0.1);--tw-shadow-colored:0 0 15px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-primary\/20{--tw-shadow-color:rgb(78 222 163 / 0.2);--tw-shadow:var(--tw-shadow-colored)}.backdrop-blur-xl{--tw-backdrop-blur:blur(24px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-200{transition-duration:200ms}.hover\:bg-\[\#171f33\]:hover{--tw-bg-opacity:1;background-color:rgb(23 31 51 / var(--tw-bg-opacity, 1))}.hover\:bg-surface-bright:hover{--tw-bg-opacity:1;background-color:rgb(49 57 77 / var(--tw-bg-opacity, 1))}.hover\:bg-surface-container-high\/20:hover{background-color:rgb(34 42 61 / 0.2)}.hover\:text-emerald-200:hover{--tw-text-opacity:1;color:rgb(167 243 208 / var(--tw-text-opacity, 1))}.hover\:text-emerald-300:hover{--tw-text-opacity:1;color:rgb(110 231 183 / var(--tw-text-opacity, 1))}.hover\:text-primary:hover{--tw-text-opacity:1;color:rgb(78 222 163 / var(--tw-text-opacity, 1))}.hover\:underline:hover{-webkit-text-decoration-line:underline;text-decoration-line:underline}.hover\:opacity-90:hover{opacity:0.9}.active\:scale-\[0\.98\]:active{--tw-scale-x:0.98;--tw-scale-y:0.98;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.active\:opacity-80:active{opacity:0.8}.group:hover .group-hover\:opacity-100{opacity:1}@media (min-width: 768px){.md\:flex-row{flex-direction:row}.md\:items-end{align-items:flex-end}}@media (min-width: 1024px){.lg\:col-span-5{grid-column:span 5 / span 5}.lg\:col-span-7{grid-column:span 7 / span 7}}</style></head>
+<body class="font-body antialiased" data-mode="connect">
+<!-- SideNavBar (Authority Source: JSON) -->
+<aside class="h-[1024px] w-64 fixed left-0 top-0 bg-[#131b2e] flex flex-col py-8 px-4 font-['Inter'] antialiased tracking-tight" data-stitch-vh="h-[1024px]===h-screen">
+<div class="mb-10 px-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div>
+<div class="text-lg font-black tracking-widest text-emerald-400">ADRS CORE</div>
+<div class="text-[10px] font-bold text-slate-500 tracking-[0.2em]">CLINICAL PRECISION</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Active: Herd Registry -->
+<a class="flex items-center gap-3 py-3 px-4 text-emerald-400 font-bold bg-[#222a3d] rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-[0.98] transition-all duration-200" href="#">
+<span class="material-symbols-outlined">pets</span>
+<span class="text-sm">Herd Registry</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400/80 hover:text-emerald-200 hover:bg-[#171f33] transition-colors active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">health_and_safety</span>
+<span class="text-sm">Wellness &amp; BCS</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400/80 hover:text-emerald-200 hover:bg-[#171f33] transition-colors active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="text-sm">AI Smart Diagnosis</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400/80 hover:text-emerald-200 hover:bg-[#171f33] transition-colors active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="text-sm">Geospatial Intelligence</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-4 text-slate-400/80 hover:text-emerald-200 hover:bg-[#171f33] transition-colors active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">wb_sunny</span>
+<span class="text-sm">Seasonal Forecasting</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-800/50">
+<div class="space-y-1">
+<a class="flex items-center gap-3 py-2 px-4 text-slate-400/80 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+<a class="flex items-center gap-3 py-2 px-4 text-slate-400/80 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="text-sm">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Authority Source: JSON) -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-[#0b1326]/80 backdrop-blur-xl flex justify-between items-center h-16 px-8 ml-64 font-['Inter'] text-sm font-medium">
+<div class="text-base font-bold text-slate-100 uppercase tracking-wide">Kamal Perera - Dairy Farmer</div>
+<div class="flex items-center gap-6 text-emerald-400">
+<div class="relative cursor-pointer hover:text-emerald-300 transition-colors active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full"></span>
+</div>
+<div class="flex items-center gap-3 cursor-pointer hover:text-emerald-300 transition-colors active:opacity-80">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A professional headshot of a middle-aged South Asian man with a warm, expert expression, wearing a clean linen shirt. The portrait is captured with high-end studio lighting that creates soft shadows and a shallow depth of field, with a muted architectural background in deep blues and grays that perfectly complements the clinical dashboard aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVLLBURH_1s36s4fwcqRnAm3O33DUTut83TY6zbq-MDJcayjESHszMK7dt0YbPQGe-gFXI98fgIYdpyMGgjVRZKxUsMzJk9andFGQLcCAWBflBg8jZtrN6xwq4ZP5pQq1hsI69gByMROGIzxVKikyH_KUzxRepw_udRcAxcLPw4cgfzO3oOq7tzjxBdxYt8lvVpIhJKbAKh8osiKhHehui2X-BKpXkJa-GBfdRpH4G22rLf6p-FAoQgoZ1eEkUF_lNLwFVVgcnRbwT">
+<span class="material-symbols-outlined">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 min-h-[1024px] bg-[#0b1326]" data-stitch-vh="min-h-[1024px]===min-h-screen">
+<!-- Profile Header Section -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="text-primary-fixed uppercase text-[10px] font-black tracking-[0.3em]">Precision Monitoring</span>
+<div class="h-px w-12 bg-outline-variant/30"></div>
+</div>
+<h1 class="text-4xl font-black text-on-surface tracking-tighter">ANIMAL PROFILE: #BT-8842</h1>
+<div class="flex flex-wrap gap-2 mt-4">
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface text-[10px] font-bold tracking-widest rounded uppercase">Friesian</span>
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface text-[10px] font-bold tracking-widest rounded uppercase">Female</span>
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface text-[10px] font-bold tracking-widest rounded uppercase">4 Yrs</span>
+<span class="px-3 py-1 bg-primary-container/20 text-primary text-[10px] font-black tracking-widest rounded border border-primary/30 uppercase flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                        HEALTHY
+                    </span>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="px-5 py-2.5 bg-surface-container-highest hover:bg-surface-bright text-primary text-xs font-bold rounded-lg transition-all border border-primary/10"><br><br></button>
+<button class="px-5 py-2.5 bg-primary hover:opacity-90 text-on-primary text-xs font-bold rounded-lg transition-all shadow-lg shadow-primary/20">Edit Details</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- 1. Top Left Card (Overview) -->
+<div class="col-span-12 lg:col-span-5 bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant/10">
+<div class="relative h-64">
+<img class="w-full h-full object-cover" data-alt="A cinematic, high-resolution close-up portrait of a healthy black and white Friesian cow in a clean, modern dairy facility. The lighting is soft and clinical, highlighting the texture of the coat and the brightness of the eyes. The background consists of out-of-focus architectural elements of the farm in deep navy and silver tones, creating a professional, veterinary-grade atmospheric aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiDHwgu_S_VlRp-pHNwe1pZ1kdfjH7-cjRjnTmY3WgNkIviJaMiUZwZPiz5nMWnshpsGdABZOfkBFDR5bEuY3K6dCitqigCsXRYZCpLbfvqaIiGjNG_6Xl22nv4Q9Wt9ZFvAx8_jsCq0rYyzedHopCF1sVpXufe6Q3jbmfy9-F_oAVD6OZtFZi-JpREOdOdA8D-Ya8P_YlZZzFpAHdJtStvpViZvfdz7l0BkNxllL_18QVkJ5-c1AkcoXR_ZWVcvDrst-FAUiia32J">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-transparent"></div>
+<div class="absolute bottom-4 left-6">
+<p class="text-[10px] font-bold text-primary tracking-widest uppercase">Registration ID</p>
+<p class="text-xl font-bold text-white">LK-C-4421-8842</p>
+</div>
+</div>
+<div class="p-8 space-y-6">
+<div class="grid grid-cols-3 gap-4">
+<div>
+<p class="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1">Current Weight</p>
+<p class="text-2xl font-black text-on-surface tracking-tight">450 <span class="text-xs font-medium text-slate-400">KG</span></p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1">Lactation Phase</p>
+<p class="text-2xl font-black text-on-surface tracking-tight">Mid</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1">Avg Daily Yield</p>
+<p class="text-2xl font-black text-on-surface tracking-tight">28 <span class="text-xs font-medium text-slate-400">L</span></p>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant/10">
+<h4 class="text-[10px] font-black text-primary tracking-[0.2em] uppercase mb-4">Genetic Profile</h4>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-400">Dam ID</span>
+<span class="font-mono text-white">#BT-7721</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-400">Sire ID</span>
+<span class="font-mono text-white">#BT-9012</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-400">Birth Date</span>
+<span class="text-white">Oct 12, 2019</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. Top Right Card (Health Metrics) -->
+<div class="col-span-12 lg:col-span-7 space-y-6">
+<!-- Yield Trend Chart -->
+<div class="bg-surface-container rounded-lg p-8 border border-outline-variant/10">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="text-xs font-black text-white tracking-[0.2em] uppercase">30-Day Milk Yield Trend</h3>
+<p class="text-[11px] text-slate-400 mt-1">Daily production variance in Liters</p>
+</div>
+<div class="text-right">
+<p class="text-xl font-black text-primary">+4.2%</p>
+<p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Monthly Growth</p>
+</div>
+</div>
+<div class="relative h-32 flex items-end gap-1">
+<!-- Simplified Mock Chart with varying heights -->
+<div class="flex-1 bg-primary/20 rounded-t h-[60%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t h-[65%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t h-[70%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t h-[62%]"></div>
+<div class="flex-1 bg-primary/30 rounded-t h-[75%]"></div>
+<div class="flex-1 bg-primary/30 rounded-t h-[80%]"></div>
+<div class="flex-1 bg-primary/40 rounded-t h-[78%]"></div>
+<div class="flex-1 bg-primary/50 rounded-t h-[85%]"></div>
+<div class="flex-1 bg-primary/60 rounded-t h-[90%] border-t-2 border-primary"></div>
+<div class="flex-1 bg-primary/40 rounded-t h-[82%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t h-[70%]"></div>
+<div class="flex-1 bg-primary/30 rounded-t h-[75%]"></div>
+<div class="flex-1 bg-primary/50 rounded-t h-[88%] border-t-2 border-primary"></div>
+<div class="flex-1 bg-primary/40 rounded-t h-[80%]"></div>
+<div class="flex-1 bg-primary/60 rounded-t h-[95%] border-t-2 border-primary"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-slate-600 tracking-widest uppercase">
+<span>Day 01</span>
+<span>Day 15</span>
+<span>Day 30</span>
+</div>
+</div>
+<!-- BCS & Weight Chart -->
+<div class="bg-surface-container rounded-lg p-8 border border-outline-variant/10">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="text-xs font-black text-white tracking-[0.2em] uppercase">BCS &amp; Weight Fluctuation</h3>
+<p class="text-[11px] text-slate-400 mt-1">Body Condition Score tracking (1-5 scale)</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">BCS Score</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Weight</span>
+</div>
+</div>
+</div>
+<div class="h-32 relative">
+<!-- SVG Path for smoothed trend lines -->
+<svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 400 100">
+<path d="M0,80 Q50,70 100,75 T200,60 T300,65 T400,55" fill="none" stroke="#68dba9" stroke-width="2"></path>
+<path d="M0,50 Q50,55 100,45 T200,50 T300,40 T400,45" fill="none" stroke="#bcc7de" stroke-dasharray="4" stroke-width="1.5"></path>
+</svg>
+<div class="absolute top-0 left-0 h-full flex flex-col justify-between text-[10px] font-bold text-slate-600">
+<span>Optimal</span>
+<span>Critical</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. Bottom Section (Medical History) -->
+<div class="col-span-12 bg-surface-container rounded-lg overflow-hidden border border-outline-variant/10">
+<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+<div>
+<h3 class="text-xs font-black text-white tracking-[0.2em] uppercase">Recent AI Scans &amp; Diagnostics</h3>
+<p class="text-[11px] text-slate-400 mt-1">History of automated screenings and expert evaluations</p>
+</div>
+<button class="text-primary text-[10px] font-black tracking-widest uppercase hover:underline">View All History</button>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/30">
+<th class="px-8 py-4 text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">Date</th>
+<th class="px-8 py-4 text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">Diagnostic Type</th>
+<th class="px-8 py-4 text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">Result</th>
+<th class="px-8 py-4 text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="hover:bg-surface-container-high/20 transition-colors group">
+<td class="px-8 py-5 text-sm font-medium text-slate-200">Oct 24, 2023</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-sm">psychology</span>
+</div>
+<span class="text-sm font-semibold text-white">AI BCS Analysis</span>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Score: 3.75 (Normal)</span>
+</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">visibility</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">download</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/20 transition-colors group">
+<td class="px-8 py-5 text-sm font-medium text-slate-200">Sep 12, 2023</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-on-tertiary-fixed-variant/20 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-sm">health_and_safety</span>
+</div>
+<span class="text-sm font-semibold text-white">Geospatial Heat Stress Analysis</span>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-orange-400/10 text-orange-400">MODERATE RISK</span>
+</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">visibility</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">download</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/20 transition-colors group">
+<td class="px-8 py-5 text-sm font-medium text-slate-200">Aug 05, 2023</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-sm">psychology</span>
+</div>
+<span class="text-sm font-semibold text-white">Mastitis Thermal Screening</span>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Negative / Clear</span>
+</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">visibility</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">download</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

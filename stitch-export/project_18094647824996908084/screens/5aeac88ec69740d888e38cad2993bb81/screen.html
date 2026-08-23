@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ADRS Core - System Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#bcc7de",
+                        "inverse-on-surface": "#283044",
+                        "on-surface": "#dae2fd",
+                        "secondary": "#68dba9",
+                        "surface-container-lowest": "#060e20",
+                        "outline": "#86948a",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed": "#111c2d",
+                        "on-background": "#dae2fd",
+                        "surface-container-low": "#131b2e",
+                        "on-surface-variant": "#bbcabf",
+                        "on-primary-fixed": "#002113",
+                        "on-tertiary-fixed-variant": "#3c475a",
+                        "background": "#0b1326",
+                        "on-secondary": "#003825",
+                        "surface-container-high": "#222a3d",
+                        "primary-fixed": "#6ffbbe",
+                        "inverse-primary": "#006c49",
+                        "secondary-fixed-dim": "#68dba9",
+                        "surface": "#0b1326",
+                        "surface-dim": "#0b1326",
+                        "on-tertiary": "#263143",
+                        "secondary-container": "#25a475",
+                        "on-error": "#690005",
+                        "tertiary-fixed": "#d8e3fb",
+                        "tertiary-container": "#98a3ba",
+                        "on-secondary-fixed": "#002114",
+                        "on-primary": "#003824",
+                        "surface-container": "#171f33",
+                        "on-primary-container": "#00422b",
+                        "surface-tint": "#4edea3",
+                        "surface-container-highest": "#2d3449",
+                        "on-tertiary-container": "#2e394c",
+                        "on-secondary-fixed-variant": "#005137",
+                        "primary-fixed-dim": "#4edea3",
+                        "outline-variant": "#3c4a42",
+                        "secondary-fixed": "#85f8c4",
+                        "primary": "#4edea3",
+                        "surface-variant": "#2d3449",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#dae2fd",
+                        "error-container": "#93000a",
+                        "primary-container": "#10b981",
+                        "on-primary-fixed-variant": "#005236",
+                        "on-secondary-container": "#00311f",
+                        "tertiary-fixed-dim": "#bcc7de",
+                        "surface-bright": "#31394d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "1rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1326; /* Using background token from config */
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(45, 52, 73, 0.6);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6 overflow-hidden bg-surface text-on-surface">
+<!-- Login Container -->
+<main class="w-full max-w-md">
+<!-- Animated Background Decor (Subtle) -->
+<div class="absolute inset-0 z-[-1] pointer-events-none opacity-20">
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-[120px]"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/10 blur-[120px]"></div>
+</div>
+<div class="relative">
+<!-- Branding Header (Above Card) -->
+<div class="flex flex-col items-center mb-10">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-primary-container/20 text-primary">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<span class="text-2xl font-black tracking-tighter text-on-surface uppercase">ADRS Core</span>
+</div>
+<p class="text-label text-[0.6875rem] tracking-[0.15em] uppercase text-slate-500 font-bold">Sentinel AI Veterinary Diagnostics</p>
+</div>
+<!-- Main Auth Card -->
+<section class="surface-container-high rounded-lg p-10 shadow-2xl shadow-black/50 border border-outline-variant/10">
+<div class="mb-8">
+<h1 class="text-headline-lg text-2xl font-bold tracking-tight text-on-surface">System Login</h1>
+<p class="text-body-md text-sm text-slate-400 mt-2">Authorized clinical access only.</p>
+</div>
+<form class="space-y-6">
+<!-- Email Field -->
+<div class="space-y-2">
+<label class="text-label text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-slate-400" for="email">Email Address</label>
+<div class="relative group">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-primary transition-colors">alternate_email</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-DEFAULT py-3.5 pl-12 pr-4 text-on-surface placeholder:text-slate-600 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-all" id="email" name="email" placeholder="clinician@sentinel.ai" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<label class="text-label text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-slate-400" for="password">Password</label>
+<a class="text-[0.6875rem] font-bold text-primary hover:text-primary-fixed-dim transition-colors uppercase tracking-wider" href="#">Forgot Password?</a>
+</div>
+<div class="relative group">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-primary transition-colors">lock</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-DEFAULT py-3.5 pl-12 pr-4 text-on-surface placeholder:text-slate-600 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 transition-all" id="password" name="password" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<!-- CTA Button -->
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold py-4 rounded-DEFAULT shadow-lg shadow-primary/10 hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2" type="submit">
+<span class="material-symbols-outlined text-xl">login</span>
+                        Secure Login
+                    </button>
+</form>
+<!-- Status Context -->
+<div class="mt-8 flex items-center justify-center gap-3">
+<div class="h-[1px] flex-grow bg-outline-variant/10"></div>
+<span class="text-label text-[0.625rem] text-slate-500 uppercase tracking-widest whitespace-nowrap">Clinical Network Status: Active</span>
+<div class="h-[1px] flex-grow bg-outline-variant/10"></div>
+</div>
+<!-- Footer Registration -->
+<div class="mt-8 text-center">
+<p class="text-body-md text-sm text-slate-500">
+                        New to Sentinel network? 
+                        <a class="text-secondary font-bold hover:underline underline-offset-4 ml-1 transition-all" href="#">Register Farm</a>
+</p>
+</div>
+</section>
+<!-- Diagnostic Image / Background Graphic Mockup -->
+<div class="mt-12 flex justify-center opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
+<div class="w-32 h-32 rounded-full border-4 border-dashed border-primary/20 animate-spin-slow relative flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A highly detailed close-up of a digital veterinary diagnostic interface showing complex cellular structures and glowing DNA helices. The color scheme is dominated by deep obsidian blues and vibrant clinical greens. The aesthetic is clean and futuristic, representing advanced AI analysis in animal disease detection. Soft lighting highlights the intricate data points and glowing neural network connections in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBK04T5fDljlkQiRc-muMZWLojvKRFaASfTHBgWOD-Lp8lIyLBtJMHYUnavv7uSzoRrIgU8WpzKWqMF3wXh2fjXV7uqx9CGq2289Bp8Igih0DgxBrYb7JXFh42x27AlhPYWYZdazyIEfg815nTHa1hnVumsMZdgVkdUTXp5tgXaA5oq65DPdUwZRBPQ3g_P-pEEAX5TXBVnkUxnhQkIwtm_KG3LtZrFpJg0Yo4lqjSRouDLAyIVDFkretZz7zviUlU4auctoJUEXvW4"/>
+</div>
+</div>
+</div>
+<!-- Technical Footnote -->
+<footer class="mt-12 text-center space-y-2">
+<p class="font-['Inter'] text-[0.625rem] tracking-[0.1em] uppercase text-slate-600">
+                End-to-End Encryption Enabled • Precision Engineered Intelligence
+            </p>
+<p class="font-['Inter'] text-[0.625rem] tracking-[0.05em] uppercase text-slate-700">
+                © 2024 Sentinel AI Veterinary Diagnostics.
+            </p>
+</footer>
+</main>
+<style>
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 20s linear infinite;
+        }
+    </style>
+</body></html>

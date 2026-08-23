@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Herd Registry - Sentinel AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1326;
+        }
+        .glass-card {
+            background: rgba(34, 42, 61, 0.6);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container": "#171f33",
+                      "on-tertiary": "#263143",
+                      "surface": "#0b1326",
+                      "on-tertiary-fixed": "#111c2d",
+                      "on-surface": "#dae2fd",
+                      "on-primary-container": "#00422b",
+                      "surface-tint": "#4edea3",
+                      "surface-container-lowest": "#060e20",
+                      "outline": "#86948a",
+                      "secondary-container": "#25a475",
+                      "on-secondary-container": "#00311f",
+                      "on-primary-fixed": "#002113",
+                      "on-primary-fixed-variant": "#005236",
+                      "on-error": "#690005",
+                      "inverse-on-surface": "#283044",
+                      "on-error-container": "#ffdad6",
+                      "on-secondary-fixed": "#002114",
+                      "primary": "#4edea3",
+                      "on-background": "#dae2fd",
+                      "primary-fixed": "#6ffbbe",
+                      "secondary-fixed-dim": "#68dba9",
+                      "secondary": "#68dba9",
+                      "error": "#ffb4ab",
+                      "error-container": "#93000a",
+                      "surface-container-low": "#131b2e",
+                      "on-tertiary-fixed-variant": "#3c475a",
+                      "secondary-fixed": "#85f8c4",
+                      "primary-fixed-dim": "#4edea3",
+                      "on-tertiary-container": "#2e394c",
+                      "tertiary-fixed-dim": "#bcc7de",
+                      "surface-dim": "#0b1326",
+                      "tertiary-container": "#98a3ba",
+                      "surface-variant": "#2d3449",
+                      "outline-variant": "#3c4a42",
+                      "inverse-primary": "#006c49",
+                      "surface-container-high": "#222a3d",
+                      "surface-bright": "#31394d",
+                      "primary-container": "#10b981",
+                      "on-secondary": "#003825",
+                      "background": "#0b1326",
+                      "on-surface-variant": "#bbcabf",
+                      "on-primary": "#003824",
+                      "inverse-surface": "#dae2fd",
+                      "tertiary-fixed": "#d8e3fb",
+                      "tertiary": "#bcc7de",
+                      "surface-container-highest": "#2d3449",
+                      "on-secondary-fixed-variant": "#005137"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="text-on-surface antialiased overflow-hidden">
+<!-- SideNavBar (from JSON) -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#131b2e] border-r border-emerald-500/10 flex flex-col py-6 font-['Inter'] antialiased tracking-tight z-50">
+<div class="px-6 mb-10"><div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<div>
+<h1 class="text-white font-black tracking-widest leading-none">ADRS CORE</h1>
+<p class="text-[10px] uppercase tracking-[0.2em] text-emerald-500/60 mt-1">Clinical Precision</p>
+</div>
+</div></div>
+<nav class="flex-1 px-3 space-y-1">
+<!-- Herd Registry: Active -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">pets</span>
+<span class="text-sm">Herd Registry</span>
+</a>
+<!-- Wellness & BCS -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">health_and_safety</span>
+<span class="text-sm">Wellness &amp; BCS</span>
+</a>
+<!-- AI Smart Diagnosis -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">memory</span>
+<span class="text-sm">AI Smart Diagnosis</span>
+</a>
+<!-- Geospatial Intelligence -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">map</span>
+<span class="text-sm">Geospatial Intelligence</span>
+</a>
+<!-- Seasonal Forecasting -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">partly_cloudy_day</span>
+<span class="text-sm">Seasonal Forecasting</span>
+</a>
+</nav>
+<div class="px-4 pb-6 mt-auto">
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="text-sm">Support</span>
+</a>
+</div>
+</div></aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-[#0b1326]/80 backdrop-blur-xl z-40 flex items-center justify-between px-8">
+<div class="flex items-center bg-surface-container-low/50 rounded-full px-4 py-1.5 w-96 group focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+<input class="bg-transparent border-none text-sm focus:ring-0 text-on-surface w-full placeholder:text-slate-500" placeholder="Search by Tag ID or Breed" type="text"/>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-slate-400 hover:text-primary transition-colors relative">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<div class="flex items-center gap-3 pl-6 border-l border-slate-700/50">
+<div class="text-right">
+<p class="text-sm font-bold text-white tracking-tight leading-none">Kamal Perera</p>
+<p class="text-[10px] text-primary font-medium tracking-widest uppercase mt-1">Dairy Farmer</p>
+</div>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20">
+<img alt="Veterinary Practitioner Avatar" data-alt="A professional headshot of a middle-aged South Asian man with a friendly expression. He is wearing a clean, modern work shirt suitable for a veterinary or agricultural management role. The background is a soft-focus office interior with warm, cinematic lighting that highlights his facial features while maintaining a professional clinical atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXDw0jk_0i-nQIWtaOR19WJzJ-mJDy8gIgfX3LhfZ8JDlxoH4Dvv4Kcqfqp5mU4OzVU4s1VO9WSnzSkVjgOk3KwCPYplw48SscqR_4ZoxDsNRCUvudemWo8tOa1kVE_ZEGsw1iAFndD9SLJ5woqUlq1Q6HvdZT3_NKLyYZjK7WsLze0aOESeZ2lXNak2fTzp0S1PF7VNbqKoGoaBRyiyBgoCA5AGVgdKITINGA5clhnPVpeASHT92nsni1C4-FRDu8mrwoXH4ziiuX"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 p-8 min-h-screen bg-surface">
+<!-- Dashboard Header -->
+<div class="flex items-end justify-between mb-8">
+<div class="space-y-1">
+<h2 class="text-3xl font-black tracking-tight text-white uppercase font-['Inter']">HERD REGISTRY &amp; MANAGEMENT</h2>
+<div class="flex items-center gap-4 text-slate-400 text-xs tracking-widest uppercase font-medium">
+<span class="flex items-center gap-1"><span class="w-1 h-1 bg-primary rounded-full"></span> 42 Total Livestock</span>
+<span class="flex items-center gap-1"><span class="w-1 h-1 bg-secondary rounded-full"></span> 98% Bio-Security Score</span>
+<span class="flex items-center gap-1"><span class="w-1 h-1 bg-error rounded-full"></span> 1 Pending Alert</span>
+</div>
+</div>
+<button class="px-6 py-3 bg-primary-container text-on-primary-container font-bold rounded-lg flex items-center gap-2 hover:opacity-90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">add</span>
+                + Add New Animal
+            </button>
+</div>
+<!-- Analytical Bento Grid Section (Visual Context) -->
+<div class="grid grid-cols-12 gap-6 mb-8">
+<div class="col-span-8 surface-container-low rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-[120px] text-primary">analytics</span>
+</div>
+<div class="relative z-10">
+<h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Population Health Trends</h3>
+<div class="flex items-end gap-2 h-32 px-2">
+<!-- Pseudo-Sparkline for clinical data -->
+<div class="w-full bg-primary/20 rounded-t h-[60%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary/20 rounded-t h-[75%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary/20 rounded-t h-[55%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary/20 rounded-t h-[90%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary/20 rounded-t h-[85%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary/20 rounded-t h-[95%] hover:bg-primary/40 transition-all"></div>
+<div class="w-full bg-primary rounded-t h-[80%] hover:bg-primary/80 transition-all relative">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface text-primary text-[10px] font-bold px-2 py-1 rounded border border-primary/20 whitespace-nowrap">OPT-MAX</div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-span-4 surface-container-low rounded-xl p-6 flex flex-col justify-between">
+<div>
+<h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Breed Composition</h3>
+<p class="text-xs text-slate-500">Distribution analysis across primary herds</p>
+</div>
+<div class="space-y-3 mt-4">
+<div class="flex items-center justify-between">
+<span class="text-xs font-medium">Friesian</span>
+<span class="text-xs font-bold text-primary">64%</span>
+</div>
+<div class="w-full h-1 bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[64%]"></div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs font-medium">Jersey</span>
+<span class="text-xs font-bold text-secondary">22%</span>
+</div>
+<div class="w-full h-1 bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[22%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- High-Fidelity Data Table -->
+<div class="surface-container-low rounded-xl overflow-hidden">
+<div class="px-8 py-6 flex items-center justify-between border-b border-surface/50">
+<h3 class="text-lg font-bold text-white tracking-tight">Active Animal Registry</h3>
+<div class="flex items-center gap-2">
+<button class="p-2 hover:bg-surface-container-high rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 hover:bg-surface-container-high rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-lowest/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-bold"><th class="px-8 py-4">Identifier (Tag / Name)</th><th class="px-6 py-4">Gender</th><th class="px-6 py-4">DOB &amp; Age</th><th class="px-6 py-4">Breed</th><th class="px-6 py-4">Current Health Status</th><th class="px-8 py-4 text-right">Actions</th></tr>
+</thead>
+<tbody class="divide-y divide-surface/30">
+<!-- Row 1 -->
+<tr class="group hover:bg-surface-container-high/30 transition-colors"><td class="px-8 py-5"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-mono text-sm font-bold text-white">#BT-8842</span></div></td><td class="px-6 py-5"><span class="text-sm text-on-surface/80">Female</span></td><td class="px-6 py-5"><span class="text-sm font-medium text-on-surface/80 whitespace-nowrap">12-May-2020 (4 Yrs)</span></td><td class="px-6 py-5"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-slate-500 text-lg">category</span><span class="text-sm">Friesian</span></div></td><td class="px-6 py-5"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-primary"></span>Healthy</span></td><td class="px-8 py-5 text-right"><div class="flex items-center justify-end gap-3"><button class="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"><span class="material-symbols-outlined text-xl">visibility</span></button><button class="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"><span class="material-symbols-outlined text-xl">edit</span></button><button class="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"><span class="material-symbols-outlined text-xl">delete</span></button></div></td></tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-surface-container-high/30 transition-colors"><td class="px-8 py-5"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-error"></span><span class="font-mono text-sm font-bold text-white">Sudu</span></div></td><td class="px-6 py-5"><span class="text-sm text-on-surface/80">Male</span></td><td class="px-6 py-5"><span class="text-sm font-medium text-on-surface/80 whitespace-nowrap">05-Jan-2021 (3 Yrs)</span></td><td class="px-6 py-5"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-slate-500 text-lg">category</span><span class="text-sm">Jersey</span></div></td><td class="px-6 py-5"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error/10 text-error text-[10px] font-bold uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-error animate-pulse"></span>At Risk</span></td><td class="px-8 py-5 text-right"><div class="flex items-center justify-end gap-3"><button class="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"><span class="material-symbols-outlined text-xl">visibility</span></button><button class="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"><span class="material-symbols-outlined text-xl">edit</span></button><button class="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"><span class="material-symbols-outlined text-xl">delete</span></button></div></td></tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-surface-container-high/30 transition-colors"><td class="px-8 py-5"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-mono text-sm font-bold text-white">#BT-7729</span></div></td><td class="px-6 py-5"><span class="text-sm text-on-surface/80">Female</span></td><td class="px-6 py-5"><span class="text-sm font-medium text-on-surface/80 whitespace-nowrap">20-Oct-2019 (5 Yrs)</span></td><td class="px-6 py-5"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-slate-500 text-lg">category</span><span class="text-sm">Sahiwal</span></div></td><td class="px-6 py-5"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-primary"></span>Healthy</span></td><td class="px-8 py-5 text-right"><div class="flex items-center justify-end gap-3"><button class="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"><span class="material-symbols-outlined text-xl">visibility</span></button><button class="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"><span class="material-symbols-outlined text-xl">edit</span></button><button class="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"><span class="material-symbols-outlined text-xl">delete</span></button></div></td></tr>
+<!-- Row 4 -->
+<tr class="group hover:bg-surface-container-high/30 transition-colors"><td class="px-8 py-5"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-mono text-sm font-bold text-white">Maanam</span></div></td><td class="px-6 py-5"><span class="text-sm text-on-surface/80">Female</span></td><td class="px-6 py-5"><span class="text-sm font-medium text-on-surface/80 whitespace-nowrap">15-Mar-2022 (2 Yrs)</span></td><td class="px-6 py-5"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-slate-500 text-lg">category</span><span class="text-sm">Local</span></div></td><td class="px-6 py-5"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-primary"></span>Healthy</span></td><td class="px-8 py-5 text-right"><div class="flex items-center justify-end gap-3"><button class="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"><span class="material-symbols-outlined text-xl">visibility</span></button><button class="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"><span class="material-symbols-outlined text-xl">edit</span></button><button class="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"><span class="material-symbols-outlined text-xl">delete</span></button></div></td></tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer -->
+<div class="px-8 py-4 bg-surface-container-lowest/30 flex items-center justify-between">
+<p class="text-xs text-slate-500 font-medium">Showing <span class="text-on-surface">4</span> of <span class="text-on-surface">42</span> tracked animals</p>
+<div class="flex items-center gap-2">
+<button class="p-1.5 hover:bg-surface-container-high rounded-lg text-slate-400 transition-colors">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<div class="flex gap-1">
+<button class="w-8 h-8 rounded-lg bg-primary/10 text-primary text-xs font-bold border border-primary/20">1</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-high text-slate-400 text-xs font-bold transition-colors">2</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-high text-slate-400 text-xs font-bold transition-colors">3</button>
+</div>
+<button class="p-1.5 hover:bg-surface-container-high rounded-lg text-slate-400 transition-colors">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

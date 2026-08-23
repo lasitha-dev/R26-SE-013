@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sentinel AI | Farm Registration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#002113",
+                        "inverse-primary": "#006c49",
+                        "tertiary-fixed": "#d8e3fb",
+                        "secondary-fixed": "#85f8c4",
+                        "on-secondary-fixed-variant": "#005137",
+                        "inverse-on-surface": "#283044",
+                        "surface-dim": "#0b1326",
+                        "on-primary-container": "#00422b",
+                        "surface-container-lowest": "#060e20",
+                        "error": "#ffb4ab",
+                        "secondary": "#68dba9",
+                        "inverse-surface": "#dae2fd",
+                        "surface-bright": "#31394d",
+                        "tertiary": "#bcc7de",
+                        "surface-container-high": "#222a3d",
+                        "on-surface-variant": "#bbcabf",
+                        "on-primary-fixed-variant": "#005236",
+                        "surface-container-highest": "#2d3449",
+                        "background": "#0b1326",
+                        "tertiary-container": "#98a3ba",
+                        "on-error": "#690005",
+                        "outline": "#86948a",
+                        "surface-variant": "#2d3449",
+                        "primary": "#4edea3",
+                        "tertiary-fixed-dim": "#bcc7de",
+                        "primary-fixed": "#6ffbbe",
+                        "on-tertiary": "#263143",
+                        "on-tertiary-fixed-variant": "#3c475a",
+                        "secondary-container": "#25a475",
+                        "surface-container-low": "#131b2e",
+                        "on-primary": "#003824",
+                        "surface-container": "#171f33",
+                        "on-background": "#dae2fd",
+                        "on-surface": "#dae2fd",
+                        "primary-container": "#10b981",
+                        "outline-variant": "#3c4a42",
+                        "on-secondary-fixed": "#002114",
+                        "surface-tint": "#4edea3",
+                        "on-secondary-container": "#00311f",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary": "#003825",
+                        "surface": "#0b1326",
+                        "on-tertiary-container": "#2e394c",
+                        "on-tertiary-fixed": "#111c2d",
+                        "error-container": "#93000a",
+                        "primary-fixed-dim": "#4edea3",
+                        "secondary-fixed-dim": "#68dba9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "display": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(45, 52, 73, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(78, 222, 163, 0.1);
+        }
+        .hero-bg-overlay {
+            background: linear-gradient(to right, rgba(11, 19, 38, 0.95), rgba(11, 19, 38, 0.7));
+        }
+        input::placeholder {
+            color: #86948a;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%234edea3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body antialiased overflow-x-hidden">
+<main class="flex flex-col md:flex-row min-h-screen w-full">
+<!-- Left Panel: Branding -->
+<section class="relative w-full md:w-5/12 lg:w-1/2 flex items-center justify-center p-8 lg:p-16 overflow-hidden min-h-[409px] md:min-h-screen">
+<div class="absolute inset-0 z-0">
+<div class="absolute inset-0 hero-bg-overlay z-10"></div>
+<img class="w-full h-full object-cover grayscale opacity-40" data-alt="A high-tech agricultural landscape at night with glowing data overlays and digital wireframes of livestock. The scene is bathed in a deep midnight blue atmosphere with vibrant emerald green laser lines highlighting animal contours. The mood is clinical, futuristic, and sophisticated, emphasizing precision surveillance and AI-driven veterinary diagnostics in a vast, dark pasture setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOy71h00QnwxskGE3T9PHzccUn91c16LxPWAz4vJ-q9jQI6-GqcWRFWXMOvS3W8PejSACgDYENUiMj6PwLxRY4JvJdHM_FHRk26pGLtAGosAOxadR1FJbMk5PPNk1WFyYGJooxs1ki3ETYMq4WHCLMMEnSXVM3j8LZnA-37B8IbPnNV3_gadKa5rENPPx3-X28wnBXQ0Sy9_Y9L5HvqpG37eGzZoCYxooFXz8zT0B6ntyHi5bgOX6aE5-GVICQknaLqZuxY46uHA0o"/>
+</div>
+<div class="relative z-20 flex flex-col items-center text-center max-w-md">
+<div class="mb-8 p-6 glass-panel rounded-xl">
+<span class="material-symbols-outlined text-primary text-7xl mb-4" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
+<h1 class="text-3xl font-black tracking-tighter text-on-surface">ADRS Core</h1>
+<div class="h-1 w-12 bg-primary mx-auto mt-2 rounded-full"></div>
+</div>
+<h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4">Precision Livestock Surveillance</h2>
+<p class="text-lg text-on-surface-variant font-light leading-relaxed">
+                    Deploying enterprise-grade AI diagnostic reporting for the next generation of veterinary clinical intelligence.
+                </p>
+<div class="mt-12 flex items-center space-x-6 text-on-surface-variant opacity-60">
+<div class="flex flex-col items-center">
+<span class="text-2xl font-bold text-primary">99.9%</span>
+<span class="text-[0.625rem] tracking-widest uppercase">Uptime</span>
+</div>
+<div class="w-px h-8 bg-outline-variant/30"></div>
+<div class="flex flex-col items-center">
+<span class="text-2xl font-bold text-primary">2ms</span>
+<span class="text-[0.625rem] tracking-widest uppercase">Latency</span>
+</div>
+<div class="w-px h-8 bg-outline-variant/30"></div>
+<div class="flex flex-col items-center">
+<span class="text-2xl font-bold text-primary">256-bit</span>
+<span class="text-[0.625rem] tracking-widest uppercase">Encryption</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Registration Form -->
+<section class="w-full md:w-7/12 lg:w-1/2 bg-surface-container-lowest flex items-center justify-center p-8 lg:p-24">
+<div class="w-full max-w-lg">
+<header class="mb-12">
+<span class="text-primary font-bold text-xs tracking-[0.2em] uppercase block mb-3">Institutional Access</span>
+<h3 class="text-3xl font-bold text-white mb-2">Register Farm</h3>
+<p class="text-on-surface-variant">Initialize your diagnostic node within the Sentinel network.</p>
+</header>
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Full Name -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Owner's Full Name</label>
+<input class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" placeholder="Dr. Julian Vane" type="text"/>
+</div>
+<!-- Email -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Email Address</label>
+<input class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" placeholder="vane.j@sentinel-ai.vet" type="email"/>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Password -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Password</label>
+<input class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" placeholder="••••••••" type="password"/>
+</div>
+<!-- Farm Location -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Farm Location (District)</label>
+<select class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm appearance-none transition-all duration-300">
+<option disabled="" selected="" value="">Select District</option>
+<option value="north">Northern Highlands</option>
+<option value="central">Central Plains</option>
+<option value="south">Southern Delta</option>
+<option value="east">Eastern Corridor</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Registration Number -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Registration Number</label>
+<input class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" placeholder="REG-AI-9902" type="text"/>
+</div>
+<!-- Veterinarian Name -->
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Veterinarian Name</label>
+<input class="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" placeholder="Clinic Lead" type="text"/>
+</div>
+</div>
+<!-- Total Animals & Cattle Breeds -->
+<div class="space-y-6 bg-surface-container-low p-6 rounded-xl border-l-4 border-primary/20">
+<div class="space-y-2">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Total Animals</label>
+<input class="w-full bg-surface-container-highest border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300" min="0" placeholder="0" type="number"/>
+</div>
+<div class="space-y-3">
+<label class="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">Cattle Breeds (Multi-select)</label>
+<div class="grid grid-cols-2 gap-3">
+<label class="flex items-center space-x-3 p-3 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<input class="rounded text-primary focus:ring-primary bg-surface-container-highest border-none" type="checkbox"/>
+<span class="text-sm font-medium">Jersey</span>
+</label>
+<label class="flex items-center space-x-3 p-3 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<input class="rounded text-primary focus:ring-primary bg-surface-container-highest border-none" type="checkbox"/>
+<span class="text-sm font-medium">Friesian</span>
+</label>
+<label class="flex items-center space-x-3 p-3 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<input class="rounded text-primary focus:ring-primary bg-surface-container-highest border-none" type="checkbox"/>
+<span class="text-sm font-medium">Sahiwal</span>
+</label>
+<label class="flex items-center space-x-3 p-3 bg-surface-container rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<input class="rounded text-primary focus:ring-primary bg-surface-container-highest border-none" type="checkbox"/>
+<span class="text-sm font-medium">Angus</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Register Button -->
+<button class="w-full py-4 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm tracking-widest uppercase rounded-lg shadow-[0_10px_30px_-10px_rgba(78,222,163,0.3)] hover:brightness-110 active:opacity-70 transition-all duration-300" type="submit">
+                        Register Farm
+                    </button>
+</form>
+<footer class="mt-8 text-center">
+<p class="text-xs text-slate-500 uppercase tracking-tighter">
+                        Already registered? <a class="text-primary hover:text-secondary-fixed transition-colors" href="#">System Login</a>
+</p>
+</footer>
+</div>
+</section>
+</main>
+<!-- Global Footer -->
+<footer class="w-full flex flex-col md:flex-row justify-between items-center px-12 py-8 max-w-screen-2xl mx-auto bg-[#0b1326] dark:bg-[#0b1326] docked full-width bottom-0 border-t border-emerald-500/10">
+<div class="text-emerald-400 font-black tracking-tighter mb-4 md:mb-0">
+            SENTINEL AI
+        </div>
+<div class="flex flex-wrap justify-center gap-6 mb-4 md:mb-0">
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-slate-400 hover:text-emerald-300 transition-colors duration-300" href="#">Privacy Policy</a>
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-slate-400 hover:text-emerald-300 transition-colors duration-300" href="#">Terms of Service</a>
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-slate-400 hover:text-emerald-300 transition-colors duration-300" href="#">Clinical Protocol</a>
+<a class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-slate-400 hover:text-emerald-300 transition-colors duration-300" href="#">Technical Documentation</a>
+</div>
+<div class="font-['Inter'] text-[0.6875rem] tracking-[0.05em] uppercase text-slate-400 text-center md:text-right">
+            © 2024 Sentinel AI Veterinary Diagnostics. Precision Engineered Intelligence.
+        </div>
+</footer>
+</body></html>
