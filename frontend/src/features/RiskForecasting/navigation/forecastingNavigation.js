@@ -41,6 +41,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'Advisory Centre',
     icon: 'campaign',
   }),
+  HISTORY: Object.freeze({
+    id: 'history',
+    label: 'Forecast & Advisory History',
+    icon: 'history',
+  }),
   SURVEILLANCE_OVERVIEW: Object.freeze({
     id: 'surveillance-overview',
     label: 'Surveillance Overview',
@@ -80,6 +85,7 @@ export function getForecastingNavigation(viewerContext) {
     items.push({ ...NAVIGATION_ITEMS.FORECAST_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
     items.push({ ...NAVIGATION_ITEMS.ADVISORY_CENTRE });
+    items.push({ ...NAVIGATION_ITEMS.HISTORY });
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
   } else if (normalizedContext.role === ROLES.DAPH_OFFICIAL) {
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW });

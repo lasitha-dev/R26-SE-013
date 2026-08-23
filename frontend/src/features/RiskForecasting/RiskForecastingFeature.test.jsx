@@ -171,6 +171,13 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Veterinary Officer Advisory Centre/i, level: 2 })).toBeInTheDocument();
     });
 
+    it('can activate VeterinaryForecastAdvisoryHistory', () => {
+      render(<RiskForecastingFeature viewerContext={validVetContext} />);
+      const historyBtn = screen.getByRole('button', { name: /Forecast & Advisory History/i });
+      fireEvent.click(historyBtn);
+      expect(screen.getByRole('heading', { name: /Forecast & Advisory History/i, level: 2 })).toBeInTheDocument();
+    });
+
     it('district-forecasts resolves to VeterinaryDistrictForecasts component for Vet', () => {
       render(<RiskForecastingFeature viewerContext={validVetContext} />);
       const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
