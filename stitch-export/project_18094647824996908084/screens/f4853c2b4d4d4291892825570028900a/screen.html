@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Wellness Data Intake - ADRS Core</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-high": "#222a3d",
+                    "secondary-fixed": "#85f8c4",
+                    "surface-tint": "#4edea3",
+                    "secondary-container": "#25a475",
+                    "on-primary-container": "#00422b",
+                    "on-secondary-container": "#00311f",
+                    "on-primary": "#003824",
+                    "on-error": "#690005",
+                    "surface-variant": "#2d3449",
+                    "surface-container-low": "#131b2e",
+                    "outline": "#86948a",
+                    "background": "#0b1326",
+                    "inverse-surface": "#dae2fd",
+                    "tertiary-fixed-dim": "#bcc7de",
+                    "secondary-fixed-dim": "#68dba9",
+                    "on-surface-variant": "#bbcabf",
+                    "primary-fixed": "#6ffbbe",
+                    "on-tertiary-fixed": "#111c2d",
+                    "on-primary-fixed-variant": "#005236",
+                    "on-background": "#dae2fd",
+                    "on-error-container": "#ffdad6",
+                    "on-tertiary-container": "#2e394c",
+                    "tertiary-fixed": "#d8e3fb",
+                    "surface-container-highest": "#2d3449",
+                    "error": "#ffb4ab",
+                    "tertiary": "#bcc7de",
+                    "on-secondary-fixed-variant": "#005137",
+                    "surface-bright": "#31394d",
+                    "surface-container-lowest": "#060e20",
+                    "primary-container": "#10b981",
+                    "surface-container": "#171f33",
+                    "inverse-on-surface": "#283044",
+                    "on-tertiary-fixed-variant": "#3c475a",
+                    "primary-fixed-dim": "#4edea3",
+                    "on-secondary-fixed": "#002114",
+                    "inverse-primary": "#006c49",
+                    "outline-variant": "#3c4a42",
+                    "on-surface": "#dae2fd",
+                    "on-secondary": "#003825",
+                    "secondary": "#68dba9",
+                    "on-primary-fixed": "#002113",
+                    "primary": "#4edea3",
+                    "error-container": "#93000a",
+                    "tertiary-container": "#98a3ba",
+                    "surface": "#0b1326",
+                    "surface-dim": "#0b1326",
+                    "on-tertiary": "#263143"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "display": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b1326; color: #dae2fd; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); background: rgba(23, 31, 51, 0.6); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-hidden">
+<!-- SideNavBar (JSON Derived) -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#131b2e] border-r border-emerald-500/10 flex flex-col py-6 font-['Inter'] antialiased tracking-tight z-50">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3"><div class="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-xl" style="font-variation-settings: 'FILL' 1;">shield</span></div><div><h1 class="text-white font-black tracking-widest leading-none">ADRS CORE</h1><p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 mt-1">CLINICAL PRECISION</p></div></div>
+</div>
+<nav class="flex-1 px-3 space-y-1"><a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#"><span class="material-symbols-outlined text-[20px]">pets</span><span class="text-sm">Herd Registry</span></a>
+<!-- Wellness & BCS: Active -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">health_and_safety</span>
+<span class="text-sm">Wellness &amp; BCS</span>
+</a>
+<!-- AI Smart Diagnosis -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">memory</span>
+<span class="text-sm">AI Smart Diagnosis</span>
+</a>
+<!-- Geospatial Intelligence -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">map</span>
+<span class="text-sm">Geospatial Intelligence</span>
+</a>
+<!-- Seasonal Forecasting -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">cloudy_snowing</span>
+<span class="text-sm">Seasonal Forecasting</span>
+</a>
+</nav>
+<div class="px-4 pb-6 mt-auto space-y-6">
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-emerald-200 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="text-sm">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Viewport -->
+<main class="flex-grow ml-64 min-h-screen flex flex-col relative">
+<!-- TopAppBar (JSON Derived) -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-[#0b1326] flex items-center justify-between px-8 z-40 border-none">
+<div class="flex items-center flex-grow max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xl">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-full py-2 pl-11 pr-4 text-sm text-on-surface focus:ring-1 focus:ring-primary-container transition-all" placeholder="Search records, cows, or diagnostics..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-slate-300 hover:bg-[#171f33] p-2 rounded-full transition-opacity active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-slate-300 hover:bg-[#171f33] p-2 rounded-full transition-opacity active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="flex items-center gap-3 ml-2 border-l border-surface-container-high pl-6">
+<div class="text-right"><p class="text-xs font-bold text-on-surface">Kamal Perera</p>
+<p class="text-[10px] text-slate-500">Dairy Farmer</p></div>
+<img alt="User Profile" class="w-10 h-10 rounded-full object-cover border-2 border-primary-container/20" data-alt="A professional headshot of a senior veterinarian with short dark hair and a kind expression, wearing a navy blue medical scrub. The portrait is set against a clean, softly lit clinical background with deep navy and subtle green ambient lighting, reflecting a modern and authoritative atmosphere in a high-tech medical environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBndLehRQGFxr8pqniPQCr-EumwCFCC8JQESauxm9ACvzauz3vjyf-hPoOONV5dZjUPNCS6-tNbkjMUjz_C36bApd0AVGXohw5PnkwNBOYxIYNURS6m6HEtmFmjsLOZ96U3Yad6U0WasoSvdUGaQNkW5Ss9OC971fmYZe08EAl_XcVwSITf6NIcHbnPfbmwVRC79793hKV6cwWltGw8cX2_JmzLs3p2pr8cuv35sYiVPxcPmXAiq8k-YgimKZUciQAIACV5YKwLF4EZ"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="mt-16 p-10 flex flex-col flex-grow overflow-y-auto no-scrollbar">
+<div class="max-w-4xl mx-auto w-full">
+<!-- Content Header -->
+<div class="mb-10 flex items-center gap-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<h2 class="text-2xl font-black text-white tracking-widest uppercase">Wellness Data Intake</h2>
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+<div class="h-1 w-24 bg-gradient-to-r from-primary to-transparent mt-1"></div>
+</div>
+</div>
+<!-- Form Card -->
+<div class="grid grid-cols-1 gap-8">
+<div class="surface-container-high rounded-xl p-8 shadow-2xl relative overflow-hidden">
+<!-- Technical Texture Background -->
+<div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: radial-gradient(#4edea3 0.5px, transparent 0.5px); background-size: 20px 20px;"></div>
+<form class="relative z-10 space-y-8">
+<!-- Cow Selector -->
+<div class="space-y-2">
+<label class="text-[11px] font-bold tracking-widest text-primary uppercase flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">tag</span>
+                                    Select Cow Tag ID
+                                </label>
+<div class="relative group">
+<select class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-4 px-5 text-on-surface appearance-none focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer">
+<option disabled="" selected="" value="">Search by ID or Name...</option>
+<option value="402">ID: #402 - "Bessie"</option>
+<option value="511">ID: #511 - "Luna"</option>
+<option value="398">ID: #398 - "Daisy"</option>
+<option value="122">ID: #122 - "Clover"</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">expand_more</span>
+</div>
+</div>
+<!-- Numerical Inputs Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Morning Milk Yield (Liters)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-4 px-5 text-2xl font-display font-medium text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="0.0" step="0.1" type="number"/>
+<span class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 font-bold">L</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Evening Milk Yield (Liters)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-4 px-5 text-2xl font-display font-medium text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="0.0" step="0.1" type="number"/>
+<span class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 font-bold">L</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Body Weight Before Milking (kg)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-4 px-5 text-2xl font-display font-medium text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="000" type="number"/>
+<span class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 font-bold">KG</span>
+</div>
+</div>
+<!-- Clinical Info Banner -->
+<div class="bg-primary-container/5 border border-primary-container/10 rounded-lg p-4 flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-0.5" style="font-variation-settings: 'FILL' 1;">info</span>
+<p class="text-sm text-[#10B981] font-medium leading-relaxed">
+                                    Continuous daily logging enables the AI to detect sub-clinical health anomalies early. 
+                                    <span class="text-[10px] block mt-1 text-primary/60 font-normal uppercase tracking-widest">Protocol: VET-SEC-09</span>
+</p>
+</div>
+<!-- Submit Action -->
+<button class="w-full h-16 rounded-xl bg-gradient-to-br from-[#10b981] to-[#4edea3] text-on-primary-container font-black text-lg tracking-[0.2em] uppercase shadow-xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all flex items-center justify-center gap-3" type="button">
+<span>Save Daily Log</span>
+<span class="material-symbols-outlined">send</span>
+</button>
+</form>
+</div>
+<!-- Supplemental Data / Micro-Trends (Design System Enhancement) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="surface-container rounded-lg p-5 flex flex-col">
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Last Sync</span>
+<span class="text-white font-medium">Today, 06:45 AM</span>
+<div class="mt-4 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+</div>
+<div class="surface-container rounded-lg p-5 flex flex-col">
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Monitors</span>
+<span class="text-white font-medium">1,240 Bovine Units</span>
+<div class="mt-4 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-4/5"></div>
+</div>
+</div>
+<div class="surface-container rounded-lg p-5 flex flex-col">
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">AI Confidence</span>
+<span class="text-primary font-medium">99.2% Accuracy</span>
+<div class="mt-4 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[99%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Visual Asset -->
+<div class="mt-16 w-full h-48 rounded-2xl overflow-hidden relative">
+<img alt="Smart Agriculture Visualization" class="w-full h-full object-cover opacity-40" data-alt="A wide panoramic shot of a ultra-modern, clean livestock facility at dusk. The scene is illuminated by soft, cool-toned clinical LEDs and the glow of holographic interfaces. Healthy cattle are visible in organized, spacious stalls while digital data streams and wireframe overlays represent health tracking and AI diagnostics. The visual style is cinematic and high-tech, using a deep navy and emerald green color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkvUDaJg44xyJ5Zil1vXCT8hhmKzS16Axr2Xjruc546_R6q6Gj4Fmy1CpVkYunWbW1arWFk4t6W4VUzUKp0Hs_wjrPOaeGBMwgioRJuYGWE_svJi0Xui4BxOL4jA7NIibinsXIx0tI_ygu5RLHk6zBQpiVUzrmvVF4tlW9bnTomlxlg6Lco1AOf2zd1k1ENAAiMjWe6k7fC1ShOaGzIHxW0iItCbEl1_0nOElHPJl5HRrteC-c5cWR35dwNfQs4eDyPKDhzuba1Enf"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-6 left-8">
+<p class="text-primary font-bold text-lg">System Status: Optimal</p>
+<p class="text-slate-400 text-sm">All bio-telemetry nodes reporting nominal activity.</p>
+</div>
+</div>
+</div>
+<!-- Global FAB (Suppressed per logic rules for Form screens) -->
+</main>
+</body></html>

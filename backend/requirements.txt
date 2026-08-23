@@ -8,6 +8,11 @@ Pillow>=9.0
 torch>=2.0
 torchvision>=0.15
 ultralytics>=8.0
+motor
+python-multipart
 tensorflow>=2.13.0
 opencv-python>=4.8.0
 openai>=1.0
+
+
+

@@ -1,7 +1,8 @@
 {
-  "name": "animal-farm-reporting-frontend",
-  "version": "0.1.0",
+  "name": "r26-se-013-frontend",
   "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,9 +11,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "prop-types": "^15.8.1",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.0",
