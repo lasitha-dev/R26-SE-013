@@ -9,7 +9,7 @@ const links = [
   { to: '/health/vet-login', label: 'Vet Login' },
   { to: '/health/vet-registration', label: 'Vet Reg' },
   { to: '/vet/dashboard', label: 'Vet Dashboard' },
-  { to: '/diagnostics', label: 'Smart Diagnostics' },
+  { to: '/vet/diagnostics', label: 'Smart Diagnostics' },
   { to: '/health/password-reset', label: 'Password Reset' },
   { to: '/health/settings', label: 'Settings' },
   { to: '/health/herd-registry', label: 'Herd Registry' },

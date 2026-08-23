@@ -190,15 +190,15 @@ describe('SmartDiagnostics', () => {
     expect(screen.queryByTestId('success-view')).not.toBeInTheDocument();
   });
 
-  it('renders the sidebar with ADRS Core branding', () => {
+  it('renders the header with Diagnostic Intake & Visual Triage badge', () => {
     render(<SmartDiagnostics />);
-    expect(screen.getByText('ADRS Core')).toBeInTheDocument();
-    expect(screen.getByText('Precision Sentinel')).toBeInTheDocument();
+    expect(screen.getByText('Diagnostic Intake & Visual Triage')).toBeInTheDocument();
+    expect(screen.getByText('AI-Powered Smart Diagnosis System')).toBeInTheDocument();
   });
 
-  it('renders the top header with AI Diagnostics Panel title', () => {
+  it('renders the pipeline version indicator', () => {
     render(<SmartDiagnostics />);
-    expect(screen.getByText('AI Diagnostics Panel')).toBeInTheDocument();
+    expect(screen.getByText('CV Pipeline v3.2')).toBeInTheDocument();
   });
 
   it('displays confidence as a percentage without double multiplication', async () => {

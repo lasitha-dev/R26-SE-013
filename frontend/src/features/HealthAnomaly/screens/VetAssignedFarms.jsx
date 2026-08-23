@@ -75,7 +75,7 @@ export default function VetAssignedFarms() {
         </div>
 
         <Link
-          to="/diagnostics"
+          to="/vet/diagnostics"
           className="px-4 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs flex items-center gap-2 shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
         >
           <span className="material-symbols-outlined text-base">psychology</span>
@@ -119,7 +119,7 @@ export default function VetAssignedFarms() {
                 <span className="font-bold text-white font-mono">{farm.totalAnimals}</span> Livestock
               </div>
               <Link
-                to="/diagnostics"
+                to="/vet/diagnostics"
                 className="text-primary hover:text-primary-fixed font-bold flex items-center gap-1"
               >
                 <span>Diagnose</span>

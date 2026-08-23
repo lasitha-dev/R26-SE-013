@@ -11,6 +11,8 @@ import VetDashboard from './features/HealthAnomaly/screens/VetDashboard.jsx'
 import VetAssignedFarms from './features/HealthAnomaly/screens/VetAssignedFarms.jsx'
 import VetClinicalRecords from './features/HealthAnomaly/screens/VetClinicalRecords.jsx'
 import VetSettings from './features/HealthAnomaly/screens/VetSettings.jsx'
+import GeospatialMock from './features/HealthAnomaly/screens/GeospatialMock.jsx'
+import ForecastingMock from './features/HealthAnomaly/screens/ForecastingMock.jsx'
 
 export default function App() {
   return (
@@ -27,13 +29,16 @@ export default function App() {
       <Route path="/vet" element={<VetLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<VetDashboard />} />
+        <Route path="diagnostics" element={<SmartDiagnostics />} />
+        <Route path="geospatial" element={<GeospatialMock />} />
+        <Route path="forecasting" element={<ForecastingMock />} />
         <Route path="assigned-farms" element={<VetAssignedFarms />} />
         <Route path="clinical-records" element={<VetClinicalRecords />} />
         <Route path="settings" element={<VetSettings />} />
       </Route>
 
-      {/* AI Smart Diagnostics Workbench */}
-      <Route path="/diagnostics" element={<SmartDiagnostics />} />
+      {/* Redirect old diagnostics route to Vet Diagnostics */}
+      <Route path="/diagnostics" element={<Navigate to="/vet/diagnostics" replace />} />
 
       <Route path="*" element={<div className="p-6 text-on-surface">Not Found</div>} />
     </Routes>

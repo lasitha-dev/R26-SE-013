@@ -55,7 +55,7 @@ export default function VetRegistrationSuccess() {
                 Proceed to Vet Login
               </button>
               <button
-                onClick={() => navigate('/diagnostics')}
+                onClick={() => navigate('/vet/diagnostics')}
                 className="w-full py-4 px-6 bg-surface-container-highest/40 text-primary border border-primary/20 font-semibold rounded-lg hover:bg-surface-container-highest transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
                 type="button"
               >

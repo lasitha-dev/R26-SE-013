@@ -43,10 +43,9 @@ export default function VetLayout() {
 
   const vetNavLinks = [
     { to: '/vet/dashboard', label: 'Clinical Overview', icon: 'health_and_safety' },
-    { to: '/diagnostics', label: 'Smart Diagnostics', icon: 'psychology' },
-    { to: '/vet/assigned-farms', label: 'Assigned Farms', icon: 'agriculture' },
-    { to: '/vet/clinical-records', label: 'Diagnostic Records', icon: 'clinical_notes' },
-    { to: '/vet/settings', label: 'Vet Credentials', icon: 'badge' },
+    { to: '/vet/diagnostics', label: 'Smart Diagnostics', icon: 'psychology' },
+    { to: '/vet/geospatial', label: 'Geospatial Intelligence', icon: 'travel_explore' },
+    { to: '/vet/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
   ]
 
   const handleSignOut = () => {
@@ -128,7 +127,7 @@ export default function VetLayout() {
               >
                 <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
                 <span className="text-sm">{link.label}</span>
-                {link.to === '/diagnostics' && (
+                {link.to === '/vet/diagnostics' && (
                   <span className="ml-auto px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-mono font-bold">
                     AI
                   </span>
@@ -141,7 +140,7 @@ export default function VetLayout() {
         {/* Quick Launch Diagnostics Banner */}
         <div className="px-4 mb-4">
           <NavLink
-            to="/diagnostics"
+            to="/vet/diagnostics"
             onClick={() => setIsSidebarOpen(false)}
             className="block p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-primary-container/10 border border-primary/20 hover:border-primary/40 transition-all group text-left"
           >

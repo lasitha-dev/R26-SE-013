@@ -29,6 +29,7 @@ export default function SystemLogin() {
         localStorage.setItem("token", data.access_token)
         localStorage.setItem("owner_name", data.owner_name)
         localStorage.setItem("email", data.email)
+        localStorage.setItem("role", "farm_owner")
         localStorage.setItem("veterinarian_name", data.veterinarian_name)
         navigate('/health/dashboard')
       } else {

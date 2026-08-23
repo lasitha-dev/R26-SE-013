@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import AppShell from '../../shared_components/AppShell';
 import UploadDropzone from './components/UploadDropzone';
 import ReasoningBriefing from './components/ReasoningBriefing';
 import useDetection from './hooks/useDetection';
@@ -62,7 +61,7 @@ const SmartDiagnostics = () => {
   };
 
   return (
-    <AppShell activeNavItem="smart-diagnosis" headerTitle="AI Diagnostics Panel">
+    <div className="space-y-6 animate-fadeIn">
       {/* Page Title + Header Actions */}
       <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-outline-variant/10">
         <div>
@@ -592,7 +591,7 @@ const SmartDiagnostics = () => {
           </div>
         )}
       </div>
-    </AppShell>
+    </div>
   );
 };
 

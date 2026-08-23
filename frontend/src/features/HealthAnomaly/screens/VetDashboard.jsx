@@ -60,7 +60,7 @@ export default function VetDashboard() {
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <button
-              onClick={() => navigate('/diagnostics')}
+              onClick={() => navigate('/vet/diagnostics')}
               className="px-5 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm flex items-center gap-2 shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
             >
               <span className="material-symbols-outlined text-lg">psychology</span>
@@ -196,7 +196,7 @@ export default function VetDashboard() {
                         </td>
                         <td className="py-3 px-3 text-right">
                           <button
-                            onClick={() => navigate('/diagnostics')}
+                            onClick={() => navigate('/vet/diagnostics')}
                             className="text-primary hover:text-primary-fixed font-bold inline-flex items-center gap-1 hover:underline"
                           >
                             <span>Diagnose</span>
@@ -231,7 +231,7 @@ export default function VetDashboard() {
             </p>
 
             <button
-              onClick={() => navigate('/diagnostics')}
+              onClick={() => navigate('/vet/diagnostics')}
               className="w-full py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs rounded-lg uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/15 hover:brightness-110 transition-all"
             >
               <span className="material-symbols-outlined text-base">upload_file</span>

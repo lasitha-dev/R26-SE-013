@@ -28,9 +28,6 @@ export default function DashboardLayout() {
   const navLinks = [
     { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety', matchPaths: wellnessRoutes },
     { to: '/health/herd-registry', label: 'Herd Registry', icon: 'pets' },
-    { to: '/diagnostics', label: 'AI Smart Diagnosis', icon: 'memory' },
-    { to: '/health/geospatial', label: 'Geospatial Intelligence', icon: 'map' },
-    { to: '/health/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
   ]
 
   const linkClass = ({ isActive }) =>
