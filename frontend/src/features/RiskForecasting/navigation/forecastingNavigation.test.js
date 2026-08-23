@@ -100,11 +100,12 @@ describe('forecastingNavigation Helpers', () => {
     expect(ids).not.toContain('outbox');
   });
 
-  it('DAPH without viewDataQuality capability gets Overview and District Forecasts only', () => {
+  it('DAPH without viewDataQuality capability gets National Overview, Surveillance Overview, and District Forecasts', () => {
     const items = getForecastingNavigation(daphContextBasic);
-    expect(items).toHaveLength(2);
-    expect(items[0]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW);
-    expect(items[1]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toEqual(NAVIGATION_ITEMS.NATIONAL_OVERVIEW);
+    expect(items[1]).toEqual(NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW);
+    expect(items[2]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
 
     const ids = items.map((i) => i.id);
     expect(ids).not.toContain('data-quality');
@@ -118,8 +119,8 @@ describe('forecastingNavigation Helpers', () => {
       permissions: { ...daphContextBasic.permissions, viewDataQuality: true },
     };
     const items = getForecastingNavigation(daphWithDataQuality);
-    expect(items).toHaveLength(3);
-    expect(items[2]).toEqual(NAVIGATION_ITEMS.DATA_QUALITY);
+    expect(items).toHaveLength(4);
+    expect(items[3]).toEqual(NAVIGATION_ITEMS.DATA_QUALITY);
   });
 
   it('explicit viewModelTransparency permission adds Model Transparency to any valid role', () => {

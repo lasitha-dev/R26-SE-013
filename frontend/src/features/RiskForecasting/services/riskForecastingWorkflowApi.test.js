@@ -7,6 +7,7 @@ import {
   createForecastRecord,
   getForecastRecord,
   listForecastRecords,
+  listForecastDistricts,
   listAssignedRecipients,
   createAdvisoryDraft,
   previewAdvisory,
@@ -210,6 +211,19 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
     const callUrl = globalThis.fetch.mock.calls[0][0];
     expect(callUrl).toContain('/api/v1/risk-forecasting/records?disease=LSD&district=Jaffna&status=GENERATED');
     expect(callUrl).not.toContain('/forecast-records');
+  });
+
+  it('16b. listForecastDistricts sends GET /districts and handles AbortSignal correctly', async () => {
+    mockFetchJsonResponse({ total_districts: 25, districts: ['Anuradhapura'], month_names: ['January'] });
+    const controller = new AbortController();
+    const res = await listForecastDistricts({ signal: controller.signal });
+
+    const callUrl = globalThis.fetch.mock.calls[0][0];
+    const options = globalThis.fetch.mock.calls[0][1];
+    expect(callUrl).toContain('/api/v1/risk-forecasting/districts');
+    expect(options.method).toBe('GET');
+    expect(options.signal).toBe(controller.signal);
+    expect(res.total_districts).toBe(25);
   });
 
   // ─── C. RECIPIENTS ───────────────────────────────────────────────────────

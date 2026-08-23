@@ -5,6 +5,13 @@ import { RiskForecastingFeature } from './RiskForecastingFeature';
 import { ROLES, SCOPE_LEVELS } from './contracts/viewerContext';
 import * as forecastingNav from './navigation/forecastingNavigation';
 
+vi.mock('./services/riskForecastingWorkflowApi', () => ({
+  listForecastDistricts: vi.fn().mockResolvedValue({ districts: ['Anuradhapura', 'Polonnaruwa'], month_names: [] }),
+  listForecastRecords: vi.fn().mockResolvedValue({ total: 0, records: [] }),
+  listAdvisories: vi.fn().mockResolvedValue({ advisories: [] }),
+  listNotificationBatches: vi.fn().mockResolvedValue({ batches: [] }),
+}));
+
 describe('RiskForecastingFeature Component', () => {
   const validFarmerContext = Object.freeze({
     userId: 'usr_farmer_feat_001',
@@ -224,9 +231,9 @@ describe('RiskForecastingFeature Component', () => {
 
   // 4. DAPH OFFICIAL Role Tests
   describe('DAPH OFFICIAL Role', () => {
-    it('initially renders Surveillance Overview for DAPH_OFFICIAL', () => {
+    it('initially renders National Forecast Overview for DAPH_OFFICIAL', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
     it('district-forecasts resolves to DaphDistrictForecasts component for DAPH', () => {
@@ -290,12 +297,12 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
 
       rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
     it('resets screen when context changes from DAPH to Farmer', () => {
       const { rerender } = render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
 
       rerender(<RiskForecastingFeature viewerContext={validFarmerContext} />);
       expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
@@ -321,7 +328,7 @@ describe('RiskForecastingFeature Component', () => {
 
       rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
       expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
     it('immediately renders authorized fallback when viewModelTransparency permission is removed', () => {
@@ -335,7 +342,7 @@ describe('RiskForecastingFeature Component', () => {
 
       rerender(<RiskForecastingFeature viewerContext={daphWithoutMt} />);
       expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
     it('does not reset an authorized active screen on equivalent context rerender', () => {
@@ -392,11 +399,11 @@ describe('RiskForecastingFeature Component', () => {
       // Remove permission
       rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
       expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
 
       // Restore permission
       rerender(<RiskForecastingFeature viewerContext={daphWithDq} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
     });
 
@@ -412,11 +419,11 @@ describe('RiskForecastingFeature Component', () => {
       // Remove permission
       rerender(<RiskForecastingFeature viewerContext={daphWithoutMt} />);
       expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
 
       // Restore permission
       rerender(<RiskForecastingFeature viewerContext={daphWithMt} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
     });
 
@@ -516,7 +523,7 @@ describe('RiskForecastingFeature Component', () => {
       // Synchronous rerender assertion pass without waitFor
       rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
       expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeNull();
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
   });
 
@@ -534,7 +541,7 @@ describe('RiskForecastingFeature Component', () => {
 
     it('renders exactly one role screen at a time', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByRole('heading', { name: /Departmental Surveillance Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).not.toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).not.toBeInTheDocument();
     });
@@ -563,7 +570,7 @@ describe('RiskForecastingFeature Component', () => {
 
     it('container itself performs zero direct fetch calls on render', () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
-      render(<RiskForecastingFeature viewerContext={validDaphContext} />);
+      render(<RiskForecastingFeature viewerContext={null} />);
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
     });

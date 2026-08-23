@@ -229,6 +229,17 @@ export async function listForecastRecords(filters = {}, options = {}) {
   });
 }
 
+/**
+ * Lists authoritative 25 Sri Lankan administrative districts and month names.
+ * GET /api/v1/risk-forecasting/districts
+ */
+export async function listForecastDistricts(options = {}) {
+  return requestWorkflowApi('/api/v1/risk-forecasting/districts', {
+    method: 'GET',
+    signal: options.signal,
+  });
+}
+
 // ─── RECIPIENT QUERY METHOD ────────────────────────────────────────────────
 
 /**

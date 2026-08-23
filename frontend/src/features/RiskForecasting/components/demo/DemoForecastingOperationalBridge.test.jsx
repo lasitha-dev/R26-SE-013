@@ -267,6 +267,9 @@ describe('DemoForecastingOperationalBridge & Connected Screens Unit Tests', () =
 
     render(<DemoForecastingOperationalBridge viewerContext={mockDaphContext} />);
 
+    const survBtn = screen.getByRole('button', { name: /Surveillance Overview/i });
+    fireEvent.click(survBtn);
+
     expect(screen.getByText(/District Surveillance Records/i)).toBeInTheDocument();
     expect(screen.getByText('FMD Alert Jaffna')).toBeInTheDocument();
     expect(screen.getByText(/FIELD_REVIEW/i)).toBeInTheDocument();
