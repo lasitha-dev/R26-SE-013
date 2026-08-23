@@ -7,6 +7,9 @@ import RegistrationSuccess from './screens/RegistrationSuccess.jsx'
 import SystemLogin from './screens/SystemLogin.jsx'
 import RegistrationLanding from './screens/RegistrationLanding.jsx'
 import PasswordReset from './screens/PasswordReset.jsx'
+import VetLogin from './screens/VetLogin.jsx'
+import VetRegistration from './screens/VetRegistration.jsx'
+import VetRegistrationSuccess from './screens/VetRegistrationSuccess.jsx'
 import SettingsFarmConfiguration from './screens/SettingsFarmConfiguration.jsx'
 import HerdRegistry from './screens/HerdRegistry.jsx'
 import AnimalProfile from './screens/AnimalProfile.jsx'
@@ -84,6 +87,9 @@ export default function HealthAnomalyRoutes() {
       <Route path="registration" element={<RegistrationLanding />} />
       <Route path="registration-success" element={<RegistrationSuccess />} />
       <Route path="password-reset" element={<PasswordReset />} />
+      <Route path="vet-login" element={<VetLogin />} />
+      <Route path="vet-registration" element={<VetRegistration />} />
+      <Route path="vet-registration-success" element={<VetRegistrationSuccess />} />
 
       {/* Main app routes wrapped with DashboardLayout */}
       <Route element={<DashboardLayout />}>

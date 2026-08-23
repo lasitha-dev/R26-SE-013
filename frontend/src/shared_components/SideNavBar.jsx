@@ -6,10 +6,10 @@ import PropTypes from 'prop-types';
  * Each item maps to a feature module route.
  */
 const NAV_ITEMS = [
-  { id: 'wellness', icon: 'health_and_safety', label: 'Wellness & BCS', href: '#wellness' },
-  { id: 'smart-diagnosis', icon: 'psychology', label: 'AI Smart Diagnosis', href: '#smart-diagnosis' },
-  { id: 'geospatial', icon: 'travel_explore', label: 'Geospatial Intelligence', href: '#geospatial' },
-  { id: 'forecasting', icon: 'wb_sunny', label: 'Seasonal Forecasting', href: '#forecasting' },
+  { id: 'wellness', icon: 'health_and_safety', label: 'Wellness & BCS', href: '/health/dashboard' },
+  { id: 'smart-diagnosis', icon: 'psychology', label: 'AI Smart Diagnosis', href: '/diagnostics' },
+  { id: 'geospatial', icon: 'travel_explore', label: 'Geospatial Intelligence', href: '/health/geospatial' },
+  { id: 'forecasting', icon: 'wb_sunny', label: 'Seasonal Forecasting', href: '/health/forecasting' },
 ];
 
 const FOOTER_ITEMS = [

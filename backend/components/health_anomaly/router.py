@@ -20,8 +20,12 @@ except ImportError:
     YOLO = None
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection
-from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection
+from components.health_anomaly.schemas import (
+    FarmRegister, FarmLogin, TokenResponse,
+    VetRegister, VetLogin, VetTokenResponse,
+    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
+)
 
 router = APIRouter()
 
@@ -249,6 +253,91 @@ async def login_farm(credentials: FarmLogin):
         "owner_name": farm["owner_name"],
         "email": farm["email"],
         "veterinarian_name": farm["veterinarian_name"]
+    }
+
+@router.post("/vet/register", status_code=status.HTTP_201_CREATED)
+async def register_vet(vet_data: VetRegister):
+    # Check if the email already exists in vets collection
+    existing_vet_email = await vets_collection.find_one({"email": vet_data.email})
+    if existing_vet_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A veterinarian registration with this email address already exists."
+        )
+
+    # Check if license_number already exists in vets collection
+    existing_vet_license = await vets_collection.find_one({"license_number": vet_data.license_number})
+    if existing_vet_license:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A veterinarian with this license registration number already exists."
+        )
+
+    # Hash password and serialize schema
+    hashed_password = get_password_hash(vet_data.password)
+    vet_doc = vet_data.model_dump()
+    vet_doc["password"] = hashed_password
+    vet_doc["role"] = "vet"
+    vet_doc["created_at"] = datetime.utcnow().isoformat()
+
+    try:
+        await vets_collection.insert_one(vet_doc)
+        return {"message": "Veterinarian registered successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error during vet registration: {str(e)}"
+        )
+
+@router.post("/vet/login", response_model=VetTokenResponse)
+async def login_vet(credentials: VetLogin):
+    vet = await vets_collection.find_one({"email": credentials.email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
+
+    if not verify_password(credentials.password, vet["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
+
+    token_data = {
+        "sub": vet["email"],
+        "full_name": vet["full_name"],
+        "role": "vet",
+        "license_number": vet.get("license_number", "")
+    }
+    access_token = create_access_token(data=token_data)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "full_name": vet["full_name"],
+        "email": vet["email"],
+        "role": "vet",
+        "license_number": vet.get("license_number", ""),
+        "phone": vet.get("phone", "")
+    }
+
+@router.get("/vet/profile")
+async def get_vet_profile(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+    return {
+        "full_name": vet.get("full_name"),
+        "email": vet.get("email"),
+        "license_number": vet.get("license_number"),
+        "phone": vet.get("phone"),
+        "role": vet.get("role", "vet"),
+        "assigned_farms": vet.get("assigned_farms", [])
     }
 
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)

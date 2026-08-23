@@ -1,44 +1,58 @@
-import React, { useState, useContext } from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { ProfileContext } from '../context/ProfileContext.jsx'
 
-export default function DashboardLayout() {
+export default function VetLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const { profilePhoto, farmerName, hasAlerts, setFarmerName, setProfilePhoto } = useContext(ProfileContext)
+  const [vetInfo, setVetInfo] = useState({
+    fullName: localStorage.getItem("full_name") || localStorage.getItem("owner_name") || "Dr. Clinical Vet",
+    email: localStorage.getItem("email") || "",
+    licenseNumber: localStorage.getItem("license_number") || "VET-AUTH-2026",
+    role: localStorage.getItem("role") || "vet"
+  })
+  const [hasAlerts, setHasAlerts] = useState(false)
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
   const token = localStorage.getItem("token")
 
+  // Check alert status across herds
+  useEffect(() => {
+    const fetchVetData = async () => {
+      if (!token) return
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/cattle', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const alertExists = Array.isArray(data) && data.some(c => c.health_status === 'Alert' || c.status === 'Alert')
+          setHasAlerts(alertExists)
+        }
+      } catch (err) {
+        // Silently catch in dev
+      }
+    }
+    fetchVetData()
+  }, [token])
+
   if (!token) {
-    return <Navigate to="/health/login" replace />
+    return <Navigate to="/health/vet-login" replace />
   }
 
-  const ownerDisplayName = farmerName || localStorage.getItem("owner_name") || "Julian Vane"
-  const vetName = localStorage.getItem("veterinarian_name") || "Clinical Lead"
-
-  const wellnessRoutes = [
-    '/health/dashboard',
-    '/health/7-day-triage-scan',
-    '/health/ai-wellness-report',
-    '/health/wellness-data-intake',
-    '/health/bcs-analyzer',
+  const vetNavLinks = [
+    { to: '/vet/dashboard', label: 'Clinical Overview', icon: 'health_and_safety' },
+    { to: '/diagnostics', label: 'Smart Diagnostics', icon: 'psychology' },
+    { to: '/vet/assigned-farms', label: 'Assigned Farms', icon: 'agriculture' },
+    { to: '/vet/clinical-records', label: 'Diagnostic Records', icon: 'clinical_notes' },
+    { to: '/vet/settings', label: 'Vet Credentials', icon: 'badge' },
   ]
 
-  const navLinks = [
-    { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety', matchPaths: wellnessRoutes },
-    { to: '/health/herd-registry', label: 'Herd Registry', icon: 'pets' },
-    { to: '/diagnostics', label: 'AI Smart Diagnosis', icon: 'memory' },
-    { to: '/health/geospatial', label: 'Geospatial Intelligence', icon: 'map' },
-    { to: '/health/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
-  ]
-
-  const linkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-      isActive
-        ? 'text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/5'
-        : 'text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10'
-    }`
+  const handleSignOut = () => {
+    localStorage.clear()
+    navigate('/health/vet-login')
+  }
 
   return (
     <div className="min-h-screen bg-background text-on-surface antialiased selection:bg-primary/30">
@@ -57,22 +71,25 @@ export default function DashboardLayout() {
         }`}
       >
         {/* Logo and Brand */}
-        <div className="px-6 mb-10 flex items-center justify-between">
+        <div className="px-6 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center">
+            <div className="w-9 h-9 bg-emerald-500 rounded-lg flex items-center justify-center shadow-glow-sm">
               <span
                 className="material-symbols-outlined text-white text-xl"
                 style={{ fontVariationSettings: "'FILL' 1" }}
               >
-                shield
+                medical_services
               </span>
             </div>
             <div>
-              <h1 className="text-white font-bold tracking-tight leading-none text-base uppercase">
-                ADRS CORE
-              </h1>
-              <p className="text-[10px] uppercase tracking-widest text-emerald-500/60 mt-0.5">
-                Clinical Precision
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-white font-bold tracking-tight leading-none text-base uppercase">
+                  ADRS CORE
+                </h1>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              </div>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-400/80 mt-1 font-mono font-semibold">
+                Vet Clinical Portal
               </p>
             </div>
           </div>
@@ -86,16 +103,21 @@ export default function DashboardLayout() {
           </button>
         </div>
 
+        {/* Section Badge */}
+        <div className="px-6 mb-3">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 font-mono">
+            Veterinary Authority
+          </span>
+        </div>
+
         {/* Navigation Items */}
         <nav className="flex-grow px-3 space-y-1 overflow-y-auto no-scrollbar">
-          {navLinks.map((link) => {
-            const isActive = link.matchPaths
-              ? link.matchPaths.some(p => pathname.startsWith(p))
-              : pathname === link.to
+          {vetNavLinks.map((link) => {
+            const isActive = pathname === link.to || (link.to !== '/vet/dashboard' && pathname.startsWith(link.to))
             const cls = `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
               isActive
-                ? 'text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/5'
-                : 'text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/10'
+                ? 'text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/10 shadow-glow-sm'
+                : 'text-slate-400 hover:text-emerald-200 hover:bg-emerald-500/5'
             }`
             return (
               <NavLink
@@ -106,15 +128,37 @@ export default function DashboardLayout() {
               >
                 <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
                 <span className="text-sm">{link.label}</span>
+                {link.to === '/diagnostics' && (
+                  <span className="ml-auto px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-mono font-bold">
+                    AI
+                  </span>
+                )}
               </NavLink>
             )
           })}
         </nav>
 
+        {/* Quick Launch Diagnostics Banner */}
+        <div className="px-4 mb-4">
+          <NavLink
+            to="/diagnostics"
+            onClick={() => setIsSidebarOpen(false)}
+            className="block p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-primary-container/10 border border-primary/20 hover:border-primary/40 transition-all group text-left"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="material-symbols-outlined text-primary text-lg">auto_awesome</span>
+              <span className="text-xs font-bold text-on-surface">AI Diagnostics</span>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight">
+              CV image triage &amp; Mask R-CNN reasoning pipeline.
+            </p>
+          </NavLink>
+        </div>
+
         {/* Sidebar Footer */}
         <div className="px-4 pb-6 mt-auto border-t border-white/5 pt-4 space-y-1">
           <NavLink
-            to="/health/settings"
+            to="/vet/settings"
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
                 isActive ? 'text-emerald-400 font-bold bg-emerald-500/5' : 'text-slate-400 hover:text-emerald-200'
@@ -122,16 +166,11 @@ export default function DashboardLayout() {
             }
             onClick={() => setIsSidebarOpen(false)}
           >
-            <span className="material-symbols-outlined text-[20px]">settings</span>
-            <span>Settings</span>
+            <span className="material-symbols-outlined text-[20px]">badge</span>
+            <span>License &amp; Profile</span>
           </NavLink>
           <button
-            onClick={() => {
-              setFarmerName('')
-              setProfilePhoto('')
-              localStorage.clear()
-              navigate('/health/login')
-            }}
+            onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-red-400 transition-colors text-sm text-left"
             type="button"
           >
@@ -150,6 +189,7 @@ export default function DashboardLayout() {
             <button
               className="lg:hidden text-slate-400 hover:text-emerald-300 transition-colors p-1"
               onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open sidebar"
             >
               <span className="material-symbols-outlined text-2xl">menu</span>
             </button>
@@ -161,7 +201,7 @@ export default function DashboardLayout() {
               </span>
               <input
                 className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all placeholder:text-slate-500"
-                placeholder="Search livestock ID or wellness reports..."
+                placeholder="Search case records, assigned herds, or pathology reports..."
                 type="text"
               />
             </div>
@@ -169,9 +209,16 @@ export default function DashboardLayout() {
 
           {/* Right Header Badges & Actions */}
           <div className="flex items-center gap-4">
+            {/* Live Clinical Node Indicator */}
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>VET NODE LIVE</span>
+            </div>
+
             <NavLink
-              to="/health/notifications"
+              to="/vet/dashboard"
               className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors relative"
+              title="Notifications"
             >
               <span className="material-symbols-outlined">notifications</span>
               {hasAlerts ? (
@@ -183,30 +230,27 @@ export default function DashboardLayout() {
                 <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-[#0b1326]"></span>
               )}
             </NavLink>
+
             <NavLink
-              to="/health/settings"
+              to="/vet/settings"
               className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors"
+              title="Vet Credentials"
             >
-              <span className="material-symbols-outlined">settings</span>
+              <span className="material-symbols-outlined">badge</span>
             </NavLink>
+
             <div className="h-6 w-px bg-white/10 mx-1"></div>
+
+            {/* Practitioner Profile Badge */}
             <div className="flex items-center gap-3 pl-2 border-l border-white/10">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-on-surface">{ownerDisplayName}</p>
-                <p className="text-[10px] text-slate-500">{vetName}</p>
+                <p className="text-xs font-bold text-on-surface">{vetInfo.fullName}</p>
+                <p className="text-[10px] text-emerald-400/80 font-mono">
+                  {vetInfo.licenseNumber || 'Verified Practitioner'}
+                </p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-emerald-500/20">
-                {profilePhoto ? (
-                  <img
-                    alt="User profile"
-                    className="w-full h-full object-cover"
-                    src={profilePhoto}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-emerald-500/10 text-emerald-400">
-                    <span className="material-symbols-outlined text-lg">person</span>
-                  </div>
-                )}
+              <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-glow-sm">
+                <span className="material-symbols-outlined text-lg">stethoscope</span>
               </div>
             </div>
           </div>

@@ -233,13 +233,22 @@ export default function RegistrationLanding() {
               </button>
             </form>
 
-            <footer className="mt-8 text-center">
+            <footer className="mt-8 text-center space-y-3">
               <p className="text-xs text-slate-500 uppercase tracking-tighter">
                 Already registered?
                 <Link className="text-primary hover:text-secondary-fixed transition-colors ml-1" to="/health/login">
                   System Login
                 </Link>
               </p>
+              <div className="pt-3 border-t border-outline-variant/10">
+                <Link
+                  className="text-xs text-slate-400 hover:text-primary flex items-center justify-center gap-1.5 transition-colors font-medium"
+                  to="/health/vet-registration"
+                >
+                  <span className="material-symbols-outlined text-base">medical_services</span>
+                  <span>Register as Veterinarian (Vet Authority)</span>
+                </Link>
+              </div>
             </footer>
           </div>
         </section>

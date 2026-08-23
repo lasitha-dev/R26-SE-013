@@ -43,35 +43,35 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/")
-async def root():
-    try:
-        # Simple database ping check
-        count = await farms_collection.count_documents({})
-        return {"status": "ok", "database_connected": True, "registered_farms_count": count}
-    except Exception as e:
-        return {"status": "error", "database_connected": False, "error_details": str(e)}
+    async def root():
+        try:
+            # Simple database ping check
+            count = await farms_collection.count_documents({})
+            return {"status": "ok", "database_connected": True, "registered_farms_count": count}
+        except Exception as e:
+            return {"status": "error", "database_connected": False, "error_details": str(e)}
 
-@app.get("/reset-pramod-password")
-async def reset_pramod_password():
-    from core.security import get_password_hash
-    hashed = get_password_hash("123456")
-    existing = await farms_collection.find_one({"email": "pramod@gmail.com"})
-    if existing:
-        await farms_collection.update_one({"email": "pramod@gmail.com"}, {"$set": {"password": hashed}})
-        msg = "Password for pramod@gmail.com successfully updated to 123456"
-    else:
-        doc = {
-            "owner_name": "Pramod Wijenayake",
-            "email": "pramod@gmail.com",
-            "password": hashed,
-            "location_district": "Colombo",
-            "registration_number": "REG-PR-2026",
-            "veterinarian_name": "Dr. Nimal Perera",
-            "total_animals": 10
-        }
-        await farms_collection.insert_one(doc)
-        msg = "Created pramod@gmail.com account with password 123456"
-    return {"status": "success", "email": "pramod@gmail.com", "password": "123456", "message": msg}
+    @app.get("/reset-pramod-password")
+    async def reset_pramod_password():
+        from core.security import get_password_hash
+        hashed = get_password_hash("123456")
+        existing = await farms_collection.find_one({"email": "pramod@gmail.com"})
+        if existing:
+            await farms_collection.update_one({"email": "pramod@gmail.com"}, {"$set": {"password": hashed}})
+            msg = "Password for pramod@gmail.com successfully updated to 123456"
+        else:
+            doc = {
+                "owner_name": "Pramod Wijenayake",
+                "email": "pramod@gmail.com",
+                "password": hashed,
+                "location_district": "Colombo",
+                "registration_number": "REG-PR-2026",
+                "veterinarian_name": "Dr. Nimal Perera",
+                "total_animals": 10
+            }
+            await farms_collection.insert_one(doc)
+            msg = "Created pramod@gmail.com account with password 123456"
+        return {"status": "success", "email": "pramod@gmail.com", "password": "123456", "message": msg}
 
     return app
 
