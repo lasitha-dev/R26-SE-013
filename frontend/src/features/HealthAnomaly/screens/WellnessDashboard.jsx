@@ -1,7 +1,143 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 export default function WellnessDashboard() {
+  const [cattleData, setCattleData] = useState([])
+  const [loadingCattle, setLoadingCattle] = useState(true)
+
+  const [weatherData, setWeatherData] = useState({
+    temp: 31.2,
+    humidity: 62,
+    thi: 74,
+    stressLevel: 'Moderate Stress',
+    stressColorClass: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+  })
+  const [loadingWeather, setLoadingWeather] = useState(true)
+
+  // 1. Fetch real cattle data from FastAPI backend
+  useEffect(() => {
+    const fetchCattle = async () => {
+      try {
+        setLoadingCattle(true)
+        const token = localStorage.getItem('token')
+        const response = await fetch('http://127.0.0.1:8000/api/cattle', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setCattleData(Array.isArray(data) ? data : [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch cattle data:', err)
+      } finally {
+        setLoadingCattle(false)
+      }
+    }
+    fetchCattle()
+  }, [])
+
+  // 2. Fetch real-time weather data from Open-Meteo API & Calculate THI score
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        setLoadingWeather(true)
+        const lat = localStorage.getItem('registered_farm_lat') || 7.8731
+        const lon = localStorage.getItem('registered_farm_lon') || 80.7718
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m&timezone=auto`
+        const res = await fetch(url)
+        if (res.ok) {
+          const data = await res.json()
+          const temp = data.current_weather?.temperature ?? 30.0
+          
+          let humidity = 60
+          if (data.hourly && data.hourly.time && data.hourly.relative_humidity_2m) {
+            const currentTime = data.current_weather?.time
+            const timeIdx = data.hourly.time.indexOf(currentTime)
+            if (timeIdx !== -1) {
+              humidity = data.hourly.relative_humidity_2m[timeIdx]
+            } else if (data.hourly.relative_humidity_2m.length > 0) {
+              humidity = data.hourly.relative_humidity_2m[0]
+            }
+          }
+
+          // THI Calculation Formula: THI = (1.8 * T + 32) - (0.55 - 0.0055 * RH) * (1.8 * T - 26)
+          const thiRaw = (1.8 * temp + 32) - (0.55 - 0.0055 * humidity) * (1.8 * temp - 26)
+          const thi = Math.round(thiRaw)
+
+          let stressLevel = 'Normal'
+          let stressColorClass = 'bg-primary/20 text-primary border border-primary/30'
+
+          if (thi >= 89) {
+            stressLevel = 'Emergency Stress'
+            stressColorClass = 'bg-error/30 text-error font-extrabold animate-pulse border border-error/50'
+          } else if (thi >= 79) {
+            stressLevel = 'Severe Stress'
+            stressColorClass = 'bg-error-container text-on-error-container border border-error-container'
+          } else if (thi >= 72) {
+            stressLevel = 'Moderate Stress'
+            stressColorClass = 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+          }
+
+          setWeatherData({
+            temp,
+            humidity,
+            thi,
+            stressLevel,
+            stressColorClass
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch weather data:', err)
+      } finally {
+        setLoadingWeather(false)
+      }
+    }
+    fetchWeather()
+  }, [])
+
+  // Dynamic Herd Statistics
+  const totalCattle = cattleData.length
+  const healthyCount = cattleData.filter(
+    c => c.status === 'Healthy' || c.health_status === 'Healthy'
+  ).length
+  const atRiskCount = Math.max(0, totalCattle - healthyCount)
+
+  // Dynamic BCS Assessments Table Data
+  const bcsCattle = cattleData
+    .filter(c => c.bcs_score !== null && c.bcs_score !== undefined && !isNaN(Number(c.bcs_score)))
+    .sort((a, b) => new Date(b.last_scored_date || b.last_updated || 0) - new Date(a.last_scored_date || a.last_updated || 0))
+    .slice(0, 4)
+
+  // THI Gauge Circumference Calculation (r = 58 -> C = 364.4)
+  const thiCircleOffset = 364.4 * (1 - Math.min(weatherData.thi, 100) / 100)
+
+  // Helper for BCS Condition Styling
+  const getBcsCondition = (score) => {
+    const num = Number(score)
+    if (num < 2.5) {
+      return {
+        label: 'Under-conditioned',
+        badgeClass: 'bg-error/10 text-error border border-error/20',
+        textClass: 'text-error'
+      }
+    } else if (num <= 3.75) {
+      return {
+        label: 'Optimal',
+        badgeClass: 'bg-primary/10 text-primary border border-primary/20',
+        textClass: 'text-primary'
+      }
+    } else {
+      return {
+        label: 'Over-conditioned',
+        badgeClass: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+        textClass: 'text-yellow-400'
+      }
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Page Title & Intro */}
@@ -26,10 +162,11 @@ export default function WellnessDashboard() {
               </p>
               <h3 className="text-xl font-bold">Temperature-Humidity Index</h3>
             </div>
-            <div className="px-3 py-1 bg-error-container text-on-error-container rounded text-[10px] font-bold uppercase tracking-wider">
-              Moderate Stress
+            <div className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${weatherData.stressColorClass}`}>
+              {loadingWeather ? 'Calculating...' : weatherData.stressLevel}
             </div>
           </div>
+
           <div className="flex items-end gap-6 mb-4">
             <div className="flex-shrink-0 relative">
               <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 128 128">
@@ -43,39 +180,52 @@ export default function WellnessDashboard() {
                   strokeWidth="8"
                 />
                 <circle
-                  className="text-primary"
+                  className="text-primary transition-all duration-1000 ease-out"
                   cx="64"
                   cy="64"
                   fill="transparent"
                   r="58"
                   stroke="currentColor"
                   strokeDasharray="364.4"
-                  strokeDashoffset="91.1"
+                  strokeDashoffset={loadingWeather ? 364.4 : thiCircleOffset}
                   strokeWidth="8"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-black text-on-surface">74</span>
+                <span className="text-3xl font-black text-on-surface">
+                  {loadingWeather ? '--' : weatherData.thi}
+                </span>
                 <span className="text-[10px] uppercase text-slate-400">THI Score</span>
               </div>
             </div>
+
             <div className="flex-1 space-y-4">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-medium">
                   <span className="text-slate-400">Ambient Temp</span>
-                  <span className="text-on-surface">31.2°C</span>
+                  <span className="text-on-surface">
+                    {loadingWeather ? '-- °C' : `${weatherData.temp.toFixed(1)}°C`}
+                  </span>
                 </div>
                 <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                  <div className="bg-primary w-[75%] h-full"></div>
+                  <div
+                    className="bg-primary h-full transition-all duration-700"
+                    style={{ width: `${Math.min((weatherData.temp / 50) * 100, 100)}%` }}
+                  ></div>
                 </div>
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-medium">
                   <span className="text-slate-400">Rel. Humidity</span>
-                  <span className="text-on-surface">62%</span>
+                  <span className="text-on-surface">
+                    {loadingWeather ? '-- %' : `${Math.round(weatherData.humidity)}%`}
+                  </span>
                 </div>
                 <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                  <div className="bg-primary w-[62%] h-full"></div>
+                  <div
+                    className="bg-primary h-full transition-all duration-700"
+                    style={{ width: `${Math.min(weatherData.humidity, 100)}%` }}
+                  ></div>
                 </div>
               </div>
             </div>
@@ -84,18 +234,23 @@ export default function WellnessDashboard() {
 
         {/* Overview Stats Column */}
         <div className="col-span-12 lg:col-span-7 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Total Registered Cattle */}
           <div className="bg-surface-container rounded-xl p-6 flex flex-col justify-between border border-white/5">
             <div className="flex items-center justify-between">
               <span className="material-symbols-outlined text-primary text-2xl">groups</span>
               <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
             </div>
             <div>
-              <p className="text-3xl font-black text-on-surface mt-4">1,248</p>
+              <p className="text-3xl font-black text-on-surface mt-4">
+                {loadingCattle ? '...' : totalCattle.toLocaleString()}
+              </p>
               <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mt-1">
                 Registered Cattle
               </p>
             </div>
           </div>
+
+          {/* Healthy Count */}
           <div className="bg-surface-container rounded-xl p-6 flex flex-col justify-between border border-white/5">
             <div className="flex items-center justify-between">
               <span
@@ -107,19 +262,27 @@ export default function WellnessDashboard() {
               <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
             </div>
             <div>
-              <p className="text-3xl font-black text-on-surface mt-4">1,192</p>
+              <p className="text-3xl font-black text-on-surface mt-4">
+                {loadingCattle ? '...' : healthyCount.toLocaleString()}
+              </p>
               <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mt-1">
                 Healthy
               </p>
             </div>
           </div>
+
+          {/* At Risk Count */}
           <div className="bg-surface-container rounded-xl p-6 flex flex-col justify-between border border-white/5">
             <div className="flex items-center justify-between">
               <span className="material-symbols-outlined text-error text-2xl">warning</span>
-              <span className="material-symbols-outlined text-error text-sm">trending_down</span>
+              <span className="material-symbols-outlined text-error text-sm">
+                {atRiskCount > 0 ? 'trending_down' : 'remove'}
+              </span>
             </div>
             <div>
-              <p className="text-3xl font-black text-on-surface mt-4">56</p>
+              <p className="text-3xl font-black text-on-surface mt-4">
+                {loadingCattle ? '...' : atRiskCount.toLocaleString()}
+              </p>
               <p className="text-xs uppercase font-bold tracking-widest text-slate-500 mt-1">
                 At Risk
               </p>
@@ -205,42 +368,55 @@ export default function WellnessDashboard() {
                 <tr>
                   <th className="px-6 py-4">ID Reference</th>
                   <th className="px-6 py-4">Current Score</th>
-                  <th className="px-6 py-4">Deviation</th>
-                  <th className="px-6 py-4">AI Alert Status</th>
+                  <th className="px-6 py-4">Last Scored Date</th>
+                  <th className="px-6 py-4">AI Assessment Badge</th>
                   <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                <tr className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-on-surface">#BT-77291</td>
-                  <td className="px-6 py-4 font-bold">3.5 / 5.0</td>
-                  <td className="px-6 py-4 text-primary text-xs">+0.2 (Optimal)</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase">
-                      Stable
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link to="/health/animal-profile-bt-8842" className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors">
-                      more_horiz
-                    </Link>
-                  </td>
-                </tr>
-                <tr className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-on-surface">#BT-77298</td>
-                  <td className="px-6 py-4 font-bold">2.8 / 5.0</td>
-                  <td className="px-6 py-4 text-error text-xs">-0.5 (Critical)</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-bold uppercase">
-                      Immediate
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link to="/health/animal-profile-bt-8842" className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors">
-                      more_horiz
-                    </Link>
-                  </td>
-                </tr>
+                {loadingCattle ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-slate-400 text-sm animate-pulse">
+                      Loading herd assessments...
+                    </td>
+                  </tr>
+                ) : bcsCattle.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-slate-500 text-sm">
+                      No scored cattle assessments found.
+                    </td>
+                  </tr>
+                ) : (
+                  bcsCattle.map((c) => {
+                    const cond = getBcsCondition(c.bcs_score)
+                    return (
+                      <tr key={c.id || c.identifier} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs text-on-surface font-semibold">
+                          #{c.identifier}
+                        </td>
+                        <td className="px-6 py-4 font-bold">
+                          {Number(c.bcs_score).toFixed(1)} / 5.0
+                        </td>
+                        <td className="px-6 py-4 text-slate-400 text-xs font-medium">
+                          {c.last_scored_date || c.last_updated || 'Recent'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${cond.badgeClass}`}>
+                            {cond.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Link
+                            to={`/health/animal-profile-${c.id || c.identifier}`}
+                            className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors"
+                          >
+                            more_horiz
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>

@@ -426,7 +426,7 @@ export default function AiWellnessReport() {
               </div>
               <div className="aspect-[16/10] bg-surface-container-lowest rounded-lg overflow-hidden flex items-center justify-center relative">
                 {gcImg ? (
-                  <img src={gcImg} alt="Grad-CAM Heatmap" className="w-full h-full object-cover" />
+                  <img src={gcImg} alt="Grad-CAM Heatmap" className="w-full h-full object-cover object-center" />
                 ) : (
                   <div className="w-full h-full bg-slate-800 relative flex items-center justify-center overflow-hidden">
                     <div

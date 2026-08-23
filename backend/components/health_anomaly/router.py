@@ -956,10 +956,6 @@ async def predict_bcs(
         last_conv_layer, target_model_for_cam = get_last_conv_layer(bcs_model)
 
         if last_conv_layer is not None and target_model_for_cam is not None:
-            print(f"[DEBUG] Found target layer: {last_conv_layer.name} in model: {target_model_for_cam.name}")
-
-            # If the conv layer lives inside a nested base model, pass crop_input through
-            # all parent layers that precede the base model to get compatible input shape.
             cam_input = crop_input
             if target_model_for_cam is not bcs_model:
                 for layer in bcs_model.layers:
@@ -970,10 +966,54 @@ async def predict_bcs(
             heatmap = make_gradcam_heatmap(cam_input, target_model_for_cam, last_conv_layer.name)
 
             if np.max(heatmap) > 0:
-                gradcam_bgr = overlay_gradcam(crop_resized, heatmap)
-                _, gc_buf = cv2.imencode(".jpg", gradcam_bgr)
+                # --- FIXED VISIBILITY XAI OVERLAY ---
+                xai_bgr = img_bgr.copy()
+                crop_h, crop_w = py2 - py1, px2 - px1
+                
+                # 1. Resize heatmap to bounding box
+                heatmap_resized = cv2.resize(heatmap, (crop_w, crop_h))
+                
+                # 2. Convert to INFERNO colormap
+                heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_INFERNO)
+                
+                # 3. Extract the ROI from the original image
+                roi = xai_bgr[py1:py2, px1:px2]
+                
+                # 4. Create a dynamic alpha mask (max 50% opacity) so the cow is ALWAYS visible
+                alpha_mask = np.stack([heatmap_resized]*3, axis=-1) * 0.5 
+                
+                # 5. Blend the heatmap over the original cow ROI
+                blended_roi = (heatmap_color * alpha_mask + roi * (1.0 - alpha_mask)).astype(np.uint8)
+                xai_bgr[py1:py2, px1:px2] = blended_roi
+                
+                # 6. Find the ABSOLUTE Hottest spot
+                _, _, _, maxLoc = cv2.minMaxLoc(heatmap_resized)
+                center_x = int(maxLoc[0]) + px1
+                center_y = int(maxLoc[1]) + py1
+                
+                # 7. Draw sleek Crosshair UI
+                cv2.circle(xai_bgr, (center_x, center_y), 35, (0, 255, 255), 2)
+                cv2.circle(xai_bgr, (center_x, center_y), 3, (0, 255, 255), -1)
+                cv2.line(xai_bgr, (center_x - 50, center_y), (center_x - 20, center_y), (0, 255, 255), 2)
+                cv2.line(xai_bgr, (center_x + 20, center_y), (center_x + 50, center_y), (0, 255, 255), 2)
+                cv2.line(xai_bgr, (center_x, center_y - 50), (center_x, center_y - 20), (0, 255, 255), 2)
+                cv2.line(xai_bgr, (center_x, center_y + 20), (center_x, center_y + 50), (0, 255, 255), 2)
+                
+                # 8. Draw text label
+                text = "AI PRECISION FOCUS"
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.5, 1)[0]
+                text_x = center_x - text_size[0] // 2
+                text_y = center_y - 65
+                
+                # Clamp text within bounds
+                if text_y - text_size[1] - 10 < 0:
+                    text_y = center_y + 65 + text_size[1]
+                    
+                cv2.rectangle(xai_bgr, (text_x - 10, text_y - text_size[1] - 10), (text_x + text_size[0] + 10, text_y + 10), (0, 0, 0), -1)
+                cv2.putText(xai_bgr, text, (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 255), 1)
+                
+                _, gc_buf = cv2.imencode(".jpg", xai_bgr)
                 gradcam_image = "data:image/jpeg;base64," + base64.b64encode(gc_buf).decode("utf-8")
-                print("[DEBUG] Grad-CAM encoded successfully.")
             else:
                 print("[DEBUG] Heatmap is entirely zero.")
         else:
@@ -981,7 +1021,6 @@ async def predict_bcs(
     except Exception as e:
         import traceback
         print(f"\n--- GRAD-CAM CRITICAL FAILURE ---")
-        print(f"Error: {str(e)}")
         traceback.print_exc()
         gradcam_image = None
 
