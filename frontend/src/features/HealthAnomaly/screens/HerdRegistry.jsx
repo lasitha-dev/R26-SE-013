@@ -127,12 +127,94 @@ export default function HerdRegistry() {
     totalLivestock > 0 ? Math.round((healthyCount / totalLivestock) * 100) : 100
 
   // ─── Dynamic Breed Composition ─────────────────────────────────────────────
-  const getBreedPercentage = (breedName) => {
-    const count = cattleList.filter(
-      (c) => c.breed && c.breed.toLowerCase() === breedName.toLowerCase()
-    ).length
-    return totalLivestock > 0 ? Math.round((count / totalLivestock) * 100) : 0
-  }
+  const dynamicBreeds = React.useMemo(() => {
+    const sourceList = cattleList.length > 0 ? cattleList : mockRows
+    if (!sourceList || sourceList.length === 0) return []
+
+    const breedCounts = {}
+    sourceList.forEach((animal) => {
+      const breedName = animal.breed ? animal.breed.trim() : 'Unknown'
+      breedCounts[breedName] = (breedCounts[breedName] || 0) + 1
+    })
+
+    const sortedBreeds = Object.entries(breedCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+
+    const themeColors = [
+      { color: 'bg-primary', textCls: 'text-primary' },
+      { color: 'bg-secondary', textCls: 'text-secondary' },
+      { color: 'bg-tertiary', textCls: 'text-tertiary' },
+      { color: 'bg-primary-container', textCls: 'text-primary-container' },
+    ]
+
+    const total = sourceList.length
+    return sortedBreeds.map((b, idx) => ({
+      name: b.name,
+      count: b.count,
+      percentage: total > 0 ? Math.round((b.count / total) * 100) : 0,
+      color: themeColors[idx % themeColors.length].color,
+      textCls: themeColors[idx % themeColors.length].textCls,
+    }))
+  }, [cattleList, mockRows])
+
+  // ─── Dynamic Population Health Trends (BCS Distribution Bar Chart) ────────
+  const bcsBuckets = React.useMemo(() => {
+    const sourceList = cattleList.length > 0 ? cattleList : mockRows
+    const buckets = [
+      { label: '<2.5', count: 0 },
+      { label: '2.5-2.9', count: 0 },
+      { label: '3.0-3.4', count: 0 },
+      { label: '3.5-3.9', count: 0 },
+      { label: '4.0-4.4', count: 0 },
+      { label: '≥4.5', count: 0 },
+    ]
+
+    let scoredCount = 0
+    sourceList.forEach((c) => {
+      const score = c.bcs_score !== undefined && c.bcs_score !== null ? Number(c.bcs_score) : null
+      if (score !== null && !isNaN(score)) {
+        scoredCount++
+        if (score < 2.5) buckets[0].count++
+        else if (score < 3.0) buckets[1].count++
+        else if (score < 3.5) buckets[2].count++
+        else if (score < 4.0) buckets[3].count++
+        else if (score < 4.5) buckets[4].count++
+        else buckets[5].count++
+      }
+    })
+
+    // If no explicit BCS scores exist in dataset, construct distribution from health status
+    if (scoredCount === 0) {
+      const total = sourceList.length || 1
+      const healthy = sourceList.filter((c) => (c.health_status || c.status || 'Healthy') === 'Healthy').length
+      const atRisk = Math.max(0, total - healthy)
+
+      buckets[0].count = atRisk
+      buckets[2].count = Math.floor(healthy * 0.4)
+      buckets[3].count = Math.ceil(healthy * 0.6)
+    }
+
+    const maxCount = Math.max(...buckets.map((b) => b.count), 1)
+
+    return buckets.map((b) => ({
+      ...b,
+      heightPct: Math.max(15, Math.round((b.count / maxCount) * 100)),
+    }))
+  }, [cattleList, mockRows])
+
+  const maxBucketIdx = React.useMemo(() => {
+    let maxIdx = 0
+    let maxVal = -1
+    bcsBuckets.forEach((b, idx) => {
+      if (b.count > maxVal) {
+        maxVal = b.count
+        maxIdx = idx
+      }
+    })
+    return maxIdx
+  }, [bcsBuckets])
 
   // Map API cattle array to table rows
   const displayRows =
@@ -189,25 +271,42 @@ export default function HerdRegistry() {
 
       {/* Population & Breed Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl p-6 relative overflow-hidden group">
+        <div className="col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl p-6 relative overflow-hidden group flex flex-col justify-between">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-symbols-outlined text-[120px] text-primary">analytics</span>
           </div>
           <div className="relative z-10">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Population Health Trends</h3>
-            <div className="flex items-end gap-2 h-32 px-2">
-              {[60, 75, 55, 90, 85, 95].map((h, idx) => (
-                <div
-                  key={idx}
-                  className="w-full bg-primary/20 rounded-t hover:bg-primary/40 transition-all"
-                  style={{ height: `${h}%` }}
-                ></div>
-              ))}
-              <div className="w-full bg-primary rounded-t hover:bg-primary/80 transition-all relative" style={{ height: '80%' }}>
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface text-primary text-[10px] font-bold px-2 py-1 rounded border border-primary/20 whitespace-nowrap">
-                  OPT-MAX
-                </div>
-              </div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                Population Health Trends (BCS Spread)
+              </h3>
+              <span className="text-[10px] text-slate-500 font-mono uppercase font-bold">
+                {totalLivestock} Animals Evaluated
+              </span>
+            </div>
+            <div className="flex items-end gap-3 h-36 px-2 pb-6 border-b border-white/5">
+              {bcsBuckets.map((bucket, idx) => {
+                const isMax = idx === maxBucketIdx
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end relative group/bar">
+                    {isMax && (
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface text-primary text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 whitespace-nowrap shadow-md z-20">
+                        OPT-MAX
+                      </div>
+                    )}
+                    <div
+                      className={`w-full rounded-t transition-all duration-500 ${
+                        isMax ? 'bg-primary hover:bg-primary/80' : 'bg-primary/20 hover:bg-primary/40'
+                      }`}
+                      style={{ height: `${bucket.heightPct}%` }}
+                      title={`${bucket.label}: ${bucket.count} animals`}
+                    ></div>
+                    <span className="absolute -bottom-5 text-[9px] font-semibold text-slate-400">
+                      {bucket.label}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -218,31 +317,30 @@ export default function HerdRegistry() {
             <p className="text-xs text-slate-500">Distribution analysis across primary herds</p>
           </div>
           <div className="space-y-3 mt-4">
-            {[
-              { name: 'Friesian', color: 'bg-primary', textCls: 'text-primary' },
-              { name: 'Jersey', color: 'bg-secondary', textCls: 'text-secondary' },
-              { name: 'Sahiwal', color: 'bg-tertiary', textCls: 'text-tertiary' },
-              { name: 'Local', color: 'bg-primary-container', textCls: 'text-primary-container' },
-            ].map((b) => {
-              const pct = getBreedPercentage(b.name)
-              return (
+            {dynamicBreeds.length === 0 ? (
+              <p className="text-xs text-slate-500 italic py-4">No breed data available.</p>
+            ) : (
+              dynamicBreeds.map((b) => (
                 <div key={b.name} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-slate-300">{b.name}</span>
-                    <span className={`text-xs font-bold ${b.textCls}`}>{pct}%</span>
+                    <span className={`text-xs font-bold ${b.textCls}`}>
+                      {b.percentage}% ({b.count})
+                    </span>
                   </div>
                   <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
                     <div
                       className={`h-full ${b.color} transition-all duration-500`}
-                      style={{ width: `${pct}%` }}
+                      style={{ width: `${b.percentage}%` }}
                     ></div>
                   </div>
                 </div>
-              )
-            })}
+              ))
+            )}
           </div>
         </div>
       </div>
+
 
       {/* Active Registry Table */}
       <div className="bg-surface-container-low rounded-xl overflow-hidden">
