@@ -57,6 +57,75 @@ export const WORKFLOW_PROVIDER_STATUS = Object.freeze({
 });
 
 /**
+ * Authoritative Follow-Up status enums as defined by backend contracts.
+ */
+export const FOLLOW_UP_STATUS = Object.freeze({
+  ISSUED: 'ISSUED',
+  ACKNOWLEDGED: 'ACKNOWLEDGED',
+  ACTION_IN_PROGRESS: 'ACTION_IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  ESCALATED: 'ESCALATED',
+});
+
+/**
+ * Authoritative Operational Priority enums as defined by backend contracts.
+ */
+export const OPERATIONAL_PRIORITY = Object.freeze({
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW: 'LOW',
+});
+
+/**
+ * Converts standalone viewer/actor context into Phase 6B-1 backend headers (X-Actor-ID, X-Actor-Role).
+ * NOTE: Standalone X-Actor headers represent the request boundary; in production these will be replaced by verified JWT / shared IAM claims.
+ *
+ * @param {object|null} actorContext - Object containing user identity and role
+ * @param {boolean} required - Whether actor identity is strictly required for the operation
+ * @returns {object} Headers object containing X-Actor-ID and X-Actor-Role if provided
+ */
+function buildActorHeaders(actorContext = null, required = false) {
+  if (!actorContext) {
+    if (required) {
+      throw new RiskForecastingWorkflowApiError({
+        message: 'Actor context is required for this operation.',
+        endpoint: '',
+      });
+    }
+    return {};
+  }
+
+  const actorId = actorContext.actor_id || actorContext.actorId || actorContext.userId || actorContext.user_id;
+  const actorRole = actorContext.actor_role || actorContext.actorRole || actorContext.role;
+
+  if (required) {
+    if (!actorId || String(actorId).trim() === '') {
+      throw new RiskForecastingWorkflowApiError({
+        message: 'Actor identity (actorId / userId) cannot be missing or blank.',
+        endpoint: '',
+      });
+    }
+    if (!actorRole || String(actorRole).trim() === '') {
+      throw new RiskForecastingWorkflowApiError({
+        message: 'Actor role (actorRole / role) cannot be missing or blank.',
+        endpoint: '',
+      });
+    }
+  }
+
+  const headers = {};
+  if (actorId && String(actorId).trim() !== '') {
+    headers['X-Actor-ID'] = String(actorId).trim();
+  }
+  if (actorRole && String(actorRole).trim() !== '') {
+    headers['X-Actor-Role'] = String(actorRole).trim();
+  }
+
+  return headers;
+}
+
+/**
  * Helper to encode path parameter IDs and prevent path traversal / blank IDs.
  * @param {string} id
  * @param {string} paramName
@@ -553,5 +622,347 @@ export async function cancelNotificationBatch(batchId, options = {}) {
   return requestWorkflowApi(`/api/v1/risk-forecasting/notification-batches/${safeId}/cancel`, {
     method: 'POST',
     signal: options.signal,
+  });
+}
+
+// ─── FORECAST FOLLOW-UP METHODS (Phase 6B-2A) ─────────────────────────────
+
+/**
+ * Issues a new DAPH operational follow-up instruction linked to an official forecast record.
+ * POST /api/v1/risk-forecasting/follow-ups
+ *
+ * NOTE: Scientific snapshots and issuer identity are derived server-side.
+ * Identity fields (issued_by_daph_id, actor_id) are strictly excluded from the request body.
+ */
+export async function issueFollowUp(payload = {}, options = {}) {
+  if (!payload || typeof payload !== 'object') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'payload is required and must be an object.',
+      endpoint: '/api/v1/risk-forecasting/follow-ups',
+    });
+  }
+
+  const forecastId = payload.forecast_id ?? payload.forecastId;
+  const assignedVetId = payload.assigned_vet_id ?? payload.assignedVetId;
+  const instructionSummary = payload.instruction_summary ?? payload.instructionSummary;
+  const bodyIdempotencyKey = payload.idempotency_key ?? payload.idempotencyKey;
+  const optionIdempotencyKey = options.idempotencyKey;
+  const actorContext = options.actorContext || options.actor || payload.actorContext || payload.actor;
+
+  if (
+    optionIdempotencyKey &&
+    bodyIdempotencyKey &&
+    String(optionIdempotencyKey).trim() !== String(bodyIdempotencyKey).trim()
+  ) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'Conflicting idempotency keys provided in options and payload.',
+      endpoint: '/api/v1/risk-forecasting/follow-ups',
+    });
+  }
+
+  const idempotencyKey = optionIdempotencyKey || bodyIdempotencyKey;
+
+  if (!forecastId || String(forecastId).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'forecast_id is required for issuing a follow-up.',
+      endpoint: '/api/v1/risk-forecasting/follow-ups',
+    });
+  }
+
+  if (!assignedVetId || String(assignedVetId).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'assigned_vet_id is required for issuing a follow-up.',
+      endpoint: '/api/v1/risk-forecasting/follow-ups',
+    });
+  }
+
+  if (!instructionSummary || String(instructionSummary).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'instruction_summary is required for issuing a follow-up.',
+      endpoint: '/api/v1/risk-forecasting/follow-ups',
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+
+  // Construct body payload ensuring zero identity fields (issued_by_daph_id, actor_id) are serialized
+  // and camelCase idempotencyKey is not leaked into JSON
+  const body = {
+    forecast_id: String(forecastId).trim(),
+    assigned_vet_id: String(assignedVetId).trim(),
+    instruction_summary: String(instructionSummary).trim(),
+  };
+
+  if (idempotencyKey) {
+    body.idempotency_key = String(idempotencyKey).trim();
+  }
+
+  return requestWorkflowApi('/api/v1/risk-forecasting/follow-ups', {
+    method: 'POST',
+    body,
+    signal: options.signal || payload.signal,
+    idempotencyKey: idempotencyKey ? String(idempotencyKey).trim() : undefined,
+    headers,
+  });
+}
+
+/**
+ * Lists stored follow-up records matching specified query filters with pagination.
+ * GET /api/v1/risk-forecasting/follow-ups
+ */
+export async function listFollowUps(filters = {}, options = {}) {
+  const actorContext = options.actorContext || options.actor || filters.actorContext || filters.actor;
+  const headers = buildActorHeaders(actorContext, false);
+
+  const queryParams = {
+    forecast_id: filters.forecast_id ?? filters.forecastId,
+    district: filters.district,
+    disease: filters.disease,
+    assigned_vet_id: filters.assigned_vet_id ?? filters.assignedVetId,
+    issued_by_daph_id: filters.issued_by_daph_id ?? filters.issuedByDaphId,
+    status: filters.status,
+    target_year: filters.target_year ?? filters.targetYear,
+    target_month: filters.target_month ?? filters.targetMonth,
+    limit: filters.limit,
+    offset: filters.offset,
+  };
+  const queryString = buildQueryString(queryParams);
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups${queryString}`, {
+    method: 'GET',
+    signal: options.signal || filters.signal,
+    headers,
+  });
+}
+
+/**
+ * Retrieves a single follow-up record by unique follow_up_id.
+ * GET /api/v1/risk-forecasting/follow-ups/{follow_up_id}
+ */
+export async function getFollowUp(followUpId, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const actorContext = options.actorContext || options.actor;
+  const headers = buildActorHeaders(actorContext, false);
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}`, {
+    method: 'GET',
+    signal: options.signal,
+    headers,
+  });
+}
+
+/**
+ * Helper to parse transition parameters (version, actorContext, signal).
+ */
+function parseTransitionArgs(versionOrOptions, options = {}) {
+  let ver;
+  let actorContext;
+  let signal;
+  let reason;
+
+  if (typeof versionOrOptions === 'number' || (typeof versionOrOptions === 'string' && versionOrOptions !== '' && !isNaN(Number(versionOrOptions)))) {
+    ver = Number(versionOrOptions);
+    reason = options.reason;
+    actorContext = options.actorContext || options.actor;
+    signal = options.signal;
+  } else if (versionOrOptions && typeof versionOrOptions === 'object') {
+    ver = versionOrOptions.version !== undefined ? Number(versionOrOptions.version) : undefined;
+    reason = versionOrOptions.reason ?? options.reason;
+    actorContext = versionOrOptions.actorContext || versionOrOptions.actor || options.actorContext || options.actor;
+    signal = versionOrOptions.signal || options.signal;
+  }
+
+  return { ver, reason, actorContext, signal };
+}
+
+/**
+ * Transitions status from ISSUED -> ACKNOWLEDGED (Assigned Vet Only).
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/acknowledge
+ */
+export async function acknowledgeFollowUp(followUpId, versionOrOptions, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const { ver, actorContext, signal } = parseTransitionArgs(versionOrOptions, options);
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/acknowledge`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/acknowledge`, {
+    method: 'POST',
+    body: { version: ver },
+    signal,
+    headers,
+  });
+}
+
+/**
+ * Transitions status from ACKNOWLEDGED -> ACTION_IN_PROGRESS (Assigned Vet Only).
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/start
+ */
+export async function startFollowUpAction(followUpId, versionOrOptions, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const { ver, actorContext, signal } = parseTransitionArgs(versionOrOptions, options);
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/start`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/start`, {
+    method: 'POST',
+    body: { version: ver },
+    signal,
+    headers,
+  });
+}
+
+/**
+ * Transitions status from ACTION_IN_PROGRESS -> COMPLETED (Assigned Vet Only).
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/complete
+ */
+export async function completeFollowUp(followUpId, versionOrOptions, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const { ver, actorContext, signal } = parseTransitionArgs(versionOrOptions, options);
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/complete`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/complete`, {
+    method: 'POST',
+    body: { version: ver },
+    signal,
+    headers,
+  });
+}
+
+/**
+ * Transitions status to CANCELLED (DAPH Official Only).
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/cancel
+ */
+export async function cancelFollowUp(followUpId, versionOrOptions, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const { ver, reason, actorContext, signal } = parseTransitionArgs(versionOrOptions, options);
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/cancel`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+  const body = { version: ver };
+  if (reason && String(reason).trim() !== '') {
+    body.reason = String(reason).trim();
+  }
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/cancel`, {
+    method: 'POST',
+    body,
+    signal,
+    headers,
+  });
+}
+
+/**
+ * Transitions status to ESCALATED. Requires explicit controlled reason.
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/escalate
+ */
+export async function escalateFollowUp(followUpId, args = {}, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+  const { ver, reason, actorContext, signal } = parseTransitionArgs(args, options);
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/escalate`,
+    });
+  }
+
+  if (!reason || String(reason).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'Reason is required for escalating a follow-up instruction.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/escalate`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+  const body = {
+    version: ver,
+    reason: String(reason).trim(),
+  };
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/escalate`, {
+    method: 'POST',
+    body,
+    signal,
+    headers,
+  });
+}
+
+/**
+ * Links an opaque external supply-chain resource request reference ID.
+ * POST /api/v1/risk-forecasting/follow-ups/{follow_up_id}/external-resource-reference
+ */
+export async function linkExternalResourceReference(followUpId, args = {}, options = {}) {
+  const safeId = encodePathId(followUpId, 'followUpId');
+
+  let ver;
+  let externalResourceId;
+  let actorContext;
+  let signal;
+
+  if (typeof args === 'number' || (typeof args === 'string' && !isNaN(Number(args)))) {
+    ver = Number(args);
+    externalResourceId = options.externalResourceRequestId || options.external_resource_request_id || options.externalResourceId;
+    actorContext = options.actorContext || options.actor;
+    signal = options.signal;
+  } else if (args && typeof args === 'object') {
+    ver = args.version !== undefined ? Number(args.version) : undefined;
+    externalResourceId = args.externalResourceRequestId ?? args.external_resource_request_id ?? args.externalResourceId ?? options.externalResourceRequestId;
+    actorContext = args.actorContext || args.actor || options.actorContext || options.actor;
+    signal = args.signal || options.signal;
+  }
+
+  if (ver === undefined || ver === null || isNaN(ver) || ver < 1) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'version is required and must be an integer >= 1.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/external-resource-reference`,
+    });
+  }
+
+  if (!externalResourceId || String(externalResourceId).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'external_resource_request_id is required for linking resource reference.',
+      endpoint: `/api/v1/risk-forecasting/follow-ups/${safeId}/external-resource-reference`,
+    });
+  }
+
+  const headers = buildActorHeaders(actorContext, true);
+  const body = {
+    version: ver,
+    external_resource_request_id: String(externalResourceId).trim(),
+  };
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-ups/${safeId}/external-resource-reference`, {
+    method: 'POST',
+    body,
+    signal,
+    headers,
   });
 }
