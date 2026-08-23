@@ -248,6 +248,14 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
+    it('can activate Follow-Up Monitoring for DAPH_OFFICIAL', () => {
+      render(<RiskForecastingFeature viewerContext={validDaphContext} />);
+      const followUpMonitoringBtn = screen.getByRole('button', { name: /Follow-Up Monitoring/i });
+      expect(followUpMonitoringBtn).toBeInTheDocument();
+      fireEvent.click(followUpMonitoringBtn);
+      expect(screen.getByRole('heading', { name: /Follow-Up Monitoring/i, level: 1 })).toBeInTheDocument();
+    });
+
     it('district-forecasts resolves to DaphDistrictForecasts component for DAPH', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
       const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });

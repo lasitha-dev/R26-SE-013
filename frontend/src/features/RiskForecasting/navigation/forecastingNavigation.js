@@ -56,6 +56,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'National Forecast Overview',
     icon: 'travel_explore',
   }),
+  FOLLOW_UP_MONITORING: Object.freeze({
+    id: 'follow-up-monitoring',
+    label: 'Follow-Up Monitoring',
+    icon: 'manage_search',
+  }),
   SURVEILLANCE_OVERVIEW: Object.freeze({
     id: 'surveillance-overview',
     label: 'Surveillance Overview',
@@ -100,6 +105,7 @@ export function getForecastingNavigation(viewerContext) {
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
   } else if (normalizedContext.role === ROLES.DAPH_OFFICIAL) {
     items.push({ ...NAVIGATION_ITEMS.NATIONAL_OVERVIEW });
+    items.push({ ...NAVIGATION_ITEMS.FOLLOW_UP_MONITORING });
     items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
 

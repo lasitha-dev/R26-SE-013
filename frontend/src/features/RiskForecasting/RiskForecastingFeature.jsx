@@ -18,6 +18,7 @@ import { VeterinaryForecastAdvisoryHistory } from './components/veterinary/Veter
 import { VeterinaryAssignedFollowUps } from './components/veterinary/VeterinaryAssignedFollowUps';
 import { DaphSurveillanceOverview } from './components/daph/DaphSurveillanceOverview';
 import { DaphNationalForecastOverview } from './components/daph/DaphNationalForecastOverview';
+import { DaphFollowUpMonitoring } from './components/daph/DaphFollowUpMonitoring';
 import { DaphDistrictForecasts } from './components/daph/DaphDistrictForecasts';
 import { DaphDataQuality } from './components/daph/DaphDataQuality';
 import { ModelTransparency } from './components/transparency/ModelTransparency';
@@ -148,6 +149,12 @@ export function RiskForecastingFeature({ viewerContext, operationalData = null }
       case 'national-overview':
         if (role === ROLES.DAPH_OFFICIAL) {
           return <DaphNationalForecastOverview viewerContext={normalizedContext} />;
+        }
+        break;
+
+      case 'follow-up-monitoring':
+        if (role === ROLES.DAPH_OFFICIAL) {
+          return <DaphFollowUpMonitoring viewerContext={normalizedContext} />;
         }
         break;
 
