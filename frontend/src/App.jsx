@@ -11,6 +11,7 @@ import VetDashboard from './features/HealthAnomaly/screens/VetDashboard.jsx'
 import VetAssignedFarms from './features/HealthAnomaly/screens/VetAssignedFarms.jsx'
 import VetClinicalRecords from './features/HealthAnomaly/screens/VetClinicalRecords.jsx'
 import VetSettings from './features/HealthAnomaly/screens/VetSettings.jsx'
+import VetFarmCattleView from './features/HealthAnomaly/screens/VetFarmCattleView.jsx'
 import GeospatialMock from './features/HealthAnomaly/screens/GeospatialMock.jsx'
 import ForecastingMock from './features/HealthAnomaly/screens/ForecastingMock.jsx'
 
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="geospatial" element={<GeospatialMock />} />
         <Route path="forecasting" element={<ForecastingMock />} />
         <Route path="assigned-farms" element={<VetAssignedFarms />} />
+        <Route path="farm/:farmId" element={<VetFarmCattleView />} />
         <Route path="clinical-records" element={<VetClinicalRecords />} />
         <Route path="settings" element={<VetSettings />} />
       </Route>

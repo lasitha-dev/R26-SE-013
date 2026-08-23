@@ -24,6 +24,7 @@ from components.health_anomaly.database import farms_collection, cattles_collect
 from components.health_anomaly.schemas import (
     FarmRegister, FarmLogin, TokenResponse,
     VetRegister, VetLogin, VetTokenResponse,
+    VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
     CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
 )
 
@@ -337,7 +338,365 @@ async def get_vet_profile(authorization: Optional[str] = Header(None)):
         "license_number": vet.get("license_number"),
         "phone": vet.get("phone"),
         "role": vet.get("role", "vet"),
-        "assigned_farms": vet.get("assigned_farms", [])
+        "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction",
+        "assigned_farms": vet.get("assigned_farms", []),
+        "assigned_farm_ids": vet.get("assigned_farm_ids", [])
+    }
+
+# ─── Farm-to-Vet Linking & Jurisdictional Management Endpoints ────────────────
+
+@router.get("/vet/search", response_model=list[VetSearchResponse])
+async def search_veterinarians(
+    q: Optional[str] = None,
+    district: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": email})
+    assigned_vet_ids = set(farm.get("assigned_vet_ids", [])) if farm else set()
+    assigned_vet_emails = set(farm.get("assigned_vet_emails", [])) if farm else set()
+
+    and_conditions = []
+
+    if district and district.strip() and district.strip().lower() not in ["all", "all districts", ""]:
+        dist_regex = {"$regex": district.strip(), "$options": "i"}
+        and_conditions.append({
+            "$or": [
+                {"district": dist_regex},
+                {"location_district": dist_regex}
+            ]
+        })
+
+    if q and q.strip():
+        q_clean = q.strip()
+        q_regex = {"$regex": q_clean, "$options": "i"}
+        and_conditions.append({
+            "$or": [
+                {"full_name": q_regex},
+                {"email": q_regex},
+                {"license_number": q_regex},
+                {"phone": q_regex}
+            ]
+        })
+
+    filter_query = {}
+    if and_conditions:
+        if len(and_conditions) == 1:
+            filter_query = and_conditions[0]
+        else:
+            filter_query = {"$and": and_conditions}
+
+    cursor = vets_collection.find(filter_query).limit(50)
+    vets = []
+    async for doc in cursor:
+        vid_str = str(doc["_id"])
+        is_assigned = (vid_str in assigned_vet_ids) or (doc.get("email") in assigned_vet_emails)
+        vets.append(VetSearchResponse(
+            id=vid_str,
+            full_name=doc.get("full_name", ""),
+            email=doc.get("email", ""),
+            license_number=doc.get("license_number", ""),
+            phone=doc.get("phone"),
+            district=doc.get("district") or doc.get("location_district") or "Sri Lanka Central Jurisdiction",
+            assigned=is_assigned
+        ))
+    return vets
+
+@router.post("/farms/assign-vet")
+async def assign_veterinarian(
+    payload: AssignVetRequest,
+    authorization: Optional[str] = Header(None)
+):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    # Find target veterinarian
+    vet_query = {}
+    if payload.vet_id and ObjectId.is_valid(payload.vet_id):
+        vet_query["_id"] = ObjectId(payload.vet_id)
+    elif payload.vet_email:
+        vet_query["email"] = payload.vet_email
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide a valid vet_id or vet_email."
+        )
+
+    vet = await vets_collection.find_one(vet_query)
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+
+    # Link vet to farm (idempotent via $addToSet)
+    await farms_collection.update_one(
+        {"_id": farm["_id"]},
+        {
+            "$addToSet": {
+                "assigned_vet_ids": vet_id_str,
+                "assigned_vet_emails": vet["email"]
+            },
+            "$set": {
+                "veterinarian_name": vet.get("full_name", farm.get("veterinarian_name", ""))
+            }
+        }
+    )
+
+    # Link farm to vet (idempotent via $addToSet)
+    await vets_collection.update_one(
+        {"_id": vet["_id"]},
+        {
+            "$addToSet": {
+                "assigned_farm_ids": farm_id_str,
+                "assigned_farms": farm["email"]
+            }
+        }
+    )
+
+    return {
+        "message": f"Dr. {vet.get('full_name')} assigned to your farm successfully.",
+        "vet_id": vet_id_str,
+        "vet_name": vet.get("full_name"),
+        "vet_email": vet.get("email")
+    }
+
+@router.post("/farms/unassign-vet")
+async def unassign_veterinarian(
+    payload: UnassignVetRequest,
+    authorization: Optional[str] = Header(None)
+):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    vet_query = {}
+    if payload.vet_id and ObjectId.is_valid(payload.vet_id):
+        vet_query["_id"] = ObjectId(payload.vet_id)
+    elif payload.vet_email:
+        vet_query["email"] = payload.vet_email
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide a valid vet_id or vet_email."
+        )
+
+    vet = await vets_collection.find_one(vet_query)
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+
+    # Unlink vet from farm
+    await farms_collection.update_one(
+        {"_id": farm["_id"]},
+        {
+            "$pull": {
+                "assigned_vet_ids": vet_id_str,
+                "assigned_vet_emails": vet["email"]
+            }
+        }
+    )
+
+    # Unlink farm from vet
+    await vets_collection.update_one(
+        {"_id": vet["_id"]},
+        {
+            "$pull": {
+                "assigned_farm_ids": farm_id_str,
+                "assigned_farms": farm["email"]
+            }
+        }
+    )
+
+    return {
+        "message": f"Dr. {vet.get('full_name')} unassigned from your farm.",
+        "vet_id": vet_id_str
+    }
+
+@router.get("/farms/assigned-vets", response_model=list[VetSearchResponse])
+async def list_assigned_veterinarians(authorization: Optional[str] = Header(None)):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    assigned_vet_ids = [ObjectId(v) for v in farm.get("assigned_vet_ids", []) if ObjectId.is_valid(v)]
+    assigned_vet_emails = farm.get("assigned_vet_emails", [])
+
+    if not assigned_vet_ids and not assigned_vet_emails:
+        return []
+
+    cursor = vets_collection.find({
+        "$or": [
+            {"_id": {"$in": assigned_vet_ids}},
+            {"email": {"$in": assigned_vet_emails}}
+        ]
+    })
+
+    vets = []
+    async for doc in cursor:
+        vets.append(VetSearchResponse(
+            id=str(doc["_id"]),
+            full_name=doc.get("full_name", ""),
+            email=doc.get("email", ""),
+            license_number=doc.get("license_number", ""),
+            phone=doc.get("phone"),
+            district=doc.get("district") or doc.get("location_district") or "Sri Lanka Central Jurisdiction",
+            assigned=True
+        ))
+    return vets
+
+@router.get("/vet/my-farms", response_model=list[FarmSummaryResponse])
+async def list_vet_assigned_farms(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    assigned_farm_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
+    assigned_farm_emails = vet.get("assigned_farms", [])
+
+    query = {
+        "$or": [
+            {"_id": {"$in": assigned_farm_ids}},
+            {"email": {"$in": assigned_farm_emails}},
+            {"assigned_vet_ids": vet_id_str},
+            {"assigned_vet_emails": vet["email"]}
+        ]
+    }
+
+    cursor = farms_collection.find(query)
+    farms_list = []
+    async for farm_doc in cursor:
+        f_email = farm_doc.get("email", "")
+        # Aggregate cattle count and alert count for this farm
+        total_cattle = await cattles_collection.count_documents({"owner_email": f_email})
+        alert_cattle = await cattles_collection.count_documents({
+            "owner_email": f_email,
+            "$or": [{"health_status": "Alert"}, {"status": "Alert"}]
+        })
+
+        # Parse coordinates if present
+        lat = farm_doc.get("latitude")
+        lon = farm_doc.get("longitude")
+        loc_district = farm_doc.get("location_district", "")
+        if (lat is None or lon is None) and loc_district and "(" in loc_district:
+            try:
+                coords_part = loc_district.split("(")[0].strip()
+                p_lat, p_lon = coords_part.split(",")
+                lat = float(p_lat.strip())
+                lon = float(p_lon.strip())
+            except Exception:
+                pass
+
+        farms_list.append(FarmSummaryResponse(
+            id=str(farm_doc["_id"]),
+            owner_name=farm_doc.get("owner_name", "Estate Principal"),
+            email=f_email,
+            location_district=loc_district or "Central Agro District",
+            latitude=lat,
+            longitude=lon,
+            registration_number=farm_doc.get("registration_number") or f"REG-SL-{str(farm_doc['_id'])[-4:].upper()}",
+            total_animals=total_cattle or farm_doc.get("total_animals", 0),
+            alert_count=alert_cattle,
+            status="Active Synchronization" if total_cattle > 0 else "Pending Intake"
+        ))
+
+    return farms_list
+
+@router.get("/vet/farms/{farm_id}/cattle")
+async def get_assigned_farm_cattle(
+    farm_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized. Only veterinarians can access this endpoint."
+        )
+
+    # Find farm
+    farm = None
+    if ObjectId.is_valid(farm_id):
+        farm = await farms_collection.find_one({"_id": ObjectId(farm_id)})
+    if not farm:
+        farm = await farms_collection.find_one({"email": farm_id})
+
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Target farm not found."
+        )
+
+    # Enforce RBAC: verify vet is assigned to this farm
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+    vet_assigned_farms = set(vet.get("assigned_farm_ids", [])) | set(vet.get("assigned_farms", []))
+    farm_assigned_vets = set(farm.get("assigned_vet_ids", [])) | set(farm.get("assigned_vet_emails", []))
+
+    is_authorized = (
+        farm_id_str in vet_assigned_farms or
+        farm.get("email") in vet_assigned_farms or
+        vet_id_str in farm_assigned_vets or
+        vet.get("email") in farm_assigned_vets
+    )
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You are not an authorized veterinarian for this agricultural estate."
+        )
+
+    # Retrieve cattle for this farm
+    cursor = cattles_collection.find({"owner_email": farm["email"]})
+    cattle_records = []
+    async for doc in cursor:
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        doc["farm_id"] = farm_id_str
+        doc["farm_name"] = farm.get("owner_name", "Assigned Farm")
+        doc["farm_location"] = farm.get("location_district", "")
+        cattle_records.append(doc)
+
+    return {
+        "farm": {
+            "id": farm_id_str,
+            "owner_name": farm.get("owner_name"),
+            "email": farm.get("email"),
+            "location_district": farm.get("location_district"),
+            "registration_number": farm.get("registration_number"),
+            "latitude": farm.get("latitude"),
+            "longitude": farm.get("longitude")
+        },
+        "cattle": cattle_records,
+        "total_animals": len(cattle_records),
+        "alert_count": sum(1 for c in cattle_records if c.get("health_status") == "Alert" or c.get("status") == "Alert")
     }
 
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)
@@ -638,9 +997,12 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
         "owner_name": farm.get("owner_name"),
         "email": farm.get("email"),
         "location_district": farm.get("location_district"),
+        "latitude": farm.get("latitude"),
+        "longitude": farm.get("longitude"),
         "registration_number": farm.get("registration_number"),
         "veterinarian_name": farm.get("veterinarian_name"),
-        "profile_photo": farm.get("profile_photo")
+        "profile_photo": farm.get("profile_photo"),
+        "assigned_vet_ids": farm.get("assigned_vet_ids", [])
     }
 
 @router.put("/user/profile")
@@ -654,6 +1016,12 @@ async def update_user_profile(profile_data: dict, authorization: Optional[str] =
         update_fields["veterinarian_name"] = profile_data["veterinarian_name"]
     if "profile_photo" in profile_data:
         update_fields["profile_photo"] = profile_data["profile_photo"]
+    if "location_district" in profile_data:
+        update_fields["location_district"] = profile_data["location_district"]
+    if "latitude" in profile_data and profile_data["latitude"] is not None:
+        update_fields["latitude"] = float(profile_data["latitude"])
+    if "longitude" in profile_data and profile_data["longitude"] is not None:
+        update_fields["longitude"] = float(profile_data["longitude"])
         
     if not update_fields:
         return {"message": "No changes submitted."}

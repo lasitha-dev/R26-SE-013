@@ -9,6 +9,9 @@ class FarmRegister(BaseModel):
     registration_number: Optional[str] = None
     veterinarian_name: str = Field(..., min_length=1)
     total_animals: int = Field(default=0, ge=0)
+    assigned_vet_ids: List[str] = []
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class FarmLogin(BaseModel):
     email: EmailStr
@@ -27,8 +30,10 @@ class VetRegister(BaseModel):
     password: str = Field(..., min_length=4)
     license_number: str = Field(..., min_length=1)
     phone: str = Field(..., min_length=7)
+    district: Optional[str] = None
     role: str = "vet"
     assigned_farms: List[str] = []
+    assigned_farm_ids: List[str] = []
 
 class VetLogin(BaseModel):
     email: EmailStr
@@ -42,6 +47,36 @@ class VetTokenResponse(BaseModel):
     role: str = "vet"
     license_number: Optional[str] = None
     phone: Optional[str] = None
+    district: Optional[str] = None
+
+class VetSearchResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    license_number: str
+    phone: Optional[str] = None
+    district: Optional[str] = None
+    assigned: bool = False
+
+class AssignVetRequest(BaseModel):
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+
+class UnassignVetRequest(BaseModel):
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+
+class FarmSummaryResponse(BaseModel):
+    id: str
+    owner_name: str
+    email: str
+    location_district: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    registration_number: Optional[str] = None
+    total_animals: int = 0
+    alert_count: int = 0
+    status: str = "Active Synchronization"
 
 class CattleCreate(BaseModel):
     identifier: str = Field(..., min_length=1)

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export default function VetDashboard() {
   const navigate = useNavigate()
+  const [farmsList, setFarmsList] = useState([])
   const [cattleList, setCattleList] = useState([])
   const [loading, setLoading] = useState(true)
   const [vetName, setVetName] = useState(
@@ -13,23 +14,43 @@ export default function VetDashboard() {
   )
 
   useEffect(() => {
-    const fetchCattle = async () => {
+    const fetchDashboardData = async () => {
       const token = localStorage.getItem("token")
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/cattle", {
+        const farmsResp = await fetch("http://127.0.0.1:8000/api/vet/my-farms", {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
-        if (response.ok) {
-          const data = await response.json()
-          setCattleList(Array.isArray(data) ? data : [])
+
+        if (farmsResp.ok) {
+          const farms = await farmsResp.json()
+          setFarmsList(Array.isArray(farms) ? farms : [])
+
+          // Aggregate cattle across all assigned farms
+          const allCattle = []
+          for (const farm of farms) {
+            try {
+              const cattleResp = await fetch(`http://127.0.0.1:8000/api/vet/farms/${farm.id}/cattle`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+              })
+              if (cattleResp.ok) {
+                const cattleData = await cattleResp.json()
+                if (cattleData.cattle && Array.isArray(cattleData.cattle)) {
+                  allCattle.push(...cattleData.cattle)
+                }
+              }
+            } catch (err) {
+              // continue
+            }
+          }
+          setCattleList(allCattle)
         }
       } catch (err) {
-        console.error("Error fetching cattle data for vet overview:", err)
+        console.error("Error fetching vet dashboard data:", err)
       } finally {
         setLoading(false)
       }
     }
-    fetchCattle()
+    fetchDashboardData()
   }, [])
 
   const alertsCount = cattleList.filter(
@@ -109,15 +130,15 @@ export default function VetDashboard() {
 
         <div className="glass-card rounded-xl p-5 border border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">CV Pipeline Engines</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Linked Agro Herds</span>
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-lg">memory</span>
+              <span className="material-symbols-outlined text-lg">agriculture</span>
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white">3 Models</p>
-          <p className="text-[11px] text-primary mt-1 flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs">bolt</span>
-            YOLO + ViT + Mask R-CNN
+          <p className="text-3xl font-extrabold text-white">{farmsList.length}</p>
+          <p className="text-[11px] text-primary mt-1 flex items-center gap-1 font-mono">
+            <span className="material-symbols-outlined text-xs">corporate_fare</span>
+            Assigned Agricultural Estates
           </p>
         </div>
 
@@ -155,19 +176,19 @@ export default function VetDashboard() {
           ) : cattleList.length === 0 ? (
             <div className="py-12 text-center text-slate-400 space-y-2">
               <span className="material-symbols-outlined text-4xl text-slate-600">inventory_2</span>
-              <p className="text-sm">No livestock records assigned yet.</p>
-              <p className="text-xs text-slate-500">
-                Livestock records registered by assigned farm owners will populate here.
+              <p className="text-sm font-semibold text-slate-300">No livestock records assigned yet.</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Livestock records registered by assigned farm owners will populate here for clinical telemetry and diagnostics.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="text-slate-400 uppercase tracking-wider border-b border-white/5">
+                  <tr className="text-slate-400 uppercase tracking-wider border-b border-white/5 font-mono">
                     <th className="py-3 px-3 font-semibold">Animal ID</th>
+                    <th className="py-3 px-3 font-semibold">Estate / Location</th>
                     <th className="py-3 px-3 font-semibold">Breed</th>
-                    <th className="py-3 px-3 font-semibold">Weight</th>
                     <th className="py-3 px-3 font-semibold">Health Status</th>
                     <th className="py-3 px-3 font-semibold text-right">Clinical Action</th>
                   </tr>
@@ -181,8 +202,11 @@ export default function VetDashboard() {
                           <span className={`w-2 h-2 rounded-full ${isAlert ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`} />
                           {c.identifier}
                         </td>
+                        <td className="py-3 px-3 text-slate-300 text-[11px]">
+                          <span className="font-semibold text-white">{c.farm_name || 'Assigned Farm'}</span>
+                          {c.farm_location && <span className="text-slate-500 block text-[10px] truncate max-w-[140px]">{c.farm_location}</span>}
+                        </td>
                         <td className="py-3 px-3 text-slate-300">{c.breed || 'Jersey'}</td>
-                        <td className="py-3 px-3 text-slate-300 font-mono">{c.weight ? `${c.weight} kg` : 'N/A'}</td>
                         <td className="py-3 px-3">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -196,7 +220,7 @@ export default function VetDashboard() {
                         </td>
                         <td className="py-3 px-3 text-right">
                           <button
-                            onClick={() => navigate('/vet/diagnostics')}
+                            onClick={() => navigate(`/vet/diagnostics?cattle_id=${c.id}&farm_id=${c.farm_id || ''}`)}
                             className="text-primary hover:text-primary-fixed font-bold inline-flex items-center gap-1 hover:underline"
                           >
                             <span>Diagnose</span>
