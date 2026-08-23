@@ -35,6 +35,7 @@ import {
   cancelFollowUp,
   escalateFollowUp,
   linkExternalResourceReference,
+  listEligibleFollowUpVets,
 } from './riskForecastingWorkflowApi';
 
 
@@ -910,6 +911,106 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
         expect(err.message).toContain('Network request failed: Failed to fetch');
         return true;
       });
+    });
+
+    it('listEligibleFollowUpVets: queries GET /follow-up-vets with encoded district and actor headers', async () => {
+      const mockResponse = {
+        district: 'Anuradhapura',
+        total_count: 2,
+        veterinary_officers: [
+          { vet_id: 'DEMO_USER_VET_NORTH', display_name: 'Dr. K. Arul', assigned_districts: ['Anuradhapura'], active: true },
+          { vet_id: 'vet_officer_01', display_name: 'Dr. Nimal Perera', assigned_districts: ['Anuradhapura'], active: true },
+        ],
+      };
+      mockFetchJsonResponse(mockResponse);
+
+      const res = await listEligibleFollowUpVets({ district: 'Anuradhapura' }, { actorContext: validDaphActor });
+
+      expect(res).toEqual(mockResponse);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      const [url, opts] = globalThis.fetch.mock.calls[0];
+      expect(url).toContain('/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura');
+      expect(opts.method).toBe('GET');
+      expect(opts.headers['X-Actor-ID']).toBe('daph_hq_01');
+      expect(opts.headers['X-Actor-Role']).toBe('DAPH_OFFICIAL');
+
+      // Prove Farmer recipient endpoint is NEVER called
+      expect(url).not.toContain('/recipients');
+    });
+
+    it('listEligibleFollowUpVets: encodes district query parameter correctly (e.g. Nuwara Eliya)', async () => {
+      mockFetchJsonResponse({ district: 'Nuwara Eliya', total_count: 0, veterinary_officers: [] });
+
+      await listEligibleFollowUpVets({ district: 'Nuwara Eliya' }, { actorContext: validDaphActor });
+
+      const [url] = globalThis.fetch.mock.calls[0];
+      expect(url).toContain('/api/v1/risk-forecasting/follow-up-vets?district=Nuwara+Eliya');
+    });
+
+    it('listEligibleFollowUpVets: forwards AbortSignal correctly', async () => {
+      mockFetchJsonResponse({ district: 'Galle', total_count: 0, veterinary_officers: [] });
+      const controller = new AbortController();
+
+      await listEligibleFollowUpVets({ district: 'Galle' }, { actorContext: validDaphActor, signal: controller.signal });
+
+      const [, opts] = globalThis.fetch.mock.calls[0];
+      expect(opts.signal).toBe(controller.signal);
+    });
+
+    it('listEligibleFollowUpVets: rejects blank or missing district client-side before fetch', async () => {
+      await expect(listEligibleFollowUpVets({}, { actorContext: validDaphActor })).rejects.toThrow(
+        'district parameter is required for querying eligible Veterinary Officers.'
+      );
+
+      await expect(listEligibleFollowUpVets({ district: '   ' }, { actorContext: validDaphActor })).rejects.toThrow(
+        'district parameter is required for querying eligible Veterinary Officers.'
+      );
+
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('listEligibleFollowUpVets: rejects missing or blank actor context client-side before fetch', async () => {
+      await expect(listEligibleFollowUpVets({ district: 'Anuradhapura' })).rejects.toThrow(RiskForecastingWorkflowApiError);
+
+      await expect(
+        listEligibleFollowUpVets({ district: 'Anuradhapura' }, { actorContext: { userId: 'daph_hq_01', role: '   ' } })
+      ).rejects.toThrow('Actor role (actorRole / role) cannot be missing or blank.');
+
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('listEligibleFollowUpVets: normalizes HTTP 403 Forbidden and HTTP 422 Unprocessable Entity cleanly', async () => {
+      // 403 Forbidden (e.g. Non-DAPH role)
+      mockFetchJsonResponse({ detail: "Actor 'vet_officer_01' with role 'VETERINARY_OFFICER' is not authorized" }, 403);
+      await expect(
+        listEligibleFollowUpVets({ district: 'Anuradhapura' }, { actorContext: validVetActor })
+      ).rejects.toSatisfy((err) => {
+        expect(err).toBeInstanceOf(RiskForecastingWorkflowApiError);
+        expect(err.status).toBe(403);
+        expect(err.message).toContain('not authorized');
+        return true;
+      });
+
+      // 422 Validation Error
+      mockFetchJsonResponse({ detail: [{ loc: ['query', 'district'], msg: 'field required' }] }, 422);
+      await expect(
+        listEligibleFollowUpVets({ district: 'Anuradhapura' }, { actorContext: validDaphActor })
+      ).rejects.toSatisfy((err) => {
+        expect(err).toBeInstanceOf(RiskForecastingWorkflowApiError);
+        expect(err.status).toBe(422);
+        return true;
+      });
+    });
+
+    it('listEligibleFollowUpVets: preserves empty list response without augmenting fabricated entries', async () => {
+      const emptyResponse = { district: 'Ampara', total_count: 0, veterinary_officers: [] };
+      mockFetchJsonResponse(emptyResponse);
+
+      const res = await listEligibleFollowUpVets({ district: 'Ampara' }, { actorContext: validDaphActor });
+
+      expect(res.total_count).toBe(0);
+      expect(res.veterinary_officers).toEqual([]);
     });
   });
 });

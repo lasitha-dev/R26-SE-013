@@ -20,7 +20,8 @@ from backend.components.risk_forecasting.schemas import (
     NotificationBatchListResponse, NotificationDeliveryListResponse,
     RecipientSummaryItem, AssignedRecipientListResponse,
     ForecastFollowUpRecord, CreateFollowUpRequest, TransitionFollowUpRequest,
-    LinkExternalResourceRequest, FollowUpListResponse, FollowUpActorContext
+    LinkExternalResourceRequest, FollowUpListResponse, FollowUpActorContext,
+    EligibleVetListResponse
 )
 from backend.components.risk_forecasting.services.fmd_service import fmd_service
 from backend.components.risk_forecasting.services.lsd_service import lsd_service
@@ -663,8 +664,46 @@ def cancel_notification_batch(batch_id: str):
 
 # ─── Forecast-Linked DAPH–Vet Follow-Up Endpoints (Phase 6B-1) ─────────────
 
+@router.get(
+    "/follow-up-vets",
+    response_model=EligibleVetListResponse,
+    summary="List Active Eligible Veterinary Officers for a District"
+)
+def list_eligible_follow_up_vets(
+    district: str = Query(..., description="Target Sri Lankan district name"),
+    x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
+    x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
+):
+    """
+    Retrieves active Veterinary Officers eligible for follow-up assignment in a specified district.
+
+    AUTHORIZATION BOUNDARY:
+    - Standalone route authorizes DAPH_OFFICIAL role via X-Actor-ID and X-Actor-Role headers.
+    - X-Actor-Role: SYSTEM is explicitly rejected with HTTP 403 Forbidden to prevent header spoofing.
+    - Production integration must derive role and NATIONAL scope from verified JWT / central IAM claims.
+    """
+    actor = None
+    if x_actor_id and x_actor_role:
+        try:
+            actor = FollowUpActorContext(actor_id=x_actor_id.strip(), role=x_actor_role.strip())
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Actor '{x_actor_id}' with role '{x_actor_role}' is not authorized to query eligible Veterinary Officers for follow-up assignment."
+            )
+
+    try:
+        return forecast_follow_up_service.list_eligible_vets(district=district, actor=actor)
+    except ValueError as e:
+        err_msg = str(e)
+        if "not authorized" in err_msg or "Actor context" in err_msg:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
 @router.post(
     "/follow-ups",
+
     response_model=ForecastFollowUpRecord,
     status_code=status.HTTP_201_CREATED,
     summary="Issue DAPH Operational Follow-Up Instruction"

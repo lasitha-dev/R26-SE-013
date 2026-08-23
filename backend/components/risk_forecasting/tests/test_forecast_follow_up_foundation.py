@@ -662,6 +662,152 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         self.assertNotIn("vaccine_inventory", rec_data)
         self.assertNotIn("warehouse_id", rec_data)
 
+    def test_list_eligible_follow_up_vets_endpoint(self):
+        """Tests GET /api/v1/risk-forecasting/follow-up-vets authorization, district filtering, sorting, and PII protection."""
+        client = TestClient(app)
+        _, initial_follow_ups_count = self.follow_up_repo.list()
+
+        # 1. Authorized DAPH receives active Vets for requested district ("Anuradhapura")
+        res_daph = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_daph.status_code, 200)
+        data = res_daph.json()
+        self.assertEqual(data["district"], "Anuradhapura")
+        self.assertGreaterEqual(data["total_count"], 2)
+
+        vet_list = data["veterinary_officers"]
+        vet_ids = [v["vet_id"] for v in vet_list]
+        self.assertIn("vet_officer_01", vet_ids)
+        self.assertIn("DEMO_USER_VET_NORTH", vet_ids)
+
+        # 2. Other-district Vets excluded (e.g. vet_officer_02 assigned only to Kurunegala, Puttalam, Gampaha, Kegalle)
+        self.assertNotIn("vet_officer_02", vet_ids)
+
+        # 3. Inactive Vet excluded (vet_inactive_01 has assigned_districts ["Anuradhapura"] but active=False)
+        self.assertNotIn("vet_inactive_01", vet_ids)
+
+        # 4. Deterministic ordering: display_name ascending, then vet_id
+        display_names = [v["display_name"] for v in vet_list]
+        self.assertEqual(display_names, sorted(display_names))
+
+        # 5. Empty eligible list returns 200 and [] for a valid Sri Lankan district with no assigned Vets (e.g., Ampara)
+        res_empty = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Ampara",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_empty.status_code, 200)
+        empty_data = res_empty.json()
+        self.assertEqual(empty_data["district"], "Ampara")
+        self.assertEqual(empty_data["total_count"], 0)
+        self.assertEqual(empty_data["veterinary_officers"], [])
+
+        # 5b. Canonical district handling for "Nuwara Eliya" and whitespace/casing normalization
+        res_nuwara = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=nuwara%20eliya",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_nuwara.status_code, 200)
+        self.assertEqual(res_nuwara.json()["district"], "Nuwara Eliya")
+
+        # 6. SYSTEM role explicitly denied (403)
+        res_system = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "sys_bot", "X-Actor-Role": "SYSTEM"},
+        )
+        self.assertEqual(res_system.status_code, 403)
+        self.assertIn("not authorized", res_system.json()["detail"])
+
+        # 7. Farmer denied (403)
+        res_farmer = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "farmer_01", "X-Actor-Role": "FARMER"},
+        )
+        self.assertEqual(res_farmer.status_code, 403)
+        self.assertIn("not authorized", res_farmer.json()["detail"])
+
+        # 8. Vet denied (403)
+        res_vet = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        self.assertEqual(res_vet.status_code, 403)
+        self.assertIn("not authorized", res_vet.json()["detail"])
+
+        # 8b. Unknown role denied (403)
+        res_unknown_role = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "user_99", "X-Actor-Role": "UNKNOWN_ROLE"},
+        )
+        self.assertEqual(res_unknown_role.status_code, 403)
+        self.assertIn("not authorized", res_unknown_role.json()["detail"])
+
+        # 9. Missing/blank actor context denied (403)
+        res_no_actor = client.get("/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura")
+        self.assertEqual(res_no_actor.status_code, 403)
+
+        res_blank_actor = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=Anuradhapura",
+            headers={"X-Actor-ID": "   ", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_blank_actor.status_code, 403)
+
+        # 10. District validation: missing district parameter (422) & blank/invalid district (400)
+        res_missing_dist = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_missing_dist.status_code, 422)
+
+        res_blank_dist = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=%20%20",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_blank_dist.status_code, 400)
+
+        res_invalid_dist = client.get(
+            "/api/v1/risk-forecasting/follow-up-vets?district=InvalidDistrictName",
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_invalid_dist.status_code, 400)
+
+        # 11. No PII/contact/auth fields in response
+        for vet in vet_list:
+            self.assertNotIn("phone", vet)
+            self.assertNotIn("email", vet)
+            self.assertNotIn("password", vet)
+            self.assertNotIn("token", vet)
+            self.assertNotIn("farmer_id", vet)
+            self.assertNotIn("stock_quantity", vet)
+
+        # 12. Zero repository side effects
+        self.assertEqual(self.follow_up_repo.list()[1], initial_follow_ups_count)
+
+    def test_list_eligible_vets_with_custom_injected_directory(self):
+        """Tests that ForecastFollowUpService respects custom injected VeterinaryOfficerDirectory."""
+        custom_dir = InMemoryVeterinaryOfficerDirectory()
+        custom_dir.add_vet(
+            VeterinaryOfficerSummary(
+                vet_id="custom_vet_99",
+                display_name="Dr. Custom Officer",
+                assigned_districts=["Ampara"],
+                active=True,
+            )
+        )
+        custom_service = ForecastFollowUpService(
+            forecast_service=self.forecast_svc,
+            follow_up_repository=self.follow_up_repo,
+            vet_directory=custom_dir,
+        )
+
+        daph_actor = FollowUpActorContext(actor_id="daph_hq_01", role="DAPH_OFFICIAL")
+        res = custom_service.list_eligible_vets(district="Ampara", actor=daph_actor)
+
+        self.assertEqual(res.district, "Ampara")
+        self.assertEqual(res.total_count, 1)
+        self.assertEqual(res.veterinary_officers[0].vet_id, "custom_vet_99")
+
 
 if __name__ == "__main__":
     unittest.main()

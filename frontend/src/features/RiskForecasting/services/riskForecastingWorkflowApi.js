@@ -966,3 +966,34 @@ export async function linkExternalResourceReference(followUpId, args = {}, optio
     headers,
   });
 }
+
+/**
+ * Lists active Veterinary Officers eligible for follow-up assignment in a specified Sri Lankan district.
+ * GET /api/v1/risk-forecasting/follow-up-vets?district={district}
+ * (DAPH Official Only)
+ *
+ * @param {object} filters - Object containing required `district` string parameter
+ * @param {object} options - Options containing `actorContext` and optional `signal`
+ * @returns {Promise<object>} Promise resolving to EligibleVetListResponse ({ district, total_count, veterinary_officers })
+ */
+export async function listEligibleFollowUpVets(filters = {}, options = {}) {
+  const rawDistrict = filters?.district ?? filters?.districtName;
+  const actorContext = options.actorContext || options.actor || filters?.actorContext || filters?.actor;
+
+  if (rawDistrict === undefined || rawDistrict === null || String(rawDistrict).trim() === '') {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'district parameter is required for querying eligible Veterinary Officers.',
+      endpoint: '/api/v1/risk-forecasting/follow-up-vets',
+    });
+  }
+
+  const district = String(rawDistrict).trim();
+  const headers = buildActorHeaders(actorContext, true);
+  const queryString = buildQueryString({ district });
+
+  return requestWorkflowApi(`/api/v1/risk-forecasting/follow-up-vets${queryString}`, {
+    method: 'GET',
+    signal: options?.signal || filters?.signal,
+    headers,
+  });
+}

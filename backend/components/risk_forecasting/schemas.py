@@ -6,6 +6,7 @@ Provides validation and documentation for FMD and LSD prediction and forecast en
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
+from backend.components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
 
 
 # ─── Shared Base Request Models ──────────────────────────────────────────────
@@ -691,3 +692,10 @@ class FollowUpListResponse(BaseModel):
     limit: int = Field(..., ge=1, description="Query limit.")
     offset: int = Field(..., ge=0, description="Query offset.")
     follow_ups: List[ForecastFollowUpRecord] = Field(..., description="List of follow-up records.")
+
+
+class EligibleVetListResponse(BaseModel):
+    """Response schema for querying active Veterinary Officers eligible for a forecast district."""
+    district: str = Field(..., description="Target Sri Lankan district name.")
+    total_count: int = Field(..., ge=0, description="Total count of active eligible Veterinary Officers.")
+    veterinary_officers: List[VeterinaryOfficerSummary] = Field(..., description="List of active eligible Veterinary Officers.")

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import Callable, Optional, List, Tuple
 
+from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS
 from backend.components.risk_forecasting.integrations.vet_directory import (
     VeterinaryOfficerDirectory,
     veterinary_officer_directory,
@@ -32,6 +33,7 @@ from backend.components.risk_forecasting.repositories.follow_up_repository impor
 )
 from backend.components.risk_forecasting.schemas import (
     CreateFollowUpRequest,
+    EligibleVetListResponse,
     FollowUpActorContext,
     FollowUpListResponse,
     ForecastDecisionRecord,
@@ -427,6 +429,51 @@ class ForecastFollowUpService:
 
         updated_record = ForecastFollowUpRecord(**updated_dict)
         return self.follow_up_repo.update_record(updated_record)
+
+    def list_eligible_vets(
+        self,
+        district: str,
+        actor: Optional[FollowUpActorContext] = None,
+    ) -> EligibleVetListResponse:
+        """
+        Lists active Veterinary Officers assigned and eligible for a specific Sri Lankan district.
+
+        AUTHORIZATION BOUNDARY:
+        - Standalone API Endpoint Authorizes DAPH_OFFICIAL role via test/demo header boundary.
+        - Public requests sending X-Actor-Role: SYSTEM are explicitly denied (HTTP 403) to prevent unauthorized headers.
+        - Production integration MUST derive role and NATIONAL scope from verified JWT / central IAM claims.
+        """
+        # 1. Actor Authorization (DAPH_OFFICIAL strictly required for directory query)
+        if not actor or not actor.actor_id or not actor.actor_id.strip() or not actor.role or not actor.role.strip():
+            raise ValueError("Actor context with valid actor_id and role is required for querying eligible Veterinary Officers.")
+        if actor.role != "DAPH_OFFICIAL":
+            raise ValueError(f"Actor '{actor.actor_id}' with role '{actor.role}' is not authorized to query eligible Veterinary Officers for follow-up assignment.")
+
+        # 2. District Validation & Normalization
+        if not district or not district.strip():
+            raise ValueError("District parameter cannot be empty or blank.")
+
+        formatted_district = district.strip().title()
+        if formatted_district in ["Moneragala", "Monaragala"]:
+            formatted_district = "Monaragala"
+        elif formatted_district in ["Nuwaraeliya", "Nuwara Eliya"]:
+            formatted_district = "Nuwara Eliya"
+
+        if formatted_district not in SRI_LANKA_DISTRICTS:
+            raise ValueError(f"Invalid district '{district}'. Must be one of {SRI_LANKA_DISTRICTS}")
+
+        # 3. Query Active Officers via Directory Protocol
+        raw_vets = self.vet_dir.list_vets_by_district(formatted_district)
+        active_vets = [vet for vet in raw_vets if vet.active]
+
+        # 4. Deterministic Ordering by display_name, then vet_id
+        active_vets.sort(key=lambda v: (v.display_name, v.vet_id))
+
+        return EligibleVetListResponse(
+            district=formatted_district,
+            total_count=len(active_vets),
+            veterinary_officers=active_vets,
+        )
 
 
 # Singleton Instance for Default Injection
