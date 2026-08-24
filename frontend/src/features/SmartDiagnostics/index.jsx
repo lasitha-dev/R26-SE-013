@@ -113,9 +113,26 @@ const SmartDiagnostics = () => {
     return () => timers.forEach(clearTimeout);
   }, [isSuccess]);
 
-  // Get disease profile for the detected disease
+  // Get disease profile for the detected disease with dynamic Mask R-CNN telemetry
   const disease = result?.disease;
-  const profile = getDiseaseProfile(disease?.name);
+  const staticProfile = getDiseaseProfile(disease?.name);
+
+  const dynamicSeverity = result?.severity;
+  const dynamicStage = result?.stage;
+  const dynamicSpatialCorrelation = result?.spatial_correlation;
+
+  const severityFormatted = dynamicSeverity?.formatted || staticProfile.severity;
+  const severityGrade = dynamicSeverity?.grade || (staticProfile.severity.split('/')[1] || '').trim() || 'Moderate';
+  const severityColor = dynamicSeverity
+    ? (dynamicSeverity.grade === 'High' ? 'text-error' : dynamicSeverity.grade === 'Moderate' ? 'text-[#f59e0b]' : 'text-primary')
+    : staticProfile.severityColor;
+  const stage = dynamicStage || staticProfile.stage;
+  const spatialCorrelation = dynamicSpatialCorrelation || staticProfile.spatialCorrelation;
+  const rationale = staticProfile.rationale;
+  const prognosis = staticProfile.prognosis;
+  const prognosisColor = staticProfile.prognosisColor;
+  const evidenceItems = staticProfile.evidenceItems;
+
   const confidence = disease?.confidence
     ? disease.confidence.toFixed(1)
     : '0.0';
@@ -152,14 +169,14 @@ const SmartDiagnostics = () => {
         breed: cattleInfo?.breed || 'Dairy Breed',
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
-        severity: profile.severity,
-        stage: profile.stage,
-        prognosis: profile.prognosis,
-        rationale: profile.rationale,
-        spatial_correlation: profile.spatialCorrelation,
+        severity: severityFormatted,
+        stage: stage,
+        prognosis: prognosis,
+        rationale: rationale,
+        spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Identified pathology: ${disease?.name || 'Healthy'}.`,
+        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Identified pathology: ${disease?.name || 'Healthy'}. Dynamic severity: ${severityFormatted}.`,
         llm_reasoning: reasoning,
         verified: true,
       };
@@ -640,22 +657,29 @@ const SmartDiagnostics = () => {
                         <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
                           Severity Score
                         </p>
-                        <p className={`text-xs md:text-sm font-extrabold ${profile.severityColor}`}>
-                          {profile.severity}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className={`text-xs md:text-sm font-extrabold ${severityColor}`}>
+                            {severityFormatted}
+                          </p>
+                          {dynamicSeverity && dynamicSeverity.lesion_coverage_pct > 0 && (
+                            <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 text-[10px] font-mono border border-rose-500/20">
+                              {dynamicSeverity.lesion_coverage_pct}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
                           Disease Stage
                         </p>
-                        <p className="text-xs font-semibold text-on-surface truncate">{profile.stage}</p>
+                        <p className="text-xs font-semibold text-on-surface truncate">{stage}</p>
                       </div>
                       <div>
                         <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
                           Prognosis
                         </p>
-                        <p className={`text-xs font-semibold ${profile.prognosisColor} truncate`}>
-                          {profile.prognosis}
+                        <p className={`text-xs font-semibold ${prognosisColor} truncate`}>
+                          {prognosis}
                         </p>
                       </div>
                     </div>
@@ -758,7 +782,7 @@ const SmartDiagnostics = () => {
                       </h4>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
-                      {profile.rationale}
+                      {rationale}
                     </p>
                   </div>
                   <div className="p-4 bg-surface-container/60 rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-colors">
@@ -769,7 +793,7 @@ const SmartDiagnostics = () => {
                       </h4>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
-                      {profile.spatialCorrelation}
+                      {spatialCorrelation}
                     </p>
                   </div>
                 </div>
@@ -793,7 +817,7 @@ const SmartDiagnostics = () => {
                     />
                   </div>
                   <ul className="space-y-2.5">
-                    {profile.evidenceItems.map((item, idx) => (
+                    {(evidenceItems || []).map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2.5 text-xs text-on-surface-variant leading-relaxed">
                         <span className="material-symbols-outlined text-primary text-sm shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>
                           check_circle

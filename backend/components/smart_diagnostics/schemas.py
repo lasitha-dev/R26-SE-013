@@ -27,11 +27,23 @@ class Disease(BaseModel):
     all_probabilities: Dict[str, float]
 
 
+class SeverityMetrics(BaseModel):
+    score: float
+    grade: str  # "High" | "Moderate" | "Low" | "None"
+    lesion_coverage_pct: float
+    cluster_count: int
+    mean_intensity: float = 0.0
+    formatted: str  # e.g. "8.2 / High"
+
+
 class DetectResponse(BaseModel):
     cattle_detected: bool
     detections: List[Detection]
     best_detection: Optional[BestDetection]
     disease: Optional[Disease]
+    severity: Optional[SeverityMetrics] = None
+    stage: Optional[str] = None
+    spatial_correlation: Optional[str] = None
     cropped_image: Optional[str]
     symptoms_image: Optional[str] = None
     image_size: Optional[Dict[str, int]]
@@ -52,6 +64,9 @@ class ReasoningRequest(BaseModel):
     detections: List[Detection]
     best_detection: Optional[BestDetection] = None
     disease: Optional[Disease] = None
+    severity: Optional[SeverityMetrics] = None
+    stage: Optional[str] = None
+    spatial_correlation: Optional[str] = None
     image_size: Optional[Dict[str, int]] = None
     farm_metadata: Optional[Dict[str, str]] = None
 
@@ -61,3 +76,4 @@ class ReasoningResponse(BaseModel):
     status: str                  # "ok" | "error"
     reasoning_report: str        # Markdown clinical briefing (or error message)
     model_name: Optional[str] = None  # LLM model that produced the report
+

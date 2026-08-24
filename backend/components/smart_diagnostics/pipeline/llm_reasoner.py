@@ -105,6 +105,22 @@ def _build_user_prompt(
             f"({det.get('vit_confidence_pct', '?')}% confidence)"
         )
 
+        # Dynamic Mask R-CNN Segmentation & Quantitative Pathology
+        if "lesion_coverage_pct" in det or "severity_score" in det:
+            lines.append(
+                f"- **Mask R-CNN Symptom Surface Area:** {det.get('lesion_coverage_pct', 0.0)}% of body"
+            )
+            lines.append(
+                f"- **Distinct Lesion / Nodule Clusters:** {det.get('cluster_count', 0)}"
+            )
+            lines.append(
+                f"- **Quantitative Clinical Severity Score:** {det.get('severity_score', 'N/A')}/10.0 ({det.get('severity_grade', 'N/A')})"
+            )
+            if det.get("stage"):
+                lines.append(f"- **Estimated Clinical Stage:** {det.get('stage')}")
+            if det.get("spatial_correlation"):
+                lines.append(f"- **Spatial Morphology Telemetry:** {det.get('spatial_correlation')}")
+
         # Full probability table.
         probs = det.get("vit_probabilities", {})
         if probs:
