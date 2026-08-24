@@ -46,7 +46,7 @@ describe('VetAssignedFarms Component', () => {
       expect(screen.getByText('REG-LK-9901')).toBeInTheDocument()
       expect(screen.getByText('GPS: 6.9271, 79.8612')).toBeInTheDocument()
       expect(screen.getByText('1 Alerts')).toBeInTheDocument()
-      expect(screen.getByText('View Herd')).toBeInTheDocument()
+      expect(screen.getByText('View Herd & Select Cattle')).toBeInTheDocument()
     })
   })
 

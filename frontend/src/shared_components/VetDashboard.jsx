@@ -81,6 +81,13 @@ export default function VetDashboard() {
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <Link
+              to="/vet/clinical-records"
+              className="px-5 py-3 rounded-xl bg-surface-container-high border border-white/10 text-white font-bold text-sm flex items-center gap-2 shadow-lg hover:bg-surface-container-highest active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-lg text-emerald-400">folder_open</span>
+              Clinical Case Records
+            </Link>
+            <Link
               to="/vet/assigned-farms"
               className="px-5 py-3 rounded-xl bg-gradient-to-br from-emerald-500 to-primary-container text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all"
             >
@@ -253,6 +260,14 @@ export default function VetDashboard() {
             >
               <span className="material-symbols-outlined text-base">agriculture</span>
               Select Cattle from Assigned Farms
+            </Link>
+
+            <Link
+              to="/vet/clinical-records"
+              className="w-full py-2.5 bg-surface-container-high border border-white/10 hover:bg-surface-container-highest text-slate-200 font-bold text-xs rounded-lg uppercase tracking-wider flex items-center justify-center gap-2 transition-all text-center"
+            >
+              <span className="material-symbols-outlined text-base text-emerald-400">history_edu</span>
+              View Clinical Case Records
             </Link>
           </div>
 

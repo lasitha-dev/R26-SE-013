@@ -23,6 +23,7 @@ const SmartDiagnostics = () => {
 
   const [cattleInfo, setCattleInfo] = useState(null);
   const [farmInfo, setFarmInfo] = useState(null);
+  const [existingCase, setExistingCase] = useState(null);
   const [loadingContext, setLoadingContext] = useState(false);
 
   // Case reporting and verification states
@@ -38,12 +39,13 @@ const SmartDiagnostics = () => {
   const [showSymptomMask, setShowSymptomMask] = useState(true);
   const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
 
-  // Fetch cattle metadata if cattleId is passed in URL
+  // Fetch cattle metadata and existing cases if cattleId is passed in URL
   useEffect(() => {
     const fetchCattleContext = async () => {
       if (!cattleId) {
         setCattleInfo(null);
         setFarmInfo(null);
+        setExistingCase(null);
         return;
       }
       setLoadingContext(true);
@@ -64,6 +66,20 @@ const SmartDiagnostics = () => {
           if (farmRes.ok) {
             const fData = await farmRes.json();
             setFarmInfo(fData.farm || null);
+          }
+        }
+
+        // Fetch existing diagnostic case for this cattle
+        const casesRes = await fetch(`http://127.0.0.1:8000/api/vet/cases`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (casesRes.ok) {
+          const casesList = await casesRes.json();
+          if (Array.isArray(casesList)) {
+            const matched = casesList.find((c) => c.cattle_id === cattleId);
+            if (matched) {
+              setExistingCase(matched);
+            }
           }
         }
       } catch (err) {
@@ -177,16 +193,26 @@ const SmartDiagnostics = () => {
             Upload clinical imagery for automated feature extraction, visual highlighting, and logic tracing.
           </p>
         </div>
-        {!isIdle && !isLoading && (
-          <button
-            onClick={handleResetAnalysis}
-            className="text-primary hover:text-on-primary hover:bg-primary font-bold text-xs flex items-center gap-2 border border-primary/30 px-4 py-2.5 rounded-xl bg-primary/10 transition-all shadow-sm hover:shadow-glow-sm shrink-0 active:scale-95"
-            id="new-analysis-btn"
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <Link
+            to="/vet/clinical-records"
+            className="text-slate-200 hover:text-white hover:bg-surface-container-highest font-bold text-xs flex items-center gap-2 border border-white/10 px-4 py-2.5 rounded-xl bg-surface-container-high transition-all shadow-sm shrink-0 active:scale-95"
+            id="view-clinical-records-btn"
           >
-            <span className="material-symbols-outlined text-base">refresh</span>
-            New Analysis
-          </button>
-        )}
+            <span className="material-symbols-outlined text-base text-emerald-400">folder_open</span>
+            Clinical Case Records
+          </Link>
+          {!isIdle && !isLoading && (
+            <button
+              onClick={handleResetAnalysis}
+              className="text-primary hover:text-on-primary hover:bg-primary font-bold text-xs flex items-center gap-2 border border-primary/30 px-4 py-2.5 rounded-xl bg-primary/10 transition-all shadow-sm hover:shadow-glow-sm shrink-0 active:scale-95"
+              id="new-analysis-btn"
+            >
+              <span className="material-symbols-outlined text-base">refresh</span>
+              New Analysis
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Subject Animal Clinical Context Card */}
@@ -207,6 +233,11 @@ const SmartDiagnostics = () => {
                 </span>
                 <span className="text-slate-500">•</span>
                 <span className="text-slate-400 text-3xs font-mono">{farmInfo?.location_district || 'Regional Node'}</span>
+                {existingCase && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-3xs font-mono font-bold uppercase border border-amber-500/30">
+                    Existing Case: {existingCase.case_number}
+                  </span>
+                )}
               </div>
               <h3 className="text-lg font-bold text-white font-mono flex items-center gap-2">
                 {cattleInfo.identifier}
@@ -637,14 +668,14 @@ const SmartDiagnostics = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
                             <span className="material-symbols-outlined text-base">verified</span>
-                            <span>Case Verified &amp; Archived</span>
+                            <span>{existingCase ? 'Case Updated & Verified' : 'Case Verified & Archived'}</span>
                           </div>
                           <span className="text-[10px] font-mono text-emerald-300 font-bold px-2 py-0.5 rounded bg-emerald-500/20">
                             {caseReport.case_number}
                           </span>
                         </div>
                         <p className="text-2xs text-slate-300 leading-relaxed">
-                          Clinical case report officially recorded under <strong>{caseReport.vet_license || 'Verified Vet'}</strong>. Health status updated.
+                          Clinical case report officially {existingCase ? 'updated' : 'recorded'} under <strong>{caseReport.vet_license || 'Verified Vet'}</strong>. Herd status synchronized.
                         </p>
                         <div className="flex items-center gap-2 pt-1">
                           <button
@@ -680,18 +711,18 @@ const SmartDiagnostics = () => {
                           {isReporting ? (
                             <>
                               <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
-                              <span>Recording &amp; Verifying...</span>
+                              <span>{existingCase ? 'Updating & Verifying...' : 'Recording & Verifying...'}</span>
                             </>
                           ) : (
                             <>
-                              <span className="material-symbols-outlined text-base">fact_check</span>
-                              <span>Vet: Verify &amp; Report</span>
+                              <span className="material-symbols-outlined text-base">{existingCase ? 'published_with_changes' : 'fact_check'}</span>
+                              <span>{existingCase ? 'Vet: Update & Verify Case' : 'Vet: Verify & Report'}</span>
                             </>
                           )}
                         </button>
                         <p className="text-center text-3xs text-outline mt-2.5 font-medium flex items-center justify-center gap-1">
                           <span className="material-symbols-outlined text-xs">sync</span>
-                          Verified reports sync with regional surveillance feeds.
+                          {existingCase ? 'Updates active case record and synchronizes surveillance telemetry.' : 'Verified reports sync with regional surveillance feeds.'}
                         </p>
                       </div>
                     )}

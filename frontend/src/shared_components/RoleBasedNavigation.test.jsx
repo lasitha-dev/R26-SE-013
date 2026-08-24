@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import DashboardLayout from '../../../shared_components/DashboardLayout.jsx'
-import VetLayout from '../../../shared_components/VetLayout.jsx'
-import { ProfileProvider } from '../../../context/ProfileContext.jsx'
+import DashboardLayout from './DashboardLayout.jsx'
+import VetLayout from './VetLayout.jsx'
+import { ProfileProvider } from '../context/ProfileContext.jsx'
 
 describe('Role-Based Navigation Controls', () => {
   beforeEach(() => {

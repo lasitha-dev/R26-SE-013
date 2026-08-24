@@ -85,10 +85,36 @@ async def test_diagnostic_case_flow():
         assert verified_data["vet_name"] == "Dr. Case Tester"
         assert verified_data["vet_license"] == "VET-CASE-2026"
 
-        # Check cattle updated status
-        updated_cattle = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
-        assert updated_cattle["health_status"] == "Alert"
-        assert updated_cattle["last_diagnosis"] == "Lumpy Skin Disease"
+        # 4. Update case for the same cattle (upsert verification)
+        update_payload = {
+            "cattle_id": cattle_id,
+            "animal_identifier": "COW-TEST-99",
+            "breed": "Jersey",
+            "disease_name": "Cattle (Healthy)",
+            "confidence": 98.2,
+            "severity": "Low",
+            "stage": "Recovery",
+            "prognosis": "Good",
+            "rationale": "Lesions fully resolved.",
+            "clinical_notes": "Recovery confirmed.",
+            "verified": True
+        }
+        res_update = await ac.post("/api/vet/cases", json=update_payload, headers=headers)
+        assert res_update.status_code == 201
+        updated_data = res_update.json()
+        assert updated_data["id"] == case_id  # Same case ID preserved!
+        assert updated_data["disease_name"] == "Cattle (Healthy)"
+        assert updated_data["confidence"] == 98.2
+        assert updated_data["status"] == "Verified"
+
+        # Ensure no duplicate cases exist for this cattle
+        count = await diagnostic_cases_collection.count_documents({"cattle_id": cattle_id})
+        assert count == 1
+
+        # Check cattle updated status to Healthy
+        updated_cattle2 = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+        assert updated_cattle2["health_status"] == "Healthy"
+        assert updated_cattle2["last_diagnosis"] == "Cattle (Healthy)"
 
     # Cleanup
     await vets_collection.delete_many({"email": vet_email})

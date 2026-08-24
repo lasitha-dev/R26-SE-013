@@ -781,41 +781,76 @@ async def report_diagnostic_case(
     farm_id_str = payload.farm_id or (str(farm["_id"]) if farm else None)
     breed_str = payload.breed or (cattle.get("breed") if cattle else "Dairy Breed")
 
-    now = datetime.utcnow()
-    case_number = f"REC-{now.year}-{now.strftime('%m%d%H%M%S')[-4:]}"
+    # Check if a case already exists for this cattle
+    existing_case = None
+    if payload.cattle_id:
+        existing_case = await diagnostic_cases_collection.find_one({"cattle_id": payload.cattle_id})
 
+    now = datetime.utcnow()
     is_verified = payload.verified
     status_label = "Verified" if is_verified else "Pending Verification"
 
-    case_doc = {
-        "case_number": case_number,
-        "cattle_id": payload.cattle_id,
-        "farm_id": farm_id_str,
-        "farm_name": farm_name_str,
-        "animal_identifier": animal_id_str,
-        "breed": breed_str,
-        "disease_name": payload.disease_name,
-        "confidence": round(payload.confidence, 2),
-        "severity": payload.severity or "Moderate",
-        "stage": payload.stage or "Acute",
-        "prognosis": payload.prognosis or "Good",
-        "rationale": payload.rationale,
-        "spatial_correlation": payload.spatial_correlation,
-        "symptoms_image": payload.symptoms_image,
-        "cropped_image": payload.cropped_image,
-        "clinical_notes": payload.clinical_notes,
-        "llm_reasoning": payload.llm_reasoning,
-        "status": status_label,
-        "verified": is_verified,
-        "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
-        "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
-        "vet_id": str(vet["_id"]) if vet else None,
-        "vet_name": vet.get("full_name") if vet else (payload.clinical_notes or "Clinical Practitioner"),
-        "vet_license": vet.get("license_number") if vet else "VET-AUTH-2026",
-    }
+    if existing_case:
+        case_id_str = str(existing_case["_id"])
+        case_number = existing_case.get("case_number", f"REC-{now.year}-{case_id_str[-4:]}")
+        created_at_str = existing_case.get("created_at", now.strftime("%Y-%m-%d %H:%M:%S"))
 
-    result = await diagnostic_cases_collection.insert_one(case_doc)
-    case_id_str = str(result.inserted_id)
+        update_doc = {
+            "farm_id": farm_id_str,
+            "farm_name": farm_name_str,
+            "animal_identifier": animal_id_str,
+            "breed": breed_str,
+            "disease_name": payload.disease_name,
+            "confidence": round(payload.confidence, 2),
+            "severity": payload.severity or "Moderate",
+            "stage": payload.stage or "Acute",
+            "prognosis": payload.prognosis or "Good",
+            "rationale": payload.rationale,
+            "spatial_correlation": payload.spatial_correlation,
+            "symptoms_image": payload.symptoms_image or existing_case.get("symptoms_image"),
+            "cropped_image": payload.cropped_image or existing_case.get("cropped_image"),
+            "clinical_notes": payload.clinical_notes,
+            "llm_reasoning": payload.llm_reasoning,
+            "status": status_label,
+            "verified": is_verified,
+            "updated_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else existing_case.get("verified_at"),
+            "vet_id": str(vet["_id"]) if vet else existing_case.get("vet_id"),
+            "vet_name": vet.get("full_name") if vet else existing_case.get("vet_name", "Clinical Practitioner"),
+            "vet_license": vet.get("license_number") if vet else existing_case.get("vet_license", "VET-AUTH-2026"),
+        }
+        await diagnostic_cases_collection.update_one({"_id": existing_case["_id"]}, {"$set": update_doc})
+        case_doc = {**existing_case, **update_doc, "case_number": case_number, "created_at": created_at_str}
+    else:
+        case_number = f"REC-{now.year}-{now.strftime('%m%d%H%M%S')[-4:]}"
+        case_doc = {
+            "case_number": case_number,
+            "cattle_id": payload.cattle_id,
+            "farm_id": farm_id_str,
+            "farm_name": farm_name_str,
+            "animal_identifier": animal_id_str,
+            "breed": breed_str,
+            "disease_name": payload.disease_name,
+            "confidence": round(payload.confidence, 2),
+            "severity": payload.severity or "Moderate",
+            "stage": payload.stage or "Acute",
+            "prognosis": payload.prognosis or "Good",
+            "rationale": payload.rationale,
+            "spatial_correlation": payload.spatial_correlation,
+            "symptoms_image": payload.symptoms_image,
+            "cropped_image": payload.cropped_image,
+            "clinical_notes": payload.clinical_notes,
+            "llm_reasoning": payload.llm_reasoning,
+            "status": status_label,
+            "verified": is_verified,
+            "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
+            "vet_id": str(vet["_id"]) if vet else None,
+            "vet_name": vet.get("full_name") if vet else (payload.clinical_notes or "Clinical Practitioner"),
+            "vet_license": vet.get("license_number") if vet else "VET-AUTH-2026",
+        }
+        result = await diagnostic_cases_collection.insert_one(case_doc)
+        case_id_str = str(result.inserted_id)
 
     # If verified and cattle exists, update cattle health status
     if is_verified and cattle:
