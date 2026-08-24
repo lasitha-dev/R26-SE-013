@@ -191,9 +191,13 @@ export default function VetLogin() {
             </div>
           </section>
 
-          <div className="mt-10 flex justify-center opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
-            <div className="w-24 h-24 rounded-full border-2 border-dashed border-primary/30 animate-spin-slow relative flex items-center justify-center overflow-hidden">
-              <span className="material-symbols-outlined text-4xl text-primary">clinical_notes</span>
+          <div className="mt-12 flex justify-center opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
+            <div className="w-32 h-32 rounded-full border-4 border-dashed border-primary/20 animate-spin-slow relative flex items-center justify-center overflow-hidden">
+              <img
+                className="w-full h-full object-cover"
+                data-alt="A highly detailed close-up of a digital veterinary diagnostic interface showing complex cellular structures and glowing DNA helices. The color scheme is dominated by deep obsidian blues and vibrant clinical greens. The aesthetic is clean and futuristic, representing advanced AI analysis in animal disease detection. Soft lighting highlights the intricate data points and glowing neural network connections in the background."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBK04T5fDljlkQiRc-muMZWLojvKRFaASfTHBgWOD-Lp8lIyLBtJMHYUnavv7uSzoRrIgU8WpzKWqMF3wXh2fjXV7uqx9CGq2289Bp8Igih0DgxBrYb7JXFh42x27AlhPYWYZdazyIEfg815nTHa1hnVumsMZdgVkdUTXp5tgXaA5oq65DPdUwZRBPQ3g_P-pEEAX5TXBVnkUxnhQkIwtm_KG3LtZrFpJg0Yo4lqjSRouDLAyIVDFkretZz7zviUlU4auctoJUEXvW4"
+              />
             </div>
           </div>
         </div>
