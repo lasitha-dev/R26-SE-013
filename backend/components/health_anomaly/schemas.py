@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
 
 class FarmRegister(BaseModel):
     owner_name: str = Field(..., min_length=1)
@@ -9,6 +9,9 @@ class FarmRegister(BaseModel):
     registration_number: Optional[str] = None
     veterinarian_name: str = Field(..., min_length=1)
     total_animals: int = Field(default=0, ge=0)
+    assigned_vet_ids: List[str] = []
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class FarmLogin(BaseModel):
     email: EmailStr
@@ -20,6 +23,66 @@ class TokenResponse(BaseModel):
     owner_name: str
     email: str
     veterinarian_name: str
+
+class VetRegister(BaseModel):
+    full_name: str = Field(..., min_length=1)
+    email: EmailStr
+    password: str = Field(..., min_length=4)
+    license_number: str = Field(..., min_length=1)
+    phone: str = Field(..., min_length=7)
+    district: Optional[str] = None
+    role: str = "vet"
+    assigned_farms: List[str] = []
+    assigned_farm_ids: List[str] = []
+
+class VetLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class VetTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    full_name: str
+    email: str
+    role: str = "vet"
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    district: Optional[str] = None
+
+class VetProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    district: Optional[str] = None
+
+class VetSearchResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    license_number: str
+    phone: Optional[str] = None
+    district: Optional[str] = None
+    assigned: bool = False
+
+class AssignVetRequest(BaseModel):
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+
+class UnassignVetRequest(BaseModel):
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+
+class FarmSummaryResponse(BaseModel):
+    id: str
+    owner_name: str
+    email: str
+    location_district: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    registration_number: Optional[str] = None
+    total_animals: int = 0
+    alert_count: int = 0
+    status: str = "Active Synchronization"
 
 class CattleCreate(BaseModel):
     identifier: str = Field(..., min_length=1)
@@ -99,5 +162,60 @@ class TriagePredictPayload(BaseModel):
     water_intake: List[float]
     feed_intake: List[float]
     weight: List[float]
+
+
+class DiagnosticCaseCreate(BaseModel):
+    cattle_id: Optional[str] = None
+    farm_id: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    breed: Optional[str] = None
+    disease_name: str
+    confidence: float
+    severity: Optional[str] = "Moderate"
+    stage: Optional[str] = "Acute"
+    prognosis: Optional[str] = "Good"
+    rationale: Optional[str] = None
+    spatial_correlation: Optional[str] = None
+    symptoms_image: Optional[str] = None
+    cropped_image: Optional[str] = None
+    clinical_notes: Optional[str] = None
+    llm_reasoning: Optional[str] = None
+    verified: bool = False
+
+
+class DiagnosticCaseVerifyRequest(BaseModel):
+    clinical_notes: Optional[str] = None
+    prescription: Optional[str] = None
+    health_status: Optional[str] = None
+
+
+class DiagnosticCaseResponse(BaseModel):
+    id: str
+    case_number: str
+    cattle_id: Optional[str] = None
+    farm_id: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    breed: Optional[str] = None
+    disease_name: str
+    confidence: float
+    severity: Optional[str] = None
+    stage: Optional[str] = None
+    prognosis: Optional[str] = None
+    rationale: Optional[str] = None
+    spatial_correlation: Optional[str] = None
+    symptoms_image: Optional[str] = None
+    cropped_image: Optional[str] = None
+    clinical_notes: Optional[str] = None
+    llm_reasoning: Optional[str] = None
+    status: str = "Pending Verification"
+    verified: bool = False
+    created_at: str
+    verified_at: Optional[str] = None
+    vet_id: Optional[str] = None
+    vet_name: Optional[str] = None
+    vet_license: Optional[str] = None
+
 
 

@@ -20,8 +20,14 @@ except ImportError:
     YOLO = None
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection
-from components.health_anomaly.schemas import FarmRegister, FarmLogin, TokenResponse, CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection, diagnostic_cases_collection
+from components.health_anomaly.schemas import (
+    FarmRegister, FarmLogin, TokenResponse,
+    VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
+    VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
+    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
+    DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest
+)
 
 router = APIRouter()
 
@@ -250,6 +256,811 @@ async def login_farm(credentials: FarmLogin):
         "email": farm["email"],
         "veterinarian_name": farm["veterinarian_name"]
     }
+
+@router.post("/vet/register", status_code=status.HTTP_201_CREATED)
+async def register_vet(vet_data: VetRegister):
+    # Check if the email already exists in vets collection
+    existing_vet_email = await vets_collection.find_one({"email": vet_data.email})
+    if existing_vet_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A veterinarian registration with this email address already exists."
+        )
+
+    # Check if license_number already exists in vets collection
+    existing_vet_license = await vets_collection.find_one({"license_number": vet_data.license_number})
+    if existing_vet_license:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A veterinarian with this license registration number already exists."
+        )
+
+    # Hash password and serialize schema
+    hashed_password = get_password_hash(vet_data.password)
+    vet_doc = vet_data.model_dump()
+    vet_doc["password"] = hashed_password
+    vet_doc["role"] = "vet"
+    vet_doc["created_at"] = datetime.utcnow().isoformat()
+
+    try:
+        await vets_collection.insert_one(vet_doc)
+        return {"message": "Veterinarian registered successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error during vet registration: {str(e)}"
+        )
+
+@router.post("/vet/login", response_model=VetTokenResponse)
+async def login_vet(credentials: VetLogin):
+    vet = await vets_collection.find_one({"email": credentials.email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
+
+    if not verify_password(credentials.password, vet["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
+        )
+
+    token_data = {
+        "sub": vet["email"],
+        "full_name": vet["full_name"],
+        "role": "vet",
+        "license_number": vet.get("license_number", "")
+    }
+    access_token = create_access_token(data=token_data)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "full_name": vet["full_name"],
+        "email": vet["email"],
+        "role": "vet",
+        "license_number": vet.get("license_number", ""),
+        "phone": vet.get("phone", ""),
+        "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction"
+    }
+
+@router.get("/vet/profile")
+async def get_vet_profile(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+    return {
+        "full_name": vet.get("full_name"),
+        "email": vet.get("email"),
+        "license_number": vet.get("license_number"),
+        "phone": vet.get("phone"),
+        "role": vet.get("role", "vet"),
+        "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction",
+        "assigned_farms": vet.get("assigned_farms", []),
+        "assigned_farm_ids": vet.get("assigned_farm_ids", [])
+    }
+
+@router.put("/vet/profile")
+async def update_vet_profile(
+    payload: VetProfileUpdate,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    update_fields = {}
+    if payload.full_name is not None and payload.full_name.strip():
+        update_fields["full_name"] = payload.full_name.strip()
+    if payload.license_number is not None and payload.license_number.strip():
+        # Check if license_number is changing and if new license is taken by another vet
+        new_lic = payload.license_number.strip()
+        if new_lic != vet.get("license_number"):
+            existing = await vets_collection.find_one({"license_number": new_lic, "email": {"$ne": email}})
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A veterinarian with this license registration number already exists."
+                )
+            update_fields["license_number"] = new_lic
+    if payload.phone is not None:
+        update_fields["phone"] = payload.phone.strip()
+    if payload.district is not None:
+        update_fields["district"] = payload.district.strip()
+        update_fields["location_district"] = payload.district.strip()
+
+    if update_fields:
+        update_fields["updated_at"] = datetime.utcnow().isoformat()
+        await vets_collection.update_one({"email": email}, {"$set": update_fields})
+
+    updated_vet = await vets_collection.find_one({"email": email})
+    return {
+        "message": "Veterinarian profile updated successfully.",
+        "full_name": updated_vet.get("full_name"),
+        "email": updated_vet.get("email"),
+        "license_number": updated_vet.get("license_number"),
+        "phone": updated_vet.get("phone"),
+        "district": updated_vet.get("district") or updated_vet.get("location_district") or "Sri Lanka Central Jurisdiction",
+        "role": updated_vet.get("role", "vet")
+    }
+
+# ─── Farm-to-Vet Linking & Jurisdictional Management Endpoints ────────────────
+
+@router.get("/vet/search", response_model=list[VetSearchResponse])
+async def search_veterinarians(
+    q: Optional[str] = None,
+    district: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": email})
+    assigned_vet_ids = set(farm.get("assigned_vet_ids", [])) if farm else set()
+    assigned_vet_emails = set(farm.get("assigned_vet_emails", [])) if farm else set()
+
+    and_conditions = []
+
+    if district and district.strip() and district.strip().lower() not in ["all", "all districts", ""]:
+        dist_regex = {"$regex": district.strip(), "$options": "i"}
+        and_conditions.append({
+            "$or": [
+                {"district": dist_regex},
+                {"location_district": dist_regex}
+            ]
+        })
+
+    if q and q.strip():
+        q_clean = q.strip()
+        q_regex = {"$regex": q_clean, "$options": "i"}
+        and_conditions.append({
+            "$or": [
+                {"full_name": q_regex},
+                {"email": q_regex},
+                {"license_number": q_regex},
+                {"phone": q_regex}
+            ]
+        })
+
+    filter_query = {}
+    if and_conditions:
+        if len(and_conditions) == 1:
+            filter_query = and_conditions[0]
+        else:
+            filter_query = {"$and": and_conditions}
+
+    cursor = vets_collection.find(filter_query).limit(50)
+    vets = []
+    async for doc in cursor:
+        vid_str = str(doc["_id"])
+        is_assigned = (vid_str in assigned_vet_ids) or (doc.get("email") in assigned_vet_emails)
+        vets.append(VetSearchResponse(
+            id=vid_str,
+            full_name=doc.get("full_name", ""),
+            email=doc.get("email", ""),
+            license_number=doc.get("license_number", ""),
+            phone=doc.get("phone"),
+            district=doc.get("district") or doc.get("location_district") or "Sri Lanka Central Jurisdiction",
+            assigned=is_assigned
+        ))
+    return vets
+
+@router.post("/farms/assign-vet")
+async def assign_veterinarian(
+    payload: AssignVetRequest,
+    authorization: Optional[str] = Header(None)
+):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    # Find target veterinarian
+    vet_query = {}
+    if payload.vet_id and ObjectId.is_valid(payload.vet_id):
+        vet_query["_id"] = ObjectId(payload.vet_id)
+    elif payload.vet_email:
+        vet_query["email"] = payload.vet_email
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide a valid vet_id or vet_email."
+        )
+
+    vet = await vets_collection.find_one(vet_query)
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+
+    # Link vet to farm (idempotent via $addToSet)
+    await farms_collection.update_one(
+        {"_id": farm["_id"]},
+        {
+            "$addToSet": {
+                "assigned_vet_ids": vet_id_str,
+                "assigned_vet_emails": vet["email"]
+            },
+            "$set": {
+                "veterinarian_name": vet.get("full_name", farm.get("veterinarian_name", ""))
+            }
+        }
+    )
+
+    # Link farm to vet (idempotent via $addToSet)
+    await vets_collection.update_one(
+        {"_id": vet["_id"]},
+        {
+            "$addToSet": {
+                "assigned_farm_ids": farm_id_str,
+                "assigned_farms": farm["email"]
+            }
+        }
+    )
+
+    return {
+        "message": f"Dr. {vet.get('full_name')} assigned to your farm successfully.",
+        "vet_id": vet_id_str,
+        "vet_name": vet.get("full_name"),
+        "vet_email": vet.get("email")
+    }
+
+@router.post("/farms/unassign-vet")
+async def unassign_veterinarian(
+    payload: UnassignVetRequest,
+    authorization: Optional[str] = Header(None)
+):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    vet_query = {}
+    if payload.vet_id and ObjectId.is_valid(payload.vet_id):
+        vet_query["_id"] = ObjectId(payload.vet_id)
+    elif payload.vet_email:
+        vet_query["email"] = payload.vet_email
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide a valid vet_id or vet_email."
+        )
+
+    vet = await vets_collection.find_one(vet_query)
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+
+    # Unlink vet from farm
+    await farms_collection.update_one(
+        {"_id": farm["_id"]},
+        {
+            "$pull": {
+                "assigned_vet_ids": vet_id_str,
+                "assigned_vet_emails": vet["email"]
+            }
+        }
+    )
+
+    # Unlink farm from vet
+    await vets_collection.update_one(
+        {"_id": vet["_id"]},
+        {
+            "$pull": {
+                "assigned_farm_ids": farm_id_str,
+                "assigned_farms": farm["email"]
+            }
+        }
+    )
+
+    return {
+        "message": f"Dr. {vet.get('full_name')} unassigned from your farm.",
+        "vet_id": vet_id_str
+    }
+
+@router.get("/farms/assigned-vets", response_model=list[VetSearchResponse])
+async def list_assigned_veterinarians(authorization: Optional[str] = Header(None)):
+    farm_email = await get_current_user_email(authorization)
+    farm = await farms_collection.find_one({"email": farm_email})
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Farm profile not found."
+        )
+
+    assigned_vet_ids = [ObjectId(v) for v in farm.get("assigned_vet_ids", []) if ObjectId.is_valid(v)]
+    assigned_vet_emails = farm.get("assigned_vet_emails", [])
+
+    if not assigned_vet_ids and not assigned_vet_emails:
+        return []
+
+    cursor = vets_collection.find({
+        "$or": [
+            {"_id": {"$in": assigned_vet_ids}},
+            {"email": {"$in": assigned_vet_emails}}
+        ]
+    })
+
+    vets = []
+    async for doc in cursor:
+        vets.append(VetSearchResponse(
+            id=str(doc["_id"]),
+            full_name=doc.get("full_name", ""),
+            email=doc.get("email", ""),
+            license_number=doc.get("license_number", ""),
+            phone=doc.get("phone"),
+            district=doc.get("district") or doc.get("location_district") or "Sri Lanka Central Jurisdiction",
+            assigned=True
+        ))
+    return vets
+
+@router.get("/vet/my-farms", response_model=list[FarmSummaryResponse])
+async def list_vet_assigned_farms(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    vet_id_str = str(vet["_id"])
+    assigned_farm_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
+    assigned_farm_emails = vet.get("assigned_farms", [])
+
+    query = {
+        "$or": [
+            {"_id": {"$in": assigned_farm_ids}},
+            {"email": {"$in": assigned_farm_emails}},
+            {"assigned_vet_ids": vet_id_str},
+            {"assigned_vet_emails": vet["email"]}
+        ]
+    }
+
+    cursor = farms_collection.find(query)
+    farms_list = []
+    async for farm_doc in cursor:
+        f_email = farm_doc.get("email", "")
+        # Aggregate cattle count and alert count for this farm
+        total_cattle = await cattles_collection.count_documents({"owner_email": f_email})
+        alert_cattle = await cattles_collection.count_documents({
+            "owner_email": f_email,
+            "$or": [{"health_status": "Alert"}, {"status": "Alert"}]
+        })
+
+        # Parse coordinates if present
+        lat = farm_doc.get("latitude")
+        lon = farm_doc.get("longitude")
+        loc_district = farm_doc.get("location_district", "")
+        if (lat is None or lon is None) and loc_district and "(" in loc_district:
+            try:
+                coords_part = loc_district.split("(")[0].strip()
+                p_lat, p_lon = coords_part.split(",")
+                lat = float(p_lat.strip())
+                lon = float(p_lon.strip())
+            except Exception:
+                pass
+
+        farms_list.append(FarmSummaryResponse(
+            id=str(farm_doc["_id"]),
+            owner_name=farm_doc.get("owner_name", "Estate Principal"),
+            email=f_email,
+            location_district=loc_district or "Central Agro District",
+            latitude=lat,
+            longitude=lon,
+            registration_number=farm_doc.get("registration_number") or f"REG-SL-{str(farm_doc['_id'])[-4:].upper()}",
+            total_animals=total_cattle or farm_doc.get("total_animals", 0),
+            alert_count=alert_cattle,
+            status="Active Synchronization" if total_cattle > 0 else "Pending Intake"
+        ))
+
+    return farms_list
+
+@router.get("/vet/farms/{farm_id}/cattle")
+async def get_assigned_farm_cattle(
+    farm_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized. Only veterinarians can access this endpoint."
+        )
+
+    # Find farm
+    farm = None
+    if ObjectId.is_valid(farm_id):
+        farm = await farms_collection.find_one({"_id": ObjectId(farm_id)})
+    if not farm:
+        farm = await farms_collection.find_one({"email": farm_id})
+
+    if not farm:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Target farm not found."
+        )
+
+    # Enforce RBAC: verify vet is assigned to this farm
+    vet_id_str = str(vet["_id"])
+    farm_id_str = str(farm["_id"])
+    vet_assigned_farms = set(vet.get("assigned_farm_ids", [])) | set(vet.get("assigned_farms", []))
+    farm_assigned_vets = set(farm.get("assigned_vet_ids", [])) | set(farm.get("assigned_vet_emails", []))
+
+    is_authorized = (
+        farm_id_str in vet_assigned_farms or
+        farm.get("email") in vet_assigned_farms or
+        vet_id_str in farm_assigned_vets or
+        vet.get("email") in farm_assigned_vets
+    )
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You are not an authorized veterinarian for this agricultural estate."
+        )
+
+    # Retrieve cattle for this farm
+    cursor = cattles_collection.find({"owner_email": farm["email"]})
+    cattle_records = []
+    async for doc in cursor:
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        doc["farm_id"] = farm_id_str
+        doc["farm_name"] = farm.get("owner_name", "Assigned Farm")
+        doc["farm_location"] = farm.get("location_district", "")
+        cattle_records.append(doc)
+
+    return {
+        "farm": {
+            "id": farm_id_str,
+            "owner_name": farm.get("owner_name"),
+            "email": farm.get("email"),
+            "location_district": farm.get("location_district"),
+            "registration_number": farm.get("registration_number"),
+            "latitude": farm.get("latitude"),
+            "longitude": farm.get("longitude")
+        },
+        "cattle": cattle_records,
+        "total_animals": len(cattle_records),
+    }
+
+
+# ─── Diagnostic Case Reporting & Verification Endpoints ──────────────────────
+
+@router.post("/vet/cases", response_model=DiagnosticCaseResponse, status_code=status.HTTP_201_CREATED)
+async def report_diagnostic_case(
+    payload: DiagnosticCaseCreate,
+    authorization: Optional[str] = Header(None)
+):
+    """Report a new AI diagnostic case by veterinarian for a selected animal."""
+    vet_email = None
+    vet = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            vet_email = await get_current_user_email(authorization)
+            vet = await vets_collection.find_one({"email": vet_email})
+        except Exception:
+            pass
+
+    # If cattle_id provided, look up cattle details to ensure complete record
+    cattle = None
+    farm = None
+    if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
+        cattle = await cattles_collection.find_one({"_id": ObjectId(payload.cattle_id)})
+        if cattle:
+            owner_email = cattle.get("owner_email")
+            if owner_email:
+                farm = await farms_collection.find_one({"email": owner_email})
+
+    animal_id_str = payload.animal_identifier or (cattle.get("identifier") if cattle else "COW-UNASSIGNED")
+    farm_name_str = payload.farm_name or ((farm.get("owner_name") + "'s Farm") if farm else "Regional Agro Estate")
+    farm_id_str = payload.farm_id or (str(farm["_id"]) if farm else None)
+    breed_str = payload.breed or (cattle.get("breed") if cattle else "Dairy Breed")
+
+    # Check if a case already exists for this cattle
+    existing_case = None
+    if payload.cattle_id:
+        existing_case = await diagnostic_cases_collection.find_one({"cattle_id": payload.cattle_id})
+
+    now = datetime.utcnow()
+    is_verified = payload.verified
+    status_label = "Verified" if is_verified else "Pending Verification"
+
+    if existing_case:
+        case_id_str = str(existing_case["_id"])
+        case_number = existing_case.get("case_number", f"REC-{now.year}-{case_id_str[-4:]}")
+        created_at_str = existing_case.get("created_at", now.strftime("%Y-%m-%d %H:%M:%S"))
+
+        update_doc = {
+            "farm_id": farm_id_str,
+            "farm_name": farm_name_str,
+            "animal_identifier": animal_id_str,
+            "breed": breed_str,
+            "disease_name": payload.disease_name,
+            "confidence": round(payload.confidence, 2),
+            "severity": payload.severity or "Moderate",
+            "stage": payload.stage or "Acute",
+            "prognosis": payload.prognosis or "Good",
+            "rationale": payload.rationale,
+            "spatial_correlation": payload.spatial_correlation,
+            "symptoms_image": payload.symptoms_image or existing_case.get("symptoms_image"),
+            "cropped_image": payload.cropped_image or existing_case.get("cropped_image"),
+            "clinical_notes": payload.clinical_notes,
+            "llm_reasoning": payload.llm_reasoning,
+            "status": status_label,
+            "verified": is_verified,
+            "updated_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else existing_case.get("verified_at"),
+            "vet_id": str(vet["_id"]) if vet else existing_case.get("vet_id"),
+            "vet_name": vet.get("full_name") if vet else existing_case.get("vet_name", "Clinical Practitioner"),
+            "vet_license": vet.get("license_number") if vet else existing_case.get("vet_license", "VET-AUTH-2026"),
+        }
+        await diagnostic_cases_collection.update_one({"_id": existing_case["_id"]}, {"$set": update_doc})
+        case_doc = {**existing_case, **update_doc, "case_number": case_number, "created_at": created_at_str}
+    else:
+        case_number = f"REC-{now.year}-{now.strftime('%m%d%H%M%S')[-4:]}"
+        case_doc = {
+            "case_number": case_number,
+            "cattle_id": payload.cattle_id,
+            "farm_id": farm_id_str,
+            "farm_name": farm_name_str,
+            "animal_identifier": animal_id_str,
+            "breed": breed_str,
+            "disease_name": payload.disease_name,
+            "confidence": round(payload.confidence, 2),
+            "severity": payload.severity or "Moderate",
+            "stage": payload.stage or "Acute",
+            "prognosis": payload.prognosis or "Good",
+            "rationale": payload.rationale,
+            "spatial_correlation": payload.spatial_correlation,
+            "symptoms_image": payload.symptoms_image,
+            "cropped_image": payload.cropped_image,
+            "clinical_notes": payload.clinical_notes,
+            "llm_reasoning": payload.llm_reasoning,
+            "status": status_label,
+            "verified": is_verified,
+            "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
+            "vet_id": str(vet["_id"]) if vet else None,
+            "vet_name": vet.get("full_name") if vet else (payload.clinical_notes or "Clinical Practitioner"),
+            "vet_license": vet.get("license_number") if vet else "VET-AUTH-2026",
+        }
+        result = await diagnostic_cases_collection.insert_one(case_doc)
+        case_id_str = str(result.inserted_id)
+
+    # If verified and cattle exists, update cattle health status
+    if is_verified and cattle:
+        disease_lower = payload.disease_name.lower()
+        is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
+        new_health_status = "Healthy" if is_healthy else "Alert"
+        await cattles_collection.update_one(
+            {"_id": cattle["_id"]},
+            {
+                "$set": {
+                    "health_status": new_health_status,
+                    "status": new_health_status,
+                    "last_diagnosis": payload.disease_name,
+                    "last_diagnosed_date": now.strftime("%Y-%m-%d")
+                }
+            }
+        )
+
+    return DiagnosticCaseResponse(
+        id=case_id_str,
+        case_number=case_number,
+        cattle_id=payload.cattle_id,
+        farm_id=farm_id_str,
+        farm_name=farm_name_str,
+        animal_identifier=animal_id_str,
+        breed=breed_str,
+        disease_name=payload.disease_name,
+        confidence=round(payload.confidence, 2),
+        severity=case_doc["severity"],
+        stage=case_doc["stage"],
+        prognosis=case_doc["prognosis"],
+        rationale=case_doc["rationale"],
+        spatial_correlation=case_doc["spatial_correlation"],
+        symptoms_image=case_doc["symptoms_image"],
+        cropped_image=case_doc["cropped_image"],
+        clinical_notes=case_doc["clinical_notes"],
+        llm_reasoning=case_doc["llm_reasoning"],
+        status=status_label,
+        verified=is_verified,
+        created_at=case_doc["created_at"],
+        verified_at=case_doc["verified_at"],
+        vet_id=case_doc["vet_id"],
+        vet_name=case_doc["vet_name"],
+        vet_license=case_doc["vet_license"],
+    )
+
+
+@router.get("/vet/cases", response_model=list[DiagnosticCaseResponse])
+async def list_diagnostic_cases(
+    cattle_id: Optional[str] = None,
+    farm_id: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """List diagnostic cases. Allows filtering by cattle or farm."""
+    query = {}
+    if cattle_id:
+        query["cattle_id"] = cattle_id
+    if farm_id:
+        query["farm_id"] = farm_id
+
+    cursor = diagnostic_cases_collection.find(query).sort("_id", -1).limit(100)
+    cases = []
+    async for doc in cursor:
+        cases.append(DiagnosticCaseResponse(
+            id=str(doc["_id"]),
+            case_number=doc.get("case_number", f"REC-2026-{str(doc['_id'])[-4:]}"),
+            cattle_id=doc.get("cattle_id"),
+            farm_id=doc.get("farm_id"),
+            farm_name=doc.get("farm_name"),
+            animal_identifier=doc.get("animal_identifier"),
+            breed=doc.get("breed"),
+            disease_name=doc.get("disease_name", "Undetermined"),
+            confidence=float(doc.get("confidence", 0.0)),
+            severity=doc.get("severity"),
+            stage=doc.get("stage"),
+            prognosis=doc.get("prognosis"),
+            rationale=doc.get("rationale"),
+            spatial_correlation=doc.get("spatial_correlation"),
+            symptoms_image=doc.get("symptoms_image"),
+            cropped_image=doc.get("cropped_image"),
+            clinical_notes=doc.get("clinical_notes"),
+            llm_reasoning=doc.get("llm_reasoning"),
+            status=doc.get("status", "Verified" if doc.get("verified") else "Pending Verification"),
+            verified=bool(doc.get("verified", False)),
+            created_at=doc.get("created_at", datetime.utcnow().strftime("%Y-%m-%d")),
+            verified_at=doc.get("verified_at"),
+            vet_id=doc.get("vet_id"),
+            vet_name=doc.get("vet_name"),
+            vet_license=doc.get("vet_license"),
+        ))
+    return cases
+
+
+@router.put("/vet/cases/{case_id}/verify", response_model=DiagnosticCaseResponse)
+@router.post("/vet/cases/{case_id}/verify", response_model=DiagnosticCaseResponse)
+async def verify_diagnostic_case(
+    case_id: str,
+    payload: Optional[DiagnosticCaseVerifyRequest] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """Verify and approve an AI diagnostic report."""
+    vet = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            vet_email = await get_current_user_email(authorization)
+            vet = await vets_collection.find_one({"email": vet_email})
+        except Exception:
+            pass
+
+    if not ObjectId.is_valid(case_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Case ID format.")
+
+    case_doc = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+    if not case_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case not found.")
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    update_data = {
+        "verified": True,
+        "status": "Verified",
+        "verified_at": now_str,
+    }
+    if vet:
+        update_data["vet_id"] = str(vet["_id"])
+        update_data["vet_name"] = vet.get("full_name")
+        update_data["vet_license"] = vet.get("license_number")
+
+    if payload:
+        if payload.clinical_notes:
+            update_data["clinical_notes"] = payload.clinical_notes
+        if payload.prescription:
+            update_data["prescription"] = payload.prescription
+
+    await diagnostic_cases_collection.update_one({"_id": ObjectId(case_id)}, {"$set": update_data})
+    updated_case = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+
+    # Also update cattle status if linked
+    if updated_case.get("cattle_id") and ObjectId.is_valid(updated_case["cattle_id"]):
+        cattle = await cattles_collection.find_one({"_id": ObjectId(updated_case["cattle_id"])})
+        if cattle:
+            disease_lower = updated_case.get("disease_name", "").lower()
+            is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
+            target_status = payload.health_status if (payload and payload.health_status) else ("Healthy" if is_healthy else "Alert")
+            await cattles_collection.update_one(
+                {"_id": cattle["_id"]},
+                {
+                    "$set": {
+                        "health_status": target_status,
+                        "status": target_status,
+                        "last_diagnosis": updated_case.get("disease_name"),
+                        "last_diagnosed_date": datetime.utcnow().strftime("%Y-%m-%d")
+                    }
+                }
+            )
+
+    return DiagnosticCaseResponse(
+        id=str(updated_case["_id"]),
+        case_number=updated_case.get("case_number", f"REC-2026-{case_id[-4:]}"),
+        cattle_id=updated_case.get("cattle_id"),
+        farm_id=updated_case.get("farm_id"),
+        farm_name=updated_case.get("farm_name"),
+        animal_identifier=updated_case.get("animal_identifier"),
+        breed=updated_case.get("breed"),
+        disease_name=updated_case.get("disease_name", "Undetermined"),
+        confidence=float(updated_case.get("confidence", 0.0)),
+        severity=updated_case.get("severity"),
+        stage=updated_case.get("stage"),
+        prognosis=updated_case.get("prognosis"),
+        rationale=updated_case.get("rationale"),
+        spatial_correlation=updated_case.get("spatial_correlation"),
+        symptoms_image=updated_case.get("symptoms_image"),
+        cropped_image=updated_case.get("cropped_image"),
+        clinical_notes=updated_case.get("clinical_notes"),
+        llm_reasoning=updated_case.get("llm_reasoning"),
+        status="Verified",
+        verified=True,
+        created_at=updated_case.get("created_at", now_str),
+        verified_at=updated_case.get("verified_at", now_str),
+        vet_id=updated_case.get("vet_id"),
+        vet_name=updated_case.get("vet_name"),
+        vet_license=updated_case.get("vet_license"),
+    )
+
+
+@router.delete("/vet/cases/{case_id}", status_code=status.HTTP_200_OK)
+async def delete_diagnostic_case(
+    case_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    """Delete a clinical diagnostic case record by veterinarian."""
+    query = {}
+    if ObjectId.is_valid(case_id):
+        query = {"_id": ObjectId(case_id)}
+    else:
+        query = {"case_number": case_id}
+
+    case_doc = await diagnostic_cases_collection.find_one(query)
+    if not case_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case record not found.")
+
+    delete_result = await diagnostic_cases_collection.delete_one(query)
+    if delete_result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete diagnostic case.")
+
+    return {
+        "message": "Diagnostic case record deleted successfully.",
+        "id": str(case_doc["_id"]),
+        "case_number": case_doc.get("case_number")
+    }
+
 
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)
 async def create_cattle(cattle_data: CattleCreate, authorization: Optional[str] = Header(None)):
@@ -549,9 +1360,12 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
         "owner_name": farm.get("owner_name"),
         "email": farm.get("email"),
         "location_district": farm.get("location_district"),
+        "latitude": farm.get("latitude"),
+        "longitude": farm.get("longitude"),
         "registration_number": farm.get("registration_number"),
         "veterinarian_name": farm.get("veterinarian_name"),
-        "profile_photo": farm.get("profile_photo")
+        "profile_photo": farm.get("profile_photo"),
+        "assigned_vet_ids": farm.get("assigned_vet_ids", [])
     }
 
 @router.put("/user/profile")
@@ -565,6 +1379,12 @@ async def update_user_profile(profile_data: dict, authorization: Optional[str] =
         update_fields["veterinarian_name"] = profile_data["veterinarian_name"]
     if "profile_photo" in profile_data:
         update_fields["profile_photo"] = profile_data["profile_photo"]
+    if "location_district" in profile_data:
+        update_fields["location_district"] = profile_data["location_district"]
+    if "latitude" in profile_data and profile_data["latitude"] is not None:
+        update_fields["latitude"] = float(profile_data["latitude"])
+    if "longitude" in profile_data and profile_data["longitude"] is not None:
+        update_fields["longitude"] = float(profile_data["longitude"])
         
     if not update_fields:
         return {"message": "No changes submitted."}

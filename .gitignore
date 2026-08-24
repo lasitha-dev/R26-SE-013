@@ -4,3 +4,7 @@ __pycache__/
 .env
 dist/
 build/
+backend/components/smart_diagnostics/models/best_vit_model.pth
+backend/components/smart_diagnostics/models/best.pt
+.agents/
+backend/components/smart_diagnostics/models/mask_rcnn_cow_symptoms_refined.keras

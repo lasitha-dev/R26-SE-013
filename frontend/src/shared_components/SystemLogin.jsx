@@ -29,6 +29,7 @@ export default function SystemLogin() {
         localStorage.setItem("token", data.access_token)
         localStorage.setItem("owner_name", data.owner_name)
         localStorage.setItem("email", data.email)
+        localStorage.setItem("role", "farm_owner")
         localStorage.setItem("veterinarian_name", data.veterinarian_name)
         navigate('/health/dashboard')
       } else {
@@ -153,7 +154,7 @@ export default function SystemLogin() {
               <div className="h-[1px] flex-grow bg-outline-variant/10"></div>
             </div>
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center space-y-3">
               <p className="text-sm text-slate-500">
                 New to Sentinel network?
                 <Link
@@ -163,6 +164,16 @@ export default function SystemLogin() {
                   Register Farm
                 </Link>
               </p>
+
+              <div className="pt-3 border-t border-outline-variant/10">
+                <Link
+                  className="text-xs text-slate-400 hover:text-primary flex items-center justify-center gap-1.5 transition-colors font-medium"
+                  to="/health/vet-login"
+                >
+                  <span className="material-symbols-outlined text-base">medical_services</span>
+                  <span>Veterinarian (Vet) Clinical Login</span>
+                </Link>
+              </div>
             </div>
           </section>
 

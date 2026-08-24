@@ -444,11 +444,155 @@ export default function SettingsFarmConfiguration() {
     }
   }
 
+  // Sri Lanka districts list for veterinary jurisdiction filtering
+  const SRI_LANKAN_DISTRICTS = [
+    'All Districts',
+    'Ampara',
+    'Anuradhapura',
+    'Badulla',
+    'Batticaloa',
+    'Colombo',
+    'Galle',
+    'Gampaha',
+    'Hambantota',
+    'Jaffna',
+    'Kalutara',
+    'Kandy',
+    'Kegalle',
+    'Kilinochchi',
+    'Kurunegala',
+    'Mannar',
+    'Matale',
+    'Matara',
+    'Monaragala',
+    'Mullaitivu',
+    'Nuwara Eliya',
+    'Polonnaruwa',
+    'Puttalam',
+    'Ratnapura',
+    'Trincomalee',
+    'Vavuniya'
+  ]
+
+  // Veterinary Management states
+  const [assignedVets, setAssignedVets] = useState([])
+  const [vetSearchQuery, setVetSearchQuery] = useState('')
+  const [vetDistrict, setVetDistrict] = useState('All Districts')
+  const [searchedVets, setSearchedVets] = useState([])
+  const [vetSearchLoading, setVetSearchLoading] = useState(false)
+  const [vetActionLoading, setVetActionLoading] = useState(null)
+  const [hasSearched, setHasSearched] = useState(false)
+
+  const fetchAssignedVets = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/farms/assigned-vets', {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAssignedVets(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Error fetching assigned vets:', err)
+    }
+  }
+
+  const handleSearchVets = async (e) => {
+    if (e) e.preventDefault()
+    setVetSearchLoading(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      const token = localStorage.getItem('token')
+      const params = new URLSearchParams()
+      if (vetSearchQuery.trim()) params.append('q', vetSearchQuery.trim())
+      if (vetDistrict && vetDistrict !== 'All Districts') params.append('district', vetDistrict)
+
+      const response = await fetch(`http://127.0.0.1:8000/api/vet/search?${params.toString()}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSearchedVets(Array.isArray(data) ? data : [])
+        setHasSearched(true)
+      } else {
+        const data = await response.json()
+        setErrorMessage(data.detail || 'Failed to search veterinarians.')
+      }
+    } catch (err) {
+      setErrorMessage('Cannot connect to server to search veterinarians.')
+    } finally {
+      setVetSearchLoading(false)
+    }
+  }
+
+  const handleAssignVet = async (vet) => {
+    setVetActionLoading(vet.id)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/farms/assign-vet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ vet_id: vet.id, vet_email: vet.email })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSuccessMessage(data.message || `Dr. ${vet.full_name} assigned to your farm.`)
+        await fetchAssignedVets()
+        await handleSearchVets()
+        await fetchProfile()
+      } else {
+        const data = await response.json()
+        setErrorMessage(data.detail || 'Failed to assign veterinarian.')
+      }
+    } catch (err) {
+      setErrorMessage('Network error while assigning veterinarian.')
+    } finally {
+      setVetActionLoading(null)
+    }
+  }
+
+  const handleUnassignVet = async (vet) => {
+    setVetActionLoading(vet.id)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://127.0.0.1:8000/api/farms/unassign-vet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ vet_id: vet.id, vet_email: vet.email })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSuccessMessage(data.message || `Dr. ${vet.full_name} unassigned from your farm.`)
+        await fetchAssignedVets()
+        await handleSearchVets()
+      } else {
+        const data = await response.json()
+        setErrorMessage(data.detail || 'Failed to unassign veterinarian.')
+      }
+    } catch (err) {
+      setErrorMessage('Network error while unassigning veterinarian.')
+    } finally {
+      setVetActionLoading(null)
+    }
+  }
+
   useEffect(() => {
     fetchProfile()
     fetchBreedSettings()
+    fetchAssignedVets()
   }, [])
-
 
   const handleAccountSubmit = async (e) => {
     e.preventDefault()
@@ -460,6 +604,9 @@ export default function SettingsFarmConfiguration() {
 
     try {
       const token = localStorage.getItem('token')
+      const latVal = parseFloat(localStorage.getItem('registered_farm_lat'))
+      const lonVal = parseFloat(localStorage.getItem('registered_farm_lon'))
+
       const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
         method: 'PUT',
         headers: {
@@ -469,17 +616,19 @@ export default function SettingsFarmConfiguration() {
         body: JSON.stringify({
           owner_name: profile.owner_name,
           veterinarian_name: profile.veterinarian_name,
-          profile_photo: profile.profile_photo
+          profile_photo: profile.profile_photo,
+          location_district: profile.location_district,
+          latitude: !isNaN(latVal) ? latVal : null,
+          longitude: !isNaN(lonVal) ? lonVal : null
         })
       })
 
       if (response.ok) {
-        setSuccessMessage('Farmer profile details updated successfully.')
+        setSuccessMessage('Farmer profile details & GPS coordinates updated successfully.')
         setProfilePhoto(profile.profile_photo)
         setFarmerName(profile.owner_name)
         fetchProfile()
       } else {
-
         const data = await response.json()
         setErrorMessage(data.detail || 'Failed to update profile details.')
       }
@@ -612,6 +761,7 @@ export default function SettingsFarmConfiguration() {
         <div className="lg:col-span-3 space-y-2">
           {[
             { id: 'account', label: 'Farmer Profile', icon: 'person' },
+            { id: 'veterinary', label: 'Veterinary Care', icon: 'medical_services' },
             { id: 'security', label: 'Security & Access', icon: 'security' },
             { id: 'notifications', label: 'Notifications', icon: 'notifications' },
             { id: 'system', label: 'System Configuration', icon: 'settings_suggest' },
@@ -764,6 +914,258 @@ export default function SettingsFarmConfiguration() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* Veterinary Care & Linking Tab */}
+          {activeTab === 'veterinary' && (
+            <div className="space-y-8 animate-fadeIn">
+              <div className="space-y-1 pb-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h4 className="text-base font-bold text-white uppercase tracking-tight flex items-center gap-2">
+                    <span className="material-symbols-outlined text-emerald-400 text-lg">medical_services</span>
+                    Veterinary Authority &amp; Care Network
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Assign certified veterinary surgeons to monitor herd health, access diagnostic telemetries, and review AI pathology triage.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {assignedVets.length} Linked {assignedVets.length === 1 ? 'Vet' : 'Vets'}
+                </span>
+              </div>
+
+              {/* Active Assigned Vets Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Currently Assigned Veterinarians
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={fetchAssignedVets}
+                    className="text-[11px] font-mono text-emerald-400 hover:underline flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-xs">refresh</span>
+                    Refresh List
+                  </button>
+                </div>
+
+                {assignedVets.length === 0 ? (
+                  <div className="p-6 bg-surface-container-lowest/40 rounded-xl border border-dashed border-white/10 text-center space-y-2">
+                    <span className="material-symbols-outlined text-slate-500 text-3xl">person_search</span>
+                    <p className="text-sm font-semibold text-slate-300">No Veterinarian Assigned Yet</p>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Search and assign a licensed veterinary surgeon below to enable remote health telemetries and diagnostics for your herd.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {assignedVets.map((vet) => (
+                      <div
+                        key={vet.id}
+                        className="glass-card rounded-xl p-5 border border-emerald-500/20 bg-emerald-500/5 flex flex-col justify-between space-y-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold">
+                              <span className="material-symbols-outlined text-xl">stethoscope</span>
+                            </div>
+                            <div>
+                              <h6 className="text-sm font-bold text-white flex items-center gap-1.5">
+                                {vet.full_name}
+                                <span className="material-symbols-outlined text-emerald-400 text-sm" title="Verified Practitioner">
+                                  verified
+                                </span>
+                              </h6>
+                              <p className="text-[11px] font-mono text-emerald-400/80">
+                                {vet.license_number || 'SLVC Registered'}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            ACTIVE
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5 text-xs text-slate-400 border-t border-white/5 pt-3 font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-xs text-slate-500">location_on</span>
+                            <span>{vet.district || 'All Jurisdictions'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-xs text-slate-500">mail</span>
+                            <span className="truncate">{vet.email}</span>
+                          </div>
+                          {vet.phone && (
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-xs text-slate-500">call</span>
+                              <span>{vet.phone}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleUnassignVet(vet)}
+                            disabled={vetActionLoading === vet.id}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-xs">person_remove</span>
+                            {vetActionLoading === vet.id ? 'Unassigning...' : 'Unassign Practitioner'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Search & Assign New Veterinarian Section */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <div>
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5 mb-1">
+                    <span className="material-symbols-outlined text-xs text-primary">search</span>
+                    Discover &amp; Link Regional Practitioners
+                  </h5>
+                  <p className="text-xs text-slate-500">
+                    Filter by jurisdiction district or search by doctor name, email, or SLVC license registration.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSearchVets} className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  {/* District Dropdown */}
+                  <div className="sm:col-span-4">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                      District Jurisdiction
+                    </label>
+                    <select
+                      value={vetDistrict}
+                      onChange={(e) => {
+                        setVetDistrict(e.target.value)
+                      }}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-2.5 px-3 text-xs text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    >
+                      {SRI_LANKAN_DISTRICTS.map((dist) => (
+                        <option key={dist} value={dist} className="bg-[#111827] text-white">
+                          {dist}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Search Query Input */}
+                  <div className="sm:col-span-6">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                      Search Name / License / Email
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dr. Kasun, SLVC-9902, or email..."
+                      value={vetSearchQuery}
+                      onChange={(e) => setVetSearchQuery(e.target.value)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-2.5 px-3 text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="sm:col-span-2 flex items-end">
+                    <button
+                      type="submit"
+                      disabled={vetSearchLoading}
+                      className="w-full py-2.5 bg-primary hover:opacity-90 text-on-primary font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {vetSearchLoading ? 'progress_activity' : 'search'}
+                      </span>
+                      {vetSearchLoading ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Search Results */}
+                {hasSearched && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Found {searchedVets.length} registered practitioner{searchedVets.length === 1 ? '' : 's'}</span>
+                    </div>
+
+                    {searchedVets.length === 0 ? (
+                      <div className="p-6 bg-surface-container-lowest/30 rounded-xl border border-white/5 text-center text-xs text-slate-400">
+                        No veterinarians found matching your search criteria. Try selecting &quot;All Districts&quot; or clearing the search text.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {searchedVets.map((vet) => {
+                          const isAlreadyAssigned = assignedVets.some((av) => av.id === vet.id || av.email === vet.email) || vet.assigned
+                          return (
+                            <div
+                              key={vet.id}
+                              className="p-5 bg-surface-container-lowest/40 rounded-xl border border-white/10 hover:border-primary/30 transition-all flex flex-col justify-between space-y-4"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <h6 className="text-sm font-bold text-white flex items-center gap-1.5">
+                                    {vet.full_name}
+                                    <span className="material-symbols-outlined text-primary text-sm">
+                                      verified_user
+                                    </span>
+                                  </h6>
+                                  <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                                    License: <span className="text-slate-300 font-bold">{vet.license_number}</span>
+                                  </p>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 text-slate-300 border border-white/10">
+                                  {vet.district || 'General'}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1 text-xs text-slate-400 font-mono border-t border-white/5 pt-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined text-xs text-slate-500">mail</span>
+                                  <span className="truncate">{vet.email}</span>
+                                </div>
+                                {vet.phone && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-xs text-slate-500">call</span>
+                                    <span>{vet.phone}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="pt-2 border-t border-white/5 flex justify-end">
+                                {isAlreadyAssigned ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnassignVet(vet)}
+                                    disabled={vetActionLoading === vet.id}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">check_circle</span>
+                                    {vetActionLoading === vet.id ? 'Updating...' : 'Assigned (Click to Unassign)'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAssignVet(vet)}
+                                    disabled={vetActionLoading === vet.id}
+                                    className="px-4 py-1.5 rounded-lg bg-primary hover:opacity-90 text-on-primary text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">person_add</span>
+                                    {vetActionLoading === vet.id ? 'Assigning...' : 'Assign to Farm'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Security / Password Reset Tab */}
