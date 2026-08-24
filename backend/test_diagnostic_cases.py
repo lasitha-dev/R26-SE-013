@@ -5,7 +5,7 @@ from components.health_anomaly.database import diagnostic_cases_collection, vets
 from core.security import create_access_token
 from bson import ObjectId
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_diagnostic_case_flow():
     # Setup test vet token
     vet_email = "test_case_vet@adrs.lk"

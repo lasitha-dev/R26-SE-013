@@ -20,6 +20,7 @@ export default function useDetection() {
   const [reasoning, setReasoning] = useState(null);
   const [reasoningStatus, setReasoningStatus] = useState('idle');
   const [reasoningError, setReasoningError] = useState(null);
+  const [severityAssessment, setSeverityAssessment] = useState(null);
 
   const detect = useCallback(async (file) => {
     setStatus('processing');
@@ -27,6 +28,7 @@ export default function useDetection() {
     setReasoning(null);
     setReasoningStatus('idle');
     setReasoningError(null);
+    setSeverityAssessment(null);
 
     // Create a local preview URL so we can display the uploaded image
     const previewUrl = URL.createObjectURL(file);
@@ -43,6 +45,7 @@ export default function useDetection() {
         try {
           const reasoningData = await fetchReasoning(data);
           setReasoning(reasoningData.reasoning_report || null);
+          setSeverityAssessment(reasoningData.severity_assessment || null);
           setReasoningStatus(reasoningData.status === 'ok' ? 'done' : 'error');
           if (reasoningData.status !== 'ok') {
             setReasoningError(reasoningData.reasoning_report);
@@ -70,6 +73,7 @@ export default function useDetection() {
     setReasoning(null);
     setReasoningStatus('idle');
     setReasoningError(null);
+    setSeverityAssessment(null);
   }, [imagePreview]);
 
   return {
@@ -82,5 +86,6 @@ export default function useDetection() {
     reasoning,
     reasoningStatus,
     reasoningError,
+    severityAssessment,
   };
 }
