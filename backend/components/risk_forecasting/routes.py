@@ -730,6 +730,12 @@ def issue_follow_up(
     else:
         final_key = idempotency_key_header or body_key
 
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized for public follow-up operations."
+        )
+
     req_with_key = request.model_copy(update={"idempotency_key": final_key})
     actor_id = x_actor_id or "daph_hq_01"
     actor_role = x_actor_role or "DAPH_OFFICIAL"
@@ -770,6 +776,12 @@ def list_follow_ups(
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
     """Lists stored follow-up records matching specified query filters with pagination."""
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized for public follow-up operations."
+        )
+
     actor = None
     if x_actor_id or x_actor_role:
         actor = FollowUpActorContext(actor_id=x_actor_id or "daph_hq_01", role=x_actor_role or "DAPH_OFFICIAL")
@@ -806,6 +818,11 @@ def get_follow_up(
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
     """Retrieves a single follow-up record by follow_up_id."""
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized for public follow-up operations."
+        )
     actor = None
     if x_actor_id or x_actor_role:
         actor = FollowUpActorContext(actor_id=x_actor_id or "daph_hq_01", role=x_actor_role or "DAPH_OFFICIAL")
@@ -947,7 +964,13 @@ def cancel_follow_up(
     x_actor_id: Optional[str] = Header(None, alias="X-Actor-ID"),
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
-    """Transitions status to CANCELLED. DAPH Official only from ISSUED or ACKNOWLEDGED."""
+    """Transitions status to CANCELLED. DAPH Official only from ISSUED, ACKNOWLEDGED, or ACTION_IN_PROGRESS."""
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized to cancel follow-up instructions via public HTTP API."
+        )
+
     expected_ver = request.version if request else version
     if expected_ver is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query parameter or body 'version' is required.")
@@ -987,6 +1010,12 @@ def escalate_follow_up(
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
     """Transitions status to ESCALATED. Requires explicit controlled reason."""
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized for public follow-up operations."
+        )
+
     if not request.reason or not request.reason.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reason field is required for escalation.")
 
@@ -1024,6 +1053,11 @@ def link_external_resource_reference(
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
     """Associates an opaque external supply-chain resource request reference ID."""
+    if x_actor_role == "SYSTEM":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Actor '{x_actor_id}' with role 'SYSTEM' is not authorized for public follow-up operations."
+        )
     actor_id = x_actor_id or "daph_hq_01"
     actor_role = x_actor_role or "DAPH_OFFICIAL"
     actor = FollowUpActorContext(actor_id=actor_id, role=actor_role)

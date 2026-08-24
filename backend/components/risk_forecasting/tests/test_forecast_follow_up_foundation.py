@@ -808,6 +808,147 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         self.assertEqual(res.total_count, 1)
         self.assertEqual(res.veterinary_officers[0].vet_id, "custom_vet_99")
 
+    def _issue_sample_follow_up(self):
+        daph_actor = FollowUpActorContext(actor_id="daph_hq_01", role="DAPH_OFFICIAL")
+        req = CreateFollowUpRequest(
+            forecast_id=self.sample_forecast.forecast_id,
+            assigned_vet_id="vet_officer_01",
+            instruction_summary="Operational follow-up instruction test.",
+        )
+        rec = self.service.issue_follow_up(req, actor=daph_actor)
+        from backend.components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
+        forecast_follow_up_service.follow_up_repo.save(rec)
+        return rec
+
+    def test_cancellation_allowed_source_states_and_terminal_guards(self):
+        """Phase 7A: Proves cancellation succeeds from ISSUED, ACKNOWLEDGED, ACTION_IN_PROGRESS, fails from terminal states."""
+        client = TestClient(app)
+
+        # 1. Cancel from ISSUED -> Succeeds (status CANCELLED, version 2)
+        rec_issued = self._issue_sample_follow_up()
+        res_cancel_issued = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_issued.follow_up_id}/cancel",
+            json={"version": 1, "reason": "Operational priority changed"},
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_cancel_issued.status_code, 200)
+        self.assertEqual(res_cancel_issued.json()["status"], "CANCELLED")
+        self.assertEqual(res_cancel_issued.json()["version"], 2)
+        self.assertEqual(res_cancel_issued.json()["cancellation_reason"], "Operational priority changed")
+        self.assertIsNotNone(res_cancel_issued.json()["cancelled_at"])
+
+        # 2. Cancel from ACKNOWLEDGED -> Succeeds
+        rec_ack = self._issue_sample_follow_up()
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_ack.follow_up_id}/acknowledge",
+            json={"version": 1},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        res_cancel_ack = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_ack.follow_up_id}/cancel",
+            json={"version": 2},
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_cancel_ack.status_code, 200)
+        self.assertEqual(res_cancel_ack.json()["status"], "CANCELLED")
+        self.assertEqual(res_cancel_ack.json()["version"], 3)
+
+        # 3. Cancel from ACTION_IN_PROGRESS -> Succeeds
+        rec_prog = self._issue_sample_follow_up()
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_prog.follow_up_id}/acknowledge",
+            json={"version": 1},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_prog.follow_up_id}/start",
+            json={"version": 2},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        res_cancel_prog = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_prog.follow_up_id}/cancel",
+            json={"version": 3},
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_cancel_prog.status_code, 200)
+        self.assertEqual(res_cancel_prog.json()["status"], "CANCELLED")
+        self.assertEqual(res_cancel_prog.json()["version"], 4)
+
+        # 4. Cancel from COMPLETED -> Fails (409 Conflict)
+        rec_comp = self._issue_sample_follow_up()
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_comp.follow_up_id}/acknowledge",
+            json={"version": 1},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_comp.follow_up_id}/start",
+            json={"version": 2},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_comp.follow_up_id}/complete",
+            json={"version": 3},
+            headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
+        )
+        res_cancel_comp = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_comp.follow_up_id}/cancel",
+            json={"version": 4},
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_cancel_comp.status_code, 409)
+
+        # 5. Re-cancel CANCELLED -> Fails (409 Conflict)
+        res_recancel = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{rec_issued.follow_up_id}/cancel",
+            json={"version": 2},
+            headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
+        )
+        self.assertEqual(res_recancel.status_code, 409)
+
+    def test_system_role_denied_on_public_http_routes(self):
+        """Phase 7A: Proves callers sending X-Actor-Role: SYSTEM receive 403 Forbidden across all public HTTP endpoints."""
+        client = TestClient(app)
+        rec = self._issue_sample_follow_up()
+        fu_id = rec.follow_up_id
+        sys_headers = {"X-Actor-ID": "sys_bot", "X-Actor-Role": "SYSTEM"}
+
+        # 1. Cancel
+        res_cancel = client.post(f"/api/v1/risk-forecasting/follow-ups/{fu_id}/cancel", json={"version": 1}, headers=sys_headers)
+        self.assertEqual(res_cancel.status_code, 403)
+
+        # 2. Issue
+        res_issue = client.post(
+            "/api/v1/risk-forecasting/follow-ups",
+            json={"forecast_id": self.sample_forecast.forecast_id, "assigned_vet_id": "vet_officer_01", "instruction_summary": "Test"},
+            headers=sys_headers,
+        )
+        self.assertEqual(res_issue.status_code, 403)
+
+        # 3. List
+        res_list = client.get("/api/v1/risk-forecasting/follow-ups", headers=sys_headers)
+        self.assertEqual(res_list.status_code, 403)
+
+        # 4. Get
+        res_get = client.get(f"/api/v1/risk-forecasting/follow-ups/{fu_id}", headers=sys_headers)
+        self.assertEqual(res_get.status_code, 403)
+
+        # 5. Escalate
+        res_esc = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{fu_id}/escalate",
+            json={"version": 1, "reason": "Test escalation"},
+            headers=sys_headers,
+        )
+        self.assertEqual(res_esc.status_code, 403)
+
+        # 6. External reference
+        res_ext = client.post(
+            f"/api/v1/risk-forecasting/follow-ups/{fu_id}/external-resource-reference",
+            json={"version": 1, "external_resource_request_id": "req_1"},
+            headers=sys_headers,
+        )
+        self.assertEqual(res_ext.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

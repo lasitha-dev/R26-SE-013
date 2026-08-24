@@ -79,7 +79,7 @@ class ForecastFollowUpService:
         """Ensures acting user has DAPH official authorization."""
         if not actor:
             return  # Default standalone fallback if actor context not provided in legacy calls
-        if actor.role not in ["DAPH_OFFICIAL", "SYSTEM"]:
+        if actor.role != "DAPH_OFFICIAL":
             raise ValueError(f"Actor '{actor.actor_id}' with role '{actor.role}' is not authorized to issue DAPH follow-up instructions.")
 
     def issue_follow_up(
@@ -178,6 +178,8 @@ class ForecastFollowUpService:
                     raise ValueError(
                         f"Veterinary Officer '{actor.actor_id}' is not authorized to view follow-up '{follow_up_id}'."
                     )
+            elif actor.role != "DAPH_OFFICIAL":
+                raise ValueError(f"Actor '{actor.actor_id}' with role '{actor.role}' is not authorized to access internal follow-up records.")
 
         return record
 
@@ -205,6 +207,8 @@ class ForecastFollowUpService:
                     pass
                 else:
                     assigned_vet_id = actor.actor_id
+            elif actor.role != "DAPH_OFFICIAL":
+                raise ValueError(f"Actor '{actor.actor_id}' with role '{actor.role}' is not authorized to list internal DAPH–Vet follow-up records.")
 
         records, total_count = self.follow_up_repo.list(
             forecast_id=forecast_id,
@@ -332,7 +336,7 @@ class ForecastFollowUpService:
         reason: Optional[str],
         actor: FollowUpActorContext,
     ) -> ForecastFollowUpRecord:
-        """Transitions status to CANCELLED. DAPH Official only from ISSUED or ACKNOWLEDGED."""
+        """Transitions status to CANCELLED. DAPH Official only from ISSUED, ACKNOWLEDGED, or ACTION_IN_PROGRESS."""
         record = self.get_follow_up(follow_up_id)
 
         if expected_version != record.version:
@@ -341,11 +345,11 @@ class ForecastFollowUpService:
                 f"but current record version is {record.version}."
             )
 
-        if actor.role not in ["DAPH_OFFICIAL", "SYSTEM"]:
+        if actor.role != "DAPH_OFFICIAL":
             raise ValueError(f"Only DAPH Officials are authorized to cancel follow-up instructions (actor role: '{actor.role}').")
 
-        if record.status not in ["ISSUED", "ACKNOWLEDGED"]:
-            raise ValueError(f"Cannot cancel follow-up in status '{record.status}'. Allowed from ISSUED or ACKNOWLEDGED.")
+        if record.status not in ["ISSUED", "ACKNOWLEDGED", "ACTION_IN_PROGRESS"]:
+            raise ValueError(f"Cannot cancel follow-up in status '{record.status}'. Allowed from ISSUED, ACKNOWLEDGED, or ACTION_IN_PROGRESS.")
 
         now_iso = self.clock().isoformat()
         updated_dict = record.model_dump()
@@ -382,7 +386,7 @@ class ForecastFollowUpService:
         if actor.role == "VETERINARY_OFFICER":
             if record.assigned_vet_id != actor.actor_id and record.district not in actor.authorized_districts:
                 raise ValueError(f"Veterinary Officer '{actor.actor_id}' is not authorized to escalate follow-up '{follow_up_id}'.")
-        elif actor.role not in ["DAPH_OFFICIAL", "SYSTEM"]:
+        elif actor.role != "DAPH_OFFICIAL":
             raise ValueError(f"Actor role '{actor.role}' is not authorized to escalate follow-ups.")
 
         if record.status in ["COMPLETED", "CANCELLED"]:
@@ -409,6 +413,9 @@ class ForecastFollowUpService:
         """Associates an opaque external supply-chain resource request reference ID."""
         if not external_resource_request_id or not external_resource_request_id.strip():
             raise ValueError("external_resource_request_id cannot be empty.")
+
+        if actor and actor.role not in ["DAPH_OFFICIAL", "VETERINARY_OFFICER"]:
+            raise ValueError(f"Actor '{actor.actor_id}' with role '{actor.role}' is not authorized to link external resource references.")
 
         record = self.get_follow_up(follow_up_id, actor=actor)
 
