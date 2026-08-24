@@ -148,9 +148,71 @@ async def test_farm_vet_linking_flow():
         cattle_resp_after = await client.get(f"/api/vet/farms/{farm_id}/cattle", headers={"Authorization": f"Bearer {vet_token}"})
         assert cattle_resp_after.status_code == 403
 
+        # 8. Test Vet Registration with District & Persistence
+        registered_vet_email = "new_reg_vet@example.com"
+        await vets_collection.delete_many({"email": registered_vet_email})
+
+        reg_resp = await client.post("/api/vet/register", json={
+            "full_name": "Dr. Nimal Wickrema",
+            "email": registered_vet_email,
+            "password": "password123",
+            "license_number": "SLVC-TEST-REG-101",
+            "phone": "0771122334",
+            "district": "Galle",
+            "role": "vet",
+            "assigned_farms": []
+        })
+        assert reg_resp.status_code == 201
+
+        # Test Vet Login returns district
+        login_resp = await client.post("/api/vet/login", json={
+            "email": registered_vet_email,
+            "password": "password123"
+        })
+        assert login_resp.status_code == 200
+        login_data = login_resp.json()
+        assert login_data["district"] == "Galle"
+        assert login_data["full_name"] == "Dr. Nimal Wickrema"
+        reg_vet_token = login_data["access_token"]
+
+        # Test GET /api/vet/profile
+        profile_resp = await client.get("/api/vet/profile", headers={"Authorization": f"Bearer {reg_vet_token}"})
+        assert profile_resp.status_code == 200
+        profile_data = profile_resp.json()
+        assert profile_data["district"] == "Galle"
+        assert profile_data["license_number"] == "SLVC-TEST-REG-101"
+
+        # Test PUT /api/vet/profile (update district and name)
+        update_resp = await client.put(
+            "/api/vet/profile",
+            json={
+                "full_name": "Dr. Nimal Wickrema Senior",
+                "license_number": "SLVC-TEST-REG-101",
+                "phone": "0779988776",
+                "district": "Matara"
+            },
+            headers={"Authorization": f"Bearer {reg_vet_token}"}
+        )
+        assert update_resp.status_code == 200
+        assert update_resp.json()["district"] == "Matara"
+        assert update_resp.json()["full_name"] == "Dr. Nimal Wickrema Senior"
+
+        # Verify updated profile persists on fresh fetch
+        fresh_profile_resp = await client.get("/api/vet/profile", headers={"Authorization": f"Bearer {reg_vet_token}"})
+        assert fresh_profile_resp.status_code == 200
+        fresh_data = fresh_profile_resp.json()
+        assert fresh_data["district"] == "Matara"
+        assert fresh_data["phone"] == "0779988776"
+        assert fresh_data["full_name"] == "Dr. Nimal Wickrema Senior"
+
+        # Verify search by new district finds the updated vet
+        search_matara = await client.get("/api/vet/search?district=Matara", headers={"Authorization": f"Bearer {farm_token}"})
+        assert search_matara.status_code == 200
+        assert any(v["email"] == registered_vet_email for v in search_matara.json())
+
         # Cleanup
         await farms_collection.delete_many({"email": farm_email})
-        await vets_collection.delete_many({"email": {"$in": [vet_email, unassigned_vet_email]}})
+        await vets_collection.delete_many({"email": {"$in": [vet_email, unassigned_vet_email, registered_vet_email]}})
         await cattles_collection.delete_many({"owner_email": farm_email})
         print("ALL TESTS PASSED SUCCESSFULLY!")
 

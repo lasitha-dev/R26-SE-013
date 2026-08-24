@@ -34,6 +34,7 @@ export default function VetLogin() {
         localStorage.setItem("role", data.role || "vet")
         localStorage.setItem("license_number", data.license_number || "")
         localStorage.setItem("phone", data.phone || "")
+        localStorage.setItem("district", data.district || "")
         navigate('/vet/dashboard')
       } else {
         setErrorMessage(data.detail || "Authentication failed. Please verify clinical credentials.")

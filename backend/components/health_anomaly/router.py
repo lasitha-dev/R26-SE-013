@@ -23,7 +23,7 @@ from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_p
 from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection
 from components.health_anomaly.schemas import (
     FarmRegister, FarmLogin, TokenResponse,
-    VetRegister, VetLogin, VetTokenResponse,
+    VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
     CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
 )
@@ -320,7 +320,8 @@ async def login_vet(credentials: VetLogin):
         "email": vet["email"],
         "role": "vet",
         "license_number": vet.get("license_number", ""),
-        "phone": vet.get("phone", "")
+        "phone": vet.get("phone", ""),
+        "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction"
     }
 
 @router.get("/vet/profile")
@@ -341,6 +342,54 @@ async def get_vet_profile(authorization: Optional[str] = Header(None)):
         "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction",
         "assigned_farms": vet.get("assigned_farms", []),
         "assigned_farm_ids": vet.get("assigned_farm_ids", [])
+    }
+
+@router.put("/vet/profile")
+async def update_vet_profile(
+    payload: VetProfileUpdate,
+    authorization: Optional[str] = Header(None)
+):
+    email = await get_current_user_email(authorization)
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Veterinarian profile not found."
+        )
+
+    update_fields = {}
+    if payload.full_name is not None and payload.full_name.strip():
+        update_fields["full_name"] = payload.full_name.strip()
+    if payload.license_number is not None and payload.license_number.strip():
+        # Check if license_number is changing and if new license is taken by another vet
+        new_lic = payload.license_number.strip()
+        if new_lic != vet.get("license_number"):
+            existing = await vets_collection.find_one({"license_number": new_lic, "email": {"$ne": email}})
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A veterinarian with this license registration number already exists."
+                )
+            update_fields["license_number"] = new_lic
+    if payload.phone is not None:
+        update_fields["phone"] = payload.phone.strip()
+    if payload.district is not None:
+        update_fields["district"] = payload.district.strip()
+        update_fields["location_district"] = payload.district.strip()
+
+    if update_fields:
+        update_fields["updated_at"] = datetime.utcnow().isoformat()
+        await vets_collection.update_one({"email": email}, {"$set": update_fields})
+
+    updated_vet = await vets_collection.find_one({"email": email})
+    return {
+        "message": "Veterinarian profile updated successfully.",
+        "full_name": updated_vet.get("full_name"),
+        "email": updated_vet.get("email"),
+        "license_number": updated_vet.get("license_number"),
+        "phone": updated_vet.get("phone"),
+        "district": updated_vet.get("district") or updated_vet.get("location_district") or "Sri Lanka Central Jurisdiction",
+        "role": updated_vet.get("role", "vet")
     }
 
 # ─── Farm-to-Vet Linking & Jurisdictional Management Endpoints ────────────────

@@ -1,13 +1,44 @@
 import React, { useState, useEffect } from 'react'
 
+const SRI_LANKAN_DISTRICTS = [
+  'Ampara',
+  'Anuradhapura',
+  'Badulla',
+  'Batticaloa',
+  'Colombo',
+  'Galle',
+  'Gampaha',
+  'Hambantota',
+  'Jaffna',
+  'Kalutara',
+  'Kandy',
+  'Kegalle',
+  'Kilinochchi',
+  'Kurunegala',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Monaragala',
+  'Mullaitivu',
+  'Nuwara Eliya',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ratnapura',
+  'Trincomalee',
+  'Vavuniya'
+]
+
 export default function VetSettings() {
   const [profile, setProfile] = useState({
     fullName: localStorage.getItem("full_name") || localStorage.getItem("owner_name") || "Dr. Clinical Vet",
     email: localStorage.getItem("email") || "doctor@veterinary-council.gov",
     licenseNumber: localStorage.getItem("license_number") || "VET-LK-88902",
     phone: localStorage.getItem("phone") || "+94 77 123 4567",
+    district: localStorage.getItem("district") || "",
     role: localStorage.getItem("role") || "vet"
   })
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [passwordState, setPasswordState] = useState({
     currentPassword: '',
@@ -17,14 +48,78 @@ export default function VetSettings() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState(false)
 
-  const handleProfileSave = (e) => {
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        if (!token) return
+        const response = await fetch("http://127.0.0.1:8000/api/vet/profile", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setProfile({
+            fullName: data.full_name || "",
+            email: data.email || "",
+            licenseNumber: data.license_number || "",
+            phone: data.phone || "",
+            district: data.district || "",
+            role: data.role || "vet"
+          })
+          if (data.full_name) {
+            localStorage.setItem("full_name", data.full_name)
+            localStorage.setItem("owner_name", data.full_name)
+          }
+          if (data.license_number) localStorage.setItem("license_number", data.license_number)
+          if (data.phone) localStorage.setItem("phone", data.phone)
+          if (data.district) localStorage.setItem("district", data.district)
+        }
+      } catch (err) {
+        console.error("Error loading vet profile:", err)
+      }
+    }
+    fetchProfile()
+  }, [])
+
+  const handleProfileSave = async (e) => {
     e.preventDefault()
-    localStorage.setItem("full_name", profile.fullName)
-    localStorage.setItem("owner_name", profile.fullName)
-    localStorage.setItem("license_number", profile.licenseNumber)
-    localStorage.setItem("phone", profile.phone)
-    setSaveSuccess(true)
-    setTimeout(() => setSaveSuccess(false), 3000)
+    setProfileError('')
+    setSaveSuccess(false)
+    setProfileLoading(true)
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch("http://127.0.0.1:8000/api/vet/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: profile.fullName,
+          license_number: profile.licenseNumber,
+          phone: profile.phone,
+          district: profile.district
+        })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        localStorage.setItem("full_name", profile.fullName)
+        localStorage.setItem("owner_name", profile.fullName)
+        localStorage.setItem("license_number", profile.licenseNumber)
+        localStorage.setItem("phone", profile.phone)
+        if (profile.district) localStorage.setItem("district", profile.district)
+        setSaveSuccess(true)
+        setTimeout(() => setSaveSuccess(false), 3000)
+      } else {
+        setProfileError(data.detail || 'Failed to update practitioner profile.')
+      }
+    } catch (err) {
+      setProfileError('Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setProfileLoading(false)
+    }
   }
 
   const handlePasswordChange = async (e) => {
@@ -93,12 +188,27 @@ export default function VetSettings() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">{profile.fullName}</h2>
-            <p className="text-xs text-emerald-400 font-mono mt-0.5">{profile.licenseNumber}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+              <p className="text-xs text-emerald-400 font-mono">{profile.licenseNumber}</p>
+              {profile.district && (
+                <>
+                  <span className="text-slate-600 text-xs">•</span>
+                  <span className="text-xs text-slate-300 font-mono">{profile.district} District Jurisdiction</span>
+                </>
+              )}
+            </div>
             <span className="inline-block mt-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">
               ROLE: VETERINARIAN AUTHORITY
             </span>
           </div>
         </div>
+
+        {profileError && (
+          <div className="p-3.5 bg-error/15 border border-error/30 text-error rounded-lg text-xs font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined text-base">warning</span>
+            {profileError}
+          </div>
+        )}
 
         {saveSuccess && (
           <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-bold flex items-center gap-2">
@@ -161,12 +271,34 @@ export default function VetSettings() {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Primary Veterinary District Jurisdiction
+            </label>
+            <select
+              value={profile.district}
+              onChange={(e) => setProfile({ ...profile, district: e.target.value })}
+              className="w-full bg-surface-container border border-outline-variant/20 rounded-lg p-3 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+              required
+            >
+              <option value="" disabled className="bg-surface-container-high text-slate-500">
+                Select District Jurisdiction...
+              </option>
+              {SRI_LANKAN_DISTRICTS.map((dist) => (
+                <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
+                  {dist} District
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="pt-2">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs rounded-lg uppercase tracking-wider shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all"
+              disabled={profileLoading}
+              className="px-5 py-2.5 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs rounded-lg uppercase tracking-wider shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
             >
-              Save Profile Details
+              {profileLoading ? 'Saving Profile...' : 'Save Profile Details'}
             </button>
           </div>
         </form>

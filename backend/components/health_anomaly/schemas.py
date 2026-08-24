@@ -49,6 +49,12 @@ class VetTokenResponse(BaseModel):
     phone: Optional[str] = None
     district: Optional[str] = None
 
+class VetProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    license_number: Optional[str] = None
+    phone: Optional[str] = None
+    district: Optional[str] = None
+
 class VetSearchResponse(BaseModel):
     id: str
     full_name: str

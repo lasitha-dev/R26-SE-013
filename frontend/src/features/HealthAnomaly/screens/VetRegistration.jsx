@@ -1,6 +1,34 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+const SRI_LANKAN_DISTRICTS = [
+  'Ampara',
+  'Anuradhapura',
+  'Badulla',
+  'Batticaloa',
+  'Colombo',
+  'Galle',
+  'Gampaha',
+  'Hambantota',
+  'Jaffna',
+  'Kalutara',
+  'Kandy',
+  'Kegalle',
+  'Kilinochchi',
+  'Kurunegala',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Monaragala',
+  'Mullaitivu',
+  'Nuwara Eliya',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ratnapura',
+  'Trincomalee',
+  'Vavuniya'
+]
+
 export default function VetRegistration() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState("")
@@ -16,6 +44,7 @@ export default function VetRegistration() {
     const email = formData.get("email")?.trim()
     const licenseNumber = formData.get("license_number")?.trim()
     const phone = formData.get("phone")?.trim()
+    const district = formData.get("district")?.trim()
     const password = formData.get("password")
     const confirmPassword = formData.get("confirm_password")
 
@@ -52,12 +81,19 @@ export default function VetRegistration() {
       return
     }
 
+    if (!district) {
+      setErrorMessage("Please select your primary veterinary district jurisdiction.")
+      setLoading(false)
+      return
+    }
+
     const payload = {
       full_name: fullName,
       email: email,
       password: password,
       license_number: licenseNumber,
       phone: phone,
+      district: district,
       role: "vet",
       assigned_farms: []
     }
@@ -217,6 +253,27 @@ export default function VetRegistration() {
                     type="tel"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
+                  Primary Veterinary District Jurisdiction
+                </label>
+                <select
+                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                  name="district"
+                  required
+                  defaultValue=""
+                >
+                  <option value="" disabled className="bg-surface-container-high text-slate-500">
+                    Select District Jurisdiction...
+                  </option>
+                  {SRI_LANKAN_DISTRICTS.map((dist) => (
+                    <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
+                      {dist} District
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

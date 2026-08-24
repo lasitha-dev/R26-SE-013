@@ -19,7 +19,7 @@ describe('VetRegistration Component', () => {
     global.fetch = vi.fn()
   })
 
-  it('renders registration form with veterinarian-specific fields', () => {
+  it('renders registration form with veterinarian-specific fields and district dropdown', () => {
     render(
       <BrowserRouter>
         <VetRegistration />
@@ -30,6 +30,7 @@ describe('VetRegistration Component', () => {
     expect(screen.getByText(/Full Name & Title/i)).toBeInTheDocument()
     expect(screen.getByText(/Veterinary License \/ Reg No\./i)).toBeInTheDocument()
     expect(screen.getByText(/Contact Phone Number/i)).toBeInTheDocument()
+    expect(screen.getByText(/Primary Veterinary District Jurisdiction/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Register Veterinarian/i })).toBeInTheDocument()
   })
 
@@ -44,6 +45,7 @@ describe('VetRegistration Component', () => {
     const emailInput = screen.getByPlaceholderText(/samantha@vet-council\.org/i)
     const licInput = screen.getByPlaceholderText(/VET-LK-88902/i)
     const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
+    const districtSelect = screen.getByRole('combobox')
     const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
     const submitBtn = screen.getByRole('button', { name: /Register Veterinarian/i })
 
@@ -51,6 +53,7 @@ describe('VetRegistration Component', () => {
     fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
     fireEvent.change(licInput, { target: { value: 'VET-LK-88902' } })
     fireEvent.change(phoneInput, { target: { value: '+94771234567' } })
+    fireEvent.change(districtSelect, { target: { value: 'Colombo' } })
     fireEvent.change(passwordInputs[0], { target: { value: 'password123' } })
     fireEvent.change(passwordInputs[1], { target: { value: 'mismatchPassword' } })
 
@@ -62,7 +65,7 @@ describe('VetRegistration Component', () => {
     })
   })
 
-  it('submits valid registration and redirects to success screen', async () => {
+  it('submits valid registration with district and redirects to success screen', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ message: 'Veterinarian registered successfully.' })
@@ -78,6 +81,7 @@ describe('VetRegistration Component', () => {
     const emailInput = screen.getByPlaceholderText(/samantha@vet-council\.org/i)
     const licInput = screen.getByPlaceholderText(/VET-LK-88902/i)
     const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
+    const districtSelect = screen.getByRole('combobox')
     const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
     const submitBtn = screen.getByRole('button', { name: /Register Veterinarian/i })
 
@@ -85,6 +89,7 @@ describe('VetRegistration Component', () => {
     fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
     fireEvent.change(licInput, { target: { value: 'VET-LK-88902' } })
     fireEvent.change(phoneInput, { target: { value: '+94771234567' } })
+    fireEvent.change(districtSelect, { target: { value: 'Kandy' } })
     fireEvent.change(passwordInputs[0], { target: { value: 'password123' } })
     fireEvent.change(passwordInputs[1], { target: { value: 'password123' } })
 
@@ -94,7 +99,8 @@ describe('VetRegistration Component', () => {
       expect(global.fetch).toHaveBeenCalledWith(
         'http://127.0.0.1:8000/api/vet/register',
         expect.objectContaining({
-          method: 'POST'
+          method: 'POST',
+          body: expect.stringContaining('"district":"Kandy"')
         })
       )
       expect(mockNavigate).toHaveBeenCalledWith('/health/vet-registration-success')
