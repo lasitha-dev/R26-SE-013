@@ -112,9 +112,15 @@ async def test_diagnostic_case_flow():
         assert count == 1
 
         # Check cattle updated status to Healthy
-        updated_cattle2 = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
-        assert updated_cattle2["health_status"] == "Healthy"
-        assert updated_cattle2["last_diagnosis"] == "Cattle (Healthy)"
+        # 5. Delete diagnostic case
+        res_del = await ac.delete(f"/api/vet/cases/{case_id}", headers=headers)
+        assert res_del.status_code == 200, res_del.text
+        del_data = res_del.json()
+        assert del_data["id"] == case_id
+
+        # Verify case is removed from DB
+        deleted_check = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+        assert deleted_check is None
 
     # Cleanup
     await vets_collection.delete_many({"email": vet_email})

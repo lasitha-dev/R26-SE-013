@@ -1035,6 +1035,33 @@ async def verify_diagnostic_case(
     )
 
 
+@router.delete("/vet/cases/{case_id}", status_code=status.HTTP_200_OK)
+async def delete_diagnostic_case(
+    case_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    """Delete a clinical diagnostic case record by veterinarian."""
+    query = {}
+    if ObjectId.is_valid(case_id):
+        query = {"_id": ObjectId(case_id)}
+    else:
+        query = {"case_number": case_id}
+
+    case_doc = await diagnostic_cases_collection.find_one(query)
+    if not case_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case record not found.")
+
+    delete_result = await diagnostic_cases_collection.delete_one(query)
+    if delete_result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete diagnostic case.")
+
+    return {
+        "message": "Diagnostic case record deleted successfully.",
+        "id": str(case_doc["_id"]),
+        "case_number": case_doc.get("case_number")
+    }
+
+
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)
 async def create_cattle(cattle_data: CattleCreate, authorization: Optional[str] = Header(None)):
     try:

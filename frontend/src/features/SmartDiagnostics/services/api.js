@@ -107,3 +107,22 @@ export async function fetchDiagnosticCases(params = {}) {
   return res.json()
 }
 
+/**
+ * Delete a diagnostic case record.
+ */
+export async function deleteDiagnosticCase(caseId) {
+  const token = localStorage.getItem('token')
+  const url = `${API_BASE}/api/vet/cases/${caseId}`
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Failed to delete diagnostic case: ${txt}`)
+  }
+  return res.json()
+}
+
