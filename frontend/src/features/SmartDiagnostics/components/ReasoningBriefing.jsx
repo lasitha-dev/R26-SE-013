@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
 /**
- * Section configuration — maps each of the 5 LLM briefing sections
+ * Section configuration — maps each of the 6 LLM briefing sections
  * to an icon, accent border colour, and subtle background tint.
  */
 const SECTION_META = [
+  { icon: 'psychology', accent: 'border-rose-500', bg: 'bg-rose-500/5', label: 'Clinical Severity & Staging' },
   { icon: 'verified', accent: 'border-primary', bg: 'bg-primary/5', label: 'Diagnostic Assessment' },
   { icon: 'biotech', accent: 'border-secondary', bg: 'bg-secondary/5', label: 'Morphological Rationale' },
   { icon: 'compare_arrows', accent: 'border-tertiary', bg: 'bg-surface-container-high/40', label: 'Differential Diagnosis' },
@@ -107,8 +108,19 @@ function formatInline(text) {
 function splitSections(markdown) {
   if (!markdown) return [];
 
+  // Clean any residual metadata tags or non-section preamble
+  let cleanMd = markdown
+    .replace(/(?:\[|###?\s*|\*\*)*SEVERITY_?META:[^\n]+/gi, '')
+    .replace(/^#+\s*SEVERITY[^\n]+/gim, '')
+    .trim();
+
+  const firstHeadingIdx = cleanMd.search(/^##\s+/m);
+  if (firstHeadingIdx !== -1) {
+    cleanMd = cleanMd.substring(firstHeadingIdx);
+  }
+
   const sections = [];
-  const parts = markdown.split(/^## /m).filter(Boolean);
+  const parts = cleanMd.split(/^##\s+/m).filter(Boolean);
 
   for (const part of parts) {
     const newlineIdx = part.indexOf('\n');
@@ -116,6 +128,10 @@ function splitSections(markdown) {
 
     const title = part.substring(0, newlineIdx).trim();
     const content = part.substring(newlineIdx + 1).trim();
+
+    // Ignore any non-section remnants
+    if (!title || title.toLowerCase().includes('severity meta')) continue;
+
     sections.push({ title, content });
   }
 
@@ -226,11 +242,12 @@ function ErrorFallback({ error }) {
  * ReasoningBriefing — renders the Tier 3 LLM clinical diagnostic briefing.
  *
  * @param {object}  props
- * @param {string|null} props.reasoning       - Markdown report from the LLM
- * @param {string}      props.reasoningStatus - 'idle' | 'loading' | 'done' | 'error'
- * @param {string|null} props.reasoningError  - Error message if status === 'error'
+ * @param {string|null} props.reasoning          - Markdown report from the LLM
+ * @param {string}      props.reasoningStatus    - 'idle' | 'loading' | 'done' | 'error'
+ * @param {string|null} props.reasoningError     - Error message if status === 'error'
+ * @param {object|null} [props.severityAssessment] - Parsed LLM severity metadata
  */
-export default function ReasoningBriefing({ reasoning, reasoningStatus, reasoningError }) {
+export default function ReasoningBriefing({ reasoning, reasoningStatus, reasoningError, severityAssessment }) {
   const [visibleCards, setVisibleCards] = useState(0);
 
   // Parse sections from the Markdown report
@@ -293,6 +310,35 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
       {/* Success state — render section cards */}
       {reasoningStatus === 'done' && sections.length > 0 && (
         <div className="space-y-4">
+          {/* Synthesized Clinical Evaluation Callout */}
+          {severityAssessment && severityAssessment.grade && (
+            <div className="mb-4 p-3.5 md:p-4 rounded-xl bg-surface-container/70 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fadeIn">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary shrink-0">
+                  <span className="material-symbols-outlined text-base">verified</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-mono font-bold text-primary uppercase tracking-wider">
+                    Synthesized Severity Grade &amp; Prognosis
+                  </p>
+                  <p className="text-xs text-on-surface font-medium truncate">
+                    {severityAssessment.description || `Clinical condition evaluated as ${severityAssessment.grade}.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 text-3xs font-mono font-bold uppercase">
+                  {severityAssessment.grade}
+                </span>
+                {severityAssessment.stage && (
+                  <span className="px-2 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-primary text-3xs font-mono font-bold uppercase">
+                    {severityAssessment.stage}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {sections.map((section, idx) => {
             const meta = SECTION_META[idx] || SECTION_META[0];
             return (
@@ -356,4 +402,5 @@ ReasoningBriefing.propTypes = {
   reasoning: PropTypes.string,
   reasoningStatus: PropTypes.oneOf(['idle', 'loading', 'done', 'error']).isRequired,
   reasoningError: PropTypes.string,
+  severityAssessment: PropTypes.object,
 };

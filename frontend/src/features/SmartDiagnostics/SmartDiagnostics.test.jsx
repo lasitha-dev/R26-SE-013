@@ -578,4 +578,75 @@ describe('SmartDiagnostics', () => {
     expect(screen.queryByTestId('lesion-focus-image')).not.toBeInTheDocument();
     expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
   });
+
+  it('renders LLM-synthesized clinical severity grade and pathological narrative', async () => {
+    const detectImage = await getDetectImage();
+    const fetchReasoning = await getFetchReasoning();
+    detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [{ bbox: [10, 20, 100, 200], confidence: 0.96, class_name: 'cattle' }],
+      best_detection: {
+        bbox: [10, 20, 100, 200],
+        confidence: 0.96,
+        bbox_normalized: { x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5 },
+      },
+      disease: {
+        name: 'Lumpy Skin Disease',
+        confidence: 94.5,
+        all_probabilities: { 'Lumpy Skin Disease': 94.5 },
+      },
+      severity: {
+        grade: 'Moderate',
+        description: 'Initial vision telemetry preview.',
+        stage: 'Active Progression',
+        prognosis: 'Recoverable',
+        lesion_coverage_pct: 12.4,
+        cluster_count: 7,
+        source: 'vision_telemetry',
+      },
+      cropped_image: null,
+      image_size: { width: 640, height: 480 },
+      device: 'cpu',
+    });
+    fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      reasoning_report: '## 1. Clinical Severity Assessment\nAcute systemic infection risk.',
+      model_name: 'qwen2.5',
+      severity_assessment: {
+        grade: 'Severe',
+        description: 'Extensive multifocal nodular eruptions with high viral load indicators.',
+        stage: 'Acute Eruptive Phase',
+        prognosis: 'Guarded',
+        diagnostic_rationale: 'Characteristic circumscribed dermal nodules with central necrosis detected across the nape.',
+        spatial_correlation: 'Automated segmentation localized 7 clusters at the Cervical & Dorsal Nape Region.',
+        lesion_coverage_pct: 12.4,
+        cluster_count: 7,
+        source: 'llm_reasoning',
+      },
+    });
+
+    renderWithRouter(<SmartDiagnostics />);
+    const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
+    const input = screen.getByTestId('file-input');
+
+    await act(async () => {
+      await userEvent.upload(input, file);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('severity-grade')).toHaveTextContent('Severe');
+    });
+
+    expect(screen.getByTestId('severity-narrative')).toHaveTextContent(
+      'Extensive multifocal nodular eruptions with high viral load indicators.'
+    );
+    expect(screen.getByTestId('diagnostic-rationale')).toHaveTextContent(
+      'Characteristic circumscribed dermal nodules'
+    );
+    expect(screen.getByTestId('spatial-correlation')).toHaveTextContent(
+      'Cervical & Dorsal Nape Region'
+    );
+    expect(screen.getAllByText('LLM REASONED').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('ANATOMICAL TELEMETRY')).toBeInTheDocument();
+  });
 });

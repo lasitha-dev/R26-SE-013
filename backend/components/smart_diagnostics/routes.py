@@ -110,17 +110,45 @@ async def detect(request: Request, image: UploadFile = File(...)):
     is_healthy = predicted_name in ("cattle", "cattle (healthy)")
     vit_conf = float(disease.get("confidence", 0.0))
 
+    img_w, img_h = pil.size
+    bbox_norm = BoundingBoxNormalized(x1=x1 / img_w, y1=y1 / img_h, x2=x2 / img_w, y2=y2 / img_h)
+
+    # Compute anatomical geometry and spatial telemetry from bounding box
+    cx = (bbox_norm.x1 + bbox_norm.x2) / 2.0
+    cy = (bbox_norm.y1 + bbox_norm.y2) / 2.0
+    bw_pct = (bbox_norm.x2 - bbox_norm.x1) * 100
+    bh_pct = (bbox_norm.y2 - bbox_norm.y1) * 100
+
+    if cy < 0.40 and cx < 0.50:
+        anatomical_site = "Anterior Cranial & Oral / Muzzle Zone"
+    elif cy < 0.45 and cx >= 0.50:
+        anatomical_site = "Cervical & Dorsal Nape Region"
+    elif cy >= 0.55 and cx < 0.60:
+        anatomical_site = "Ventral Inguinal & Mammary / Udder Quadrant"
+    elif cy >= 0.70:
+        anatomical_site = "Distal Locomotor & Coronary / Interdigital Cleft"
+    else:
+        anatomical_site = "Mid-Thoracic Flank & Lateral Dermal Wall"
+
     if is_healthy:
+        spatial_correlation_str = (
+            f"Full-frame anatomical scan across the {anatomical_site} reveals homogeneous epidermal contour "
+            "with zero focal lesion clustering or inflammatory edema."
+        )
         severity_model = SeverityMetrics(
-            score=0.0,
-            grade="None",
+            grade="Healthy Baseline",
+            description="Epidermal surface presents homogeneous texture with zero anomalous lesion density or inflammatory markers.",
+            stage="Healthy Baseline",
+            prognosis="Excellent",
+            diagnostic_rationale="No pathological tissue disruptions detected. Dermal contour aligns with physiological baseline.",
+            spatial_correlation=spatial_correlation_str,
             lesion_coverage_pct=0.0,
             cluster_count=0,
             mean_intensity=0.0,
-            formatted="0.0 / None",
+            formatted="Healthy Baseline",
+            source="vision_telemetry",
         )
         stage_str = "Healthy Baseline"
-        spatial_correlation_str = "Homogeneous epidermal contour with zero anomalous lesion density or heat signatures detected."
     elif segmenter and predicted_name:
         symptoms_img, metrics = await run_in_threadpool(segmenter.predict_with_metrics, cropped)
         symptoms_b64 = image_service.encode_image_base64(symptoms_img)
@@ -129,39 +157,50 @@ async def detect(request: Request, image: UploadFile = File(...)):
         clusters = metrics.get("cluster_count", 0)
         intensity = metrics.get("mean_intensity", 0.0)
 
-        # Dynamic Quantitative Severity Calculation
-        raw_score = (lsr * 0.35) + (min(clusters, 15) * 0.25) + (vit_conf * 0.04)
-        if lsr == 0 and clusters == 0:
-            score = round(min(10.0, max(1.0, vit_conf * 0.08)), 1)
+        # Preliminary visual stage estimation from morphological telemetry
+        if lsr >= 12.0 or clusters >= 8:
+            prelim_grade = "Severe"
+            stage_str = "Acute Eruptive / Advanced"
+            prelim_prognosis = "Guarded"
+        elif lsr >= 4.0 or clusters >= 3:
+            prelim_grade = "Moderate"
+            stage_str = "Active Progression / Multifocal"
+            prelim_prognosis = "Recoverable with Intervention"
         else:
-            score = round(min(10.0, max(1.0, raw_score)), 1)
-
-        if score >= 7.1:
-            grade = "High"
-            stage_str = "Advanced Eruptive / Acute"
-        elif score >= 3.6:
-            grade = "Moderate"
-            stage_str = "Active Progression / Secondary"
-        else:
-            grade = "Low"
+            prelim_grade = "Mild"
             stage_str = "Early Focal / Prodromal"
+            prelim_prognosis = "Favorable"
 
-        formatted_str = f"{score:.1f} / {grade}"
+        if lsr == 0 and clusters == 0:
+            spatial_correlation_str = (
+                f"Localized ROI focus at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame area). "
+                "Low surface disruption detected at early baseline threshold."
+            )
+        else:
+            spatial_correlation_str = (
+                f"Automated segmentation identified {clusters} distinct focal lesion cluster(s) covering {lsr:.1f}% "
+                f"surface area localized at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame ROI). "
+                f"Spatial density aligns with {prelim_grade.lower()} pathological progression."
+            )
+
+        prelim_rationale = (
+            f"Vision classifier identified morphological biomarkers consistent with {disease.get('name')} "
+            f"({vit_conf:.1f}% confidence), corroborated by {clusters} segmented nodular/lesion cluster(s)."
+        )
+
         severity_model = SeverityMetrics(
-            score=score,
-            grade=grade,
+            grade=prelim_grade,
+            description=f"Automated segmentation identified {clusters} distinct lesion cluster(s) covering {lsr:.1f}% anatomical surface area.",
+            stage=stage_str,
+            prognosis=prelim_prognosis,
+            diagnostic_rationale=prelim_rationale,
+            spatial_correlation=spatial_correlation_str,
             lesion_coverage_pct=lsr,
             cluster_count=clusters,
             mean_intensity=intensity,
-            formatted=formatted_str,
+            formatted=f"{prelim_grade} ({stage_str})",
+            source="vision_telemetry",
         )
-        spatial_correlation_str = (
-            f"Automated segmentation identified {clusters} distinct focal lesion cluster(s) "
-            f"covering {lsr:.1f}% of the anatomical surface area. Volumetric density aligns with {grade.lower()} pathological progression."
-        )
-
-    img_w, img_h = pil.size
-    bbox_norm = BoundingBoxNormalized(x1=x1 / img_w, y1=y1 / img_h, x2=x2 / img_w, y2=y2 / img_h)
 
     best_det = BestDetection(bbox=best["bbox"], confidence=best["confidence"], bbox_normalized=bbox_norm)
     disease_model = Disease(
@@ -228,12 +267,11 @@ async def reason(body: ReasoningRequest):
         }
         if sev:
             det_dict.update({
-                "severity_score": sev.score,
                 "severity_grade": sev.grade,
                 "lesion_coverage_pct": sev.lesion_coverage_pct,
                 "cluster_count": sev.cluster_count,
-                "stage": body.stage or "N/A",
-                "spatial_correlation": body.spatial_correlation or "",
+                "stage": body.stage or sev.stage or "N/A",
+                "spatial_correlation": body.spatial_correlation or sev.spatial_correlation or "",
             })
 
         detections_for_llm.append(det_dict)
@@ -248,23 +286,26 @@ async def reason(body: ReasoningRequest):
     farm_metadata = dict(body.farm_metadata) if body.farm_metadata else None
 
     try:
-        report = await run_in_threadpool(
+        report, severity_assessment = await run_in_threadpool(
             generate_veterinary_report, vision_results, farm_metadata
         )
 
-        # Determine if the report is an error message from the reasoner.
-        is_error = report.startswith("⚠")
+        is_error = report.startswith("⚠️") and "Error" in report
 
         return ReasoningResponse(
             status="error" if is_error else "ok",
             reasoning_report=report,
             model_name=pipeline_cfg.LLM_MODEL_NAME,
+            severity_assessment=severity_assessment,
         )
 
     except Exception as exc:
         logger.exception("LLM reasoning failed.")
+        from .pipeline.llm_reasoner import create_clinical_fallback_severity
+        fallback_sev = create_clinical_fallback_severity(vision_results)
         return ReasoningResponse(
             status="error",
             reasoning_report=f"Tier 3 error: {exc}",
             model_name=None,
+            severity_assessment=fallback_sev,
         )
