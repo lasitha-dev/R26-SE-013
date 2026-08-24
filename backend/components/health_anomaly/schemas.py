@@ -164,3 +164,58 @@ class TriagePredictPayload(BaseModel):
     weight: List[float]
 
 
+class DiagnosticCaseCreate(BaseModel):
+    cattle_id: Optional[str] = None
+    farm_id: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    breed: Optional[str] = None
+    disease_name: str
+    confidence: float
+    severity: Optional[str] = "Moderate"
+    stage: Optional[str] = "Acute"
+    prognosis: Optional[str] = "Good"
+    rationale: Optional[str] = None
+    spatial_correlation: Optional[str] = None
+    symptoms_image: Optional[str] = None
+    cropped_image: Optional[str] = None
+    clinical_notes: Optional[str] = None
+    llm_reasoning: Optional[str] = None
+    verified: bool = False
+
+
+class DiagnosticCaseVerifyRequest(BaseModel):
+    clinical_notes: Optional[str] = None
+    prescription: Optional[str] = None
+    health_status: Optional[str] = None
+
+
+class DiagnosticCaseResponse(BaseModel):
+    id: str
+    case_number: str
+    cattle_id: Optional[str] = None
+    farm_id: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    breed: Optional[str] = None
+    disease_name: str
+    confidence: float
+    severity: Optional[str] = None
+    stage: Optional[str] = None
+    prognosis: Optional[str] = None
+    rationale: Optional[str] = None
+    spatial_correlation: Optional[str] = None
+    symptoms_image: Optional[str] = None
+    cropped_image: Optional[str] = None
+    clinical_notes: Optional[str] = None
+    llm_reasoning: Optional[str] = None
+    status: str = "Pending Verification"
+    verified: bool = False
+    created_at: str
+    verified_at: Optional[str] = None
+    vet_id: Optional[str] = None
+    vet_name: Optional[str] = None
+    vet_license: Optional[str] = None
+
+
+

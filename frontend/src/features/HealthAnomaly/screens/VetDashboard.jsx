@@ -80,19 +80,12 @@ export default function VetDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={() => navigate('/vet/diagnostics')}
-              className="px-5 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm flex items-center gap-2 shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
-            >
-              <span className="material-symbols-outlined text-lg">psychology</span>
-              Launch AI Diagnostics
-            </button>
             <Link
               to="/vet/assigned-farms"
-              className="px-4 py-3 rounded-xl bg-surface-container-highest/60 border border-white/10 text-on-surface hover:bg-surface-container-highest font-semibold text-sm flex items-center gap-2 transition-all"
+              className="px-5 py-3 rounded-xl bg-gradient-to-br from-emerald-500 to-primary-container text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all"
             >
-              <span className="material-symbols-outlined text-lg text-emerald-400">agriculture</span>
-              Assigned Farms
+              <span className="material-symbols-outlined text-lg text-white">agriculture</span>
+              Assigned Farms &amp; Herds
             </Link>
           </div>
         </div>
@@ -251,16 +244,16 @@ export default function VetDashboard() {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Upload clinical animal imagery to perform automated YOLOv8 cattle detection, ViT disease classification, and Mask R-CNN lesion segmentation.
+              Automated YOLOv8 cattle detection, ViT disease classification, and Mask R-CNN lesion segmentation. Select an assigned cattle to initiate diagnostics.
             </p>
 
-            <button
-              onClick={() => navigate('/vet/diagnostics')}
-              className="w-full py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs rounded-lg uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/15 hover:brightness-110 transition-all"
+            <Link
+              to="/vet/assigned-farms"
+              className="w-full py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs rounded-lg uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/15 hover:brightness-110 transition-all text-center"
             >
-              <span className="material-symbols-outlined text-base">upload_file</span>
-              Open Diagnostics Workbench
-            </button>
+              <span className="material-symbols-outlined text-base">agriculture</span>
+              Select Cattle from Assigned Farms
+            </Link>
           </div>
 
           {/* Clinical Protocols Summary */}

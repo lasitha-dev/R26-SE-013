@@ -41,17 +41,9 @@ export default function VetAssignedFarms() {
             Assigned Farms &amp; Agricultural Estates
           </h1>
           <p className="text-slate-400 text-xs md:text-sm mt-1">
-            Registered livestock farms linked to your veterinary license for diagnostic oversight and care protocols.
+            Registered livestock farms linked to your veterinary license. Select a farm and cattle to initiate diagnostics.
           </p>
         </div>
-
-        <Link
-          to="/vet/diagnostics"
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-xs flex items-center gap-2 shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all uppercase tracking-wider"
-        >
-          <span className="material-symbols-outlined text-base">psychology</span>
-          Diagnose Livestock
-        </Link>
       </div>
 
       {/* Loading Skeleton */}
@@ -138,21 +130,13 @@ export default function VetAssignedFarms() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-2">
+                <div className="pt-2">
                   <Link
                     to={`/vet/farm/${farm.id}`}
-                    className="flex-1 py-2 px-3 rounded-lg bg-surface-container-highest hover:bg-surface-container-high border border-white/10 text-white text-xs font-bold text-center transition-all flex items-center justify-center gap-1"
+                    className="w-full py-2.5 px-3 rounded-lg bg-surface-container-highest hover:bg-surface-container-high border border-white/10 hover:border-emerald-500/30 text-white text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5"
                   >
-                    <span>View Herd</span>
+                    <span>View Herd &amp; Select Cattle</span>
                     <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                  </Link>
-                  <Link
-                    to={`/vet/diagnostics?farm_id=${farm.id}`}
-                    className="py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-bold transition-all flex items-center gap-1"
-                    title="Launch AI Diagnostics"
-                  >
-                    <span className="material-symbols-outlined text-xs">psychology</span>
-                    <span>Diagnose</span>
                   </Link>
                 </div>
               </div>

@@ -45,3 +45,65 @@ export async function fetchReasoning(detectionResult, farmMetadata = null) {
 
   return res.json()
 }
+
+/**
+ * Report a new diagnosis case for an animal.
+ */
+export async function reportDiagnosticCase(payload) {
+  const token = localStorage.getItem('token')
+  const url = `${API_BASE}/api/vet/cases`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Failed to report diagnostic case: ${txt}`)
+  }
+  return res.json()
+}
+
+/**
+ * Verify a diagnostic case report.
+ */
+export async function verifyDiagnosticCase(caseId, payload = {}) {
+  const token = localStorage.getItem('token')
+  const url = `${API_BASE}/api/vet/cases/${caseId}/verify`
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Failed to verify case: ${txt}`)
+  }
+  return res.json()
+}
+
+/**
+ * Fetch diagnostic case history.
+ */
+export async function fetchDiagnosticCases(params = {}) {
+  const token = localStorage.getItem('token')
+  const query = new URLSearchParams(params).toString()
+  const url = `${API_BASE}/api/vet/cases${query ? `?${query}` : ''}`
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Failed to fetch diagnostic cases: ${txt}`)
+  }
+  return res.json()
+}
+

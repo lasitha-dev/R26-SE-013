@@ -25,16 +25,36 @@ class YOLODetector(DetectorInterface):
         """Return True if the underlying YOLO model has been loaded into memory."""
         return self._model is not None
 
+    def _resolve_model_path(self) -> str:
+        import os
+        candidates = [
+            self.model_path,
+            os.path.join(os.path.dirname(__file__), "..", "models", "yolo_smart_diag_best.pt"),
+            os.path.join(os.path.dirname(__file__), "..", "models", "best.pt"),
+            r"C:\Users\lasit\runs\detect\yolo_smart_diag\cattle_gate_v1\weights\best.pt",
+            os.path.join(os.path.dirname(__file__), "..", "..", "health_anomaly", "best.pt"),
+        ]
+        for path in candidates:
+            if path and os.path.exists(path):
+                # Verify not a Git LFS pointer file (< 1000 bytes)
+                try:
+                    if os.path.getsize(path) > 10000:
+                        return path
+                except Exception:
+                    pass
+        return self.model_path
+
     def _ensure_loaded(self):
         if self._model is None:
-            logger.info("Loading YOLO model from '%s' ...", self.model_path)
+            resolved_path = self._resolve_model_path()
+            logger.info("Loading YOLO model from '%s' ...", resolved_path)
             t0 = time.perf_counter()
             try:
                 from ultralytics import YOLO
             except Exception as e:
                 logger.error("Failed to import ultralytics: %s", e)
                 raise RuntimeError("ultralytics is required for YOLODetector") from e
-            self._model = YOLO(self.model_path)
+            self._model = YOLO(resolved_path)
             try:
                 self._names = getattr(self._model, "names", {}) or {}
             except Exception:

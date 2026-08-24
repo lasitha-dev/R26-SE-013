@@ -1,12 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import SmartDiagnostics from './index';
+
+// Custom render with MemoryRouter
+const renderWithRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 // Mock the API service to avoid real network calls
 vi.mock('./services/api', () => ({
   detectImage: vi.fn(),
   fetchReasoning: vi.fn(),
+  reportDiagnosticCase: vi.fn().mockResolvedValue({
+    id: 'case-test-123',
+    case_number: 'REC-2026-001',
+    status: 'Verified',
+    verified: true
+  }),
+  verifyDiagnosticCase: vi.fn(),
+  fetchDiagnosticCases: vi.fn()
 }));
 
 // Mock URL.createObjectURL / revokeObjectURL for jsdom
@@ -35,13 +47,13 @@ const getFetchReasoning = async () => {
 
 describe('SmartDiagnostics', () => {
   it('renders the page title and dropzone in idle state', () => {
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     expect(screen.getByText('AI-Powered Smart Diagnosis System')).toBeInTheDocument();
     expect(screen.getByText('Drag and drop clinical imagery')).toBeInTheDocument();
   });
 
   it('does not show results or failure views in idle state', () => {
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     expect(screen.queryByTestId('success-view')).not.toBeInTheDocument();
     expect(screen.queryByTestId('failure-view')).not.toBeInTheDocument();
     expect(screen.queryByText('New Analysis')).not.toBeInTheDocument();
@@ -52,7 +64,7 @@ describe('SmartDiagnostics', () => {
     // Make it hang so we stay in loading state
     detectImage.mockImplementation(() => new Promise(() => {}));
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -84,7 +96,7 @@ describe('SmartDiagnostics', () => {
       device: 'cpu',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -113,7 +125,7 @@ describe('SmartDiagnostics', () => {
       device: 'cpu',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cat.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -133,7 +145,7 @@ describe('SmartDiagnostics', () => {
     const detectImage = await getDetectImage();
     detectImage.mockRejectedValue(new Error('Network failure'));
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -169,7 +181,7 @@ describe('SmartDiagnostics', () => {
       device: 'cpu',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -191,13 +203,13 @@ describe('SmartDiagnostics', () => {
   });
 
   it('renders the header with Diagnostic Intake & Visual Triage badge', () => {
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     expect(screen.getByText('Diagnostic Intake & Visual Triage')).toBeInTheDocument();
     expect(screen.getByText('AI-Powered Smart Diagnosis System')).toBeInTheDocument();
   });
 
   it('renders the pipeline version indicator', () => {
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     expect(screen.getByText('CV Pipeline v3.2')).toBeInTheDocument();
   });
 
@@ -222,7 +234,7 @@ describe('SmartDiagnostics', () => {
       device: 'cpu',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
 
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
@@ -271,7 +283,7 @@ describe('SmartDiagnostics', () => {
       model_name: 'qwen',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -313,7 +325,7 @@ describe('SmartDiagnostics', () => {
       model_name: 'qwen2.5',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -351,7 +363,7 @@ describe('SmartDiagnostics', () => {
     // Make reasoning hang so we stay in loading state
     fetchReasoning.mockImplementation(() => new Promise(() => {}));
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -389,7 +401,7 @@ describe('SmartDiagnostics', () => {
     });
     fetchReasoning.mockRejectedValue(new Error('LM Studio connection refused'));
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -434,7 +446,7 @@ describe('SmartDiagnostics', () => {
       model_name: 'qwen',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -481,7 +493,7 @@ describe('SmartDiagnostics', () => {
       model_name: 'qwen',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 
@@ -536,7 +548,7 @@ describe('SmartDiagnostics', () => {
       model_name: 'qwen',
     });
 
-    render(<SmartDiagnostics />);
+    renderWithRouter(<SmartDiagnostics />);
     const file = new File(['test'], 'cow.jpg', { type: 'image/jpeg' });
     const input = screen.getByTestId('file-input');
 

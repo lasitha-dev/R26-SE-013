@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import UploadDropzone from './components/UploadDropzone';
 import ReasoningBriefing from './components/ReasoningBriefing';
 import useDetection from './hooks/useDetection';
 import { getDiseaseProfile } from './diseaseProfiles';
+import { reportDiagnosticCase, verifyDiagnosticCase } from './services/api';
 
 /**
  * SmartDiagnostics — main feature page for AI-Powered Smart Diagnosis.
@@ -14,6 +16,20 @@ import { getDiseaseProfile } from './diseaseProfiles';
  * - Model Reasoning & Evidence (rationale + confidence score)
  */
 const SmartDiagnostics = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const cattleId = searchParams.get('cattle_id');
+  const farmId = searchParams.get('farm_id');
+
+  const [cattleInfo, setCattleInfo] = useState(null);
+  const [farmInfo, setFarmInfo] = useState(null);
+  const [loadingContext, setLoadingContext] = useState(false);
+
+  // Case reporting and verification states
+  const [caseReport, setCaseReport] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportError, setReportError] = useState(null);
+
   const {
     status, result, error, imagePreview, detect, reset,
     reasoning, reasoningStatus, reasoningError,
@@ -21,6 +37,43 @@ const SmartDiagnostics = () => {
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
   const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
+
+  // Fetch cattle metadata if cattleId is passed in URL
+  useEffect(() => {
+    const fetchCattleContext = async () => {
+      if (!cattleId) {
+        setCattleInfo(null);
+        setFarmInfo(null);
+        return;
+      }
+      setLoadingContext(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`http://127.0.0.1:8000/api/cattle/${cattleId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCattleInfo(data);
+        }
+
+        if (farmId) {
+          const farmRes = await fetch(`http://127.0.0.1:8000/api/vet/farms/${farmId}/cattle`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
+          if (farmRes.ok) {
+            const fData = await farmRes.json();
+            setFarmInfo(fData.farm || null);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching cattle context:', err);
+      } finally {
+        setLoadingContext(false);
+      }
+    };
+    fetchCattleContext();
+  }, [cattleId, farmId]);
 
   // Determine effective status for UI rendering
   const isIdle = status === 'idle';
@@ -57,7 +110,52 @@ const SmartDiagnostics = () => {
   const croppedImage = result?.cropped_image;
 
   const handleFile = (file) => {
+    setCaseReport(null);
+    setReportError(null);
     detect(file);
+  };
+
+  const handleResetAnalysis = () => {
+    setActiveView('full');
+    setShowSymptomMask(true);
+    setCaseReport(null);
+    setReportError(null);
+    reset();
+  };
+
+  const handleVerifyAndReport = async () => {
+    if (!result) return;
+    setIsReporting(true);
+    setReportError(null);
+    try {
+      const payload = {
+        cattle_id: cattleId || null,
+        farm_id: farmId || null,
+        farm_name: farmInfo?.owner_name ? `${farmInfo.owner_name}'s Farm` : null,
+        animal_identifier: cattleInfo?.identifier || 'COW-UNASSIGNED',
+        breed: cattleInfo?.breed || 'Dairy Breed',
+        disease_name: disease?.name || 'Cattle (Healthy)',
+        confidence: parseFloat(confidence) || 0,
+        severity: profile.severity,
+        stage: profile.stage,
+        prognosis: profile.prognosis,
+        rationale: profile.rationale,
+        spatial_correlation: profile.spatialCorrelation,
+        symptoms_image: symptomsImage,
+        cropped_image: croppedImage,
+        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Identified pathology: ${disease?.name || 'Healthy'}.`,
+        llm_reasoning: reasoning,
+        verified: true,
+      };
+
+      const resData = await reportDiagnosticCase(payload);
+      setCaseReport(resData);
+    } catch (err) {
+      console.error('Case verification error:', err);
+      setReportError(err.message || 'Failed to submit verified case report.');
+    } finally {
+      setIsReporting(false);
+    }
   };
 
   return (
@@ -81,11 +179,7 @@ const SmartDiagnostics = () => {
         </div>
         {!isIdle && !isLoading && (
           <button
-            onClick={() => {
-              setActiveView('full');
-              setShowSymptomMask(true);
-              reset();
-            }}
+            onClick={handleResetAnalysis}
             className="text-primary hover:text-on-primary hover:bg-primary font-bold text-xs flex items-center gap-2 border border-primary/30 px-4 py-2.5 rounded-xl bg-primary/10 transition-all shadow-sm hover:shadow-glow-sm shrink-0 active:scale-95"
             id="new-analysis-btn"
           >
@@ -94,6 +188,79 @@ const SmartDiagnostics = () => {
           </button>
         )}
       </div>
+
+      {/* Subject Animal Clinical Context Card */}
+      {cattleInfo && (
+        <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#131b2e] via-[#0f172a] to-[#0b1326] border border-emerald-500/30 shadow-card-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-surface-container-highest overflow-hidden border border-white/10 flex items-center justify-center flex-shrink-0">
+              {cattleInfo.profile_photo ? (
+                <img src={cattleInfo.profile_photo} alt={cattleInfo.identifier} className="w-full h-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-2xl text-emerald-400">pets</span>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-3xs font-mono font-bold uppercase border border-emerald-500/20">
+                  Target Livestock Record
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-400 text-3xs font-mono">{farmInfo?.location_district || 'Regional Node'}</span>
+              </div>
+              <h3 className="text-lg font-bold text-white font-mono flex items-center gap-2">
+                {cattleInfo.identifier}
+                <span className="text-xs font-normal text-slate-300">({cattleInfo.breed})</span>
+              </h3>
+              <p className="text-2xs text-slate-400 mt-0.5">
+                Estate: <strong className="text-slate-200">{farmInfo?.owner_name ? `${farmInfo.owner_name}'s Farm` : 'Assigned Farm'}</strong> • Current Status:{' '}
+                <span className={`font-bold ${cattleInfo.health_status === 'Alert' ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {cattleInfo.health_status || 'Healthy'}
+                </span>
+                {cattleInfo.bcs_score !== null && cattleInfo.bcs_score !== undefined && (
+                  <span> • BCS: <strong className="text-emerald-400 font-mono">{Number(cattleInfo.bcs_score).toFixed(1)}</strong></span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            {farmId && (
+              <Link
+                to={`/vet/farm/${farmId}`}
+                className="px-3.5 py-2 rounded-lg bg-surface-container-highest/60 hover:bg-surface-container-highest border border-white/10 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Change Cattle</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Unassigned Animal Protocol Warning Banner */}
+      {!cattleInfo && !loadingContext && (
+        <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-card-subtle">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-lg">info</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-on-surface">Unassigned Diagnostic Session</p>
+              <p className="text-2xs text-on-surface-variant">
+                To link this clinical diagnosis directly to an animal ear tag and sync herd telemetry, select a cattle from your assigned estates.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/vet/assigned-farms"
+            className="px-3.5 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-all"
+          >
+            <span className="material-symbols-outlined text-sm">agriculture</span>
+            <span>Select Animal from Herd</span>
+          </Link>
+        </div>
+      )}
 
       {/* Failure Alert Banner */}
       {isFailure && (
@@ -463,19 +630,71 @@ const SmartDiagnostics = () => {
                     </div>
                   </div>
 
-                  {/* Vet Action Button */}
+                  {/* Vet Action & Verification Area */}
                   <div className={`mt-5 md:mt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-                    <button
-                      className="w-full primary-gradient text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-primary/15 hover:shadow-primary/30 hover:brightness-105 active:scale-[0.98] transition-all"
-                      id="vet-verify-btn"
-                    >
-                      <span className="material-symbols-outlined text-base">fact_check</span>
-                      Vet: Verify &amp; Report
-                    </button>
-                    <p className="text-center text-3xs text-outline mt-2.5 font-medium flex items-center justify-center gap-1">
-                      <span className="material-symbols-outlined text-xs">sync</span>
-                      Verified reports sync with regional surveillance feeds.
-                    </p>
+                    {caseReport && caseReport.verified ? (
+                      <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-3 animate-fadeIn" data-testid="verified-case-banner">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                            <span className="material-symbols-outlined text-base">verified</span>
+                            <span>Case Verified &amp; Archived</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-emerald-300 font-bold px-2 py-0.5 rounded bg-emerald-500/20">
+                            {caseReport.case_number}
+                          </span>
+                        </div>
+                        <p className="text-2xs text-slate-300 leading-relaxed">
+                          Clinical case report officially recorded under <strong>{caseReport.vet_license || 'Verified Vet'}</strong>. Health status updated.
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => navigate('/vet/clinical-records')}
+                            className="flex-1 py-2 px-3 rounded-lg bg-emerald-500 text-black font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all text-center flex items-center justify-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-xs">folder_open</span>
+                            <span>View Case Records</span>
+                          </button>
+                          <button
+                            onClick={handleResetAnalysis}
+                            className="py-2 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/10"
+                          >
+                            New
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {reportError && (
+                          <div className="p-2.5 rounded-lg bg-error/15 border border-error/30 text-error text-2xs flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">error</span>
+                            <span>{reportError}</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={handleVerifyAndReport}
+                          disabled={isReporting}
+                          className="w-full primary-gradient text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-primary/15 hover:shadow-primary/30 hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50"
+                          id="vet-verify-btn"
+                          data-testid="vet-verify-btn"
+                        >
+                          {isReporting ? (
+                            <>
+                              <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                              <span>Recording &amp; Verifying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-base">fact_check</span>
+                              <span>Vet: Verify &amp; Report</span>
+                            </>
+                          )}
+                        </button>
+                        <p className="text-center text-3xs text-outline mt-2.5 font-medium flex items-center justify-center gap-1">
+                          <span className="material-symbols-outlined text-xs">sync</span>
+                          Verified reports sync with regional surveillance feeds.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

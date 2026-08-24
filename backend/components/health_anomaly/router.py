@@ -20,12 +20,13 @@ except ImportError:
     YOLO = None
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection, diagnostic_cases_collection
 from components.health_anomaly.schemas import (
     FarmRegister, FarmLogin, TokenResponse,
     VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
-    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload
+    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
+    DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest
 )
 
 router = APIRouter()
@@ -745,8 +746,259 @@ async def get_assigned_farm_cattle(
         },
         "cattle": cattle_records,
         "total_animals": len(cattle_records),
-        "alert_count": sum(1 for c in cattle_records if c.get("health_status") == "Alert" or c.get("status") == "Alert")
     }
+
+
+# ─── Diagnostic Case Reporting & Verification Endpoints ──────────────────────
+
+@router.post("/vet/cases", response_model=DiagnosticCaseResponse, status_code=status.HTTP_201_CREATED)
+async def report_diagnostic_case(
+    payload: DiagnosticCaseCreate,
+    authorization: Optional[str] = Header(None)
+):
+    """Report a new AI diagnostic case by veterinarian for a selected animal."""
+    vet_email = None
+    vet = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            vet_email = await get_current_user_email(authorization)
+            vet = await vets_collection.find_one({"email": vet_email})
+        except Exception:
+            pass
+
+    # If cattle_id provided, look up cattle details to ensure complete record
+    cattle = None
+    farm = None
+    if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
+        cattle = await cattles_collection.find_one({"_id": ObjectId(payload.cattle_id)})
+        if cattle:
+            owner_email = cattle.get("owner_email")
+            if owner_email:
+                farm = await farms_collection.find_one({"email": owner_email})
+
+    animal_id_str = payload.animal_identifier or (cattle.get("identifier") if cattle else "COW-UNASSIGNED")
+    farm_name_str = payload.farm_name or ((farm.get("owner_name") + "'s Farm") if farm else "Regional Agro Estate")
+    farm_id_str = payload.farm_id or (str(farm["_id"]) if farm else None)
+    breed_str = payload.breed or (cattle.get("breed") if cattle else "Dairy Breed")
+
+    now = datetime.utcnow()
+    case_number = f"REC-{now.year}-{now.strftime('%m%d%H%M%S')[-4:]}"
+
+    is_verified = payload.verified
+    status_label = "Verified" if is_verified else "Pending Verification"
+
+    case_doc = {
+        "case_number": case_number,
+        "cattle_id": payload.cattle_id,
+        "farm_id": farm_id_str,
+        "farm_name": farm_name_str,
+        "animal_identifier": animal_id_str,
+        "breed": breed_str,
+        "disease_name": payload.disease_name,
+        "confidence": round(payload.confidence, 2),
+        "severity": payload.severity or "Moderate",
+        "stage": payload.stage or "Acute",
+        "prognosis": payload.prognosis or "Good",
+        "rationale": payload.rationale,
+        "spatial_correlation": payload.spatial_correlation,
+        "symptoms_image": payload.symptoms_image,
+        "cropped_image": payload.cropped_image,
+        "clinical_notes": payload.clinical_notes,
+        "llm_reasoning": payload.llm_reasoning,
+        "status": status_label,
+        "verified": is_verified,
+        "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
+        "vet_id": str(vet["_id"]) if vet else None,
+        "vet_name": vet.get("full_name") if vet else (payload.clinical_notes or "Clinical Practitioner"),
+        "vet_license": vet.get("license_number") if vet else "VET-AUTH-2026",
+    }
+
+    result = await diagnostic_cases_collection.insert_one(case_doc)
+    case_id_str = str(result.inserted_id)
+
+    # If verified and cattle exists, update cattle health status
+    if is_verified and cattle:
+        disease_lower = payload.disease_name.lower()
+        is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
+        new_health_status = "Healthy" if is_healthy else "Alert"
+        await cattles_collection.update_one(
+            {"_id": cattle["_id"]},
+            {
+                "$set": {
+                    "health_status": new_health_status,
+                    "status": new_health_status,
+                    "last_diagnosis": payload.disease_name,
+                    "last_diagnosed_date": now.strftime("%Y-%m-%d")
+                }
+            }
+        )
+
+    return DiagnosticCaseResponse(
+        id=case_id_str,
+        case_number=case_number,
+        cattle_id=payload.cattle_id,
+        farm_id=farm_id_str,
+        farm_name=farm_name_str,
+        animal_identifier=animal_id_str,
+        breed=breed_str,
+        disease_name=payload.disease_name,
+        confidence=round(payload.confidence, 2),
+        severity=case_doc["severity"],
+        stage=case_doc["stage"],
+        prognosis=case_doc["prognosis"],
+        rationale=case_doc["rationale"],
+        spatial_correlation=case_doc["spatial_correlation"],
+        symptoms_image=case_doc["symptoms_image"],
+        cropped_image=case_doc["cropped_image"],
+        clinical_notes=case_doc["clinical_notes"],
+        llm_reasoning=case_doc["llm_reasoning"],
+        status=status_label,
+        verified=is_verified,
+        created_at=case_doc["created_at"],
+        verified_at=case_doc["verified_at"],
+        vet_id=case_doc["vet_id"],
+        vet_name=case_doc["vet_name"],
+        vet_license=case_doc["vet_license"],
+    )
+
+
+@router.get("/vet/cases", response_model=list[DiagnosticCaseResponse])
+async def list_diagnostic_cases(
+    cattle_id: Optional[str] = None,
+    farm_id: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """List diagnostic cases. Allows filtering by cattle or farm."""
+    query = {}
+    if cattle_id:
+        query["cattle_id"] = cattle_id
+    if farm_id:
+        query["farm_id"] = farm_id
+
+    cursor = diagnostic_cases_collection.find(query).sort("_id", -1).limit(100)
+    cases = []
+    async for doc in cursor:
+        cases.append(DiagnosticCaseResponse(
+            id=str(doc["_id"]),
+            case_number=doc.get("case_number", f"REC-2026-{str(doc['_id'])[-4:]}"),
+            cattle_id=doc.get("cattle_id"),
+            farm_id=doc.get("farm_id"),
+            farm_name=doc.get("farm_name"),
+            animal_identifier=doc.get("animal_identifier"),
+            breed=doc.get("breed"),
+            disease_name=doc.get("disease_name", "Undetermined"),
+            confidence=float(doc.get("confidence", 0.0)),
+            severity=doc.get("severity"),
+            stage=doc.get("stage"),
+            prognosis=doc.get("prognosis"),
+            rationale=doc.get("rationale"),
+            spatial_correlation=doc.get("spatial_correlation"),
+            symptoms_image=doc.get("symptoms_image"),
+            cropped_image=doc.get("cropped_image"),
+            clinical_notes=doc.get("clinical_notes"),
+            llm_reasoning=doc.get("llm_reasoning"),
+            status=doc.get("status", "Verified" if doc.get("verified") else "Pending Verification"),
+            verified=bool(doc.get("verified", False)),
+            created_at=doc.get("created_at", datetime.utcnow().strftime("%Y-%m-%d")),
+            verified_at=doc.get("verified_at"),
+            vet_id=doc.get("vet_id"),
+            vet_name=doc.get("vet_name"),
+            vet_license=doc.get("vet_license"),
+        ))
+    return cases
+
+
+@router.put("/vet/cases/{case_id}/verify", response_model=DiagnosticCaseResponse)
+@router.post("/vet/cases/{case_id}/verify", response_model=DiagnosticCaseResponse)
+async def verify_diagnostic_case(
+    case_id: str,
+    payload: Optional[DiagnosticCaseVerifyRequest] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """Verify and approve an AI diagnostic report."""
+    vet = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            vet_email = await get_current_user_email(authorization)
+            vet = await vets_collection.find_one({"email": vet_email})
+        except Exception:
+            pass
+
+    if not ObjectId.is_valid(case_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Case ID format.")
+
+    case_doc = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+    if not case_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case not found.")
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    update_data = {
+        "verified": True,
+        "status": "Verified",
+        "verified_at": now_str,
+    }
+    if vet:
+        update_data["vet_id"] = str(vet["_id"])
+        update_data["vet_name"] = vet.get("full_name")
+        update_data["vet_license"] = vet.get("license_number")
+
+    if payload:
+        if payload.clinical_notes:
+            update_data["clinical_notes"] = payload.clinical_notes
+        if payload.prescription:
+            update_data["prescription"] = payload.prescription
+
+    await diagnostic_cases_collection.update_one({"_id": ObjectId(case_id)}, {"$set": update_data})
+    updated_case = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+
+    # Also update cattle status if linked
+    if updated_case.get("cattle_id") and ObjectId.is_valid(updated_case["cattle_id"]):
+        cattle = await cattles_collection.find_one({"_id": ObjectId(updated_case["cattle_id"])})
+        if cattle:
+            disease_lower = updated_case.get("disease_name", "").lower()
+            is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
+            target_status = payload.health_status if (payload and payload.health_status) else ("Healthy" if is_healthy else "Alert")
+            await cattles_collection.update_one(
+                {"_id": cattle["_id"]},
+                {
+                    "$set": {
+                        "health_status": target_status,
+                        "status": target_status,
+                        "last_diagnosis": updated_case.get("disease_name"),
+                        "last_diagnosed_date": datetime.utcnow().strftime("%Y-%m-%d")
+                    }
+                }
+            )
+
+    return DiagnosticCaseResponse(
+        id=str(updated_case["_id"]),
+        case_number=updated_case.get("case_number", f"REC-2026-{case_id[-4:]}"),
+        cattle_id=updated_case.get("cattle_id"),
+        farm_id=updated_case.get("farm_id"),
+        farm_name=updated_case.get("farm_name"),
+        animal_identifier=updated_case.get("animal_identifier"),
+        breed=updated_case.get("breed"),
+        disease_name=updated_case.get("disease_name", "Undetermined"),
+        confidence=float(updated_case.get("confidence", 0.0)),
+        severity=updated_case.get("severity"),
+        stage=updated_case.get("stage"),
+        prognosis=updated_case.get("prognosis"),
+        rationale=updated_case.get("rationale"),
+        spatial_correlation=updated_case.get("spatial_correlation"),
+        symptoms_image=updated_case.get("symptoms_image"),
+        cropped_image=updated_case.get("cropped_image"),
+        clinical_notes=updated_case.get("clinical_notes"),
+        llm_reasoning=updated_case.get("llm_reasoning"),
+        status="Verified",
+        verified=True,
+        created_at=updated_case.get("created_at", now_str),
+        verified_at=updated_case.get("verified_at", now_str),
+        vet_id=updated_case.get("vet_id"),
+        vet_name=updated_case.get("vet_name"),
+        vet_license=updated_case.get("vet_license"),
+    )
+
 
 @router.post("/cattle", status_code=status.HTTP_201_CREATED)
 async def create_cattle(cattle_data: CattleCreate, authorization: Optional[str] = Header(None)):

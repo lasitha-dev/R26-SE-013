@@ -17,8 +17,18 @@ class ViTClassifier(ClassifierInterface):
     def __init__(self, model_path: str, image_size: int = 224, class_names: List[str] = None, display_names: Dict[str, str] = None):
         self.model_path = model_path
         self.image_size = image_size
-        self.class_names = class_names or []
-        self.display_names = display_names or {}
+        self.class_names = class_names if class_names is not None else [
+            "cattle",
+            "foot_and_mouth",
+            "lumpy_skin",
+            "mastitis",
+        ]
+        self.display_names = display_names if display_names is not None else {
+            "cattle": "Cattle (Healthy)",
+            "foot_and_mouth": "Foot and Mouth Disease",
+            "lumpy_skin": "Lumpy Skin Disease",
+            "mastitis": "Mastitis",
+        }
         self._model = None
         self._transform = None
         self._device = None

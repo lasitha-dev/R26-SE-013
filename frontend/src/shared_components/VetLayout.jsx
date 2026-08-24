@@ -43,7 +43,7 @@ export default function VetLayout() {
 
   const vetNavLinks = [
     { to: '/vet/dashboard', label: 'Clinical Overview', icon: 'health_and_safety' },
-    { to: '/vet/diagnostics', label: 'Smart Diagnostics', icon: 'psychology' },
+    { to: '/vet/assigned-farms', label: 'Smart Diagnostics', icon: 'psychology', matchPrefixes: ['/vet/assigned-farms', '/vet/farm', '/vet/diagnostics'] },
     { to: '/vet/geospatial', label: 'Geospatial Intelligence', icon: 'travel_explore' },
     { to: '/vet/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
   ]
@@ -112,7 +112,9 @@ export default function VetLayout() {
         {/* Navigation Items */}
         <nav className="flex-grow px-3 space-y-1 overflow-y-auto no-scrollbar">
           {vetNavLinks.map((link) => {
-            const isActive = pathname === link.to || (link.to !== '/vet/dashboard' && pathname.startsWith(link.to))
+            const isActive = link.matchPrefixes
+              ? link.matchPrefixes.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/') || pathname.startsWith(prefix + '?'))
+              : (pathname === link.to || (link.to !== '/vet/dashboard' && pathname.startsWith(link.to)))
             const cls = `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
               isActive
                 ? 'text-emerald-400 font-bold border-r-2 border-emerald-500 bg-emerald-500/10 shadow-glow-sm'
@@ -127,32 +129,10 @@ export default function VetLayout() {
               >
                 <span className="material-symbols-outlined text-[20px]">{link.icon}</span>
                 <span className="text-sm">{link.label}</span>
-                {link.to === '/vet/diagnostics' && (
-                  <span className="ml-auto px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-mono font-bold">
-                    AI
-                  </span>
-                )}
               </NavLink>
             )
           })}
         </nav>
-
-        {/* Quick Launch Diagnostics Banner */}
-        <div className="px-4 mb-4">
-          <NavLink
-            to="/vet/diagnostics"
-            onClick={() => setIsSidebarOpen(false)}
-            className="block p-3 rounded-xl bg-gradient-to-r from-emerald-500/15 to-primary-container/10 border border-primary/20 hover:border-primary/40 transition-all group text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-lg">auto_awesome</span>
-              <span className="text-xs font-bold text-on-surface">AI Diagnostics</span>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-tight">
-              CV image triage &amp; Mask R-CNN reasoning pipeline.
-            </p>
-          </NavLink>
-        </div>
 
         {/* Sidebar Footer */}
         <div className="px-4 pb-6 mt-auto border-t border-white/5 pt-4 space-y-1">
