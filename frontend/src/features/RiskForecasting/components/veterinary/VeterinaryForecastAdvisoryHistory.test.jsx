@@ -592,30 +592,51 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       expect(screen.queryByText(/TypeError/i)).not.toBeInTheDocument();
     });
     it('prevents stale old-district responses from overwriting current district state', async () => {
-      let resolveFirst;
-      const firstPromise = new Promise((resolve) => { resolveFirst = resolve; });
+      let resolveAnuradhapura;
+      const anuradhapuraPromise = new Promise((resolve) => {
+        resolveAnuradhapura = resolve;
+      });
 
-      workflowApi.listForecastRecords
-        .mockImplementationOnce(async () => {
-          await firstPromise;
-          return { total_count: 1, limit: 10, offset: 0, records: [{ ...mockForecastRecord, district: 'Anuradhapura' }] };
-        })
-        .mockImplementationOnce(async () => ({
-          total_count: 1,
-          limit: 10,
-          offset: 0,
-          records: [{ ...mockForecastRecord, district: 'Polonnaruwa' }],
-        }));
+      const anuRecord = {
+        ...mockForecastRecord,
+        forecast_id: 'fdr_anu_stale_999',
+        district: 'Anuradhapura',
+      };
+
+      const polRecord = {
+        ...mockForecastRecord,
+        forecast_id: 'fdr_pol_fresh_001',
+        district: 'Polonnaruwa',
+      };
+
+      workflowApi.listForecastRecords.mockImplementation(async (filters) => {
+        if (filters?.district === 'Anuradhapura') {
+          await anuradhapuraPromise;
+          return { total_count: 1, limit: 10, offset: 0, records: [anuRecord] };
+        }
+        if (filters?.district === 'Polonnaruwa') {
+          return { total_count: 1, limit: 10, offset: 0, records: [polRecord] };
+        }
+        throw new Error(`Unexpected district query in stale-response test: ${filters?.district}`);
+      });
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      const select = await screen.findByRole('combobox', { name: /Authorized District Filter/i });
+
+      const select = screen.getByRole('combobox', { name: /Authorized District Filter/i });
       fireEvent.change(select, { target: { value: 'Polonnaruwa' } });
 
-      resolveFirst();
+      expect(workflowApi.listForecastRecords).toHaveBeenCalledWith(
+        expect.objectContaining({ district: 'Polonnaruwa' })
+      );
+
+      resolveAnuradhapura();
 
       await waitFor(() => {
         expect(screen.getByRole('combobox', { name: /Authorized District Filter/i }).value).toBe('Polonnaruwa');
+        expect(screen.getByText(/fdr_pol_fresh_001/i)).toBeInTheDocument();
       });
+
+      expect(screen.queryByText(/fdr_anu_stale_999/i)).not.toBeInTheDocument();
     });
   });
 });
