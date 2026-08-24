@@ -213,8 +213,8 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
       disease: 'FMD',
       district: 'Anuradhapura',
-      target_year: 2026,
-      target_month: 9,
+      year: 2026,
+      month: 9,
       trigger_type: 'MANUAL',
       generated_by: 'vet_officer_01',
       idempotency_key: 'vet_officer_01_Anuradhapura_FMD_2026_9_overview_gen',
@@ -223,8 +223,8 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
       disease: 'LSD',
       district: 'Anuradhapura',
-      target_year: 2026,
-      target_month: 9,
+      year: 2026,
+      month: 9,
       trigger_type: 'MANUAL',
       generated_by: 'vet_officer_01',
       idempotency_key: 'vet_officer_01_Anuradhapura_LSD_2026_9_overview_gen',

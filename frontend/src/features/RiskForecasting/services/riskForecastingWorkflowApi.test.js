@@ -198,7 +198,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
   it('13. createForecastRecord sends POST /records with payload and optional Idempotency-Key header', async () => {
     mockFetchJsonResponse({ forecast_id: 'fdr_001' });
     await createForecastRecord(
-      { disease: 'FMD', district: 'Colombo' },
+      { disease: 'FMD', district: 'Colombo', year: 2024, month: 1 },
       { idempotencyKey: 'idemp_key_999' }
     );
 
@@ -207,6 +207,231 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
     expect(callUrl).toContain('/api/v1/risk-forecasting/records');
     expect(options.method).toBe('POST');
     expect(options.headers['Idempotency-Key']).toBe('idemp_key_999');
+  });
+
+  it('Phase 9B-1: createForecastRecord serializes canonical year and month and strips target_year and target_month from network payload', async () => {
+    mockFetchJsonResponse({ forecast_id: 'fdr_fmd_001', status: 'GENERATED' }, 201);
+
+    // Call with legacy target_year and target_month aliases
+    await createForecastRecord({
+      disease: 'FMD',
+      district: 'Anuradhapura',
+      target_year: 2024,
+      target_month: 1,
+      trigger_type: 'MANUAL',
+      generated_by: 'vet_officer_01',
+      idempotency_key: 'idemp_fmd_1',
+    });
+
+    const options = globalThis.fetch.mock.calls[0][1];
+    const parsedBody = JSON.parse(options.body);
+
+    expect(parsedBody.disease).toBe('FMD');
+    expect(parsedBody.district).toBe('Anuradhapura');
+    expect(parsedBody.year).toBe(2024);
+    expect(parsedBody.month).toBe(1);
+    expect(parsedBody.trigger_type).toBe('MANUAL');
+    expect(parsedBody.generated_by).toBe('vet_officer_01');
+    expect(parsedBody.idempotency_key).toBe('idemp_fmd_1');
+
+    // Strict assertions: target_year and target_month MUST NOT enter outgoing JSON
+    expect(parsedBody.target_year).toBeUndefined();
+    expect(parsedBody.target_month).toBeUndefined();
+    expect(Object.keys(parsedBody)).not.toContain('target_year');
+    expect(Object.keys(parsedBody)).not.toContain('target_month');
+  });
+
+  it('Phase 9B-1: createForecastRecord correctly serializes LSD payload with canonical year and month', async () => {
+    mockFetchJsonResponse({ forecast_id: 'fdr_lsd_002', status: 'GENERATED' }, 201);
+
+    await createForecastRecord({
+      disease: 'LSD',
+      district: 'Jaffna',
+      year: 2025,
+      month: 6,
+      trigger_type: 'MANUAL',
+      generated_by: 'vet_officer_02',
+    });
+
+    const options = globalThis.fetch.mock.calls[0][1];
+    const parsedBody = JSON.parse(options.body);
+
+    expect(parsedBody.disease).toBe('LSD');
+    expect(parsedBody.district).toBe('Jaffna');
+    expect(parsedBody.year).toBe(2025);
+    expect(parsedBody.month).toBe(6);
+    expect(parsedBody.trigger_type).toBe('MANUAL');
+    expect(parsedBody.generated_by).toBe('vet_officer_02');
+    expect(parsedBody.target_year).toBeUndefined();
+    expect(parsedBody.target_month).toBeUndefined();
+  });
+
+  it('Phase 9B-1D: createForecastRecord preserves supplied year and month values strictly without coercion', async () => {
+    mockFetchJsonResponse({ forecast_id: 'fdr_strict_003', status: 'GENERATED' }, 201);
+
+    await createForecastRecord({
+      disease: 'FMD',
+      district: 'Kandy',
+      target_year: 2024,
+      target_month: 1,
+      trigger_type: 'MANUAL',
+    });
+
+    const options = globalThis.fetch.mock.calls[0][1];
+    const parsedBody = JSON.parse(options.body);
+
+    expect(parsedBody.year).toBe(2024);
+    expect(parsedBody.month).toBe(1);
+    expect(parsedBody.target_year).toBeUndefined();
+    expect(parsedBody.target_month).toBeUndefined();
+  });
+
+  describe('Phase 9B-4: createForecastRecord Client Allowlist Hardening', () => {
+    it('A. Canonical FMD request serializes only approved keys', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_fmd_101', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'FMD',
+        district: 'Jaffna',
+        year: 2024,
+        month: 1,
+        model_variant: '30_feature_baseline',
+        trigger_type: 'MANUAL',
+        generated_by: 'vet_01',
+        idempotency_key: 'key_fmd_101',
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody).toEqual({
+        disease: 'FMD',
+        district: 'Jaffna',
+        year: 2024,
+        month: 1,
+        model_variant: '30_feature_baseline',
+        trigger_type: 'MANUAL',
+        generated_by: 'vet_01',
+        idempotency_key: 'key_fmd_101',
+      });
+    });
+
+    it('B. Canonical LSD request serializes only approved keys', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_lsd_102', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'LSD',
+        district: 'Polonnaruwa',
+        year: 2025,
+        month: 6,
+        trigger_type: 'MANUAL',
+        generated_by: 'vet_02',
+        idempotency_key: 'key_lsd_102',
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody).toEqual({
+        disease: 'LSD',
+        district: 'Polonnaruwa',
+        year: 2025,
+        month: 6,
+        trigger_type: 'MANUAL',
+        generated_by: 'vet_02',
+        idempotency_key: 'key_lsd_102',
+      });
+    });
+
+    it('C. Legacy target_year/target_month normalize to year/month without alias leakage', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_norm_103', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'FMD',
+        district: 'Kandy',
+        target_year: 2026,
+        target_month: 9,
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody.year).toBe(2026);
+      expect(parsedBody.month).toBe(9);
+      expect(Object.keys(parsedBody)).not.toContain('target_year');
+      expect(Object.keys(parsedBody)).not.toContain('target_month');
+    });
+
+    it('D. Numeric/string values are preserved without coercion', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_strict_104', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'FMD',
+        district: 'Colombo',
+        year: '2024',
+        month: '01',
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody.year).toBe('2024');
+      expect(parsedBody.month).toBe('01');
+    });
+
+    it('E. Ad-hoc scientific/output fields are stripped', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_strip_105', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'FMD',
+        district: 'Jaffna',
+        year: 2024,
+        month: 1,
+        probability: 0.85,
+        probability_pct: 85.0,
+        risk_level: 'High',
+        status: 'official_forecast',
+        notes: 'Ad-hoc note',
+        forecast_id: 'fdr_client_fake',
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody.probability).toBeUndefined();
+      expect(parsedBody.probability_pct).toBeUndefined();
+      expect(parsedBody.risk_level).toBeUndefined();
+      expect(parsedBody.status).toBeUndefined();
+      expect(parsedBody.notes).toBeUndefined();
+      expect(parsedBody.forecast_id).toBeUndefined();
+      expect(Object.keys(parsedBody)).toEqual(['disease', 'district', 'year', 'month']);
+    });
+
+    it('F. Unknown arbitrary fields are stripped', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_arb_106', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'LSD',
+        district: 'Matara',
+        year: 2024,
+        month: 5,
+        foo: 'bar',
+        unknownField: 123,
+        nestedObj: { a: 1 },
+      });
+      const parsedBody = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+      expect(parsedBody.foo).toBeUndefined();
+      expect(parsedBody.unknownField).toBeUndefined();
+      expect(parsedBody.nestedObj).toBeUndefined();
+      expect(Object.keys(parsedBody)).toEqual(['disease', 'district', 'year', 'month']);
+    });
+
+    it('G. camelCase idempotencyKey is normalized to idempotency_key in body and header', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_idemp_107', status: 'GENERATED' }, 201);
+      await createForecastRecord({
+        disease: 'FMD',
+        district: 'Galle',
+        year: 2024,
+        month: 2,
+        idempotencyKey: 'key_camel_107',
+      });
+      const options = globalThis.fetch.mock.calls[0][1];
+      const parsedBody = JSON.parse(options.body);
+      expect(parsedBody.idempotency_key).toBe('key_camel_107');
+      expect(parsedBody.idempotencyKey).toBeUndefined();
+      expect(options.headers['Idempotency-Key']).toBe('key_camel_107');
+    });
+
+    it('H. AbortSignal and other request options continue to work', async () => {
+      mockFetchJsonResponse({ forecast_id: 'fdr_signal_108', status: 'GENERATED' }, 201);
+      const controller = new AbortController();
+      await createForecastRecord(
+        { disease: 'FMD', district: 'Jaffna', year: 2024, month: 1 },
+        { signal: controller.signal, idempotencyKey: 'hdr_key_108' }
+      );
+      const options = globalThis.fetch.mock.calls[0][1];
+      expect(options.signal).toBe(controller.signal);
+      expect(options.headers['Idempotency-Key']).toBe('hdr_key_108');
+    });
   });
 
   it('14. getForecastRecord sends GET /records/{id}', async () => {

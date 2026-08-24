@@ -177,8 +177,8 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
       const record = await createForecastRecord({
         disease: diseaseCode,
         district: targetDistrictStr,
-        target_year: selectedYear,
-        target_month: selectedMonth,
+        year: selectedYear,
+        month: selectedMonth,
         trigger_type: 'MANUAL',
         generated_by: actorId,
         idempotency_key: idempotencyKey,

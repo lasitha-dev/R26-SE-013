@@ -448,8 +448,8 @@ describe('VeterinaryDistrictForecasts Component', () => {
       expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
         disease: 'FMD',
         district: 'Vavuniya',
-        target_year: 2024,
-        target_month: 1,
+        year: 2024,
+        month: 1,
         trigger_type: 'MANUAL',
         generated_by: 'usr_vet_district_002',
         idempotency_key: 'usr_vet_district_002_Vavuniya_FMD_2024_1_manual_save',
@@ -462,6 +462,68 @@ describe('VeterinaryDistrictForecasts Component', () => {
 
       expect(await screen.findByText('Official Record Saved')).toBeInTheDocument();
       expect(screen.getByText('ID: fdr_saved_001')).toBeInTheDocument();
+    });
+
+    it('Clicking LSD "Save as Official Forecast Record" submits disease: "LSD" and the target card district', async () => {
+      const demoApi = await import('../../services/demoForecastingApi.js');
+      vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
+        overallStatus: 'success',
+        fmd: {
+          status: 'success',
+          data: { disease: 'FMD', target_year: 2024, target_month: 1, districts: [] },
+          error: null,
+        },
+        lsd: {
+          status: 'success',
+          data: {
+            disease: 'LSD',
+            target_year: 2024,
+            target_month: 1,
+            districts: [{ district: 'Mannar', probability_pct: 35.0, risk_level: 'MEDIUM' }],
+          },
+          error: null,
+        },
+      });
+
+      workflowApi.createForecastRecord.mockResolvedValue({
+        forecast_id: 'fdr_lsd_saved_002',
+        disease: 'LSD',
+        district: 'Mannar',
+        year: 2024,
+        month: 1,
+        risk_level: 'MEDIUM',
+        status: 'GENERATED',
+      });
+
+      const mockAuthValue = {
+        isDemoEnabled: true,
+        isDemoAuthenticated: true,
+        viewerContext: validDistrictVetContext,
+      };
+
+      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
+
+      render(
+        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
+          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
+        </DemoForecastingAuthContext.Provider>
+      );
+
+      const saveBtns = await screen.findAllByRole('button', { name: /Save as Official Forecast Record/i });
+      fireEvent.click(saveBtns[0]); // First visible save button belongs to LSD section (since FMD districts array is empty)
+
+      expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
+        disease: 'LSD',
+        district: 'Mannar',
+        year: 2024,
+        month: 1,
+        trigger_type: 'MANUAL',
+        generated_by: 'usr_vet_district_002',
+        idempotency_key: 'usr_vet_district_002_Mannar_LSD_2024_1_manual_save',
+      });
+
+      expect(await screen.findByText('Official Record Saved')).toBeInTheDocument();
+      expect(screen.getByText('ID: fdr_lsd_saved_002')).toBeInTheDocument();
     });
 
     it('Handles save errors and clears stale save confirmations when input parameters change', async () => {

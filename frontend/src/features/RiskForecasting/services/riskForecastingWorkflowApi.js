@@ -255,11 +255,28 @@ async function requestWorkflowApi(path, options = {}) {
  * Creates and persists an immutable Forecast Decision Record.
  * POST /api/v1/risk-forecasting/records
  */
-export async function createForecastRecord(payload, options = {}) {
+export async function createForecastRecord(payload = {}, options = {}) {
   const idempotencyKey = options.idempotencyKey || payload?.idempotency_key || payload?.idempotencyKey;
+
+  const normalizedYear = payload.year ?? payload.target_year;
+  const normalizedMonth = payload.month ?? payload.target_month;
+
+  const body = {};
+
+  if (payload.disease !== undefined) body.disease = payload.disease;
+  if (payload.district !== undefined) body.district = payload.district;
+  if (normalizedYear !== undefined) body.year = normalizedYear;
+  if (normalizedMonth !== undefined) body.month = normalizedMonth;
+  if (payload.model_variant !== undefined) body.model_variant = payload.model_variant;
+  if (payload.trigger_type !== undefined) body.trigger_type = payload.trigger_type;
+  if (payload.generated_by !== undefined) body.generated_by = payload.generated_by;
+
+  const finalIdempotencyKey = payload.idempotency_key ?? payload.idempotencyKey;
+  if (finalIdempotencyKey !== undefined) body.idempotency_key = finalIdempotencyKey;
+
   return requestWorkflowApi('/api/v1/risk-forecasting/records', {
     method: 'POST',
-    body: payload,
+    body,
     signal: options.signal,
     idempotencyKey,
   });

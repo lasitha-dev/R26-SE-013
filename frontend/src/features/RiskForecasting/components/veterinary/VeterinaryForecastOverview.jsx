@@ -187,8 +187,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       createForecastRecord({
         disease: 'FMD',
         district: assignedDistrict,
-        target_year: targetYear,
-        target_month: targetMonth,
+        year: targetYear,
+        month: targetMonth,
         trigger_type: 'MANUAL',
         generated_by: actorId,
         idempotency_key: fmdKey,
@@ -196,8 +196,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       createForecastRecord({
         disease: 'LSD',
         district: assignedDistrict,
-        target_year: targetYear,
-        target_month: targetMonth,
+        year: targetYear,
+        month: targetMonth,
         trigger_type: 'MANUAL',
         generated_by: actorId,
         idempotency_key: lsdKey,
