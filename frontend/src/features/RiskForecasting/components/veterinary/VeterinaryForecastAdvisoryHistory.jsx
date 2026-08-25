@@ -49,6 +49,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
   const normalizedContext = validation.valid ? validation.normalizedContext : null;
   const role = normalizedContext?.role;
   const authorizedDistricts = normalizedContext?.authorization?.authorizedDistricts || [];
+  const authorizedDistrictsKey = authorizedDistricts.join('|');
 
   // Fail closed if context is invalid or role is not VETERINARY_OFFICER
   if (!validation.valid || role !== ROLES.VETERINARY_OFFICER || authorizedDistricts.length === 0) {
@@ -155,7 +156,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
         setLoadingForecasts(false);
       }
     }
-  }, [selectedDistrict, selectedDisease, targetYear, targetMonth, recordStatus, limit, offset, authorizedDistricts]);
+  }, [selectedDistrict, selectedDisease, targetYear, targetMonth, recordStatus, limit, offset, authorizedDistrictsKey]);
 
   useEffect(() => {
     fetchForecasts();

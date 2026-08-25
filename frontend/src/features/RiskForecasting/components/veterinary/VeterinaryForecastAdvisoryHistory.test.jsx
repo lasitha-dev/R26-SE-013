@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VeterinaryForecastAdvisoryHistory } from './VeterinaryForecastAdvisoryHistory';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 import * as workflowApi from '../../services/riskForecastingWorkflowApi';
@@ -255,19 +255,40 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
   // 2. Read-Only Guarantees
   describe('Read-Only Guarantees', () => {
     it('invokes no mutation API calls during mount or selection', async () => {
-      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      await screen.findByText(/FMD Alert Advisory/i);
+      const mutationMethodNames = [
+        'createForecastRecord',
+        'createAdvisoryDraft',
+        'updateAdvisoryDraft',
+        'markAdvisoryReadyForReview',
+        'approveAdvisory',
+        'cancelAdvisory',
+        'enqueueNotificationBatch',
+        'dispatchNotificationBatch',
+        'retryFailedNotificationDeliveries',
+        'cancelNotificationBatch',
+      ];
 
-      expect(workflowApi.createForecastRecord || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.createAdvisoryDraft || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.updateAdvisoryDraft || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.markAdvisoryReadyForReview || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.approveAdvisory || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.cancelAdvisory || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.enqueueNotificationBatch || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.dispatchNotificationBatch || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.retryFailedNotificationDeliveries || vi.fn()).not.toHaveBeenCalled();
-      expect(workflowApi.cancelNotificationBatch || vi.fn()).not.toHaveBeenCalled();
+      const mutationSpies = mutationMethodNames.map((methodName) =>
+        vi.spyOn(workflowApi, methodName)
+      );
+
+      try {
+        render(
+          <VeterinaryForecastAdvisoryHistory
+            viewerContext={validVetContext}
+          />
+        );
+
+        await screen.findByText(/FMD Alert Advisory/i);
+
+        mutationSpies.forEach((spy) => {
+          expect(spy).not.toHaveBeenCalled();
+        });
+      } finally {
+        mutationSpies.forEach((spy) => {
+          spy.mockRestore();
+        });
+      }
     });
 
     it('renders no edit, approve, cancel, create, dispatch, or retry buttons', async () => {
@@ -372,8 +393,12 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
 
     it('displays target period clearly distinct from generated timestamp', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      expect(await screen.findByText(/May 2024/i)).toBeInTheDocument();
-      expect(screen.getByText(/5\/1\/2024/i)).toBeInTheDocument();
+      expect(await screen.findByText('May 2024')).toBeInTheDocument();
+      const expectedGeneratedTimestamp =
+        new Date(mockForecastRecord.generated_at).toLocaleString();
+      expect(
+        screen.getByText(`Gen: ${expectedGeneratedTimestamp}`)
+      ).toBeInTheDocument();
     });
 
     it('displays scientific disclaimer and forecast-not-diagnosis guardrail', async () => {
@@ -402,7 +427,33 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       }));
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      expect(await screen.findByText(/No advisory created for this forecast/i)).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(workflowApi.listAdvisories).toHaveBeenCalledWith(
+          expect.objectContaining({
+            forecast_id: 'fdr_anu_001',
+          })
+        );
+      });
+
+      const advisoryHeading = screen.getByRole('heading', {
+        name: /Linked Advisory History/i,
+      });
+      const advisorySection = advisoryHeading.closest('.rounded-xl');
+
+      expect(advisorySection).not.toBeNull();
+
+      await waitFor(() => {
+        expect(
+          within(advisorySection).queryByText(/Loading advisories\.\.\./i)
+        ).not.toBeInTheDocument();
+
+        expect(
+          within(advisorySection).getByText(
+            /No advisory created for this forecast/i
+          )
+        ).toBeInTheDocument();
+      });
     });
 
     it('displays stored standard_message and vet_custom_note snapshot', async () => {
@@ -414,8 +465,10 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
     it('displays recipient scope and counts', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       await screen.findByText(/FMD Alert Advisory/i);
-      expect(screen.getByText(/ALL_ASSIGNED/i)).toBeInTheDocument();
-      expect(screen.getByText(/10/i)).toBeInTheDocument();
+      const scopeValue = screen.getByText('ALL_ASSIGNED');
+      const recipientMetadata = scopeValue.parentElement?.parentElement;
+      expect(recipientMetadata).not.toBeNull();
+      expect(within(recipientMetadata).getByText('10')).toBeInTheDocument();
     });
 
     it('displays APPROVED frozen status badge', async () => {
@@ -433,7 +486,31 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       }));
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      expect(await screen.findByText(/CANCELLED/i)).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(workflowApi.listAdvisories).toHaveBeenCalledWith(
+          expect.objectContaining({
+            forecast_id: 'fdr_anu_001',
+          })
+        );
+      });
+
+      const advisoryHeading = screen.getByRole('heading', {
+        name: /Linked Advisory History/i,
+      });
+      const advisorySection = advisoryHeading.closest('.rounded-xl');
+
+      expect(advisorySection).not.toBeNull();
+
+      await waitFor(() => {
+        expect(
+          within(advisorySection).queryByText(/Loading advisories\.\.\./i)
+        ).not.toBeInTheDocument();
+
+        expect(
+          within(advisorySection).getByText('CANCELLED')
+        ).toBeInTheDocument();
+      });
     });
   });
 
@@ -441,20 +518,26 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
   describe('Simulated Delivery History', () => {
     it('displays all six batch count summaries (total, pending, processing, succeeded, failed, cancelled)', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      await screen.findByText(/Batch ID: batch_anu_001/i);
-      expect(screen.getByText(/Total/i)).toBeInTheDocument();
-      expect(screen.getByText(/Pending/i)).toBeInTheDocument();
-      expect(screen.getByText(/Processing/i)).toBeInTheDocument();
-      expect(screen.getByText(/Simulated Success/i)).toBeInTheDocument();
-      expect(screen.getByText(/Failed/i)).toBeInTheDocument();
-      expect(screen.getByText(/Cancelled/i)).toBeInTheDocument();
+      const batchCard = (
+        await screen.findByText(/Batch ID: batch_anu_001/i)
+      ).closest('.rounded-lg');
+
+      expect(batchCard).not.toBeNull();
+      expect(within(batchCard).getByText('Total')).toBeInTheDocument();
+      expect(within(batchCard).getByText('Pending')).toBeInTheDocument();
+      expect(within(batchCard).getByText('Processing')).toBeInTheDocument();
+      expect(within(batchCard).getByText('Simulated Success')).toBeInTheDocument();
+      expect(within(batchCard).getByText('Failed')).toBeInTheDocument();
+      expect(within(batchCard).getByText('Cancelled')).toBeInTheDocument();
     });
 
     it('displays recipient delivery items with provider reference and attempt count', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       expect(await screen.findByText(/DEMO_FARM_001/i)).toBeInTheDocument();
       expect(screen.getByText(/MOCK_REF_001/i)).toBeInTheDocument();
-      expect(screen.getByText(/1/i)).toBeInTheDocument();
+      const deliveryRow = screen.getByText('DEMO_FARM_001').closest('tr');
+      expect(deliveryRow).not.toBeNull();
+      expect(within(deliveryRow).getByText('1')).toBeInTheDocument();
     });
 
     it('displays mandatory standalone simulation disclaimer', async () => {
@@ -520,7 +603,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       expect(
-        await screen.findByText(/A system error occurred while retrieving historical records/i)
+        await screen.findByText(/Failed to retrieve forecast decision records\./i)
       ).toBeInTheDocument();
     });
 
@@ -531,7 +614,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       expect(
-        await screen.findByText(/A system error occurred while retrieving historical records/i)
+        await screen.findByText(/Failed to retrieve forecast decision records\./i)
       ).toBeInTheDocument();
       expect(screen.queryByText(/TypeError/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/C:\\Users\\/i)).not.toBeInTheDocument();
@@ -547,7 +630,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       expect(
-        await screen.findByText(/A system error occurred while retrieving historical records/i)
+        await screen.findByText(/Failed to retrieve forecast decision records\./i)
       ).toBeInTheDocument();
       expect(screen.queryByText(/DO_NOT_EXPOSE/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/token=/i)).not.toBeInTheDocument();
@@ -565,7 +648,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
       expect(
-        await screen.findByText(/A system error occurred while retrieving historical records/i)
+        await screen.findByText(/Failed to retrieve forecast decision records\./i)
       ).toBeInTheDocument();
       expect(screen.queryByText(/\/home\//i)).not.toBeInTheDocument();
       expect(screen.queryByText(/loadHistory/i)).not.toBeInTheDocument();
@@ -637,6 +720,49 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       });
 
       expect(screen.queryByText(/fdr_anu_stale_999/i)).not.toBeInTheDocument();
+    });
+
+    it('manages loading status indicator lifecycle during asynchronous record fetch', async () => {
+      let resolveForecastFetch;
+      const forecastFetchPromise = new Promise((resolve) => {
+        resolveForecastFetch = resolve;
+      });
+
+      const deferredRecord = {
+        ...mockForecastRecord,
+        forecast_id: 'fdr_anu_lifecycle_001',
+        district: 'Anuradhapura',
+      };
+
+      workflowApi.listForecastRecords.mockImplementationOnce(async () => {
+        await forecastFetchPromise;
+        return { total_count: 1, limit: 10, offset: 0, records: [deferredRecord] };
+      });
+
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+
+      expect(await screen.findByRole('status')).toBeInTheDocument();
+      expect(screen.getByText(/Loading\.\.\./i)).toBeInTheDocument();
+
+      resolveForecastFetch();
+
+      await waitFor(() => {
+        expect(screen.getByText(/fdr_anu_lifecycle_001/i)).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Loading\.\.\./i)).not.toBeInTheDocument();
+      });
+    });
+
+    it('proves state updates do not trigger an infinite fetch loop (bounded request count)', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/fdr_anu_001/i)).toBeInTheDocument();
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(workflowApi.listForecastRecords).toHaveBeenCalledTimes(1);
     });
   });
 });
