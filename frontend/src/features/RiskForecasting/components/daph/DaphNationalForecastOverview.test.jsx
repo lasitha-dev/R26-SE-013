@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { DaphNationalForecastOverview } from './DaphNationalForecastOverview';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 import * as api from '../../services/riskForecastingWorkflowApi';
@@ -169,6 +169,21 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(screen.getAllByText(/Anuradhapura/i)[0]).toBeInTheDocument();
       }, { timeout: 4000 });
     });
+  });
+
+  it('renders the empty-state icon as find_in_page and not dataset_with_doubt', async () => {
+    api.listForecastDistricts.mockResolvedValue(mockDistrictsData);
+    api.listForecastRecords.mockResolvedValue({ total: 0, records: [] });
+    api.listAdvisories.mockResolvedValue({ total: 0, advisories: [] });
+    api.listNotificationBatches.mockResolvedValue({ total: 0, batches: [] });
+
+    render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+    const emptyStateText = await screen.findByText(/No official forecast records found for selected criteria/i);
+    const emptyStateContainer = emptyStateText.parentElement;
+
+    expect(within(emptyStateContainer).getByText('find_in_page')).toBeInTheDocument();
+    expect(within(emptyStateContainer).queryByText('dataset_with_doubt')).not.toBeInTheDocument();
   });
 
   // 2. Data Fetching & API Interoperability

@@ -357,7 +357,7 @@ export function ModelTransparency({ viewerContext }) {
       >
         <div className="flex items-center gap-2 text-on-surface font-semibold text-sm">
           <span className="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">
-            biomedical
+            health_and_safety
           </span>
           <h2 id="model-transparency-boundaries-heading">Scientific Interpretation Boundaries</h2>
         </div>

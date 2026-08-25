@@ -796,7 +796,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           </div>
         ) : (allRecords.length === 0 || paginatedRows.length === 0) ? (
           <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-3xl text-slate-500">dataset_with_doubt</span>
+            <span className="material-symbols-outlined text-3xl text-slate-500">find_in_page</span>
             <span className="text-sm font-medium text-slate-300">No official forecast records found for selected criteria.</span>
             <p className="text-xs text-slate-500 max-w-md mt-1">
               Auto-generation of predictions is prohibited in the DAPH oversight workspace. Predictions must originate from authorized backend runs.

@@ -470,7 +470,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
       >
         <div className="flex items-center gap-2 text-on-surface font-semibold text-sm">
           <span className="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">
-            biomedical
+            health_and_safety
           </span>
           <h2 id="daph-scientific-boundaries-heading">Scientific &amp; Epidemiological Boundaries</h2>
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VeterinaryDistrictForecasts } from './VeterinaryDistrictForecasts';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 import * as workflowApi from '../../services/riskForecastingWorkflowApi';
@@ -204,6 +204,19 @@ describe('VeterinaryDistrictForecasts Component', () => {
       ).toBeInTheDocument();
     });
 
+    it('renders the scientific boundaries section with health_and_safety and no biomedical identifier', () => {
+      render(<VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />);
+
+      const boundariesHeading = screen.getByRole('heading', {
+        name: /Scientific & Diagnostic Guardrails/i,
+        level: 2,
+      });
+      const boundariesSection = boundariesHeading.closest('section');
+
+      expect(within(boundariesSection).getByText('health_and_safety')).toBeInTheDocument();
+      expect(within(boundariesSection).queryByText('biomedical')).not.toBeInTheDocument();
+    });
+
     it('does NOT render farm-level risk language, AI Diagnosis CTAs, or technical Stage 2 outputs', () => {
       render(<VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />);
 
@@ -349,7 +362,13 @@ describe('VeterinaryDistrictForecasts Component', () => {
       expect(options).not.toContain('Colombo');
 
       await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(screen.getByText('Foot-and-Mouth Disease (FMD) District Forecasts')).toBeInTheDocument());
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'Foot-and-Mouth Disease (FMD) District Forecasts'
+          )
+        ).toBeInTheDocument()
+      );
 
       // Verify FMD and LSD sections render separately
       expect(screen.getByText('Lumpy Skin Disease (LSD) District Forecasts')).toBeInTheDocument();

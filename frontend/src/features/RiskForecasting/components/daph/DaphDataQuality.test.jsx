@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { DaphDataQuality } from './DaphDataQuality';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 
@@ -216,6 +216,19 @@ describe('DaphDataQuality Component', () => {
       expect(screen.queryByLabelText(/select district/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/select scope/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/select role/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the scientific boundaries section with health_and_safety and no biomedical identifier', () => {
+      render(<DaphDataQuality viewerContext={validDistrictDaphContext} />);
+
+      const boundariesHeading = screen.getByRole('heading', {
+        name: /Scientific Interpretation Boundaries/i,
+        level: 2,
+      });
+      const boundariesSection = boundariesHeading.closest('section');
+
+      expect(within(boundariesSection).getByText('health_and_safety')).toBeInTheDocument();
+      expect(within(boundariesSection).queryByText('biomedical')).not.toBeInTheDocument();
     });
   });
 

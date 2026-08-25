@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { ModelTransparency } from './ModelTransparency';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 
@@ -196,6 +196,19 @@ describe('ModelTransparency Component', () => {
           /Backend responses define transparency and uncertainty fields, but live model output has not been requested for this session/i
         )
       ).toBeInTheDocument();
+    });
+
+    it('renders the scientific boundaries section with health_and_safety and no biomedical identifier', () => {
+      render(<ModelTransparency viewerContext={validDaphContext} />);
+
+      const boundariesHeading = screen.getByRole('heading', {
+        name: /Scientific Interpretation Boundaries/i,
+        level: 2,
+      });
+      const boundariesSection = boundariesHeading.closest('section');
+
+      expect(within(boundariesSection).getByText('health_and_safety')).toBeInTheDocument();
+      expect(within(boundariesSection).queryByText('biomedical')).not.toBeInTheDocument();
     });
 
     it('uses role="status" and aria-live="polite" for the notice', () => {

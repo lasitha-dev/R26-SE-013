@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { DaphDistrictForecasts } from './DaphDistrictForecasts';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 
@@ -130,6 +130,19 @@ describe('DaphDistrictForecasts Component', () => {
       render(<DaphDistrictForecasts viewerContext={emptyNationalDaph} />);
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
+  });
+
+  it('renders the scientific boundaries section with health_and_safety and no biomedical identifier', () => {
+    render(<DaphDistrictForecasts viewerContext={validDistrictDaphContext} />);
+
+    const boundariesHeading = screen.getByRole('heading', {
+      name: /Scientific & Epidemiological Boundaries/i,
+      level: 2,
+    });
+    const boundariesSection = boundariesHeading.closest('section');
+
+    expect(within(boundariesSection).getByText('health_and_safety')).toBeInTheDocument();
+    expect(within(boundariesSection).queryByText('biomedical')).not.toBeInTheDocument();
   });
 
   // 2. Authorized Scope & Workspace Display

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VeterinaryForecastOverview, getNextTargetPeriod, getLatestRecord } from './VeterinaryForecastOverview';
 import * as workflowApi from '../../services/riskForecastingWorkflowApi';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
@@ -121,6 +121,24 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(screen.getByText('LOW RISK')).toBeInTheDocument();
     expect(screen.getByText('Proxy / Historical Input Data Applied')).toBeInTheDocument();
     expect(screen.getByText(/Forecast decision records are immutable statistical early-warning estimates/i)).toBeInTheDocument();
+  });
+
+  it('renders the overview disclaimer section with health_and_safety and no biomedical identifier', async () => {
+    workflowApi.listForecastRecords.mockImplementation(({ disease }) => {
+      if (disease === 'FMD') return Promise.resolve({ total_count: 0, limit: 50, offset: 0, records: [] });
+      return Promise.resolve({ total_count: 0, limit: 50, offset: 0, records: [] });
+    });
+
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+    const disclaimerHeading = await screen.findByRole('heading', {
+      name: /Epidemiological & Diagnostic Guardrails/i,
+      level: 2,
+    });
+    const disclaimerSection = disclaimerHeading.closest('section');
+
+    expect(within(disclaimerSection).getByText('health_and_safety')).toBeInTheDocument();
+    expect(within(disclaimerSection).queryByText('biomedical')).not.toBeInTheDocument();
   });
 
   it('Empty state shows clear message and does not display 0%, LOW, or invented scientific values', async () => {

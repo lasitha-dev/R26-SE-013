@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 /**
  * Reusable role-aware sub-navigation bar for Risk Forecasting.
@@ -18,6 +18,20 @@ export function ForecastingSubNavigation({
   onSelect = () => {},
   ariaLabel = 'Risk Forecasting sub-navigation',
 }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !activeItem) return;
+    const activeButton = containerRef.current.querySelector('[aria-current="page"]');
+    if (typeof activeButton?.scrollIntoView === 'function') {
+      activeButton.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'nearest',
+        block: 'nearest',
+      });
+    }
+  }, [activeItem]);
+
   if (!Array.isArray(items) || items.length === 0) {
     return null;
   }
@@ -27,7 +41,7 @@ export function ForecastingSubNavigation({
       aria-label={ariaLabel}
       className="w-full bg-surface-container-low/90 backdrop-blur-md border-b border-outline-variant/30 px-4 sm:px-6 py-2.5"
     >
-      <div className="relative flex items-center gap-2 overflow-x-auto scrollbar-none scroll-smooth motion-reduce:scroll-auto py-0.5">
+      <div ref={containerRef} className="relative flex items-center gap-2 overflow-x-auto scrollbar-none scroll-smooth motion-reduce:scroll-auto py-0.5">
         {items.map((item) => {
           const isActive = item.id === activeItem;
           return (

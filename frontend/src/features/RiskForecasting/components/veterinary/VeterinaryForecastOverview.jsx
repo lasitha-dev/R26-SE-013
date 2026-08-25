@@ -503,7 +503,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       >
         <div className="flex items-center gap-2 text-on-surface font-semibold text-sm">
           <span className="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">
-            biomedical
+            health_and_safety
           </span>
           <h2 id="overview-disclaimer-heading">Epidemiological &amp; Diagnostic Guardrails</h2>
         </div>
