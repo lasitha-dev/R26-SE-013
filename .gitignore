@@ -12,3 +12,10 @@ backend/components/risk_forecasting/model/scratch_audit_issue8.py
 # Design mockups & exports
 frontend/public/design/
 design.png
+
+# Internal Disease Forecasting research evidence
+docs/dossier/
+
+# Generated dossier ZIP archives
+docs/dossier*.zip
+
