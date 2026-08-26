@@ -7,33 +7,40 @@ district filtering, error validation, shared directory consistency, and frontend
 
 from typing import List, Optional
 import unittest
+import sys
+from pathlib import Path
+
+backend_root = str(Path(__file__).resolve().parents[3])
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
+
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.integrations.recipient_directory import (
+from components.risk_forecasting.integrations.recipient_directory import (
     InMemoryRecipientDirectory,
     Recipient,
     RecipientDirectory,
     recipient_directory,
 )
-from backend.components.risk_forecasting.repositories.advisory_repository import (
+from components.risk_forecasting.repositories.advisory_repository import (
     InMemoryAdvisoryRepository,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     AssignedRecipientListResponse,
     CreateAdvisoryDraftRequest,
     GenerateForecastRecordRequest,
 )
-from backend.components.risk_forecasting.services.advisory_service import (
+from components.risk_forecasting.services.advisory_service import (
     advisory_service,
 )
-from backend.components.risk_forecasting.services.forecast_record_service import (
+from components.risk_forecasting.services.forecast_record_service import (
     forecast_record_service,
 )
-from backend.components.risk_forecasting.services.recipient_query_service import (
+from components.risk_forecasting.services.recipient_query_service import (
     RecipientQueryService,
     recipient_query_service,
 )
-from backend.main import app
+from main import app
 
 client = TestClient(app)
 
@@ -167,7 +174,7 @@ class TestRecipientQuery(unittest.TestCase):
 
     def test_14_no_notification_outbox_changes(self):
         """14. Notification outbox state is un-impacted by recipient query operations."""
-        from backend.components.risk_forecasting.services.notification_service import notification_service
+        from components.risk_forecasting.services.notification_service import notification_service
         batches_before, _ = notification_service.outbox_repo.list_batches()
         count_before = len(batches_before)
         client.get("/api/v1/risk-forecasting/recipients?vet_id=vet_officer_01")
