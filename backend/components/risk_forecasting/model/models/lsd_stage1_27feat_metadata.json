@@ -1,0 +1,118 @@
+{
+  "model_variant": "27_feature_fallback",
+  "disease": "LSD",
+  "stage": 1,
+  "feature_count": 27,
+  "feature_cols": [
+    "sin_month",
+    "cos_month",
+    "monsoon_phase_First_Inter_Monsoon",
+    "monsoon_phase_SW_Monsoon",
+    "monsoon_phase_Second_Inter_Monsoon",
+    "monsoon_phase_NE_Monsoon",
+    "rainfall_mm",
+    "r3h",
+    "rfq",
+    "rain_lag1",
+    "rain_lag2",
+    "rfq_lag1",
+    "humidity",
+    "wind_speed",
+    "temp_lag1",
+    "humidity_lag1",
+    "wind_lag1",
+    "buffalo_density",
+    "livestock_density",
+    "nino34",
+    "nino34_lag3",
+    "iod_dmi",
+    "iod_dmi_lag2",
+    "neighbor_outbreak_lag1",
+    "neighbor_outbreak_count_lag1",
+    "neighbor_outbreak_fraction_lag1",
+    "neighbor_outbreak_lag2"
+  ],
+  "dataset_source": "LSD_dataset_with_spatial_and_climate_indices.csv",
+  "training_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "training_timestamp": "2026-08-18T14:29:09.255386",
+  "model_family": "CalibratedClassifierCV (Platt Scaling) wrapping ElasticNet LogisticRegression",
+  "selected_hyperparameters": {
+    "C": 0.01,
+    "l1_ratio": 0.5,
+    "class_weight": "balanced",
+    "solver": "saga",
+    "random_state": 42
+  },
+  "operating_threshold": 0.4,
+  "validation_metrics": {
+    "overall_roc_auc": 0.5176644168890284,
+    "overall_pr_auc": 0.17144226597001241,
+    "overall_brier_score": 0.07185835404646948,
+    "overall_ece_score": 0.05111031727632125,
+    "active_outbreak_years_roc_auc": 0.5781094054465092,
+    "active_outbreak_years_pr_auc": 0.2299223256933013,
+    "active_outbreak_years_brier_score": 0.10370988207389861,
+    "active_outbreak_years_ece_score": 0.06832589490928005,
+    "metrics_at_t_040": {
+      "confusion_matrix": {
+        "TN": 1362,
+        "FP": 23,
+        "FN": 97,
+        "TP": 18
+      },
+      "precision": 0.43902439024390244,
+      "recall": 0.1565217391304348,
+      "f1_score": 0.23076923076923078,
+      "false_negative_rate": 0.8434782608695652
+    },
+    "recommended_threshold_f1_max": 0.35,
+    "per_year_breakdown": {
+      "2020": {
+        "total_samples": 300,
+        "positive_cases": 25,
+        "roc_auc": 0.7015272727272728,
+        "pr_auc": 0.335898864811232,
+        "brier_score": 0.06366148901043125,
+        "ece_score": 0.028858539945968476
+      },
+      "2021": {
+        "total_samples": 300,
+        "positive_cases": 16,
+        "roc_auc": 0.8527728873239437,
+        "pr_auc": 0.5057398178897217,
+        "brier_score": 0.05186974198593545,
+        "ece_score": 0.10880824380366211
+      },
+      "2022": {
+        "total_samples": 300,
+        "positive_cases": 4,
+        "roc_auc": 0.45692567567567566,
+        "pr_auc": 0.011445174928957984,
+        "brier_score": 0.029347641814356163,
+        "ece_score": 0.11331690381472381
+      },
+      "2023": {
+        "total_samples": 300,
+        "positive_cases": 65,
+        "roc_auc": 0.6145990180032733,
+        "pr_auc": 0.3007211889950298,
+        "brier_score": 0.19559841522532914,
+        "ece_score": 0.17130955720218463
+      },
+      "2024": {
+        "total_samples": 300,
+        "positive_cases": 5,
+        "roc_auc": 0.41152542372881357,
+        "pr_auc": 0.013560891053300043,
+        "brier_score": 0.01881448219629536,
+        "ece_score": 0.03677950716796815
+      }
+    }
+  }
+}
