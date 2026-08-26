@@ -13,7 +13,7 @@ querying the central Ministry of Agriculture / DAPH HR and IAM User Directory AP
 
 from typing import List, Optional, Protocol
 from pydantic import BaseModel, Field
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS
 
 
 class VeterinaryOfficerSummary(BaseModel):

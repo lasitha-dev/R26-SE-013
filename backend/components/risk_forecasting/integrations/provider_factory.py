@@ -7,12 +7,12 @@ and shared-data API client integration via FORECAST_DATA_PROVIDER env variable.
 
 import os
 from typing import Optional
-from backend.components.risk_forecasting.integrations.forecast_data_provider import (
+from components.risk_forecasting.integrations.forecast_data_provider import (
     ForecastDataProvider,
     CsvForecastDataProvider,
     SharedApiForecastDataProvider,
 )
-from backend.components.risk_forecasting.integrations.shared_forecast_client import (
+from components.risk_forecasting.integrations.shared_forecast_client import (
     SharedForecastDataClient,
 )
 

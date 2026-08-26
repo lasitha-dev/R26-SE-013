@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
-from backend.components.risk_forecasting.config import (
+from components.risk_forecasting.config import (
     FMD_DATASET_FILE,
     LSD_DATASET_FILE,
     MONTH_NAMES,
