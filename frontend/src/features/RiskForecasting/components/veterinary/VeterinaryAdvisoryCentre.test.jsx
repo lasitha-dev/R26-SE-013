@@ -671,4 +671,142 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(screen.getByText(/Advisory CANCELLED/i)).toBeInTheDocument();
     });
   });
+
+  // 6. Notify Assigned Farmers Action
+  describe('Notify Assigned Farmers Action', () => {
+    it('shows action only to VETERINARY_OFFICER at APPROVED lifecycle and calls forwardToAssignedFarmers', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: mockForecastRecords });
+      workflowApi.listAssignedRecipients.mockResolvedValue({ recipients: mockRecipients });
+      workflowApi.createAdvisoryDraft.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'DRAFT',
+        version: 1,
+      });
+      workflowApi.approveAdvisory.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'APPROVED',
+        version: 2,
+      });
+      workflowApi.forwardToAssignedFarmers = vi.fn().mockResolvedValue({
+        notified_count: 5,
+        already_notified_count: 0
+      });
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+
+      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      fireEvent.click(forecastCard);
+
+      const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
+      fireEvent.click(continueBtn);
+
+      const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
+      fireEvent.click(saveBtn);
+
+      // Verify "Notify Assigned Farmers" is absent before approval
+      expect(screen.queryByRole('button', { name: /Notify Assigned Farmers/i })).not.toBeInTheDocument();
+
+      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      fireEvent.click(approveBtn);
+
+      const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
+      fireEvent.click(step4Tab);
+
+      const notifyBtn = await screen.findByRole('button', { name: /Notify Assigned Farmers/i });
+      fireEvent.click(notifyBtn);
+
+      await waitFor(() => {
+        expect(workflowApi.forwardToAssignedFarmers).toHaveBeenCalledWith('adv_created_123', expect.anything());
+        // Verify no extra ids sent
+        expect(workflowApi.forwardToAssignedFarmers).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ farmId: expect.anything() }));
+      });
+
+      expect(screen.getByText(/Success: 5 notified/i)).toBeInTheDocument();
+    });
+
+    it('handles zero assigned farms successfully', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: mockForecastRecords });
+      workflowApi.listAssignedRecipients.mockResolvedValue({ recipients: mockRecipients });
+      workflowApi.createAdvisoryDraft.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'DRAFT',
+        version: 1,
+      });
+      workflowApi.approveAdvisory.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'APPROVED',
+        version: 2,
+      });
+      workflowApi.forwardToAssignedFarmers = vi.fn().mockResolvedValue({
+        notified_count: 0,
+        already_notified_count: 0
+      });
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+
+      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      fireEvent.click(forecastCard);
+
+      const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
+      fireEvent.click(continueBtn);
+
+      const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
+      fireEvent.click(saveBtn);
+
+      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      fireEvent.click(approveBtn);
+
+      const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
+      fireEvent.click(step4Tab);
+
+      const notifyBtn = await screen.findByRole('button', { name: /Notify Assigned Farmers/i });
+      fireEvent.click(notifyBtn);
+
+      expect(await screen.findByText(/Success: 0 notified/i)).toBeInTheDocument();
+    });
+
+    it('handles error in forwarding gracefully', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: mockForecastRecords });
+      workflowApi.listAssignedRecipients.mockResolvedValue({ recipients: mockRecipients });
+      workflowApi.createAdvisoryDraft.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'DRAFT',
+        version: 1,
+      });
+      workflowApi.approveAdvisory.mockResolvedValue({
+        advisory_id: 'adv_created_123',
+        forecast_id: 'fdr_newest_02',
+        status: 'APPROVED',
+        version: 2,
+      });
+      workflowApi.forwardToAssignedFarmers = vi.fn().mockRejectedValue(new Error('Network error or 403'));
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+
+      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      fireEvent.click(forecastCard);
+
+      const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
+      fireEvent.click(continueBtn);
+
+      const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
+      fireEvent.click(saveBtn);
+
+      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      fireEvent.click(approveBtn);
+
+      const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
+      fireEvent.click(step4Tab);
+
+      const notifyBtn = await screen.findByRole('button', { name: /Notify Assigned Farmers/i });
+      fireEvent.click(notifyBtn);
+
+      expect(await screen.findByText(/Network error or 403/i)).toBeInTheDocument();
+    });
+  });
 });

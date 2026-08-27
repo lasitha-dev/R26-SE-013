@@ -9,8 +9,9 @@ export default function NotificationsCenter() {
 
   useEffect(() => {
     const fetchCattle = async () => {
+      const token = localStorage.getItem('token')
+
       try {
-        const token = localStorage.getItem('token')
         const response = await fetch('http://127.0.0.1:8000/api/cattle', {
           headers: {
             Authorization: token ? `Bearer ${token}` : ''
@@ -20,7 +21,11 @@ export default function NotificationsCenter() {
           const data = await response.json()
           setCattleList(data || [])
         }
-        
+      } catch (err) {
+        console.error('Error loading cattle notifications:', err)
+      }
+
+      try {
         // Fetch Forecasting Notifications
         const forecastRes = await fetch('/api/v1/risk-forecasting/notifications', {
           headers: {
@@ -32,10 +37,10 @@ export default function NotificationsCenter() {
           setForecastNotifications(forecastData || [])
         }
       } catch (err) {
-        console.error('Error loading notifications:', err)
-      } finally {
-        setLoading(false)
+        console.error('Error loading forecasting notifications:', err)
       }
+
+      setLoading(false)
     }
     fetchCattle()
   }, [])
@@ -131,7 +136,6 @@ export default function NotificationsCenter() {
                     <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
                       {n.message}
                     </p>
-                  </div>
                   </div>
                 </div>
               </div>

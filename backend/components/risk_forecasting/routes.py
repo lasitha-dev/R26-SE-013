@@ -618,7 +618,7 @@ def list_batch_deliveries(
     response_model=NotificationBatch,
     summary="Dispatch Pending Deliveries for Notification Batch"
 )
-async def dispatch_notification_batch(batch_id: str):
+def dispatch_notification_batch(batch_id: str):
     """
     Explicitly dispatches all PENDING delivery items in a batch through the mock provider.
     Updates delivery items to SUCCEEDED or FAILED and recalculates batch status.
@@ -1112,8 +1112,14 @@ async def list_farmer_notifications(
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         email = payload.get("sub")
+        role = payload.get("role")
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+
+    if role == "vet" or role == "daph":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Role forbidden.")
+    if role and role != "farmer":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Role forbidden.")
         
     farm = await farms_collection.find_one({"email": email})
     if not farm:
