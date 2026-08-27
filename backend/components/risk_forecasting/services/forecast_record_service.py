@@ -19,11 +19,11 @@ from datetime import datetime, timezone
 import uuid
 from typing import Callable, Optional, Tuple
 
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.repositories.forecast_record_repository import (
     ForecastRecordRepository,
     InMemoryForecastRecordRepository,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest,
     FMDOutbreakPredictResponse,
     ForecastDecisionRecord,
@@ -32,8 +32,8 @@ from backend.components.risk_forecasting.schemas import (
     LSDOutbreakPredictRequest,
     LSDOutbreakPredictResponse,
 )
-from backend.components.risk_forecasting.services.fmd_service import FMDService, fmd_service
-from backend.components.risk_forecasting.services.lsd_service import LSDService, lsd_service
+from components.risk_forecasting.services.fmd_service import FMDService, fmd_service
+from components.risk_forecasting.services.lsd_service import LSDService, lsd_service
 
 
 class ForecastRecordService:

@@ -13,12 +13,12 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from backend.components.risk_forecasting.integrations import (
+from components.risk_forecasting.integrations import (
     ForecastDataProvider,
     CsvForecastDataProvider,
     create_forecast_data_provider,
 )
-from backend.components.risk_forecasting.config import (
+from components.risk_forecasting.config import (
     LSD_DATASET_FILE,
     LSD_STAGE1_MODEL, LSD_STAGE1_SCALER, LSD_STAGE1_COLS,
     LSD_STAGE1_27FEAT_MODEL, LSD_STAGE1_27FEAT_SCALER, LSD_STAGE1_27FEAT_COLS, LSD_STAGE1_27FEAT_META,
@@ -26,7 +26,7 @@ from backend.components.risk_forecasting.config import (
     GLOBAL_DECISION_THRESHOLD, HIGH_RISK_THRESHOLD,
     SRI_LANKA_DISTRICTS, MONTH_NAMES
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     LSDOutbreakPredictRequest, LSDOutbreakPredictResponse,
     Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance, LSDDataProvenance,
     DistrictForecastResponse, LSDDistrictForecastResponse, DistrictForecastItem

@@ -5,9 +5,9 @@ all-district climatological forecasts, district metadata, and health checks.
 """
 
 from typing import Optional, Literal
-from fastapi import APIRouter, Body, HTTPException, Header, Query, status
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
-from backend.components.risk_forecasting.schemas import (
+from fastapi import APIRouter, Body, Depends, HTTPException, Header, Query, status
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
+from components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest, FMDOutbreakPredictResponse,
     LSDOutbreakPredictRequest, LSDOutbreakPredictResponse,
     FMDForecastRequest, LSDForecastRequest,
@@ -23,15 +23,29 @@ from backend.components.risk_forecasting.schemas import (
     LinkExternalResourceRequest, FollowUpListResponse, FollowUpActorContext,
     EligibleVetListResponse
 )
-from backend.components.risk_forecasting.services.fmd_service import fmd_service
-from backend.components.risk_forecasting.services.lsd_service import lsd_service
-from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
-from backend.components.risk_forecasting.services.advisory_service import advisory_service
-from backend.components.risk_forecasting.services.notification_service import notification_service
-from backend.components.risk_forecasting.services.recipient_query_service import recipient_query_service
-from backend.components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
+from components.risk_forecasting.services.fmd_service import fmd_service
+from components.risk_forecasting.services.lsd_service import lsd_service
+from components.risk_forecasting.services.forecast_record_service import forecast_record_service
+from components.risk_forecasting.services.advisory_service import advisory_service
+from components.risk_forecasting.services.notification_service import notification_service
+from components.risk_forecasting.services.recipient_query_service import recipient_query_service
+from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
+from components.risk_forecasting.integration.auth_adapter import get_viewer_context, ViewerContextResponse
 
 router = APIRouter()
+
+
+
+@router.get("/viewer-context", summary="Get Veterinary Viewer Context", response_model=ViewerContextResponse)
+async def get_veterinary_viewer_context(
+    viewer_context: ViewerContextResponse = Depends(get_viewer_context)
+):
+    """
+    Returns the isolated ViewerContext for a Veterinary Officer.
+    Uses the integration auth adapter to parse the JWT and fetch roles from the main vets collection
+    without importing heavy AI model dependencies.
+    """
+    return viewer_context
 
 
 

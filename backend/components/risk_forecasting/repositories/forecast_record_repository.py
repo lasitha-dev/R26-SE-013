@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 import threading
 from typing import Dict, List, Optional, Tuple
 
-from backend.components.risk_forecasting.schemas import ForecastDecisionRecord
+from components.risk_forecasting.schemas import ForecastDecisionRecord
 
 
 class ForecastRecordRepository(ABC):

@@ -12,12 +12,12 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from backend.components.risk_forecasting.integrations import (
+from components.risk_forecasting.integrations import (
     ForecastDataProvider,
     CsvForecastDataProvider,
     create_forecast_data_provider,
 )
-from backend.components.risk_forecasting.config import (
+from components.risk_forecasting.config import (
     FMD_DATASET_FILE,
     FMD_STAGE1_30FEAT_MODEL, FMD_STAGE1_30FEAT_SCALER, FMD_STAGE1_30FEAT_COLS,
     FMD_STAGE1_31FEAT_MODEL, FMD_STAGE1_31FEAT_SCALER, FMD_STAGE1_31FEAT_COLS,
@@ -25,7 +25,7 @@ from backend.components.risk_forecasting.config import (
     GLOBAL_DECISION_THRESHOLD, HIGH_RISK_THRESHOLD,
     SRI_LANKA_DISTRICTS, MONTH_NAMES
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest, FMDOutbreakPredictResponse,
     Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance, FMDDataProvenance,
     DistrictForecastResponse, FMDDistrictForecastResponse, DistrictForecastItem,

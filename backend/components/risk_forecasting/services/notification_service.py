@@ -16,28 +16,28 @@ from datetime import datetime, timezone
 import uuid
 from typing import Callable, List, Optional, Tuple
 
-from backend.components.risk_forecasting.integrations.notification_provider import (
+from components.risk_forecasting.integrations.notification_provider import (
     MockNotificationProvider,
     NotificationProvider,
     ProviderDeliveryPayload,
     mock_notification_provider,
 )
-from backend.components.risk_forecasting.repositories.advisory_repository import (
+from components.risk_forecasting.repositories.advisory_repository import (
     AdvisoryRepository,
     InMemoryAdvisoryRepository,
 )
-from backend.components.risk_forecasting.repositories.notification_outbox_repository import (
+from components.risk_forecasting.repositories.notification_outbox_repository import (
     InMemoryNotificationOutboxRepository,
     NotificationOutboxRepository,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     EnqueueNotificationBatchRequest,
     NotificationBatch,
     NotificationBatchListResponse,
     NotificationDelivery,
     NotificationDeliveryListResponse,
 )
-from backend.components.risk_forecasting.services.advisory_service import (
+from components.risk_forecasting.services.advisory_service import (
     AdvisoryService,
     advisory_service,
 )

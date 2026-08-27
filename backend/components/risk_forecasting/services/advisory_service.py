@@ -19,21 +19,21 @@ from datetime import datetime, timezone
 import uuid
 from typing import Callable, List, Optional, Tuple
 
-from backend.components.risk_forecasting.integrations.recipient_directory import (
+from components.risk_forecasting.integrations.recipient_directory import (
     InMemoryRecipientDirectory,
     Recipient,
     RecipientDirectory,
     recipient_directory,
 )
-from backend.components.risk_forecasting.repositories.advisory_repository import (
+from components.risk_forecasting.repositories.advisory_repository import (
     AdvisoryRepository,
     InMemoryAdvisoryRepository,
 )
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.repositories.forecast_record_repository import (
     ForecastRecordRepository,
     InMemoryForecastRecordRepository,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     AdvisoryListResponse,
     AdvisoryPreviewResponse,
     CreateAdvisoryDraftRequest,
@@ -44,11 +44,11 @@ from backend.components.risk_forecasting.schemas import (
     RecipientSummary,
     UpdateAdvisoryDraftRequest,
 )
-from backend.components.risk_forecasting.services.advisory_template_service import (
+from components.risk_forecasting.services.advisory_template_service import (
     AdvisoryTemplateService,
     advisory_template_service,
 )
-from backend.components.risk_forecasting.services.forecast_record_service import (
+from components.risk_forecasting.services.forecast_record_service import (
     ForecastRecordService,
     forecast_record_service,
 )

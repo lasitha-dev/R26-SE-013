@@ -5,8 +5,8 @@ Provides validation and documentation for FMD and LSD prediction and forecast en
 
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
-from backend.components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
+from components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
 
 
 # ─── Shared Base Request Models ──────────────────────────────────────────────

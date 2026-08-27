@@ -8,17 +8,17 @@ import unittest
 from pathlib import Path
 import pandas as pd
 
-from backend.components.risk_forecasting.config import (
+from components.risk_forecasting.config import (
     FMD_DATASET_FILE,
     LSD_DATASET_FILE,
 )
-from backend.components.risk_forecasting.integrations import (
+from components.risk_forecasting.integrations import (
     ForecastDataProvider,
     CsvForecastDataProvider,
 )
-from backend.components.risk_forecasting.services.fmd_service import FMDService, fmd_service
-from backend.components.risk_forecasting.services.lsd_service import LSDService, lsd_service
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.services.fmd_service import FMDService, fmd_service
+from components.risk_forecasting.services.lsd_service import LSDService, lsd_service
+from components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest,
     LSDOutbreakPredictRequest,
 )

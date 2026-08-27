@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 import threading
 from typing import Dict, List, Optional, Protocol, Tuple
 
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     FarmerAdvisoryRecord,
     PersonalizedOverride,
     RecipientSummary,

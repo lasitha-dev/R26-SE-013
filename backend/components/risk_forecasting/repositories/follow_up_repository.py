@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 import threading
 from typing import Dict, List, Optional, Tuple
 
-from backend.components.risk_forecasting.schemas import ForecastFollowUpRecord
+from components.risk_forecasting.schemas import ForecastFollowUpRecord
 
 
 class FollowUpRepository(ABC):

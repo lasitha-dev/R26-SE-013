@@ -19,19 +19,19 @@ from datetime import datetime, timezone
 import uuid
 from typing import Callable, Optional, List, Tuple
 
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS
-from backend.components.risk_forecasting.integrations.vet_directory import (
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS
+from components.risk_forecasting.integrations.vet_directory import (
     VeterinaryOfficerDirectory,
     veterinary_officer_directory,
 )
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.repositories.forecast_record_repository import (
     ForecastRecordRepository,
 )
-from backend.components.risk_forecasting.repositories.follow_up_repository import (
+from components.risk_forecasting.repositories.follow_up_repository import (
     FollowUpRepository,
     InMemoryFollowUpRepository,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     CreateFollowUpRequest,
     EligibleVetListResponse,
     FollowUpActorContext,
@@ -40,7 +40,7 @@ from backend.components.risk_forecasting.schemas import (
     ForecastFollowUpRecord,
     OperationalPriority,
 )
-from backend.components.risk_forecasting.services.forecast_record_service import (
+from components.risk_forecasting.services.forecast_record_service import (
     ForecastRecordService,
     forecast_record_service,
 )

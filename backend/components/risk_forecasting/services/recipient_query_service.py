@@ -18,12 +18,12 @@ SECURITY AND ARCHITECTURAL BOUNDARIES:
 
 from typing import List, Optional
 
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS
-from backend.components.risk_forecasting.integrations.recipient_directory import (
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS
+from components.risk_forecasting.integrations.recipient_directory import (
     RecipientDirectory,
     recipient_directory,
 )
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.schemas import (
     AssignedRecipientListResponse,
     RecipientSummaryItem,
 )
