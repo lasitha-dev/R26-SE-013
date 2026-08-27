@@ -90,7 +90,7 @@ export default function VetLayout() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
               <p className="text-[10px] uppercase tracking-widest text-emerald-400/80 mt-1 font-mono font-semibold">
-                Vet Clinical Portal
+                {vetInfo.role === 'daph' ? 'DAPH Forecasting Portal' : 'Vet Clinical Portal'}
               </p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function VetLayout() {
         {/* Section Badge */}
         <div className="px-6 mb-3">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 font-mono">
-            Veterinary Authority
+            {vetInfo.role === 'daph' ? 'National Disease Oversight' : 'Veterinary Authority'}
           </span>
         </div>
 
@@ -184,7 +184,7 @@ export default function VetLayout() {
               </span>
               <input
                 className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all placeholder:text-slate-500"
-                placeholder="Search case records, assigned herds, or pathology reports..."
+                placeholder={vetInfo.role === 'daph' ? 'Search national forecasts, advisories, or disease trends...' : 'Search case records, assigned herds, or pathology reports...'}
                 type="text"
               />
             </div>
@@ -195,7 +195,7 @@ export default function VetLayout() {
             {/* Live Clinical Node Indicator */}
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>VET NODE LIVE</span>
+              <span>{vetInfo.role === 'daph' ? 'DAPH NATIONAL SCOPE' : 'VET NODE LIVE'}</span>
             </div>
 
             <NavLink
@@ -229,13 +229,17 @@ export default function VetLayout() {
             {/* Practitioner Profile Badge */}
             <div className="flex items-center gap-3 pl-2 border-l border-white/10">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-bold text-on-surface">{vetInfo.fullName}</p>
+                <p className="text-xs font-bold text-on-surface">
+                  {vetInfo.role === 'daph' ? 'DAPH Official' : vetInfo.fullName}
+                </p>
                 <p className="text-[10px] text-emerald-400/80 font-mono">
-                  {vetInfo.licenseNumber || 'Verified Practitioner'}
+                  {vetInfo.role === 'daph' ? 'National Scope' : (vetInfo.licenseNumber || 'Verified Practitioner')}
                 </p>
               </div>
               <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-glow-sm">
-                <span className="material-symbols-outlined text-lg">stethoscope</span>
+                <span className="material-symbols-outlined text-lg">
+                  {vetInfo.role === 'daph' ? 'public' : 'stethoscope'}
+                </span>
               </div>
             </div>
           </div>

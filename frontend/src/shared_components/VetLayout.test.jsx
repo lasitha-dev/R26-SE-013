@@ -42,6 +42,16 @@ describe('VetLayout Component', () => {
     expect(screen.queryByText('Clinical Overview')).not.toBeInTheDocument()
     expect(screen.queryByText('Smart Diagnostics')).not.toBeInTheDocument()
     expect(screen.queryByText('Geospatial Intelligence')).not.toBeInTheDocument()
+
+    // DAPH terminology proofs
+    expect(screen.getByText('DAPH Forecasting Portal')).toBeInTheDocument()
+    expect(screen.getByText('National Disease Oversight')).toBeInTheDocument()
+    expect(screen.getByText('DAPH NATIONAL SCOPE')).toBeInTheDocument()
+
+    // Non-vet terminology proofs
+    expect(screen.queryByText('Vet Clinical Portal')).not.toBeInTheDocument()
+    expect(screen.queryByText('Veterinary Authority')).not.toBeInTheDocument()
+    expect(screen.queryByText('VET NODE LIVE')).not.toBeInTheDocument()
   })
 
   it('3. DAPH does not receive a navigable Settings/Profile action but branding remains', () => {
@@ -52,7 +62,13 @@ describe('VetLayout Component', () => {
     
     expect(screen.queryByText('License & Profile')).not.toBeInTheDocument()
     expect(screen.getByText('ADRS CORE')).toBeInTheDocument()
-    expect(screen.getByText('Dr. DAPH Official')).toBeInTheDocument()
+
+    // The name is replaced by DAPH Official and title is National Scope
+    expect(screen.getByText('DAPH Official')).toBeInTheDocument()
+    expect(screen.getByText('National Scope')).toBeInTheDocument()
+    expect(screen.queryByText('Verified Practitioner')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dr. DAPH Official')).not.toBeInTheDocument() // Ignored in favor of role name
+
     expect(screen.getByText('Sign Out')).toBeInTheDocument()
   })
 
