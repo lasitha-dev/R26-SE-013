@@ -589,6 +589,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
       {/* 4. Filter & Target Period Controls */}
       <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-4">
+        {availableYears.length === 0 && (
+          <div className="text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg p-3">
+            No saved forecast periods are available. Generate and save an FMD or LSD forecast to populate year and month filters.
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
           {/* Disease Selector */}
           <div>
@@ -844,12 +849,20 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         selectedDetailRow?.id === row.id ? 'bg-slate-800/80' : ''
                       }`}
                     >
-                      <td className="py-3 px-3 text-center font-mono text-slate-500">{globalRank}</td>
+                      <td className="py-3 px-3 text-center font-mono text-slate-500">
+                        {isMissing ? '—' : globalRank}
+                      </td>
                       <td className="py-3 px-3 font-semibold text-white">{row.district}</td>
                       <td className="py-3 px-3 font-mono font-medium text-slate-300">{row.disease}</td>
                       <td className="py-3 px-3 text-slate-300">
-                        {monthNamesList[row.target_month - 1] || getMonthNameFallback(row.target_month)}{' '}
-                        {row.target_year}
+                        {row.target_year !== null && row.target_month !== null ? (
+                          <>
+                            {monthNamesList[row.target_month - 1] || getMonthNameFallback(row.target_month)}{' '}
+                            {row.target_year}
+                          </>
+                        ) : (
+                          <span className="text-slate-500 italic">No saved period</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-bold">
                         {isMissing ? (
@@ -948,25 +961,29 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
                       {/* View Details Action */}
                       <td className="py-3 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedDetailRow(row)}
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-medium text-[11px] border border-slate-700 transition"
-                          >
-                            View
-                          </button>
-                          {!row.isMissingRecord && Boolean(row.record?.forecast_id) && String(row.record.forecast_id).trim() !== '' && (
+                        {isMissing ? (
+                          <span className="text-[11px] text-slate-500 font-medium">No record</span>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
-                              onClick={() => setComposingForecastRecord(row.record)}
-                              className="px-2.5 py-1 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 hover:text-amber-200 font-semibold text-[11px] border border-amber-600/40 transition"
-                              title="Issue operational follow-up to Veterinary Officer"
+                              onClick={() => setSelectedDetailRow(row)}
+                              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-medium text-[11px] border border-slate-700 transition"
                             >
-                              Follow-up
+                              View
                             </button>
-                          )}
-                        </div>
+                            {Boolean(row.record?.forecast_id) && String(row.record.forecast_id).trim() !== '' && (
+                              <button
+                                type="button"
+                                onClick={() => setComposingForecastRecord(row.record)}
+                                className="px-2.5 py-1 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 hover:text-amber-200 font-semibold text-[11px] border border-amber-600/40 transition"
+                                title="Issue operational follow-up to Veterinary Officer"
+                              >
+                                Follow-up
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

@@ -278,6 +278,71 @@ describe('DaphNationalForecastOverview Component', () => {
     });
   });
 
+  // 4a. Missing-Record Presentation Fixes
+  describe('Missing-Record Presentation Fixes', () => {
+    it('missing rows show “No saved period”, Rank “—”, and no active View button', async () => {
+      // 0 records so all rows are missing
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+        const rows = screen.getAllByRole('row');
+        expect(rows.length).toBeGreaterThan(1);
+      });
+
+      // “Month null”, “undefined” and raw null are absent
+      const html = document.body.innerHTML;
+      expect(html).not.toMatch(/Month null/);
+      expect(html).not.toMatch(/>undefined</);
+      expect(html).not.toMatch(/>null</);
+
+      // missing rows show “No saved period”
+      const missingLabels = screen.getAllByText('No saved period');
+      expect(missingLabels.length).toBeGreaterThan(0);
+
+      // missing rows show Rank “—”
+      const rankDashes = screen.getAllByText('—', { selector: 'td' });
+      expect(rankDashes.length).toBeGreaterThan(0);
+
+      // missing rows have no active View button, but show "No record" details
+      expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
+      expect(screen.getAllByText('No record').length).toBeGreaterThan(0);
+    });
+
+    it('real rows retain Rank and View, matrix behaves correctly', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      // Real rows retain View button
+      const viewButtons = screen.getAllByRole('button', { name: 'View' });
+      expect(viewButtons.length).toBeGreaterThan(0);
+      
+      // Rank is retained for real rows (e.g., '1', '2')
+      const rankOne = screen.getAllByText('1', { selector: 'td' });
+      expect(rankOne.length).toBeGreaterThan(0);
+    });
+
+    it('no-year informational message appears only when availableYears is empty', async () => {
+      // With records, it shouldn't be there
+      const { unmount } = render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/No saved forecast periods are available. Generate and save an FMD or LSD forecast/)).not.toBeInTheDocument();
+      unmount();
+
+      // With 0 records, it should be there
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByText(/No saved forecast periods are available. Generate and save an FMD or LSD forecast/)).toBeInTheDocument();
+      });
+    });
+  });
+
   // 5. Deterministic Priority Sorting
   describe('Deterministic Priority Sorting', () => {
     it('sorts table rows by Risk tier (HIGH > MEDIUM > LOW > NO_RECORD) then probability desc', async () => {
