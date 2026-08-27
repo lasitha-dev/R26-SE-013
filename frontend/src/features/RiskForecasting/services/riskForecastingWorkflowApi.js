@@ -1014,3 +1014,25 @@ export async function listEligibleFollowUpVets(filters = {}, options = {}) {
     headers,
   });
 }
+
+/**
+ * Forwards an approved advisory to the assigned farmers of the requesting Veterinary Officer.
+ * POST /api/v1/risk-forecasting/advisories/{advisoryId}/forward-to-assigned-farmers
+ */
+export async function forwardToAssignedFarmers(advisoryId, options = {}) {
+  const actorContext = options.actorContext || options.actor;
+  const headers = buildActorHeaders(actorContext, true);
+  
+  if (!advisoryId) {
+    throw new RiskForecastingWorkflowApiError({
+      message: 'advisoryId is required.',
+      endpoint: '/api/v1/risk-forecasting/advisories/forward-to-assigned-farmers',
+    });
+  }
+  
+  return requestWorkflowApi(`/api/v1/risk-forecasting/advisories/${advisoryId}/forward-to-assigned-farmers`, {
+    method: 'POST',
+    signal: options?.signal,
+    headers,
+  });
+}

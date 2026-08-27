@@ -618,7 +618,7 @@ def list_batch_deliveries(
     response_model=NotificationBatch,
     summary="Dispatch Pending Deliveries for Notification Batch"
 )
-def dispatch_notification_batch(batch_id: str):
+async def dispatch_notification_batch(batch_id: str):
     """
     Explicitly dispatches all PENDING delivery items in a batch through the mock provider.
     Updates delivery items to SUCCEEDED or FAILED and recalculates batch status.
@@ -627,6 +627,7 @@ def dispatch_notification_batch(batch_id: str):
         return notification_service.dispatch_batch(batch_id)
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
     except ValueError as e:
         err_msg = str(e)
         if "CANCELLED" in err_msg or "is no longer APPROVED" in err_msg:
@@ -1092,3 +1093,144 @@ def link_external_resource_reference(
         elif "not authorized" in err_msg:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+@router.get(
+    "/notifications",
+    summary="List Farmer Forecasting Notifications"
+)
+async def list_farmer_notifications(
+    authorization: Optional[str] = Header(None)
+):
+    from core.database import db, farms_collection
+    import jwt
+    from core.security import JWT_SECRET, JWT_ALGORITHM
+    
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
+    
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+        
+    farm = await farms_collection.find_one({"email": email})
+    if not farm:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Farm profile not found.")
+        
+    farm_id = str(farm["_id"])
+    
+    cursor = db.forecast_notifications.find({"farmer_id": farm_id}).sort("created_at", -1)
+    notifications = []
+    async for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        notifications.append(doc)
+        
+    return notifications
+async def list_farmer_notifications(
+    authorization: Optional[str] = Header(None)
+):
+    import jwt
+    from core.security import JWT_SECRET, JWT_ALGORITHM
+    from core.database import farms_collection
+    from components.risk_forecasting.repositories.farmer_notification_repository import list_for_farm
+    
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
+    
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+        
+    farm = await farms_collection.find_one({"email": email})
+    if not farm:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Farm profile not found.")
+        
+    farm_id = str(farm["_id"])
+    notifications = await list_for_farm(farm_id)
+    return notifications
+
+@router.post(
+    "/advisories/{advisory_id}/forward-to-assigned-farmers",
+    summary="Forward Advisory to Assigned Farmers"
+)
+async def forward_to_assigned_farmers(
+    advisory_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    import jwt
+    from core.security import JWT_SECRET, JWT_ALGORITHM
+    from core.database import vets_collection, farms_collection
+    from components.risk_forecasting.repositories.farmer_notification_repository import forward_to_assigned_farms
+    from bson import ObjectId
+    
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
+        
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        role = payload.get("role")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+        
+    if role != "vet":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Veterinary Officers can forward advisories.")
+        
+    vet = await vets_collection.find_one({"email": email})
+    if not vet:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Veterinary profile not found.")
+        
+    try:
+        advisory = advisory_service.get_advisory(advisory_id)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        
+    vet_id_str = str(vet["_id"])
+    assigned_farm_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
+    assigned_farm_emails = vet.get("assigned_farms", [])
+    
+    query = {
+        "$or": [
+            {"_id": {"$in": assigned_farm_ids}},
+            {"email": {"$in": assigned_farm_emails}},
+            {"assigned_vet_ids": vet_id_str},
+            {"assigned_vet_emails": vet["email"]}
+        ]
+    }
+    
+    cursor = farms_collection.find(query)
+    assigned_farms = []
+    seen = set()
+    async for farm_doc in cursor:
+        f_id = str(farm_doc["_id"])
+        if f_id not in seen:
+            seen.add(f_id)
+            assigned_farms.append(farm_doc)
+            
+    if not assigned_farms:
+        return {
+            "advisory_id": advisory_id,
+            "notified_count": 0,
+            "already_notified_count": 0,
+            "status": "forwarded"
+        }
+        
+    try:
+        result = await forward_to_assigned_farms(advisory, assigned_farms, vet)
+        return {
+            "advisory_id": advisory_id,
+            "notified_count": result["notified_count"],
+            "already_notified_count": result["already_notified_count"],
+            "status": "forwarded"
+        }
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to forward advisory to farmers: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error while forwarding notifications.")
+

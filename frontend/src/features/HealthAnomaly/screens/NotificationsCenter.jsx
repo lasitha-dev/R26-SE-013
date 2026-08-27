@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 export default function NotificationsCenter() {
   const navigate = useNavigate()
   const [cattleList, setCattleList] = useState([])
+  const [forecastNotifications, setForecastNotifications] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,8 +20,19 @@ export default function NotificationsCenter() {
           const data = await response.json()
           setCattleList(data || [])
         }
+        
+        // Fetch Forecasting Notifications
+        const forecastRes = await fetch('/api/v1/risk-forecasting/notifications', {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : ''
+          }
+        })
+        if (forecastRes.ok) {
+          const forecastData = await forecastRes.json()
+          setForecastNotifications(forecastData || [])
+        }
       } catch (err) {
-        console.error('Error loading cattle for notifications:', err)
+        console.error('Error loading notifications:', err)
       } finally {
         setLoading(false)
       }
@@ -93,6 +105,33 @@ export default function NotificationsCenter() {
                       View Profile & Triage
                       <span className="material-symbols-outlined text-sm">arrow_forward</span>
                     </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Render Risk Forecasting Notifications */}
+            {forecastNotifications.map((n) => (
+              <div key={n._id} className="group relative overflow-hidden bg-surface-container-low rounded-xl transition-all hover:bg-surface-container-high border border-white/5">
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-warning"></div>
+                <div className="p-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+                  <div className="w-14 h-14 rounded-lg bg-warning-container/20 flex items-center justify-center flex-shrink-0 animate-pulse">
+                    <span className="material-symbols-outlined text-3xl text-warning">campaign</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="px-2 py-0.5 text-[10px] font-black bg-warning/10 text-warning rounded tracking-tighter uppercase animate-bounce">
+                        Disease Advisory
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">{new Date(n.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-on-surface tracking-tight mb-2">
+                      {n.title}
+                    </h3>
+                    <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                      {n.message}
+                    </p>
+                  </div>
                   </div>
                 </div>
               </div>

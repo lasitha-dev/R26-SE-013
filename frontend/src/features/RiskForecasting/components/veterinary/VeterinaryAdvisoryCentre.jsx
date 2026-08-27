@@ -15,6 +15,7 @@ import {
   approveAdvisory,
   cancelAdvisory,
   getAdvisory,
+  forwardToAssignedFarmers,
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
 
@@ -81,6 +82,10 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   // Shared Error / Notification State
   const [error, setError] = useState(null);
   const [infoMessage, setInfoMessage] = useState(null);
+
+  // Farmer Notification State
+  const [notifyingFarmers, setNotifyingFarmers] = useState(false);
+  const [notifyResult, setNotifyResult] = useState(null);
 
   // ── 1. Fetch Official Forecast Records for Authorized Districts ────────────────────────
   useEffect(() => {
@@ -299,6 +304,22 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   };
 
   // ── Step 4 Action: Lifecycle Transitions ───────────────────────────────────────────────
+
+  const handleNotifyFarmers = async () => {
+    if (!currentAdvisory?.advisory_id) return;
+    setNotifyingFarmers(true);
+    setError(null);
+    setNotifyResult(null);
+    try {
+      const result = await forwardToAssignedFarmers(currentAdvisory.advisory_id, { actorContext: normalizedContext });
+      setNotifyResult(`Success: ${result.notified_count} notified (${result.already_notified_count} skipped)`);
+    } catch (err) {
+      setError(sanitizeErrorMessage(err, 'Failed to notify assigned farmers.'));
+    } finally {
+      setNotifyingFarmers(false);
+    }
+  };
+
   const handleMarkReadyForReview = async () => {
     if (!currentAdvisory || lifecyclePending) return;
 
@@ -869,14 +890,25 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
             </div>
 
             {currentAdvisory.status === 'APPROVED' && (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(5)}
-                className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors inline-flex items-center gap-2"
-              >
-                <span>Proceed to Simulated Delivery</span>
-                <span className="material-symbols-outlined text-base" aria-hidden="true">arrow_forward</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleNotifyFarmers}
+                  disabled={notifyingFarmers}
+                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                >
+                  {notifyingFarmers ? 'Notifying...' : 'Notify Assigned Farmers'}
+                </button>
+                {notifyResult && <span className="text-sm font-bold text-emerald-400 whitespace-nowrap">{notifyResult}</span>}
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(5)}
+                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors inline-flex items-center gap-2"
+                >
+                  <span>Proceed to Simulated Delivery</span>
+                  <span className="material-symbols-outlined text-base" aria-hidden="true">arrow_forward</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
