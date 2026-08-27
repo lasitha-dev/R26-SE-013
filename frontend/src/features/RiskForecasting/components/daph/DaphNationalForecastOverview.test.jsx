@@ -179,6 +179,13 @@ describe('DaphNationalForecastOverview Component', () => {
 
     render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
+    await waitFor(() => {
+      expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+    });
+
+    const riskSelect = screen.getByLabelText(/Risk Tier/i);
+    fireEvent.change(riskSelect, { target: { value: 'HIGH' } });
+
     const emptyStateText = await screen.findByText(/No official forecast records found for selected criteria/i);
     const emptyStateContainer = emptyStateText.parentElement;
 
@@ -249,7 +256,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
       await waitFor(() => {
         // 50 total slots - 3 present records = 47 missing
-        expect(screen.getByText(/Missing District–Disease Forecasts \(out of 50\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/Missing District–Disease Combinations \(out of 50\)/i)).toBeInTheDocument();
         expect(screen.getAllByText('47')[0]).toBeInTheDocument();
       }, { timeout: 4000 });
     });
@@ -375,10 +382,19 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(screen.queryByText(/Phase 9 Backend Limit Bound/i)).not.toBeInTheDocument();
     });
 
-    it('displays clear empty state and does NOT auto-generate predictions when no records exist', async () => {
+    it('displays clear empty state when a filter combination genuinely produces no final rows', async () => {
+      // Setup zero real records, so all 50 slots are missing (NO_RECORD)
       api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
 
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      // Filter by HIGH risk, which will eliminate the NO_RECORD rows
+      const riskSelect = screen.getByLabelText(/Risk Tier/i);
+      fireEvent.change(riskSelect, { target: { value: 'HIGH' } });
 
       await waitFor(() => {
         expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
@@ -427,7 +443,7 @@ describe('DaphNationalForecastOverview Component', () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
       });
 
       expect(screen.queryByRole('button', { name: /Follow-up/i })).not.toBeInTheDocument();
@@ -467,16 +483,23 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(screen.getByText('Fallback Data Applied')).toBeInTheDocument();
       });
 
-      const missingLabel = screen.getByText(/Missing District–Disease Forecasts/i);
+      const missingLabel = screen.getByText(/Missing District–Disease Combinations/i);
       expect(missingLabel).toBeInTheDocument();
       expect(missingLabel.className).not.toContain('truncate');
       expect(missingLabel.className).toContain('whitespace-normal');
       expect(missingLabel.className).toContain('break-words');
     });
 
-    it('renders empty-state content under existing conditions', async () => {
+    it('renders empty-state content when a filter produces no rows', async () => {
       api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      const riskSelect = screen.getByLabelText(/Risk Tier/i);
+      fireEvent.change(riskSelect, { target: { value: 'HIGH' } });
 
       await waitFor(() => {
         expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
@@ -492,7 +515,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
       await waitFor(() => {
         expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
-        expect(screen.getByText(/Showing \d+ of \d+ matching district entries/i)).toBeInTheDocument();
+        expect(screen.getByText(/Showing \d+ of \d+ matching matrix entries/i)).toBeInTheDocument();
       });
 
       const refreshBtn = screen.getByRole('button', { name: /Refresh Data/i });
@@ -506,6 +529,134 @@ describe('DaphNationalForecastOverview Component', () => {
       });
       const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2.xl\\:grid-cols-3.2xl\\:grid-cols-6');
       expect(grid).toBeInTheDocument();
+    });
+  });
+
+  // 10. Year/Month State & Reset Behavior
+  describe('Year/Month State & Reset Behavior', () => {
+    it('initial Month control displays Select month and is disabled when Year is unselected', async () => {
+      // Mock empty records to ensure default is unselected
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        const monthSelect = screen.getByLabelText(/Target Month/i);
+        expect(monthSelect).toBeDisabled();
+        expect(monthSelect).toHaveValue('');
+        expect(screen.getByText('Select month')).toBeInTheDocument();
+      });
+    });
+
+    it('selecting a Year enables Month and changing Year resets selected Month', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Target Year/i)).toBeInTheDocument();
+      });
+
+      const yearSelect = screen.getByLabelText(/Target Year/i);
+      const monthSelect = screen.getByLabelText(/Target Month/i);
+
+      fireEvent.change(yearSelect, { target: { value: '2026' } });
+
+      await waitFor(() => {
+        expect(monthSelect).not.toBeDisabled();
+      });
+
+      fireEvent.change(monthSelect, { target: { value: '1' } });
+      await waitFor(() => {
+        expect(monthSelect.value).toBe('1');
+      });
+
+      fireEvent.change(yearSelect, { target: { value: '2027' } });
+      await waitFor(() => {
+        expect(monthSelect.value).toBe('');
+      });
+    });
+
+    it('reset filters resets Year and Month along with others', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
+      });
+
+      const diseaseSelect = screen.getByLabelText(/Disease Filter/i);
+      const yearSelect = screen.getByLabelText(/Target Year/i);
+      const monthSelect = screen.getByLabelText(/Target Month/i);
+
+      fireEvent.change(diseaseSelect, { target: { value: 'FMD' } });
+      fireEvent.change(yearSelect, { target: { value: '2026' } });
+      fireEvent.change(monthSelect, { target: { value: '2' } });
+
+      const resetBtn = screen.getByRole('button', { name: /Reset Filters/i });
+      fireEvent.click(resetBtn);
+
+      await waitFor(() => {
+        expect(diseaseSelect.value).toBe('ALL');
+        expect(yearSelect.value).toBe('');
+        expect(monthSelect.value).toBe('');
+      });
+    });
+  });
+
+  // 11. Matrix Empty-State Counting Contract
+  describe('Matrix Empty-State Counting Contract', () => {
+    it('with zero real records and 25 districts, renders matrix, 50 combinations for ALL, official is 0', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      const totalRecordsElement = screen.getByText('Total Forecast Records').nextElementSibling;
+      expect(totalRecordsElement.textContent).toBe('0');
+
+      const missingLabel = screen.getByText(/Missing District–Disease Combinations \(out of 50\)/i);
+      expect(missingLabel.nextSibling.textContent).toBe('50');
+
+      const matrixNote = screen.getByText(/Showing 50 of 50 matching matrix entries/i);
+      expect(matrixNote).toBeInTheDocument();
+
+      expect(screen.queryByText(/No official forecast records found for selected criteria/i)).not.toBeInTheDocument();
+    });
+
+    it('selecting FMD results in 25 matrix combinations when no records exist', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      const diseaseSelect = screen.getByLabelText(/Disease Filter/i);
+      fireEvent.change(diseaseSelect, { target: { value: 'FMD' } });
+
+      await waitFor(() => {
+        const missingLabel = screen.getByText(/Districts without FMD Forecast \(out of 25\)/i);
+        expect(missingLabel.nextSibling.textContent).toBe('25');
+        expect(screen.getByText(/Showing 25 of 25 matching matrix entries/i)).toBeInTheDocument();
+      });
+    });
+
+    it('selecting LSD results in 25 matrix combinations when no records exist', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      const diseaseSelect = screen.getByLabelText(/Disease Filter/i);
+      fireEvent.change(diseaseSelect, { target: { value: 'LSD' } });
+
+      await waitFor(() => {
+        const missingLabel = screen.getByText(/Districts without LSD Forecast \(out of 25\)/i);
+        expect(missingLabel.nextSibling.textContent).toBe('25');
+        expect(screen.getByText(/Showing 25 of 25 matching matrix entries/i)).toBeInTheDocument();
+      });
     });
   });
 });

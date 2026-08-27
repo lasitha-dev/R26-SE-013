@@ -250,8 +250,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     return findLatestRecordPeriod(allRecords);
   }, [allRecords]);
 
-  const effectiveYear = selectedYear ?? defaultPeriod.year;
-  const effectiveMonth = selectedMonth ?? defaultPeriod.month;
+  const effectiveYear = selectedYear;
+  const effectiveMonth = selectedMonth;
 
   const availableYears = useMemo(() => {
     const yearsSet = new Set();
@@ -343,7 +343,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       // ALL selected: 25 districts x 2 diseases = 50 total possible slots
       const totalSlots = totalDistrictsCount * 2;
       missingCount = Math.max(0, totalSlots - totalRecords);
-      missingLabel = `Missing District–Disease Forecasts (out of ${totalSlots})`;
+      missingLabel = `Missing District–Disease Combinations (out of ${totalSlots})`;
     }
 
     return {
@@ -512,6 +512,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   // Handlers for Reset and Pagination
   const handleResetFilters = () => {
     setSelectedDisease('ALL');
+    setSelectedYear(null);
+    setSelectedMonth(null);
     setRiskFilter('ALL');
     setAdvisoryFilter('ALL');
     setFollowUpOnly(false);
@@ -617,13 +619,16 @@ export function DaphNationalForecastOverview({ viewerContext }) {
               id="year-filter-select"
               value={effectiveYear ?? ''}
               onChange={(e) => {
-                setSelectedYear(Number(e.target.value));
+                const val = e.target.value;
+                setSelectedYear(val === '' ? null : Number(val));
+                setSelectedMonth(null);
                 setOffset(0);
               }}
               className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
             >
+              <option value="">Select year</option>
               {availableYears.length === 0 ? (
-                <option value="">No Available Years</option>
+                <option value="" disabled>No Available Years</option>
               ) : (
                 availableYears.map((y) => (
                   <option key={y} value={y}>
@@ -642,12 +647,15 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             <select
               id="month-filter-select"
               value={effectiveMonth ?? ''}
+              disabled={effectiveYear === null}
               onChange={(e) => {
-                setSelectedMonth(Number(e.target.value));
+                const val = e.target.value;
+                setSelectedMonth(val === '' ? null : Number(val));
                 setOffset(0);
               }}
-              className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50"
             >
+              <option value="">Select month</option>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
                   {monthNamesList[m - 1] || getMonthNameFallback(m)}
@@ -726,7 +734,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500 mt-0.5 sm:mt-0 shrink-0"
           />
           <label htmlFor="follow-up-checkbox" className="text-xs text-amber-300 font-medium cursor-pointer whitespace-normal break-words">
-            Display Operational Follow-up Required Only (Medium/High Risk without Approved Vet Advisory)
+            Follow-up required only
           </label>
         </div>
       </div>
@@ -780,7 +788,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             <h2 className="text-sm font-semibold text-white">District Priority Assessment Matrix</h2>
           </div>
           <span className="text-xs text-slate-400">
-            Showing {paginatedRows.length} of {sortedTableRows.length} matching district entries
+            Showing {paginatedRows.length} of {sortedTableRows.length} matching matrix entries
           </span>
         </div>
 
@@ -794,7 +802,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             <span className="material-symbols-outlined text-3xl text-rose-400">error</span>
             <span className="text-sm font-medium">{error}</span>
           </div>
-        ) : (allRecords.length === 0 || paginatedRows.length === 0) ? (
+        ) : (paginatedRows.length === 0) ? (
           <div className="p-6 md:p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
             <span className="material-symbols-outlined text-3xl text-slate-500">find_in_page</span>
             <span className="text-sm font-medium text-slate-300">No official forecast records found for selected criteria.</span>
