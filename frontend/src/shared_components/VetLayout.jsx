@@ -7,7 +7,7 @@ export default function VetLayout() {
     fullName: localStorage.getItem("full_name") || localStorage.getItem("owner_name") || "Dr. Clinical Vet",
     email: localStorage.getItem("email") || "",
     licenseNumber: localStorage.getItem("license_number") || "VET-AUTH-2026",
-    role: localStorage.getItem("role") || "vet"
+    role: localStorage.getItem("role")
   })
   const [hasAlerts, setHasAlerts] = useState(false)
   const navigate = useNavigate()
@@ -37,20 +37,22 @@ export default function VetLayout() {
     fetchVetData()
   }, [token])
 
-  if (!token) {
-    return <Navigate to="/health/vet-login" replace />
+  if (!token || (vetInfo.role !== 'vet' && vetInfo.role !== 'daph')) {
+    return <Navigate to="/vet/login" replace />
   }
 
-  const vetNavLinks = [
-    { to: '/vet/dashboard', label: 'Clinical Overview', icon: 'health_and_safety' },
-    { to: '/vet/assigned-farms', label: 'Smart Diagnostics', icon: 'psychology', matchPrefixes: ['/vet/assigned-farms', '/vet/farm', '/vet/diagnostics'] },
-    { to: '/vet/geospatial', label: 'Geospatial Intelligence', icon: 'travel_explore' },
-    { to: '/vet/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day' },
+  const allNavLinks = [
+    { to: '/vet/dashboard', label: 'Clinical Overview', icon: 'health_and_safety', allowedRoles: ['vet'] },
+    { to: '/vet/assigned-farms', label: 'Smart Diagnostics', icon: 'psychology', matchPrefixes: ['/vet/assigned-farms', '/vet/farm', '/vet/diagnostics'], allowedRoles: ['vet'] },
+    { to: '/vet/geospatial', label: 'Geospatial Intelligence', icon: 'travel_explore', allowedRoles: ['vet'] },
+    { to: '/vet/forecasting', label: 'Seasonal Forecasting', icon: 'partly_cloudy_day', allowedRoles: ['vet', 'daph'] },
   ]
+
+  const vetNavLinks = allNavLinks.filter(link => link.allowedRoles.includes(vetInfo.role))
 
   const handleSignOut = () => {
     localStorage.clear()
-    navigate('/health/vet-login')
+    navigate('/vet/login')
   }
 
   return (
@@ -136,18 +138,20 @@ export default function VetLayout() {
 
         {/* Sidebar Footer */}
         <div className="px-4 pb-6 mt-auto border-t border-white/5 pt-4 space-y-1">
-          <NavLink
-            to="/vet/settings"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
-                isActive ? 'text-emerald-400 font-bold bg-emerald-500/5' : 'text-slate-400 hover:text-emerald-200'
-              }`
-            }
-            onClick={() => setIsSidebarOpen(false)}
-          >
-            <span className="material-symbols-outlined text-[20px]">badge</span>
-            <span>License &amp; Profile</span>
-          </NavLink>
+          {vetInfo.role === 'vet' && (
+            <NavLink
+              to="/vet/settings"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                  isActive ? 'text-emerald-400 font-bold bg-emerald-500/5' : 'text-slate-400 hover:text-emerald-200'
+                }`
+              }
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <span className="material-symbols-outlined text-[20px]">badge</span>
+              <span>License &amp; Profile</span>
+            </NavLink>
+          )}
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-red-400 transition-colors text-sm text-left"
@@ -210,13 +214,15 @@ export default function VetLayout() {
               )}
             </NavLink>
 
-            <NavLink
-              to="/vet/settings"
-              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors"
-              title="Vet Credentials"
-            >
-              <span className="material-symbols-outlined">badge</span>
-            </NavLink>
+            {vetInfo.role === 'vet' && (
+              <NavLink
+                to="/vet/settings"
+                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors"
+                title="Vet Credentials"
+              >
+                <span className="material-symbols-outlined">badge</span>
+              </NavLink>
+            )}
 
             <div className="h-6 w-px bg-white/10 mx-1"></div>
 

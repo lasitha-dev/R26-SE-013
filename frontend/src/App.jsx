@@ -45,6 +45,18 @@ function DemoRouteHandler() {
   );
 }
 
+function RoleGuard({ children, allowedRoles }) {
+  const role = localStorage.getItem("role");
+  
+  if (!role || !allowedRoles.includes(role)) {
+    if (role === "daph") {
+      return <Navigate to="/vet/forecasting" replace />;
+    }
+    return <Navigate to="/vet/login" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -61,15 +73,47 @@ export default function App() {
 
       {/* Authenticated Vet Portal with dedicated Side Navigation */}
       <Route path="/vet" element={<VetLayout />}>
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<VetDashboard />} />
-        <Route path="diagnostics" element={<SmartDiagnostics />} />
-        <Route path="geospatial" element={<GeospatialMock />} />
+        <Route index element={
+          <RoleGuard allowedRoles={['vet']}>
+            <Navigate to="dashboard" replace />
+          </RoleGuard>
+        } />
+        <Route path="dashboard" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <VetDashboard />
+          </RoleGuard>
+        } />
+        <Route path="diagnostics" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <SmartDiagnostics />
+          </RoleGuard>
+        } />
+        <Route path="geospatial" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <GeospatialMock />
+          </RoleGuard>
+        } />
         <Route path="forecasting" element={<RiskForecastingIntegrationAdapter />} />
-        <Route path="assigned-farms" element={<VetAssignedFarms />} />
-        <Route path="farm/:farmId" element={<VetFarmCattleView />} />
-        <Route path="clinical-records" element={<VetClinicalRecords />} />
-        <Route path="settings" element={<VetSettings />} />
+        <Route path="assigned-farms" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <VetAssignedFarms />
+          </RoleGuard>
+        } />
+        <Route path="farm/:farmId" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <VetFarmCattleView />
+          </RoleGuard>
+        } />
+        <Route path="clinical-records" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <VetClinicalRecords />
+          </RoleGuard>
+        } />
+        <Route path="settings" element={
+          <RoleGuard allowedRoles={['vet']}>
+            <VetSettings />
+          </RoleGuard>
+        } />
       </Route>
 
       {/* Redirect old diagnostics route to Vet Diagnostics */}
