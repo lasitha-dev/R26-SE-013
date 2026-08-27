@@ -259,6 +259,20 @@ async def login_farm(credentials: FarmLogin):
 
 @router.post("/vet/register", status_code=status.HTTP_201_CREATED)
 async def register_vet(vet_data: VetRegister):
+    if vet_data.role == "vet":
+        if not vet_data.district or vet_data.district == "ALL_DISTRICTS":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Veterinary Officer must select a valid district jurisdiction."
+            )
+    elif vet_data.role == "daph":
+        if vet_data.district and vet_data.district != "ALL_DISTRICTS":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="DAPH Official cannot be restricted to a single district."
+            )
+        vet_data.district = "ALL_DISTRICTS"
+
     # Check if the email already exists in vets collection
     existing_vet_email = await vets_collection.find_one({"email": vet_data.email})
     if existing_vet_email:

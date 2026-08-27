@@ -138,21 +138,23 @@ describe('VetRegistration Component', () => {
     const emailInput = screen.getByPlaceholderText(/samantha@vet-council\.org/i)
     const licInput = screen.getByPlaceholderText(/VET-LK-88902/i)
     const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
-    const districtSelect = screen.getByRole('combobox')
     const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
     const daphRadio = screen.getByLabelText(/DAPH Official/i)
     const submitBtn = screen.getByRole('button', { name: /Register Account/i })
+
+    // Select DAPH Official first so district changes
+    fireEvent.click(daphRadio)
 
     fireEvent.change(nameInput, { target: { value: 'Dr. Samantha Perera' } })
     fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
     fireEvent.change(licInput, { target: { value: 'VET-LK-88902' } })
     fireEvent.change(phoneInput, { target: { value: '+94771234567' } })
-    fireEvent.change(districtSelect, { target: { value: 'Kandy' } })
     fireEvent.change(passwordInputs[0], { target: { value: 'password123' } })
     fireEvent.change(passwordInputs[1], { target: { value: 'password123' } })
     
-    // Select DAPH Official
-    fireEvent.click(daphRadio)
+    // Ensure combobox is gone and read-only input is there
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue(/National scope — All districts/i)).toBeInTheDocument()
 
     fireEvent.click(submitBtn)
 
@@ -162,6 +164,12 @@ describe('VetRegistration Component', () => {
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('"role":"daph"')
+        })
+      )
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:8000/api/vet/register',
+        expect.objectContaining({
+          body: expect.stringContaining('"district":"ALL_DISTRICTS"')
         })
       )
     })

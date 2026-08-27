@@ -22,7 +22,7 @@ async def test_vet_register_daph_role(app):
                     "password": "password123",
                     "license_number": "DAPH-001",
                     "phone": "0771122334",
-                    "district": "Galle",
+                    "district": "ALL_DISTRICTS",
                     "role": "daph",
                     "assigned_farms": []
                 })
@@ -33,6 +33,43 @@ async def test_vet_register_daph_role(app):
                 called_args = mock_insert.call_args[0][0]
                 assert called_args["role"] == "daph"
                 assert called_args["email"] == "daph@example.com"
+                assert called_args["district"] == "ALL_DISTRICTS"
+
+@pytest.mark.asyncio
+async def test_vet_register_daph_rejects_single_district(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post("/api/vet/register", json={
+            "full_name": "DAPH User",
+            "email": "daph@example.com",
+            "password": "password123",
+            "license_number": "DAPH-001",
+            "phone": "0771122334",
+            "district": "Colombo",
+            "role": "daph",
+            "assigned_farms": []
+        })
+        
+        assert reg_resp.status_code == 400
+        assert "DAPH Official cannot be restricted to a single district" in reg_resp.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_vet_register_vet_rejects_all_districts(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg_resp = await client.post("/api/vet/register", json={
+            "full_name": "Vet User",
+            "email": "vet@example.com",
+            "password": "password123",
+            "license_number": "VET-001",
+            "phone": "0771122334",
+            "district": "ALL_DISTRICTS",
+            "role": "vet",
+            "assigned_farms": []
+        })
+        
+        assert reg_resp.status_code == 400
+        assert "Veterinary Officer must select a valid district jurisdiction" in reg_resp.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_vet_login_daph_role(app):

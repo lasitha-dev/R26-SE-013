@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const SRI_LANKAN_DISTRICTS = [
@@ -33,6 +33,12 @@ export default function VetRegistration() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [role, setRole] = useState("vet")
+
+  // Clear errorMessage when switching roles to avoid confusion
+  useEffect(() => {
+    setErrorMessage("")
+  }, [role])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -209,11 +215,11 @@ export default function VetRegistration() {
                 </label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="role" value="vet" defaultChecked className="accent-primary" />
+                    <input type="radio" name="role" value="vet" checked={role === "vet"} onChange={(e) => setRole(e.target.value)} className="accent-primary" />
                     <span className="text-sm text-on-surface">Veterinary Officer</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="role" value="daph" className="accent-primary" />
+                    <input type="radio" name="role" value="daph" checked={role === "daph"} onChange={(e) => setRole(e.target.value)} className="accent-primary" />
                     <span className="text-sm text-on-surface">DAPH Official</span>
                   </label>
                 </div>
@@ -275,23 +281,34 @@ export default function VetRegistration() {
 
               <div className="space-y-2">
                 <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
-                  Primary Veterinary District Jurisdiction
+                  {role === "daph" ? "National Jurisdiction Scope" : "Primary Veterinary District Jurisdiction"}
                 </label>
-                <select
-                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
-                  name="district"
-                  required
-                  defaultValue=""
-                >
-                  <option value="" disabled className="bg-surface-container-high text-slate-500">
-                    Select District Jurisdiction...
-                  </option>
-                  {SRI_LANKAN_DISTRICTS.map((dist) => (
-                    <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
-                      {dist} District
+                {role === "daph" ? (
+                  <>
+                    <input type="hidden" name="district" value="ALL_DISTRICTS" />
+                    <input
+                      className="w-full bg-surface-container border-none text-on-surface text-sm p-3 rounded-lg opacity-80 cursor-not-allowed"
+                      value="National scope — All districts"
+                      readOnly
+                    />
+                  </>
+                ) : (
+                  <select
+                    className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="district"
+                    required
+                    defaultValue=""
+                  >
+                    <option value="" disabled className="bg-surface-container-high text-slate-500">
+                      Select District Jurisdiction...
                     </option>
-                  ))}
-                </select>
+                    {SRI_LANKAN_DISTRICTS.map((dist) => (
+                      <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
+                        {dist} District
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
