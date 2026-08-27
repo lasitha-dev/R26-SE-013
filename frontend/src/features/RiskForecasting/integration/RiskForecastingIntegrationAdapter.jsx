@@ -12,10 +12,16 @@ export default function RiskForecastingIntegrationAdapter() {
   const [viewerContext, setViewerContext] = useState(null);
 
   useEffect(() => {
+    let isActive = true;
+    setLoading(true);
+    setError(null);
+
     const token = localStorage.getItem("token");
     if (!token) {
-      setError("Authentication required.");
-      setLoading(false);
+      if (isActive) {
+        setError("Authentication required.");
+        setLoading(false);
+      }
       return;
     }
 
@@ -44,22 +50,27 @@ export default function RiskForecastingIntegrationAdapter() {
           throw new Error("Invalid or unauthorized context");
         }
 
-        setViewerContext(validation.normalizedContext);
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          setError("Request timed out.");
-        } else {
-          setError("Access context unavailable.");
+        if (isActive) {
+          setViewerContext(validation.normalizedContext);
+          setError(null);
         }
+      } catch (err) {
+        if (!isActive || err.name === 'AbortError') {
+          return;
+        }
+        setError("Access context unavailable.");
       } finally {
         clearTimeout(timeoutId);
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     }
 
     fetchViewerContext();
 
     return () => {
+      isActive = false;
       abortController.abort();
       clearTimeout(timeoutId);
     };

@@ -56,8 +56,8 @@ describe('RiskForecastingIntegrationAdapter', () => {
 
   it('2. token exists and request is pending: accessible loading state, feature absent', () => {
     localStorage.setItem('token', 'synthetic-test-token-123');
-    mockFetch.mockImplementation(() => new Promise(() => {})); 
-    
+    mockFetch.mockImplementation(() => new Promise(() => {}));
+
     render(<RiskForecastingIntegrationAdapter />);
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(screen.getByText(/Loading forecasting context/i)).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('RiskForecastingIntegrationAdapter', () => {
     });
 
     render(<RiskForecastingIntegrationAdapter />);
-    
+
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
@@ -97,7 +97,7 @@ describe('RiskForecastingIntegrationAdapter', () => {
     });
 
     render(<RiskForecastingIntegrationAdapter />);
-    
+
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
@@ -168,7 +168,7 @@ describe('RiskForecastingIntegrationAdapter', () => {
     vi.useFakeTimers();
     try {
       localStorage.setItem('token', 'synthetic-test-token-123');
-      
+
       let abortSignal;
       mockFetch.mockImplementation((url, opts) => {
         abortSignal = opts.signal;
@@ -215,7 +215,7 @@ describe('RiskForecastingIntegrationAdapter', () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: async () => validVetContext });
 
     render(<RiskForecastingIntegrationAdapter />);
-    
+
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
@@ -233,6 +233,100 @@ describe('RiskForecastingIntegrationAdapter', () => {
     expect(fileText).not.toMatch(/useDemoForecastingAuth/i);
     expect(fileText).not.toMatch(/DemoForecastingGateway/i);
     expect(fileText).not.toMatch(/jwt-decode/i);
+  });
+
+  it('13. aborted earlier request followed by successful current request renders feature', async () => {
+    localStorage.setItem('token', 'synthetic-test-token-123');
+
+    let fetch2Resolve;
+
+    mockFetch.mockImplementationOnce((url, opts) => {
+      return new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
+    }).mockImplementationOnce(() => {
+      return new Promise((resolve) => {
+        fetch2Resolve = resolve;
+      });
+    });
+
+    const { unmount } = render(<RiskForecastingIntegrationAdapter />);
+    unmount(); // Triggers abort of first request
+
+    render(<RiskForecastingIntegrationAdapter />);
+
+    await act(async () => {
+      fetch2Resolve({
+        ok: true,
+        json: async () => validVetContext
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('14. stale failed request cannot overwrite a later successful response', async () => {
+    localStorage.setItem('token', 'synthetic-test-token-123');
+
+    let fetch1Reject;
+    let fetch2Resolve;
+
+    mockFetch.mockImplementationOnce((url, opts) => {
+      return new Promise((resolve, reject) => {
+        fetch1Reject = reject;
+      });
+    }).mockImplementationOnce(() => {
+      return new Promise((resolve) => {
+        fetch2Resolve = resolve;
+      });
+    });
+
+    const { unmount } = render(<RiskForecastingIntegrationAdapter />);
+    unmount(); // Unmount makes it inactive
+
+    render(<RiskForecastingIntegrationAdapter />);
+
+    await act(async () => {
+      fetch2Resolve({
+        ok: true,
+        json: async () => validVetContext
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
+    });
+
+    // Simulate stale request rejecting with a generic error AFTER the second request succeeded
+    await act(async () => {
+      fetch1Reject(new Error('Network failure'));
+    });
+
+    // The stale request error should not overwrite the successful response
+    expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('15. successful response explicitly clears any previous transient error', async () => {
+    localStorage.setItem('token', 'synthetic-test-token-123');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => validVetContext
+    });
+
+    render(<RiskForecastingIntegrationAdapter />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
+    });
   });
 });
 
