@@ -15,10 +15,10 @@ import unittest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.routes import router
-from backend.components.risk_forecasting.schemas import ForecastDecisionRecord
-from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
-from backend.components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
+from components.risk_forecasting.routes import router
+from components.risk_forecasting.schemas import ForecastDecisionRecord
+from components.risk_forecasting.services.forecast_record_service import forecast_record_service
+from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
 
 app = FastAPI()
 app.include_router(router, prefix="/api/v1/risk-forecasting")

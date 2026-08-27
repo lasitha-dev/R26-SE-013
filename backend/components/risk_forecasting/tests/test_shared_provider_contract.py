@@ -9,16 +9,16 @@ from typing import Dict, Optional, Tuple, List
 import unittest
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.integrations import (
+from components.risk_forecasting.integrations import (
     SharedForecastRecord,
     SharedForecastDataClient,
     SharedApiForecastDataProvider,
     CsvForecastDataProvider,
 )
-from backend.components.risk_forecasting.services.fmd_service import fmd_service, FMDService
-from backend.components.risk_forecasting.services.lsd_service import lsd_service, LSDService
-from backend.components.risk_forecasting.schemas import FMDOutbreakPredictRequest, LSDOutbreakPredictRequest
-from backend.components.risk_forecasting.routes import router
+from components.risk_forecasting.services.fmd_service import fmd_service, FMDService
+from components.risk_forecasting.services.lsd_service import lsd_service, LSDService
+from components.risk_forecasting.schemas import FMDOutbreakPredictRequest, LSDOutbreakPredictRequest
+from components.risk_forecasting.routes import router
 from fastapi import FastAPI
 
 

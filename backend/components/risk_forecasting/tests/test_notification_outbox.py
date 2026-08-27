@@ -20,27 +20,27 @@ import unittest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.integrations.notification_provider import (
+from components.risk_forecasting.integrations.notification_provider import (
     MockNotificationProvider,
     ProviderDeliveryPayload,
     ProviderDeliveryResult,
 )
-from backend.components.risk_forecasting.integrations.recipient_directory import InMemoryRecipientDirectory
-from backend.components.risk_forecasting.repositories.advisory_repository import InMemoryAdvisoryRepository
-from backend.components.risk_forecasting.repositories.notification_outbox_repository import (
+from components.risk_forecasting.integrations.recipient_directory import InMemoryRecipientDirectory
+from components.risk_forecasting.repositories.advisory_repository import InMemoryAdvisoryRepository
+from components.risk_forecasting.repositories.notification_outbox_repository import (
     InMemoryNotificationOutboxRepository,
 )
-from backend.components.risk_forecasting import routes
-from backend.components.risk_forecasting.routes import router
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting import routes
+from components.risk_forecasting.routes import router
+from components.risk_forecasting.schemas import (
     CreateAdvisoryDraftRequest,
     EnqueueNotificationBatchRequest,
     GenerateForecastRecordRequest,
     PersonalizedOverride,
 )
-from backend.components.risk_forecasting.services.advisory_service import AdvisoryService
-from backend.components.risk_forecasting.services.forecast_record_service import ForecastRecordService
-from backend.components.risk_forecasting.services.notification_service import NotificationService
+from components.risk_forecasting.services.advisory_service import AdvisoryService
+from components.risk_forecasting.services.forecast_record_service import ForecastRecordService
+from components.risk_forecasting.services.notification_service import NotificationService
 
 app = FastAPI()
 app.include_router(router, prefix="/api/v1/risk-forecasting")
@@ -805,7 +805,7 @@ class TestNotificationOutboxFoundation(unittest.TestCase):
         self.assertIn("DEMO_FARM_002", approved_ids)
 
         # C. Modify/replace RecipientDirectory so it exposes B and C (e.g. DEMO_FARM_002 and DEMO_FARM_999)
-        from backend.components.risk_forecasting.integrations.recipient_directory import Recipient
+        from components.risk_forecasting.integrations.recipient_directory import Recipient
         self.recipient_dir._recipients = [
             Recipient(recipient_id="DEMO_FARM_002", recipient_name="Farm 2", district="Anuradhapura", assigned_vet_id="vet_officer_01"),
             Recipient(recipient_id="DEMO_FARM_999", recipient_name="New Farm 999", district="Anuradhapura", assigned_vet_id="vet_officer_01"),

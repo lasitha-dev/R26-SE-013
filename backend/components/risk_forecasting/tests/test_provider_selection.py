@@ -9,7 +9,7 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock
 
-from backend.components.risk_forecasting.integrations import (
+from components.risk_forecasting.integrations import (
     create_forecast_data_provider,
     CsvForecastDataProvider,
     SharedApiForecastDataProvider,

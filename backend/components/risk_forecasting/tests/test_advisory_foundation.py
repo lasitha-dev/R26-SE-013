@@ -26,27 +26,27 @@ import unittest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 
-from backend.components.risk_forecasting.integrations.recipient_directory import (
+from components.risk_forecasting.integrations.recipient_directory import (
     InMemoryRecipientDirectory,
     Recipient,
 )
-from backend.components.risk_forecasting.repositories.advisory_repository import (
+from components.risk_forecasting.repositories.advisory_repository import (
     InMemoryAdvisoryRepository,
 )
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.repositories.forecast_record_repository import (
     InMemoryForecastRecordRepository,
 )
-from backend.components.risk_forecasting.routes import router
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.routes import router
+from components.risk_forecasting.schemas import (
     CreateAdvisoryDraftRequest,
     FarmerAdvisoryRecord,
     GenerateForecastRecordRequest,
     PersonalizedOverride,
     UpdateAdvisoryDraftRequest,
 )
-from backend.components.risk_forecasting.services.advisory_service import AdvisoryService
-from backend.components.risk_forecasting.services.advisory_template_service import AdvisoryTemplateService
-from backend.components.risk_forecasting.services.forecast_record_service import ForecastRecordService
+from components.risk_forecasting.services.advisory_service import AdvisoryService
+from components.risk_forecasting.services.advisory_template_service import AdvisoryTemplateService
+from components.risk_forecasting.services.forecast_record_service import ForecastRecordService
 
 app = FastAPI()
 app.include_router(router, prefix="/api/v1/risk-forecasting")
@@ -343,7 +343,7 @@ class TestAdvisoryFoundation(unittest.TestCase):
 
     # 16. Idempotency Header vs Body Mismatch Rejection (409)
     def test_16_idempotency_header_body_mismatch_rejection(self):
-        from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
+        from components.risk_forecasting.services.forecast_record_service import forecast_record_service
         forecast_record_service.repository.save(self.fmd_record)
 
         payload = {
@@ -458,7 +458,7 @@ class TestAdvisoryFoundation(unittest.TestCase):
         self.assertEqual(res1.status_code, 200)
 
         # 2. Existing record endpoint works
-        from backend.components.risk_forecasting.services.forecast_record_service import forecast_record_service
+        from components.risk_forecasting.services.forecast_record_service import forecast_record_service
         forecast_record_service.repository.save(self.fmd_record)
         res2 = self.client.get(f"/api/v1/risk-forecasting/records/{self.fmd_record.forecast_id}")
         self.assertEqual(res2.status_code, 200)

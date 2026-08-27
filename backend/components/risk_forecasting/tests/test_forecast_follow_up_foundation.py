@@ -10,18 +10,18 @@ from datetime import datetime, timezone
 import unittest
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.integrations.vet_directory import (
+from components.risk_forecasting.integrations.vet_directory import (
     InMemoryVeterinaryOfficerDirectory,
     VeterinaryOfficerSummary,
 )
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.repositories.forecast_record_repository import (
     InMemoryForecastRecordRepository,
 )
-from backend.components.risk_forecasting.repositories.follow_up_repository import (
+from components.risk_forecasting.repositories.follow_up_repository import (
     InMemoryFollowUpRepository,
 )
-from backend.components.risk_forecasting.routes import router
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.routes import router
+from components.risk_forecasting.schemas import (
     CreateFollowUpRequest,
     FollowUpActorContext,
     ForecastDecisionRecord,
@@ -29,11 +29,11 @@ from backend.components.risk_forecasting.schemas import (
     LinkExternalResourceRequest,
     TransitionFollowUpRequest,
 )
-from backend.components.risk_forecasting.services.forecast_record_service import (
+from components.risk_forecasting.services.forecast_record_service import (
     ForecastRecordService,
     forecast_record_service,
 )
-from backend.components.risk_forecasting.services.follow_up_service import (
+from components.risk_forecasting.services.follow_up_service import (
     ForecastFollowUpService,
 )
 from fastapi import FastAPI
@@ -816,7 +816,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             instruction_summary="Operational follow-up instruction test.",
         )
         rec = self.service.issue_follow_up(req, actor=daph_actor)
-        from backend.components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
+        from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
         forecast_follow_up_service.follow_up_repo.save(rec)
         return rec
 

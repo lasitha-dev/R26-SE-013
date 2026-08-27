@@ -12,12 +12,12 @@ from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
-from backend.components.risk_forecasting.config import SRI_LANKA_DISTRICTS
-from backend.components.risk_forecasting.repositories.forecast_record_repository import (
+from components.risk_forecasting.config import SRI_LANKA_DISTRICTS
+from components.risk_forecasting.repositories.forecast_record_repository import (
     InMemoryForecastRecordRepository,
 )
-from backend.components.risk_forecasting.routes import router
-from backend.components.risk_forecasting.schemas import (
+from components.risk_forecasting.routes import router
+from components.risk_forecasting.schemas import (
     FMDOutbreakPredictRequest,
     FMDOutbreakPredictResponse,
     ForecastDecisionRecord,
@@ -25,11 +25,11 @@ from backend.components.risk_forecasting.schemas import (
     LSDOutbreakPredictRequest,
     LSDOutbreakPredictResponse,
 )
-from backend.components.risk_forecasting.services.fmd_service import fmd_service
-from backend.components.risk_forecasting.services.forecast_record_service import (
+from components.risk_forecasting.services.fmd_service import fmd_service
+from components.risk_forecasting.services.forecast_record_service import (
     ForecastRecordService,
 )
-from backend.components.risk_forecasting.services.lsd_service import lsd_service
+from components.risk_forecasting.services.lsd_service import lsd_service
 
 
 class TestForecastRecordFoundation(unittest.TestCase):
