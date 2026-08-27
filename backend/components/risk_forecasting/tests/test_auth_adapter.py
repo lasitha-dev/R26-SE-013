@@ -191,7 +191,7 @@ def test_case_20_21_existing_routes_unchanged():
     import ast
     from pathlib import Path
     
-    routes_path = Path("backend/components/risk_forecasting/routes.py")
+    routes_path = Path(__file__).resolve().parents[1] / "routes.py"
     tree = ast.parse(routes_path.read_text(encoding="utf-8"))
     
     paths = {}
