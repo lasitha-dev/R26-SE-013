@@ -587,7 +587,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
       {/* 4. Filter & Target Period Controls */}
       <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
           {/* Disease Selector */}
           <div>
             <label htmlFor="disease-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
@@ -714,7 +714,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
 
         {/* Operational Follow-Up Toggle */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+        <div className="flex items-start sm:items-center gap-2 pt-2 border-t border-slate-800">
           <input
             type="checkbox"
             id="follow-up-checkbox"
@@ -723,9 +723,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
               setFollowUpOnly(e.target.checked);
               setOffset(0);
             }}
-            className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500"
+            className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500 mt-0.5 sm:mt-0 shrink-0"
           />
-          <label htmlFor="follow-up-checkbox" className="text-xs text-amber-300 font-medium cursor-pointer">
+          <label htmlFor="follow-up-checkbox" className="text-xs text-amber-300 font-medium cursor-pointer whitespace-normal break-words">
             Display Operational Follow-up Required Only (Medium/High Risk without Approved Vet Advisory)
           </label>
         </div>
@@ -764,7 +764,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
 
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
-          <span className="text-xs text-slate-400 font-medium block truncate" title={summaryMetrics.missingLabel}>
+          <span className="text-xs text-slate-400 font-medium block whitespace-normal break-words" title={summaryMetrics.missingLabel}>
             {summaryMetrics.missingLabel}
           </span>
           <span className="text-2xl font-bold text-slate-300 mt-1 block">{summaryMetrics.missingCount}</span>
@@ -785,17 +785,17 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+          <div className="p-6 md:p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
             <span className="material-symbols-outlined text-3xl animate-spin text-emerald-400">sync</span>
             <span className="text-sm font-medium">Loading official national forecast records...</span>
           </div>
         ) : error ? (
-          <div className="p-8 text-center text-rose-300 flex flex-col items-center justify-center gap-2">
+          <div className="p-6 md:p-8 text-center text-rose-300 flex flex-col items-center justify-center gap-2">
             <span className="material-symbols-outlined text-3xl text-rose-400">error</span>
             <span className="text-sm font-medium">{error}</span>
           </div>
         ) : (allRecords.length === 0 || paginatedRows.length === 0) ? (
-          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+          <div className="p-6 md:p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
             <span className="material-symbols-outlined text-3xl text-slate-500">find_in_page</span>
             <span className="text-sm font-medium text-slate-300">No official forecast records found for selected criteria.</span>
             <p className="text-xs text-slate-500 max-w-md mt-1">

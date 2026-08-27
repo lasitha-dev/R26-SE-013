@@ -41,7 +41,7 @@ export function ForecastingSubNavigation({
       aria-label={ariaLabel}
       className="w-full bg-surface-container-low/90 backdrop-blur-md border-b border-outline-variant/30 px-4 sm:px-6 py-2.5"
     >
-      <div ref={containerRef} className="relative flex items-center gap-2 overflow-x-auto scrollbar-none scroll-smooth motion-reduce:scroll-auto py-0.5">
+      <div ref={containerRef} className="relative flex items-center gap-2 flex-wrap py-0.5">
         {items.map((item) => {
           const isActive = item.id === activeItem;
           return (

@@ -7,6 +7,7 @@ describe('ForecastingSubNavigation Component', () => {
   const mockItems = [
     { id: 'disease-risk', label: 'Disease Risk', icon: 'health_and_safety' },
     { id: 'alerts-guidance', label: 'Alerts & Guidance', icon: 'notifications_active' },
+    { id: 'model-transparency', label: 'Model Transparency', icon: 'model_training' },
   ];
 
   it('renders nothing when items array is empty or undefined', () => {
@@ -23,7 +24,7 @@ describe('ForecastingSubNavigation Component', () => {
   it('renders all supplied items as buttons with type="button"', () => {
     render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
     const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(3);
     buttons.forEach((btn) => {
       expect(btn).toHaveAttribute('type', 'button');
     });
@@ -128,11 +129,15 @@ describe('ForecastingSubNavigation Component', () => {
     });
   });
 
-  it('retains mobile horizontal scroll overflow container with reduced-motion fallback class', () => {
+  it('uses flex-wrap instead of overflow-x-auto for responsive wrapping', () => {
     const { container } = render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
-    const scrollContainer = container.querySelector('.overflow-x-auto');
+    const scrollContainer = container.querySelector('.flex-wrap');
     expect(scrollContainer).not.toBeNull();
-    expect(scrollContainer.className).toContain('scroll-smooth');
-    expect(scrollContainer.className).toContain('motion-reduce:scroll-auto');
+    expect(scrollContainer.className).not.toContain('overflow-x-auto');
+  });
+
+  it('renders Model Transparency completely', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    expect(screen.getByText('Model Transparency')).toBeInTheDocument();
   });
 });

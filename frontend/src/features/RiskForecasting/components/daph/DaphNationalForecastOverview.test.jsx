@@ -434,4 +434,78 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(screen.queryByRole('button', { name: /Issue Operational Follow-Up/i })).not.toBeInTheDocument();
     });
   });
+
+  // 9. Responsive Layout Adjustments
+  describe('Responsive Layout Adjustments', () => {
+    it('renders filter controls in their original order and callbacks remain operational', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
+      });
+
+      const selects = screen.getAllByRole('combobox');
+      expect(selects[0]).toHaveAttribute('id', 'disease-filter-select');
+      expect(selects[1]).toHaveAttribute('id', 'year-filter-select');
+      expect(selects[2]).toHaveAttribute('id', 'month-filter-select');
+      expect(selects[3]).toHaveAttribute('id', 'risk-filter-select');
+      expect(selects[4]).toHaveAttribute('id', 'advisory-filter-select');
+
+      // Test a callback
+      fireEvent.change(selects[0], { target: { value: 'FMD' } });
+      expect(selects[0].value).toBe('FMD');
+    });
+
+    it('renders summary metric labels without truncation classes removing them', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Total Forecast Records')).toBeInTheDocument();
+        expect(screen.getByText('HIGH Risk Districts')).toBeInTheDocument();
+        expect(screen.getByText('MEDIUM Risk Districts')).toBeInTheDocument();
+        expect(screen.getByText('LOW Risk Districts')).toBeInTheDocument();
+        expect(screen.getByText('Fallback Data Applied')).toBeInTheDocument();
+      });
+
+      const missingLabel = screen.getByText(/Missing District–Disease Forecasts/i);
+      expect(missingLabel).toBeInTheDocument();
+      expect(missingLabel.className).not.toContain('truncate');
+      expect(missingLabel.className).toContain('whitespace-normal');
+      expect(missingLabel.className).toContain('break-words');
+    });
+
+    it('renders empty-state content under existing conditions', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
+      });
+
+      const emptyStateText = screen.getByText(/No official forecast records found/i);
+      const container = emptyStateText.parentElement;
+      expect(container.className).toContain('p-6 md:p-12');
+    });
+
+    it('does not remove matrix, filters, refresh, or pagination when permitted', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+        expect(screen.getByText(/Showing \d+ of \d+ matching district entries/i)).toBeInTheDocument();
+      });
+
+      const refreshBtn = screen.getByRole('button', { name: /Refresh Data/i });
+      expect(refreshBtn).toBeInTheDocument();
+    });
+
+    it('applies correct responsive grid classes to filter container', async () => {
+      const { container } = render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
+      });
+      const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2.xl\\:grid-cols-3.2xl\\:grid-cols-6');
+      expect(grid).toBeInTheDocument();
+    });
+  });
 });
