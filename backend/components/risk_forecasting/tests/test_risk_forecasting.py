@@ -5,11 +5,11 @@ LSD Platt-calibrated prediction, all-district climatological forecasts, and sche
 """
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 import pandas as pd
 from fastapi.testclient import TestClient
-from backend.main import app
-from backend.components.risk_forecasting.services.fmd_service import fmd_service
+from main import app
+from components.risk_forecasting.services.fmd_service import fmd_service
 
 
 class TestRiskForecastingAPI(unittest.TestCase):
@@ -18,12 +18,16 @@ class TestRiskForecastingAPI(unittest.TestCase):
     def setUpClass(cls):
         cls.client = TestClient(app)
 
-    def test_root_endpoint(self):
+    @patch("main.farms_collection.count_documents", new_callable=AsyncMock)
+    def test_root_endpoint(self, mock_count):
         """Verifies backend root endpoint."""
+        mock_count.return_value = 123
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "ok")
+        self.assertTrue(data.get("database_connected"))
+        self.assertEqual(data.get("registered_farms_count"), 123)
 
     def test_health_endpoint(self):
         """Verifies component health check and model loading status."""
@@ -129,7 +133,7 @@ class TestRiskForecastingAPI(unittest.TestCase):
 
     def test_fmd_predict_missing_31_feature_artifact_fallback(self):
         """Scenario E: Valid lag + missing 31-feature artifact -> actual model = 30 -> artifact fallback reported."""
-        from backend.components.risk_forecasting.services.fmd_service import fmd_service
+        from components.risk_forecasting.services.fmd_service import fmd_service
 
         original_31_model = fmd_service.models.pop("stage1_31_model", None)
         try:
@@ -368,7 +372,7 @@ class TestRiskForecastingAPI(unittest.TestCase):
 
     def test_lsd_predict_28_feat_artifact_missing_fallback(self):
         """Scenario: Valid historical lag exists + 28-feature model artifact missing -> fallback to 27-feature model."""
-        from backend.components.risk_forecasting.services.lsd_service import lsd_service
+        from components.risk_forecasting.services.lsd_service import lsd_service
         
         # Save original 28-feature model artifact reference
         orig_model = lsd_service.models.pop("stage1_model", None)
@@ -411,7 +415,7 @@ class TestRiskForecastingAPI(unittest.TestCase):
 
     def test_lsd_predict_missing_27_feat_artifact_failure(self):
         """Scenario: Lag unavailable + 27-feature model artifact missing -> returns HTTP 500 cleanly."""
-        from backend.components.risk_forecasting.services.lsd_service import lsd_service
+        from components.risk_forecasting.services.lsd_service import lsd_service
 
         orig_27_model = lsd_service.models.pop("stage1_27feat_model", None)
         try:
@@ -651,4 +655,5 @@ class TestRiskForecastingAPI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
