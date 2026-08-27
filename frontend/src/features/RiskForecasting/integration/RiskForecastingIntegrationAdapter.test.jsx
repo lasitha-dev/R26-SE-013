@@ -89,6 +89,22 @@ describe('RiskForecastingIntegrationAdapter', () => {
     expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
   });
 
+  it('3b. successful valid DAPH viewerContext uses correct headers and renders feature', async () => {
+    localStorage.setItem('token', 'synthetic-test-token-123');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...validVetContext, role: ROLES.DAPH_OFFICIAL, authorization: { ...validVetContext.authorization, scopeLevel: SCOPE_LEVELS.NATIONAL } })
+    });
+
+    render(<RiskForecastingIntegrationAdapter />);
+    
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('mock-risk-forecasting-feature')).toBeInTheDocument();
+  });
+
   it('4. HTTP 401 fails closed', async () => {
     localStorage.setItem('token', 'synthetic-test-token-123');
     mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });

@@ -87,7 +87,7 @@ async def test_case_07_non_vet_role(mock_vets_collection, mock_jwt_decode):
     with pytest.raises(HTTPException) as exc_info:
         await get_viewer_context(request)
     assert exc_info.value.status_code == 403
-    assert "Only Veterinary Officers" in exc_info.value.detail
+    assert "Only Veterinary Officers and DAPH Officials" in exc_info.value.detail
 
 @pytest.mark.asyncio
 @patch("components.risk_forecasting.integration.auth_adapter.jwt.decode")
@@ -140,6 +140,31 @@ async def test_case_09_to_15_success(mock_vets_collection, mock_jwt_decode):
     assert "passwordHash" not in response_dict
     assert "tokenVersion" not in response_dict
     assert "model_config" not in response_dict
+
+@pytest.mark.asyncio
+@patch("components.risk_forecasting.integration.auth_adapter.jwt.decode")
+@patch("components.risk_forecasting.integration.auth_adapter.vets_collection")
+async def test_case_daph_role_success(mock_vets_collection, mock_jwt_decode):
+    mock_jwt_decode.return_value = {"sub": "daph@example.com"}
+    mock_vet_doc = {
+        "_id": "mock_obj_id",
+        "email": "daph@example.com",
+        "district": "Colombo",
+        "role": "daph",
+        "assigned_farm_ids": []
+    }
+    mock_vets_collection.find_one = AsyncMock(return_value=mock_vet_doc)
+    
+    request = MockRequest(headers={"Authorization": "Bearer valid_token"})
+    vc = await get_viewer_context(request)
+    
+    assert vc.role == "DAPH_OFFICIAL"
+    assert vc.authorization.scopeLevel == "NATIONAL"
+    assert vc.permissions.viewDataQuality is True
+    assert vc.permissions.viewModelTransparency is True
+    assert vc.permissions.manageAlerts is True
+    assert vc.permissions.recordResponse is True
+    assert vc.permissions.viewReports is True
 
 @pytest.mark.asyncio
 @patch("components.risk_forecasting.integration.auth_adapter.jwt.decode")

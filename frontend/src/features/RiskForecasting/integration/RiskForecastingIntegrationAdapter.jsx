@@ -40,7 +40,7 @@ export default function RiskForecastingIntegrationAdapter() {
         const data = await response.json();
         
         const validation = validateViewerContext(data);
-        if (!validation.valid || validation.normalizedContext.role !== ROLES.VETERINARY_OFFICER) {
+        if (!validation.valid || (validation.normalizedContext.role !== ROLES.VETERINARY_OFFICER && validation.normalizedContext.role !== ROLES.DAPH_OFFICIAL)) {
           throw new Error("Invalid or unauthorized context");
         }
 

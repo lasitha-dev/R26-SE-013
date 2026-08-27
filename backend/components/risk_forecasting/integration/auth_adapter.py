@@ -86,11 +86,18 @@ async def get_viewer_context(request: Request) -> ViewerContextResponse:
             detail="Veterinary profile not found."
         )
         
-    if vet.get("role") != "vet":
+    db_role = vet.get("role", "vet")
+    if db_role not in ["vet", "daph"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Veterinary Officers are permitted to access this resource."
+            detail="Only Veterinary Officers and DAPH Officials are permitted to access this resource."
         )
+        
+    role_mapping = {
+        "vet": "VETERINARY_OFFICER",
+        "daph": "DAPH_OFFICIAL"
+    }
+    mapped_role = role_mapping[db_role]
         
     district = vet.get("district")
     if not district or not isinstance(district, str) or not district.strip():
@@ -122,17 +129,19 @@ async def get_viewer_context(request: Request) -> ViewerContextResponse:
             detail="Malformed assigned-farm array."
         )
         
+    scope_level = "DISTRICT" if db_role == "vet" else "NATIONAL"
+
     return ViewerContextResponse(
         userId=str(vet.get("_id", email)),
-        role="VETERINARY_OFFICER",
+        role=mapped_role,
         authorization=ViewerContextAuthorization(
-            scopeLevel="DISTRICT",
+            scopeLevel=scope_level,
             registeredFarmDistrict=None,
             authorizedDistricts=authorized_districts,
             assignedFarmIds=assigned_farm_ids
         ),
         permissions=ViewerContextPermissions(
-            viewDataQuality=False,
+            viewDataQuality=True if db_role == "daph" else False,
             viewModelTransparency=True,
             manageAlerts=True,
             recordResponse=True,

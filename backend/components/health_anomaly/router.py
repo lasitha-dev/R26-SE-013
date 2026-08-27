@@ -279,7 +279,7 @@ async def register_vet(vet_data: VetRegister):
     hashed_password = get_password_hash(vet_data.password)
     vet_doc = vet_data.model_dump()
     vet_doc["password"] = hashed_password
-    vet_doc["role"] = "vet"
+    vet_doc["role"] = vet_data.role
     vet_doc["created_at"] = datetime.utcnow().isoformat()
 
     try:
@@ -306,10 +306,17 @@ async def login_vet(credentials: VetLogin):
             detail="Invalid email or password."
         )
 
+    stored_role = vet.get("role", "vet")
+    if stored_role not in {"vet", "daph"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account role is corrupted or unsupported."
+        )
+
     token_data = {
         "sub": vet["email"],
         "full_name": vet["full_name"],
-        "role": "vet",
+        "role": stored_role,
         "license_number": vet.get("license_number", "")
     }
     access_token = create_access_token(data=token_data)
@@ -319,7 +326,7 @@ async def login_vet(credentials: VetLogin):
         "token_type": "bearer",
         "full_name": vet["full_name"],
         "email": vet["email"],
-        "role": "vet",
+        "role": stored_role,
         "license_number": vet.get("license_number", ""),
         "phone": vet.get("phone", ""),
         "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction"
