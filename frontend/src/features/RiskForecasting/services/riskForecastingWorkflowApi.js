@@ -169,6 +169,11 @@ async function requestWorkflowApi(path, options = {}) {
   const fullUrl = `${API_BASE}${path}`;
   const headers = { ...options.headers };
 
+  const token = localStorage.getItem('token');
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token.trim()}`;
+  }
+
   if (options.body && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }

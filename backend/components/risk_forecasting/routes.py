@@ -1101,13 +1101,14 @@ def link_external_resource_reference(
 async def list_farmer_notifications(
     authorization: Optional[str] = Header(None)
 ):
-    from core.database import db, farms_collection
     import jwt
     from core.security import JWT_SECRET, JWT_ALGORITHM
-    
+    from core.database import farms_collection
+    from components.risk_forecasting.repositories.farmer_notification_repository import list_for_farm
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
-    
+
     token = authorization.split(" ")[1]
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -1120,42 +1121,11 @@ async def list_farmer_notifications(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Role forbidden.")
     if role and role != "farmer":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Role forbidden.")
-        
+
     farm = await farms_collection.find_one({"email": email})
     if not farm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Farm profile not found.")
-        
-    farm_id = str(farm["_id"])
-    
-    cursor = db.forecast_notifications.find({"farmer_id": farm_id}).sort("created_at", -1)
-    notifications = []
-    async for doc in cursor:
-        doc["_id"] = str(doc["_id"])
-        notifications.append(doc)
-        
-    return notifications
-async def list_farmer_notifications(
-    authorization: Optional[str] = Header(None)
-):
-    import jwt
-    from core.security import JWT_SECRET, JWT_ALGORITHM
-    from core.database import farms_collection
-    from components.risk_forecasting.repositories.farmer_notification_repository import list_for_farm
-    
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
-    
-    token = authorization.split(" ")[1]
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        email = payload.get("sub")
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
-        
-    farm = await farms_collection.find_one({"email": email})
-    if not farm:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Farm profile not found.")
-        
+
     farm_id = str(farm["_id"])
     notifications = await list_for_farm(farm_id)
     return notifications
@@ -1173,10 +1143,10 @@ async def forward_to_assigned_farmers(
     from core.database import vets_collection, farms_collection
     from components.risk_forecasting.repositories.farmer_notification_repository import forward_to_assigned_farms
     from bson import ObjectId
-    
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid token.")
-        
+
     token = authorization.split(" ")[1]
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -1184,23 +1154,23 @@ async def forward_to_assigned_farmers(
         role = payload.get("role")
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
-        
+
     if role != "vet":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Veterinary Officers can forward advisories.")
-        
+
     vet = await vets_collection.find_one({"email": email})
     if not vet:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Veterinary profile not found.")
-        
+
     try:
         advisory = advisory_service.get_advisory(advisory_id)
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-        
+
     vet_id_str = str(vet["_id"])
     assigned_farm_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
     assigned_farm_emails = vet.get("assigned_farms", [])
-    
+
     query = {
         "$or": [
             {"_id": {"$in": assigned_farm_ids}},
@@ -1209,7 +1179,7 @@ async def forward_to_assigned_farmers(
             {"assigned_vet_emails": vet["email"]}
         ]
     }
-    
+
     cursor = farms_collection.find(query)
     assigned_farms = []
     seen = set()
@@ -1218,7 +1188,7 @@ async def forward_to_assigned_farmers(
         if f_id not in seen:
             seen.add(f_id)
             assigned_farms.append(farm_doc)
-            
+
     if not assigned_farms:
         return {
             "advisory_id": advisory_id,
@@ -1226,7 +1196,7 @@ async def forward_to_assigned_farmers(
             "already_notified_count": 0,
             "status": "forwarded"
         }
-        
+
     try:
         result = await forward_to_assigned_farms(advisory, assigned_farms, vet)
         return {

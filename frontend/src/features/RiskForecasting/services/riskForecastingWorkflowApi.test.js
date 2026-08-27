@@ -77,6 +77,68 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
 
   // ─── A. COMMON BEHAVIOR ──────────────────────────────────────────────────
 
+  describe('JWT and Authorization', () => {
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    it('1. With localStorage token, a workflow request sends Authorization: Bearer', async () => {
+      localStorage.setItem('token', 'test-vet-token');
+      mockFetchJsonResponse({ forecast_id: 'fdr_001' });
+      await getForecastRecord('fdr_001');
+
+      const options = globalThis.fetch.mock.calls[0][1];
+      expect(options.headers['Authorization']).toBe('Bearer test-vet-token');
+    });
+
+    it('2. forwardToAssignedFarmers sends correct path, JWT auth, and no unneeded identifiers', async () => {
+      localStorage.setItem('token', 'test-vet-token');
+      mockFetchJsonResponse({ status: 'forwarded' });
+      const actorContext = { actor_id: 'vet_01', actor_role: 'VETERINARY_OFFICER' };
+
+      await import('./riskForecastingWorkflowApi').then(api =>
+        api.forwardToAssignedFarmers('adv_123', { actorContext })
+      );
+
+      const callUrl = globalThis.fetch.mock.calls[0][0];
+      const options = globalThis.fetch.mock.calls[0][1];
+
+      expect(callUrl).toContain('/api/v1/risk-forecasting/advisories/adv_123/forward-to-assigned-farmers');
+      expect(options.headers['Authorization']).toBe('Bearer test-vet-token');
+      expect(options.headers['X-Actor-ID']).toBe('vet_01');
+      expect(options.headers['X-Actor-Role']).toBe('VETERINARY_OFFICER');
+
+      // Ensure no body is sent with unintended fields
+      if (options.body) {
+        const body = JSON.parse(options.body);
+        expect(body.farmId).toBeUndefined();
+        expect(body.farmerId).toBeUndefined();
+        expect(body.vetId).toBeUndefined();
+        expect(body.recipients).toBeUndefined();
+      }
+    });
+
+    it('3. Existing X-Actor headers remain present', async () => {
+      mockFetchJsonResponse({ follow_up_id: 'ffu_001' });
+      const actorContext = { actor_id: 'daph_01', actor_role: 'DAPH_OFFICIAL' };
+
+      await issueFollowUp({ forecast_id: 'fdr_001', assigned_vet_id: 'vet_01', instruction_summary: 'test' }, { actorContext });
+
+      const options = globalThis.fetch.mock.calls[0][1];
+      expect(options.headers['X-Actor-ID']).toBe('daph_01');
+      expect(options.headers['X-Actor-Role']).toBe('DAPH_OFFICIAL');
+    });
+
+    it('4. No token causes no fabricated Authorization header', async () => {
+      localStorage.removeItem('token');
+      mockFetchJsonResponse({ forecast_id: 'fdr_001' });
+      await getForecastRecord('fdr_001');
+
+      const options = globalThis.fetch.mock.calls[0][1];
+      expect(options.headers['Authorization']).toBeUndefined();
+    });
+  });
+
   it('1 & 2. Uses correct API path without duplicate /api/v1 prefix', async () => {
     mockFetchJsonResponse({ forecast_id: 'fdr_001' });
     await getForecastRecord('fdr_001');
