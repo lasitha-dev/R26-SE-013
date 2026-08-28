@@ -231,12 +231,36 @@ class TestMongoForecastRecordRepository(unittest.TestCase):
     # 14. database failure is sanitized
     def test_database_failure_is_sanitized(self):
         mock_col = MagicMock()
-        mock_col.insert_one.side_effect = PyMongoError("Mocked network error")
+        mock_col.insert_one.side_effect = PyMongoError("Mocked network error mongodb+srv://user:pass@cluster0")
         bad_repo = MongoForecastRecordRepository(collection=mock_col)
         
         with self.assertRaises(RuntimeError) as ctx:
             bad_repo.save(self._create_record())
-        self.assertIn("Database error during save", str(ctx.exception))
+        
+        err_msg = str(ctx.exception)
+        self.assertEqual(err_msg, "Forecast record storage is temporarily unavailable.")
+        self.assertNotIn("mongodb+srv", err_msg)
+        self.assertNotIn("user:pass", err_msg)
+        self.assertNotIn("Mocked network error", err_msg)
+
+    def test_database_read_failures_are_sanitized(self):
+        mock_col = MagicMock()
+        mock_col.find_one.side_effect = PyMongoError("ServerSelectionTimeoutError mongodb://host")
+        mock_col.count_documents.side_effect = PyMongoError("ServerSelectionTimeoutError mongodb://host")
+        mock_col.find_one_and_update.side_effect = PyMongoError("ServerSelectionTimeoutError mongodb://host")
+        bad_repo = MongoForecastRecordRepository(collection=mock_col)
+        
+        with self.assertRaises(RuntimeError) as ctx1:
+            bad_repo.get_by_id("fdr_1")
+        self.assertEqual(str(ctx1.exception), "Forecast record storage is temporarily unavailable.")
+
+        with self.assertRaises(RuntimeError) as ctx2:
+            bad_repo.list()
+        self.assertEqual(str(ctx2.exception), "Forecast record storage is temporarily unavailable.")
+        
+        with self.assertRaises(RuntimeError) as ctx3:
+            bad_repo.update_status("fdr_1", "AVAILABLE")
+        self.assertEqual(str(ctx3.exception), "Forecast record storage is temporarily unavailable.")
 
     # 15. index initialization occurs once
     def test_index_initialization_occurs_once(self):

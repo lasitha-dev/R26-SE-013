@@ -57,7 +57,7 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
                 ])
                 self._indexes_initialized = True
             except PyMongoError as e:
-                raise RuntimeError(f"Database unavailable for index initialization: {e}")
+                raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
 
     def _to_bson(self, record: ForecastDecisionRecord) -> dict:
         """Serializes the flat domain model into a BSON document."""
@@ -127,9 +127,9 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
                     return existing
             elif "_id" in str(e):
                 raise ValueError(f"Forecast record with ID '{record.forecast_id}' already exists.")
-            raise RuntimeError(f"Database collision: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
         except PyMongoError as e:
-            raise RuntimeError(f"Database error during save: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
 
     def get_by_id(self, forecast_id: str) -> Optional[ForecastDecisionRecord]:
         try:
@@ -138,7 +138,7 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
                 return None
             return self._to_model(doc)
         except PyMongoError as e:
-            raise RuntimeError(f"Database error during get_by_id: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
 
     def find_by_idempotency_key(self, idempotency_key: str) -> Optional[ForecastDecisionRecord]:
         if not idempotency_key:
@@ -149,7 +149,7 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
                 return None
             return self._to_model(doc)
         except PyMongoError as e:
-            raise RuntimeError(f"Database error during find_by_idempotency_key: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
 
     def list(
         self,
@@ -185,7 +185,7 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
             records = [self._to_model(doc) for doc in cursor]
             return records, total_count
         except PyMongoError as e:
-            raise RuntimeError(f"Database error during list: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e
 
     def update_status(self, forecast_id: str, new_status: str) -> Optional[ForecastDecisionRecord]:
         valid_statuses = {"GENERATED", "AVAILABLE", "REFERENCED", "SUPERSEDED"}
@@ -206,4 +206,4 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
                 return None
             return self._to_model(result)
         except PyMongoError as e:
-            raise RuntimeError(f"Database error during update_status: {e}")
+            raise RuntimeError("Forecast record storage is temporarily unavailable.") from e

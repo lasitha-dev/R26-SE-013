@@ -225,15 +225,15 @@ def create_forecast_record(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=err_msg
         )
-    except RuntimeError as e:
+    except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Forecast model service unavailable: {str(e)}"
+            detail="Forecast record service is temporarily unavailable."
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Forecast decision record generation failed: {str(e)}"
+            detail="Forecast record service is temporarily unavailable."
         )
 
 
@@ -250,6 +250,16 @@ def get_forecast_record(forecast_id: str):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
+        )
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Forecast record service is temporarily unavailable."
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Forecast record service is temporarily unavailable."
         )
 
 
@@ -284,6 +294,16 @@ def list_forecast_records(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Forecast record service is temporarily unavailable."
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Forecast record service is temporarily unavailable."
         )
 
 

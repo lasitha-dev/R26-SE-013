@@ -8,7 +8,7 @@ API endpoints, immutability guarantees, and isolation rules.
 import concurrent.futures
 from datetime import datetime, timezone
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -443,6 +443,18 @@ class TestForecastRecordFoundation(unittest.TestCase):
         self.assertEqual(refetched.probability, rec.probability)
         self.assertEqual(refetched.risk_level, rec.risk_level)
 
+
+    # 27. Repository Save Failure Returns generic 503 Error
+    def test_27_repository_save_failure_returns_sanitized_503(self):
+        from components.risk_forecasting.services.forecast_record_service import forecast_record_service
+        with patch.object(forecast_record_service.repository, 'save', side_effect=RuntimeError("Forecast record storage is temporarily unavailable.")):
+            payload = {"disease": "FMD", "district": "Colombo", "year": 2024, "month": 1}
+            res = self.client.post("/api/v1/risk-forecasting/records", json=payload)
+            self.assertEqual(res.status_code, 503)
+            
+            detail = res.json()["detail"]
+            self.assertEqual(detail, "Forecast record service is temporarily unavailable.")
+            self.assertNotIn("mongodb", detail)
 
 if __name__ == "__main__":
     unittest.main()
