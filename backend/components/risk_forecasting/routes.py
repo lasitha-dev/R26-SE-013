@@ -28,10 +28,13 @@ from components.risk_forecasting.services.lsd_service import lsd_service
 from components.risk_forecasting.services.forecast_record_service import forecast_record_service
 import sys
 
-# Inject MongoDB persistence for production runtime construction
-if "pytest" not in sys.modules:
+def setup_production_services():
     from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
+    from components.risk_forecasting.integrations.mongo_vet_directory import MongoVeterinaryOfficerDirectory
+    from components.risk_forecasting.integrations.mongo_recipient_directory import MongoRecipientDirectory
     forecast_record_service.repository = MongoForecastRecordRepository()
+    forecast_follow_up_service.vet_dir = MongoVeterinaryOfficerDirectory()
+    recipient_query_service.recipient_dir = MongoRecipientDirectory()
 
 from components.risk_forecasting.services.advisory_service import advisory_service
 from components.risk_forecasting.services.notification_service import notification_service

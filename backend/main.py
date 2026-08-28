@@ -12,7 +12,7 @@ from components.smart_diagnostics.implementations.mask_rcnn_segmenter import Mas
 from components.smart_diagnostics.routes import router as sd_router
 
 
-from components.risk_forecasting.routes import router as risk_forecasting_router
+from components.risk_forecasting.routes import router as risk_forecasting_router, setup_production_services
 
 def create_app() -> FastAPI:
     app = FastAPI(title="ADRS Core Backend", version="1.0.0")
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(sd_router)
     app.include_router(health_anomaly_router, prefix="/api")
     app.include_router(risk_forecasting_router, prefix="/api/v1/risk-forecasting", tags=["Risk Forecasting"])
+    setup_production_services()
 
     # Attach configuration and lazy model wrappers to app state.
     app.state.settings = settings
