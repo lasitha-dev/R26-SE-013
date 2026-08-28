@@ -26,6 +26,13 @@ from components.risk_forecasting.schemas import (
 from components.risk_forecasting.services.fmd_service import fmd_service
 from components.risk_forecasting.services.lsd_service import lsd_service
 from components.risk_forecasting.services.forecast_record_service import forecast_record_service
+import sys
+
+# Inject MongoDB persistence for production runtime construction
+if "pytest" not in sys.modules:
+    from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
+    forecast_record_service.repository = MongoForecastRecordRepository()
+
 from components.risk_forecasting.services.advisory_service import advisory_service
 from components.risk_forecasting.services.notification_service import notification_service
 from components.risk_forecasting.services.recipient_query_service import recipient_query_service
