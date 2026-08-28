@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -57,19 +57,19 @@ function formatTimestamp(isoString) {
 function getStatusBadgeStyle(status) {
   switch (status) {
     case FOLLOW_UP_STATUS.ISSUED:
-      return 'bg-blue-100 text-blue-800 border-blue-300';
+      return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
     case FOLLOW_UP_STATUS.ACKNOWLEDGED:
-      return 'bg-purple-100 text-purple-800 border-purple-300';
+      return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
     case FOLLOW_UP_STATUS.ACTION_IN_PROGRESS:
-      return 'bg-amber-100 text-amber-800 border-amber-300';
+      return 'bg-amber-950/300/20 text-amber-300 border-amber-500/40';
     case FOLLOW_UP_STATUS.COMPLETED:
-      return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      return 'bg-slate-8000/20 text-emerald-300 border-emerald-500/40';
     case FOLLOW_UP_STATUS.CANCELLED:
-      return 'bg-slate-100 text-slate-700 border-slate-300';
+      return 'bg-slate-800 text-slate-400 border-slate-700';
     case FOLLOW_UP_STATUS.ESCALATED:
-      return 'bg-red-100 text-red-800 border-red-300';
+      return 'bg-red-950/300/20 text-red-300 border-red-500/40';
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-300';
+      return 'bg-slate-800 text-slate-400 border-slate-700';
   }
 }
 
@@ -123,9 +123,23 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   // Query list runner
+  const activeRequestRef = useRef(null);
+
   const fetchFollowUps = useCallback(
-    async (signal) => {
+    async () => {
       if (!isAuthorized || !actorContext) return;
+
+      if (activeRequestRef.current) {
+        activeRequestRef.current.isActive = false;
+        activeRequestRef.current.controller.abort();
+      }
+
+      const currentRequest = {
+        isActive: true,
+        controller: new AbortController(),
+      };
+      activeRequestRef.current = currentRequest;
+
       setIsLoading(true);
       setError(null);
 
@@ -139,25 +153,27 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
         if (filters.target_year) queryFilters.target_year = Number(filters.target_year);
         if (filters.target_month) queryFilters.target_month = Number(filters.target_month);
 
-        const res = await listFollowUps(queryFilters, { actorContext, signal });
+        const res = await listFollowUps(queryFilters, { actorContext, signal: currentRequest.controller.signal });
         const records = res?.follow_ups || res?.records || (Array.isArray(res) ? res : []);
 
-        // Deterministic Newest-First Sorting
-        const sorted = [...records].sort((a, b) => {
-          const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
-          const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
-          if (timeB !== timeA) return timeB - timeA;
-          const createA = new Date(a.created_at || 0).getTime();
-          const createB = new Date(b.created_at || 0).getTime();
-          if (createB !== createA) return createB - createA;
-          return String(b.follow_up_id || '').localeCompare(String(a.follow_up_id || ''));
-        });
+        if (currentRequest.isActive) {
+          const sorted = [...records].sort((a, b) => {
+            const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+            const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+            if (timeB !== timeA) return timeB - timeA;
+            const createA = new Date(a.created_at || 0).getTime();
+            const createB = new Date(b.created_at || 0).getTime();
+            if (createB !== createA) return createB - createA;
+            return String(b.follow_up_id || '').localeCompare(String(a.follow_up_id || ''));
+          });
 
-        setFollowUps(sorted);
+          setFollowUps(sorted);
+          setError(null);
+          setIsLoading(false);
+        }
       } catch (err) {
-        if (err.name === 'AbortError') return;
-        setError(sanitizeErrorMessage(err));
-      } finally {
+        if (!currentRequest.isActive || err.name === 'AbortError') return;
+        setError('Follow-up information could not be loaded. Please try again.');
         setIsLoading(false);
       }
     },
@@ -165,9 +181,13 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
   );
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetchFollowUps(controller.signal);
-    return () => controller.abort();
+    fetchFollowUps();
+    return () => {
+      if (activeRequestRef.current) {
+        activeRequestRef.current.isActive = false;
+        activeRequestRef.current.controller.abort();
+      }
+    };
   }, [fetchFollowUps]);
 
   // Keep selected record synced with latest followUps list
@@ -277,12 +297,12 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
   return (
     <div className="w-full min-w-0 space-y-6">
       {/* Workspace Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-white tracking-tight">
             Follow-Up Monitoring
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-400 mt-1">
             National overview of forecast-linked operational follow-up instructions issued to Sri Lankan Veterinary Officers.
           </p>
         </div>
@@ -290,16 +310,16 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
           type="button"
           onClick={() => fetchFollowUps()}
           disabled={isLoading}
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800/40 border border-slate-700 rounded-lg hover:bg-slate-900/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
         >
-          <span className="material-icons-outlined text-base mr-2">refresh</span>
+          <span className="material-symbols-outlined text-base mr-2" aria-hidden="true">refresh</span>
           Refresh List
         </button>
       </div>
 
       {/* Operational Disclaimer */}
-      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed space-y-1">
-        <p className="font-semibold text-slate-800">
+      <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-slate-400 leading-relaxed space-y-1">
+        <p className="font-semibold text-slate-200">
           Operational Boundary & Scientific Transparency Notice:
         </p>
         <p>
@@ -309,15 +329,15 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
       {/* Error & Conflict Banners */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start justify-between text-sm text-red-800">
+        <div className="p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex items-start justify-between text-sm text-red-300">
           <div className="flex items-center space-x-2">
-            <span className="material-icons-outlined text-red-600">error_outline</span>
+            <span className="material-symbols-outlined text-red-400" aria-hidden="true">error_outline</span>
             <span>{error}</span>
           </div>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="text-red-600 hover:text-red-800 text-xs font-semibold"
+            className="text-red-400 hover:text-red-300 text-xs font-semibold"
           >
             Dismiss
           </button>
@@ -325,9 +345,9 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
       )}
 
       {conflictError && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-sm text-amber-900">
+        <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-xl flex items-center justify-between text-sm text-amber-300">
           <div className="flex items-center space-x-2">
-            <span className="material-icons-outlined text-amber-600">warning</span>
+            <span className="material-symbols-outlined text-amber-400" aria-hidden="true">warning</span>
             <span>{conflictError}</span>
           </div>
           {selectedRecord && (
@@ -344,43 +364,43 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Items</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{summary.total}</p>
+          <p className="text-2xl font-bold text-white mt-1">{summary.total}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">Issued</p>
-          <p className="text-2xl font-bold text-blue-900 mt-1">{summary.issued}</p>
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
+          <p className="text-xs font-medium text-blue-400 uppercase tracking-wider">Issued</p>
+          <p className="text-2xl font-bold text-blue-300 mt-1">{summary.issued}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-amber-600 uppercase tracking-wider">Underway</p>
-          <p className="text-2xl font-bold text-amber-900 mt-1">{summary.actionUnderway}</p>
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
+          <p className="text-xs font-medium text-amber-400 uppercase tracking-wider">Underway</p>
+          <p className="text-2xl font-bold text-amber-300 mt-1">{summary.actionUnderway}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Completed</p>
-          <p className="text-2xl font-bold text-emerald-900 mt-1">{summary.completed}</p>
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
+          <p className="text-xs font-medium text-emerald-400 uppercase tracking-wider">Completed</p>
+          <p className="text-2xl font-bold text-emerald-300 mt-1">{summary.completed}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Escalated</p>
-          <p className="text-2xl font-bold text-red-900 mt-1">{summary.escalated}</p>
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
+          <p className="text-xs font-medium text-red-400 uppercase tracking-wider">Escalated</p>
+          <p className="text-2xl font-bold text-red-300 mt-1">{summary.escalated}</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Cancelled</p>
-          <p className="text-2xl font-bold text-slate-700 mt-1">{summary.cancelled}</p>
+          <p className="text-2xl font-bold text-slate-300 mt-1">{summary.cancelled}</p>
         </div>
       </div>
 
       {/* Filter Controls Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-800 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800 flex items-center">
-            <span className="material-icons-outlined text-base mr-1 text-slate-500">filter_list</span>
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center">
+            <span className="material-symbols-outlined text-base mr-1 text-slate-500" aria-hidden="true">filter_list</span>
             Query Filters
           </h2>
           <button
             type="button"
             onClick={handleResetFilters}
-            className="text-xs font-medium text-slate-600 hover:text-slate-900 underline"
+            className="text-xs font-medium text-slate-400 hover:text-white underline"
           >
             Reset Filters
           </button>
@@ -388,12 +408,12 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Status</label>
             <select
               name="status"
               value={filters.status}
               onChange={handleFilterChange}
-              className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             >
               <option value="">All Statuses</option>
               <option value={FOLLOW_UP_STATUS.ISSUED}>ISSUED</option>
@@ -406,12 +426,12 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Disease</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Disease</label>
             <select
               name="disease"
               value={filters.disease}
               onChange={handleFilterChange}
-              className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             >
               <option value="">All Diseases</option>
               <option value="FMD">FMD</option>
@@ -420,24 +440,24 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">District</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">District</label>
             <input
               type="text"
               name="district"
               value={filters.district}
               onChange={handleFilterChange}
               placeholder="e.g. Anuradhapura"
-              className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Priority</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">Priority</label>
             <select
               name="operational_priority"
               value={filters.operational_priority}
               onChange={handleFilterChange}
-              className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             >
               <option value="">All Priorities</option>
               <option value={OPERATIONAL_PRIORITY.HIGH}>HIGH</option>
@@ -451,9 +471,9 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
       {/* Main Table & Master-Detail Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Table Column (Span 2 on lg) */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-800">
+        <div className="lg:col-span-2 bg-slate-800/40 rounded-xl border border-slate-800 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-200">
               National Follow-Up Records ({followUps.length})
             </h2>
             {isLoading && (
@@ -469,16 +489,16 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
             </div>
           ) : followUps.length === 0 ? (
             <div className="p-12 text-center space-y-2">
-              <span className="material-icons-outlined text-4xl text-slate-300">inbox</span>
-              <p className="text-sm font-medium text-slate-700">No Follow-Up Records Found</p>
+              <span className="material-symbols-outlined text-4xl text-slate-300" aria-hidden="true">inbox</span>
+              <p className="text-sm font-medium text-slate-300">No Follow-Up Records Found</p>
               <p className="text-xs text-slate-500">
                 No operational follow-ups match the selected query criteria.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600 uppercase tracking-wider">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-900/50 border-b border-slate-800 font-semibold text-slate-400 uppercase tracking-wider">
                   <tr>
                     <th className="p-3">Follow-Up ID</th>
                     <th className="p-3">Disease / District</th>
@@ -494,18 +514,18 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                     return (
                       <tr
                         key={record.follow_up_id}
-                        className={`hover:bg-slate-50 transition-colors ${
-                          isSelected ? 'bg-emerald-50/60' : ''
+                        className={`hover:bg-slate-900/50 transition-colors ${
+                          isSelected ? 'bg-emerald-900/30' : ''
                         }`}
                       >
-                        <td className="p-3 font-mono font-medium text-slate-900">
+                        <td className="p-3 font-mono font-medium text-white">
                           {record.follow_up_id}
                         </td>
                         <td className="p-3">
-                          <span className="font-semibold text-slate-800">{record.disease}</span>
+                          <span className="font-semibold text-slate-200">{record.disease}</span>
                           <span className="text-slate-500 block">{record.district}</span>
                         </td>
-                        <td className="p-3 font-mono text-slate-600">
+                        <td className="p-3 font-mono text-slate-400">
                           {record.assigned_vet_id || 'N/A'}
                         </td>
                         <td className="p-3 font-semibold">
@@ -524,7 +544,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                           <button
                             type="button"
                             onClick={() => setSelectedRecord(record)}
-                            className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200"
+                            className="px-2.5 py-1 text-xs font-medium text-emerald-400 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700"
                           >
                             Details
                           </button>
@@ -539,8 +559,8 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
         </div>
 
         {/* Detail Panel Column (Span 1 on lg) */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-6">
-          <h2 className="text-base font-bold text-slate-900 border-b border-slate-200 pb-3 flex items-center justify-between">
+        <div className="bg-slate-800/40 rounded-xl border border-slate-800 shadow-sm p-5 space-y-6">
+          <h2 className="text-base font-bold text-white border-b border-slate-800 pb-3 flex items-center justify-between">
             <span>Record Details</span>
             {selectedRecord && (
               <span className="text-xs font-mono font-normal text-slate-500">
@@ -556,7 +576,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
           ) : (
             <div className="space-y-6 text-xs">
               {/* Header Status & Version */}
-              <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800">
                 <div>
                   <p className="text-slate-500 text-[10px] uppercase font-medium">Status / Version</p>
                   <span
@@ -569,16 +589,16 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                 </div>
                 <div className="text-right">
                   <p className="text-slate-500 text-[10px] uppercase font-medium">Record Version</p>
-                  <p className="font-mono font-bold text-slate-800 text-sm mt-0.5">v{selectedRecord.version}</p>
+                  <p className="font-mono font-bold text-slate-200 text-sm mt-0.5">v{selectedRecord.version}</p>
                 </div>
               </div>
 
               {/* Scientific Forecast Snapshot (Read-Only) */}
               <div className="space-y-2">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1">
+                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
                   Scientific Forecast Snapshot (Read-Only)
                 </h3>
-                <div className="grid grid-cols-2 gap-2 text-slate-700">
+                <div className="grid grid-cols-2 gap-2 text-slate-300">
                   <div>
                     <span className="text-slate-500 block">Forecast ID:</span>
                     <span className="font-mono font-medium">{selectedRecord.forecast_id || 'N/A'}</span>
@@ -593,7 +613,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                   </div>
                   <div>
                     <span className="text-slate-500 block">Risk Level:</span>
-                    <span className="font-bold text-slate-900">{selectedRecord.forecast_risk_level || 'N/A'}</span>
+                    <span className="font-bold text-white">{selectedRecord.forecast_risk_level || 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block">Probability:</span>
@@ -608,48 +628,48 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
               {/* DAPH Instruction Summary */}
               <div className="space-y-1">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1">
+                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
                   Operational Instruction
                 </h3>
-                <p className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium leading-relaxed">
+                <p className="p-3 bg-slate-900/50 border border-slate-800 rounded-lg text-slate-200 font-medium leading-relaxed">
                   {selectedRecord.instruction_summary || 'N/A'}
                 </p>
               </div>
 
               {/* Personnel Assignment */}
-              <div className="grid grid-cols-2 gap-2 text-slate-700">
+              <div className="grid grid-cols-2 gap-2 text-slate-300">
                 <div>
                   <span className="text-slate-500 block">Assigned Vet ID:</span>
-                  <span className="font-mono font-semibold text-slate-900">{selectedRecord.assigned_vet_id || 'N/A'}</span>
+                  <span className="font-mono font-semibold text-white">{selectedRecord.assigned_vet_id || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Issued By DAPH:</span>
-                  <span className="font-mono font-semibold text-slate-900">{selectedRecord.issued_by_daph_id || 'N/A'}</span>
+                  <span className="font-mono font-semibold text-white">{selectedRecord.issued_by_daph_id || 'N/A'}</span>
                 </div>
               </div>
 
               {/* External Resource Request Reference */}
               <div className="space-y-1">
                 <span className="text-slate-500 block">External Resource Request ID:</span>
-                <span className="font-mono text-slate-800 bg-slate-100 px-2 py-1 rounded inline-block">
+                <span className="font-mono text-slate-200 bg-slate-100 px-2 py-1 rounded inline-block">
                   {selectedRecord.external_resource_request_id || 'Not linked'}
                 </span>
               </div>
 
               {/* Escalation Reason (If Present) */}
               {selectedRecord.escalation_reason && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1 text-red-900">
-                  <p className="font-bold uppercase text-[10px] text-red-700">Escalation Reason:</p>
+                <div className="p-3 bg-red-950/30 border border-red-500/30 rounded-lg space-y-1 text-red-300">
+                  <p className="font-bold uppercase text-[10px] text-red-400">Escalation Reason:</p>
                   <p className="leading-relaxed">{selectedRecord.escalation_reason}</p>
                 </div>
               )}
 
               {/* Lifecycle Timeline */}
               <div className="space-y-2">
-                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1">
+                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
                   Lifecycle Timeline
                 </h3>
-                <ul className="space-y-1.5 text-[11px] text-slate-600">
+                <ul className="space-y-1.5 text-[11px] text-slate-400">
                   <li className="flex justify-between border-b border-slate-50 pb-1">
                     <span>Issued:</span>
                     <span className="font-mono">{formatTimestamp(selectedRecord.created_at)}</span>
@@ -673,13 +693,13 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                     </li>
                   )}
                   {selectedRecord.cancelled_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1 text-slate-700 font-semibold">
+                    <li className="flex justify-between border-b border-slate-50 pb-1 text-slate-300 font-semibold">
                       <span>Cancelled:</span>
                       <span className="font-mono">{formatTimestamp(selectedRecord.cancelled_at)}</span>
                     </li>
                   )}
                   {selectedRecord.escalated_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1 text-red-700 font-semibold">
+                    <li className="flex justify-between border-b border-slate-50 pb-1 text-red-400 font-semibold">
                       <span>Escalated:</span>
                       <span className="font-mono">{formatTimestamp(selectedRecord.escalated_at)}</span>
                     </li>
@@ -688,7 +708,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
               </div>
 
               {/* Allowed DAPH Action Controls */}
-              <div className="pt-2 border-t border-slate-200">
+              <div className="pt-2 border-t border-slate-800">
                 {selectedRecord.status === FOLLOW_UP_STATUS.ISSUED ||
                 selectedRecord.status === FOLLOW_UP_STATUS.ACKNOWLEDGED ||
                 selectedRecord.status === FOLLOW_UP_STATUS.ACTION_IN_PROGRESS ? (
@@ -697,7 +717,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                     onClick={() => setCancelModalRecord(selectedRecord)}
                     className="w-full py-2.5 px-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none shadow-sm transition-colors flex items-center justify-center space-x-1.5"
                   >
-                    <span className="material-icons-outlined text-base">cancel</span>
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">cancel</span>
                     <span>Cancel Follow-Up</span>
                   </button>
                 ) : (
@@ -714,18 +734,18 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
       {/* Cancellation Confirmation Modal */}
       {cancelModalRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center space-x-2 text-red-600 border-b border-slate-100 pb-3">
-              <span className="material-icons-outlined text-2xl">warning</span>
-              <h3 className="text-lg font-bold text-slate-900">Confirm Cancellation</h3>
+          <div className="bg-slate-800/40 rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-800 space-y-4">
+            <div className="flex items-center space-x-2 text-red-400 border-b border-slate-800 pb-3">
+              <span className="material-symbols-outlined text-2xl" aria-hidden="true">warning</span>
+              <h3 className="text-lg font-bold text-white">Confirm Cancellation</h3>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed">
               Are you sure you want to cancel operational follow-up instruction{' '}
-              <strong className="font-mono text-slate-900">{cancelModalRecord.follow_up_id}</strong>?
+              <strong className="font-mono text-white">{cancelModalRecord.follow_up_id}</strong>?
             </p>
 
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 text-xs text-slate-700">
+            <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800 space-y-1 text-xs text-slate-300">
               <p><strong>Disease / District:</strong> {cancelModalRecord.disease} ({cancelModalRecord.district})</p>
               <p><strong>Assigned Vet:</strong> {cancelModalRecord.assigned_vet_id || 'N/A'}</p>
               <p><strong>Current Status:</strong> {cancelModalRecord.status} (v{cancelModalRecord.version})</p>
@@ -735,12 +755,12 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
               Notice: Cancellation updates the standalone operational record status to CANCELLED. It does not guarantee physical field action reversal or recall of issued instructions.
             </p>
 
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => setCancelModalRecord(null)}
                 disabled={isSubmittingCancel}
-                className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-xs font-medium text-slate-300 bg-slate-800/40 border border-slate-700 rounded-lg hover:bg-slate-900/50"
               >
                 Keep Follow-Up
               </button>

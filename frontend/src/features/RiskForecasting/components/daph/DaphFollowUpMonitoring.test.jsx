@@ -176,8 +176,11 @@ describe('DaphFollowUpMonitoring Component', () => {
   ];
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
     workflowApi.listFollowUps.mockResolvedValue({ follow_ups: sampleFollowUps });
+    workflowApi.getFollowUp.mockResolvedValue(sampleFollowUps[0]);
+    workflowApi.cancelFollowUp.mockResolvedValue({ ...sampleFollowUps[0], status: 'CANCELLED' });
   });
 
   // 1. Authorization Tests
@@ -266,17 +269,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       });
     });
 
-    it('displays sanitized error message when query fails', async () => {
-      workflowApi.listFollowUps.mockRejectedValueOnce(
-        new Error('API Error 500: Database C:\\secret\\db.sqlite failed')
-      );
-      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Database \[redacted-path\] failed/i)).toBeInTheDocument();
-        expect(screen.queryByText(/secret/i)).not.toBeInTheDocument();
-      });
-    });
   });
 
   // 3. Summary & Detail Rendering
@@ -446,6 +439,93 @@ describe('DaphFollowUpMonitoring Component', () => {
           })
         );
       });
+    });
+  });
+
+  // 6. Request Lifecycle & UI Presentation Fixes
+  describe('Request Lifecycle & UI Presentation Fixes (Phase 7F)', () => {
+    it('displays no error banner for a cleanup AbortError', async () => {
+      const abortError = new Error('signal is aborted without reason');
+      abortError.name = 'AbortError';
+      workflowApi.listFollowUps.mockRejectedValueOnce(abortError);
+
+      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
+      
+      await new Promise(r => setTimeout(r, 100));
+      
+      expect(screen.queryByText(/signal is aborted without reason/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/error_outline/i)).not.toBeInTheDocument();
+    });
+
+    it('prevents a stale failed request from overwriting a newer successful result', async () => {
+
+      let resolveStale;
+      const stalePromise = new Promise((r, reject) => { resolveStale = reject; });
+      const freshPromise = Promise.resolve({ follow_ups: sampleFollowUps });
+
+      workflowApi.listFollowUps
+        .mockReturnValueOnce(stalePromise)
+        .mockReturnValueOnce(freshPromise);
+
+      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
+      
+      fireEvent.click(screen.getByRole('button', { name: /Reset Filters/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('ffu_001')).toBeInTheDocument();
+      });
+
+      resolveStale(new Error('Stale failure'));
+      
+      await new Promise(r => setTimeout(r, 100));
+      
+      expect(screen.queryByText(/Stale failure/i)).not.toBeInTheDocument();
+      expect(screen.getByText('ffu_001')).toBeInTheDocument();
+    });
+
+    it('clears previous error on Refresh List and replaces with new results', async () => {
+      workflowApi.listFollowUps
+        .mockRejectedValueOnce(new Error('First failure'))
+        .mockResolvedValueOnce({ follow_ups: sampleFollowUps });
+
+      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/Follow-up information could not be loaded/i)).toBeInTheDocument();
+      });
+
+      workflowApi.listFollowUps.mockResolvedValue({ follow_ups: sampleFollowUps });
+      fireEvent.click(screen.getByRole('button', { name: /Refresh List/i }));
+      
+      expect(screen.queryByText(/Follow-up information could not be loaded/i)).not.toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByText('ffu_001')).toBeInTheDocument();
+      });
+    });
+
+    it('displays only sanitized message on active failure, omitting raw details', async () => {
+      workflowApi.listFollowUps.mockRejectedValueOnce(new Error('API Error 500: Database failed with trace at line 42'));
+
+      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Follow-up information could not be loaded/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/Database failed/i)).not.toBeInTheDocument();
+    });
+
+    it('renders Material Symbol wrappers properly and preserves accessible text', async () => {
+      render(<DaphFollowUpMonitoring viewerContext={validDaphContext} />);
+
+      const icons = screen.getAllByText(/refresh|error_outline|filter_list/i);
+      
+      const materialSymbols = icons.filter(el => el.classList.contains('material-symbols-outlined'));
+      
+      expect(materialSymbols.length).toBeGreaterThan(0);
+      expect(screen.getByText('Refresh List')).toBeInTheDocument();
+      expect(screen.getByText('Query Filters')).toBeInTheDocument();
     });
   });
 });
