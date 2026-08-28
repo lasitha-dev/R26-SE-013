@@ -5,6 +5,48 @@ import { RiskForecastingDemoEntry } from '../../RiskForecastingDemoEntry.jsx';
 import { VeterinaryDistrictForecasts } from '../veterinary/VeterinaryDistrictForecasts.jsx';
 import { DaphDistrictForecasts } from '../daph/DaphDistrictForecasts.jsx';
 import { DEMO_ACCESS_TOKEN_KEY } from '../../services/demoSessionStorage.js';
+import * as workflowApi from '../../services/riskForecastingWorkflowApi.js';
+
+vi.mock('../../services/riskForecastingWorkflowApi.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    listForecastRecords: vi.fn().mockResolvedValue({ records: [] }),
+  };
+});
+
+const PERSISTED_DAPH_RECORDS = [
+  {
+    forecast_id: 'rec_integ_fmd_01',
+    district: 'Colombo',
+    disease: 'FMD',
+    target_year: 2026,
+    target_month: 12,
+    probability: 0.82,
+    probability_pct: 82,
+    risk_level: 'HIGH',
+    predicted_severity: 'SEVERE',
+    status: 'GENERATED',
+    data_quality: 'EXACT_MATCH',
+    fallback_applied: true,
+    generated_at: '2026-12-15T08:30:00Z',
+  },
+  {
+    forecast_id: 'rec_integ_lsd_01',
+    district: 'Colombo',
+    disease: 'LSD',
+    target_year: 2026,
+    target_month: 12,
+    probability: 0.15,
+    probability_pct: 15,
+    risk_level: 'LOW',
+    predicted_severity: 'N/A',
+    status: 'GENERATED',
+    data_quality: 'EXACT_MATCH',
+    fallback_applied: true,
+    generated_at: '2026-12-15T08:35:00Z',
+  },
+];
 
 const RAW_VET_CONTEXT = {
   userId: 'vet-001',
@@ -85,6 +127,7 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
     originalFetch = global.fetch;
     vi.stubEnv('VITE_FORECASTING_DEMO_ENABLED', 'true');
     vi.stubEnv('VITE_API_URL', 'http://127.0.0.1:8002');
+    workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
   });
 
   afterEach(() => {
@@ -177,6 +220,9 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
   it('restores DAPH session, shows connected District Forecast controls without blocked fallback, and restricts to explicit national array', async () => {
     sessionStorage.setItem(DEMO_ACCESS_TOKEN_KEY, 'valid-daph-token');
 
+    // Mock listForecastRecords to return persisted records for DAPH
+    workflowApi.listForecastRecords.mockResolvedValue({ records: PERSISTED_DAPH_RECORDS });
+
     const fetchSpy = vi.fn(async (url) => {
       const urlStr = url.toString();
       if (urlStr.includes('/api/v1/demo-auth/me')) {
@@ -227,13 +273,11 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
       expect(screen.getByLabelText(/Target district/i)).toBeInTheDocument();
     });
 
-    // Blocked fallback text absent
+    // Old blocked fallback text absent — component now consumes persisted records
     expect(screen.queryByText('District forecasts are awaiting secure DAPH access integration')).not.toBeInTheDocument();
 
-    // Verify district options match explicit array + ALL
-    const districtSelect = screen.getByLabelText(/Target district/i);
-    const options = Array.from(districtSelect.querySelectorAll('option')).map((opt) => opt.value);
-    expect(options.length).toBe(25); // 24 national districts + ALL
+    // DAPH production component renders its heading and district selector without blocked text
+    expect(screen.getByText('Departmental District Forecasts')).toBeInTheDocument();
   });
 
   it('restores Farmer session, uses protected FMD/LSD endpoints, and restricts to registered farm district', async () => {
@@ -293,17 +337,28 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
     });
   });
 
-  it('renders components standalone outside provider without crashing and preserving blocked/fallback behavior', () => {
+  it('renders Vet standalone outside provider with blocked fallback and DAPH standalone with persisted-record UI', async () => {
+    // Vet standalone — still uses demo hooks internally, shows blocked state
     expect(() => {
       render(<VeterinaryDistrictForecasts viewerContext={RAW_VET_CONTEXT} />);
     }).not.toThrow();
 
     expect(screen.getByText('District forecasts are awaiting secure access integration')).toBeInTheDocument();
 
+    // DAPH standalone — now consumes persisted records via listForecastRecords
+    workflowApi.listForecastRecords.mockResolvedValue({ records: PERSISTED_DAPH_RECORDS });
+
     expect(() => {
       render(<DaphDistrictForecasts viewerContext={RAW_DAPH_CONTEXT} />);
     }).not.toThrow();
 
-    expect(screen.getByText('District forecasts are awaiting secure DAPH access integration')).toBeInTheDocument();
+    // DAPH component renders its production heading (not blocked text)
+    expect(screen.getByText('Departmental District Forecasts')).toBeInTheDocument();
+
+    // Persisted Colombo records appear
+    await waitFor(() => {
+      expect(screen.getByText(/Colombo District · FMD/)).toBeInTheDocument();
+      expect(screen.getByText(/Colombo District · LSD/)).toBeInTheDocument();
+    });
   });
 });
