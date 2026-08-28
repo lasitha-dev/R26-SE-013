@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -141,8 +141,20 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
   const [actionSuccessNotice, setActionSuccessNotice] = useState(null);
 
   // 3. Fetch Follow-Ups Scoped to Authenticated Vet
-  const fetchFollowUps = useCallback(async (signal = null) => {
+  const activeRequestRef = useRef(null);
+
+  const fetchFollowUps = useCallback(async () => {
     if (!isValidVet || !actorId || !actorContext) return;
+
+    if (activeRequestRef.current) {
+      activeRequestRef.current.isActive = false;
+      activeRequestRef.current.controller.abort();
+    }
+
+    const controller = new AbortController();
+    const currentRequest = { controller, isActive: true };
+    activeRequestRef.current = currentRequest;
+
     setLoading(true);
     setApiError(null);
 
@@ -156,26 +168,36 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
       const res = await listFollowUps(filters, {
         actorContext,
-        signal,
+        signal: controller.signal,
       });
+
+      if (!currentRequest.isActive || controller.signal.aborted) return;
 
       const records = res?.follow_ups || res?.records || (Array.isArray(res) ? res : []);
       setFollowUps(records);
+      setApiError(null);
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (!currentRequest.isActive || controller.signal.aborted) return;
+      if (err.name === 'AbortError' || (err.message && err.message.includes('aborted without reason'))) return;
+
       setApiError(sanitizeErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (currentRequest.isActive && !controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [isValidVet, actorId, actorContext, statusFilter, diseaseFilter, districtFilter]);
 
   useEffect(() => {
-    const controller = new AbortController();
     if (isValidVet) {
-      fetchFollowUps(controller.signal);
+      fetchFollowUps();
     }
     return () => {
-      controller.abort();
+      if (activeRequestRef.current) {
+        activeRequestRef.current.isActive = false;
+        activeRequestRef.current.controller.abort();
+        activeRequestRef.current = null;
+      }
     };
   }, [isValidVet, fetchFollowUps]);
 

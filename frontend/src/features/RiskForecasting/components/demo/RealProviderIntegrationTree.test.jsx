@@ -137,7 +137,7 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
     localStorage.clear();
   });
 
-  it('restores Vet session, shows connected District Forecast controls without blocked fallback, and queries protected endpoints', async () => {
+  it('restores Vet session and verifies District Forecasts is hidden from demo navigation', async () => {
     sessionStorage.setItem(DEMO_ACCESS_TOKEN_KEY, 'valid-vet-token');
 
     const fetchSpy = vi.fn(async (url) => {
@@ -147,27 +147,6 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
           ok: true,
           status: 200,
           json: async () => RAW_VET_CONTEXT,
-        };
-      }
-      if (urlStr.includes('/api/v1/demo-operational/')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ status: 'success', data: [] }),
-        };
-      }
-      if (urlStr.includes('/api/v1/demo-forecasting/forecast/fmd')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => FMD_FORECAST_RESPONSE,
-        };
-      }
-      if (urlStr.includes('/api/v1/demo-forecasting/forecast/lsd')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => LSD_FORECAST_RESPONSE,
         };
       }
       return { ok: false, status: 404, json: async () => ({ detail: 'Not found' }) };
@@ -182,39 +161,8 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
       expect(screen.getByText('Veterinary Officer Demonstration (PROVINCE Scope)')).toBeInTheDocument();
     });
 
-    // 2. Click District Forecasts subnav button
-    const forecastBtn = screen.getByRole('button', { name: /District Forecasts/i });
-    fireEvent.click(forecastBtn);
-
-    // 3. Confirm connected controls appear
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Target district/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Update forecast/i })).toBeInTheDocument();
-    });
-
-    // 4. Confirm blocked fallback text is ABSENT
-    expect(screen.queryByText('District forecasts are awaiting secure access integration')).not.toBeInTheDocument();
-    expect(screen.queryByText('Integration blocked')).not.toBeInTheDocument();
-
-    // 5. Confirm Vet selector contains only five explicit districts
-    const districtSelect = screen.getByLabelText(/Target district/i);
-    const options = Array.from(districtSelect.querySelectorAll('option')).map((opt) => opt.value);
-    expect(options).toEqual(['ALL', 'Jaffna', 'Kilinochchi', 'Mannar', 'Mullaitivu', 'Vavuniya']);
-
-    // 6. Click Update Forecast and confirm protected endpoints called
-    const updateBtn = screen.getByRole('button', { name: /Update forecast/i });
-    fireEvent.click(updateBtn);
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/demo-forecasting/forecast/fmd'),
-        expect.any(Object)
-      );
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/demo-forecasting/forecast/lsd'),
-        expect.any(Object)
-      );
-    });
+    // 2. Confirm District Forecasts button is hidden
+    expect(screen.queryByRole('button', { name: /District Forecasts/i })).not.toBeInTheDocument();
   });
 
   it('restores DAPH session, shows connected District Forecast controls without blocked fallback, and restricts to explicit national array', async () => {

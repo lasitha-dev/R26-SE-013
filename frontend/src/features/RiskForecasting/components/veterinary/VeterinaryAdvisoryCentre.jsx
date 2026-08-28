@@ -350,7 +350,6 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
       });
       setCurrentAdvisory(updated);
       setInfoMessage('Advisory APPROVED. Recipient snapshot and advisory text are now frozen.');
-      setCurrentStep(5);
     } catch (err) {
       setError(sanitizeErrorMessage(err, 'Failed to approve advisory.'));
     } finally {
@@ -389,7 +388,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               Veterinary Officer Advisory Centre
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              Draft, review, approve, and simulate recipient delivery of official biosecurity advisories linked to authoritative forecast records.
+              Draft, review, and approve official biosecurity advisories linked to authoritative forecast records.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -400,13 +399,12 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         </div>
 
         {/* Step Progress Bar */}
-        <div className="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-5 gap-2 text-center text-xs font-medium">
+        <div className="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-4 gap-2 text-center text-xs font-medium">
           {[
             { step: 1, label: '1. Select Forecast' },
             { step: 2, label: '2. Recipients' },
             { step: 3, label: '3. Advice Draft' },
             { step: 4, label: '4. Preview & Approve' },
-            { step: 5, label: '5. Simulated Delivery' },
           ].map(({ step, label }) => {
             const isActive = currentStep === step;
             const isPassed = currentStep > step;
@@ -415,7 +413,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                 key={step}
                 type="button"
                 onClick={() => {
-                  if (step <= currentStep || (step === 2 && selectedForecast) || (step === 3 && selectedForecast) || (step === 4 && currentAdvisory) || (step === 5 && currentAdvisory?.status === 'APPROVED')) {
+                  if (step <= currentStep || (step === 2 && selectedForecast) || (step === 3 && selectedForecast) || (step === 4 && currentAdvisory)) {
                     setCurrentStep(step);
                   }
                 }}
@@ -900,23 +898,10 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   {notifyingFarmers ? 'Notifying...' : 'Notify Assigned Farmers'}
                 </button>
                 {notifyResult && <span className="text-sm font-bold text-emerald-400 whitespace-nowrap">{notifyResult}</span>}
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(5)}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors inline-flex items-center gap-2"
-                >
-                  <span>Proceed to Simulated Delivery</span>
-                  <span className="material-symbols-outlined text-base" aria-hidden="true">arrow_forward</span>
-                </button>
               </div>
             )}
           </div>
         </div>
-      )}
-
-      {/* STEP 5 — EMBEDDED SIMULATED DELIVERY PANEL */}
-      {(currentStep === 5 || currentAdvisory?.status === 'APPROVED') && (
-        <SimulatedDeliveryPanel advisory={currentAdvisory} viewerContext={normalizedContext} />
       )}
     </div>
   );

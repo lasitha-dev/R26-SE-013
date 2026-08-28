@@ -244,6 +244,124 @@ describe('VeterinaryAssignedFollowUps Component', () => {
     });
   });
 
+  describe('Lifecycle & Race Condition Guard', () => {
+    it('does not display an error banner when fetch is aborted with AbortError', async () => {
+      const abortError = new Error('The operation was aborted.');
+      abortError.name = 'AbortError';
+      workflowApi.listFollowUps.mockRejectedValueOnce(abortError);
+
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        // We wait briefly and expect no alert
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      });
+    });
+
+    it('does not display an error banner when fetch fails with "signal is aborted without reason"', async () => {
+      workflowApi.listFollowUps.mockRejectedValueOnce(new Error('signal is aborted without reason'));
+
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      });
+    });
+
+    it('handles React StrictMode/double-mount behavior without false errors', async () => {
+      // First mount throws AbortError (simulating immediate unmount)
+      const abortError = new Error('AbortError');
+      abortError.name = 'AbortError';
+      workflowApi.listFollowUps.mockRejectedValueOnce(abortError);
+      // Second mount succeeds
+      workflowApi.listFollowUps.mockResolvedValueOnce({ follow_ups: mockFollowUps });
+
+      render(
+        <React.StrictMode>
+          <VeterinaryAssignedFollowUps viewerContext={validVetContext} />
+        </React.StrictMode>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      });
+    });
+
+    it('prevents a stale failed request from overwriting a later successful request', async () => {
+      let resolveFirst;
+      let rejectFirst;
+      const firstPromise = new Promise((res, rej) => {
+        resolveFirst = res;
+        rejectFirst = rej;
+      });
+
+      let resolveSecond;
+      const secondPromise = new Promise((res) => {
+        resolveSecond = res;
+      });
+
+      workflowApi.listFollowUps
+        .mockReturnValueOnce(firstPromise)
+        .mockReturnValueOnce(secondPromise);
+
+      const { unmount, rerender } = render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      // Trigger second fetch by rerendering with a different context or forcing a re-fetch
+      rerender(<VeterinaryAssignedFollowUps viewerContext={multiDistrictVetContext} />);
+
+      // Resolve second promise successfully
+      resolveSecond({ follow_ups: mockFollowUps });
+
+      await waitFor(() => {
+        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+      });
+
+      // Reject first promise with a real error (not abort)
+      rejectFirst(new Error('Stale API Error'));
+
+      // Wait to ensure the error doesn't render
+      await new Promise(r => setTimeout(r, 50));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('does not update state if unmounted before fetch completes', async () => {
+      let resolveFetch;
+      const fetchPromise = new Promise((res) => {
+        resolveFetch = res;
+      });
+      workflowApi.listFollowUps.mockReturnValueOnce(fetchPromise);
+
+      const { unmount } = render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      unmount();
+
+      resolveFetch({ follow_ups: mockFollowUps });
+
+      // Wait to ensure no unhandled act warning or state update on unmounted component
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    it('renders only the sanitized message for a genuine failure', async () => {
+      workflowApi.listFollowUps.mockRejectedValueOnce(new Error('SyntaxError: Unexpected token < in JSON at position 0'));
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText(/SyntaxError: Unexpected token < in JSON at position 0/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders the expected empty state for an empty successful response', async () => {
+      workflowApi.listFollowUps.mockResolvedValueOnce({ follow_ups: [] });
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No Assigned Follow-Ups Found/i)).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('Workspace Layout & Summary Statistics', () => {
     it('calculates total, awaiting ack, in progress, completed, and escalated summary counts correctly', async () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);

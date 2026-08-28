@@ -121,6 +121,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [generating, setGenerating] = useState(false);
   const [genNotice, setGenNotice] = useState(null); // { type: 'success'|'warning'|'error', text: '' }
 
+  // Calculate next target period
+  const { targetYear, targetMonth } = React.useMemo(() => getNextTargetPeriod(referenceDate), [referenceDate]);
+  const isYearSupported = targetYear <= 2030;
+
   // 3. Load latest stored records for assigned district
   const fetchOverviewRecords = useCallback(async () => {
     if (!assignedDistrict) return;
@@ -135,12 +139,14 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
       if (fmdRes.status === 'fulfilled') {
         const records = fmdRes.value?.records || fmdRes.value || [];
-        setFmdRecord(getLatestRecord(records));
+        const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
+        setFmdRecord(exactMatch || getLatestRecord(records));
       }
 
       if (lsdRes.status === 'fulfilled') {
         const records = lsdRes.value?.records || lsdRes.value || [];
-        setLsdRecord(getLatestRecord(records));
+        const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
+        setLsdRecord(exactMatch || getLatestRecord(records));
       }
 
       if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
@@ -151,7 +157,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     } finally {
       setLoading(false);
     }
-  }, [assignedDistrict]);
+  }, [assignedDistrict, targetYear, targetMonth]);
 
   useEffect(() => {
     if (isAccessAllowed) {
@@ -169,10 +175,6 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       />
     );
   }
-
-  // Calculate next target period
-  const { targetYear, targetMonth } = getNextTargetPeriod(referenceDate);
-  const isYearSupported = targetYear <= 2030;
 
   // 4. Generate next-month official forecast handler
   const handleGenerateNextMonth = async () => {
@@ -282,8 +284,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                   {diseaseName}
                 </h3>
               </div>
+              {!(record.target_year === targetYear && record.target_month === targetMonth) && (
+                <p className="text-[11px] text-amber-500 font-semibold mb-1">
+                  No saved next-month forecast
+                </p>
+              )}
               <p className="text-xs text-on-surface-variant font-medium">
-                {assignedDistrict} District — Target: {targetMonthName} {record.target_year}
+                {assignedDistrict} District — {(record.target_year === targetYear && record.target_month === targetMonth) ? 'Target' : 'Latest saved forecast'}: {targetMonthName} {record.target_year}
               </p>
             </div>
 

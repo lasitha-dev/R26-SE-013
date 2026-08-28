@@ -99,25 +99,17 @@ export function getForecastingNavigation(viewerContext) {
   } else if (normalizedContext.role === ROLES.VETERINARY_OFFICER) {
     items.push({ ...NAVIGATION_ITEMS.FORECAST_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.ASSIGNED_FOLLOW_UPS });
-    items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
     items.push({ ...NAVIGATION_ITEMS.ADVISORY_CENTRE });
     items.push({ ...NAVIGATION_ITEMS.HISTORY });
-    items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_DASHBOARD });
   } else if (normalizedContext.role === ROLES.DAPH_OFFICIAL) {
     items.push({ ...NAVIGATION_ITEMS.NATIONAL_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.FOLLOW_UP_MONITORING });
-    items.push({ ...NAVIGATION_ITEMS.SURVEILLANCE_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
-
-    if (hasForecastingPermission(viewerContext, PERMISSIONS.viewDataQuality)) {
-      items.push({ ...NAVIGATION_ITEMS.DATA_QUALITY });
-    }
   }
 
   // Capability-gated: Model Transparency
-  if (hasForecastingPermission(viewerContext, PERMISSIONS.viewModelTransparency)) {
-    items.push({ ...NAVIGATION_ITEMS.MODEL_TRANSPARENCY });
-  }
+  // Hidden for demo
+
 
   return items;
 }

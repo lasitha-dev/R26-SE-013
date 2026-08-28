@@ -232,8 +232,7 @@ describe('DemoForecastingOperationalBridge & Connected Screens Unit Tests', () =
     expect(screen.queryByText(/safe district/i)).not.toBeInTheDocument();
   });
 
-  // Test 9, 10, 11, 12, 13, 14, 15: Vet dashboard renders farms, surveillance (AI_SCREENED unconfirmed), alerts, tasks (read-only)
-  it('Requirements 9-15: Vet renders assigned farms, surveillance (AI_SCREENED unconfirmed), alerts, and read-only tasks without write buttons', () => {
+  it('Requirements 9-15: Vet Surveillance Dashboard is hidden from demo navigation', () => {
     mockHooks({
       farms: { status: OPERATIONAL_STATUS.SUCCESS, items: [mockSampleFarm], count: 1, error: null },
       surveillanceRecords: { status: OPERATIONAL_STATUS.SUCCESS, items: [mockSampleSurvRecord], count: 1, error: null },
@@ -243,22 +242,10 @@ describe('DemoForecastingOperationalBridge & Connected Screens Unit Tests', () =
 
     render(<DemoForecastingOperationalBridge viewerContext={mockVetContext} />);
 
-    const survBtn = screen.getByRole('button', { name: /Surveillance Dashboard/i });
-    fireEvent.click(survBtn);
-
-    expect(screen.getByText('Jaffna Cattle Farm 001')).toBeInTheDocument();
-    expect(screen.getByText('AI SCREENED (UNCONFIRMED)')).toBeInTheDocument();
-    expect(screen.getByText('FMD Alert Jaffna')).toBeInTheDocument();
-    expect(screen.getByText('FIELD_REVIEW')).toBeInTheDocument();
-
-    // Verify Vet has NO write or edit buttons
-    expect(screen.queryByRole('button', { name: /Complete/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Resolve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Surveillance Dashboard/i })).not.toBeInTheDocument();
   });
 
-  // Test 16, 17: DAPH renders surveillance, alerts, tasks, but NO farm listings or owner identities
-  it('Requirements 16 & 17: DAPH renders surveillance, alerts, tasks, but no farm listings or owner identities', () => {
+  it('Requirements 16 & 17: DAPH Surveillance Overview is hidden from demo navigation', () => {
     mockHooks({
       surveillanceRecords: { status: OPERATIONAL_STATUS.SUCCESS, items: [mockSampleSurvRecord], count: 1, error: null },
       alerts: { status: OPERATIONAL_STATUS.SUCCESS, items: [mockSampleAlert], count: 1, error: null },
@@ -267,16 +254,7 @@ describe('DemoForecastingOperationalBridge & Connected Screens Unit Tests', () =
 
     render(<DemoForecastingOperationalBridge viewerContext={mockDaphContext} />);
 
-    const survBtn = screen.getByRole('button', { name: /Surveillance Overview/i });
-    fireEvent.click(survBtn);
-
-    expect(screen.getByText(/District Surveillance Records/i)).toBeInTheDocument();
-    expect(screen.getByText('FMD Alert Jaffna')).toBeInTheDocument();
-    expect(screen.getByText(/FIELD_REVIEW/i)).toBeInTheDocument();
-
-    // Verify DAPH does not render farm listings or owner IDs
-    expect(screen.queryByText('Jaffna Cattle Farm 001')).not.toBeInTheDocument();
-    expect(screen.queryByText(/DEMO_USER_FARMER_JAFFNA/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Surveillance Overview/i })).not.toBeInTheDocument();
   });
 
   // Test 18, 20: Loading uses role="status", error renders sanitized text and reload button

@@ -142,17 +142,13 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
 
-    it('Farmer with strict viewModelTransparency permission can activate Model Transparency screen', () => {
+    it('Farmer with strict viewModelTransparency permission cannot see Model Transparency button (hidden in demo)', () => {
       const farmerWithTransparency = {
         ...validFarmerContext,
         permissions: { viewModelTransparency: true },
       };
       render(<RiskForecastingFeature viewerContext={farmerWithTransparency} />);
-      const transparencyBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      expect(transparencyBtn).toBeInTheDocument();
-
-      fireEvent.click(transparencyBtn);
-      expect(screen.getByText(/How to understand your forecast/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
 
     it('preserves registeredFarmDistrict in child screen', () => {
@@ -168,12 +164,9 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
-    it('can activate VeterinaryDistrictForecasts', () => {
+    it('cannot activate VeterinaryDistrictForecasts (hidden in demo)', () => {
       render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
-      fireEvent.click(forecastsBtn);
-      expect(screen.getByRole('heading', { name: /District Risk Forecasts/i, level: 1 })).toBeInTheDocument();
-      expect(screen.getByText(/Veterinary Decision Support/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /District Forecasts/i })).not.toBeInTheDocument();
     });
 
     it('can activate VeterinaryAdvisoryCentre', () => {
@@ -197,12 +190,9 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('heading', { name: /Assigned Follow-Ups/i, level: 1 })).toBeInTheDocument();
     });
 
-    it('district-forecasts resolves to VeterinaryDistrictForecasts component for Vet', () => {
+    it('Vet cannot activate District Forecasts', () => {
       render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
-      fireEvent.click(forecastsBtn);
-      expect(screen.getByText(/Veterinary Decision Support/i)).toBeInTheDocument();
-      expect(screen.queryByText(/Departmental Decision Support/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /District Forecasts/i })).not.toBeInTheDocument();
     });
 
     it('Vet cannot activate DAPH Surveillance Overview', () => {
@@ -227,17 +217,13 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
-    it('Vet Model Transparency appears only with strict viewModelTransparency permission', () => {
+    it('Vet Model Transparency does not appear even with strict viewModelTransparency permission (hidden in demo)', () => {
       const vetWithTransparency = {
         ...validVetContext,
         permissions: { viewModelTransparency: true },
       };
       render(<RiskForecastingFeature viewerContext={vetWithTransparency} />);
-      const transparencyBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      expect(transparencyBtn).toBeInTheDocument();
-
-      fireEvent.click(transparencyBtn);
-      expect(screen.getByText(/Operational model interpretation/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
   });
 
@@ -264,28 +250,20 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.queryByText(/Veterinary Decision Support/i)).not.toBeInTheDocument();
     });
 
-    it('Data Quality appears when viewDataQuality permission is true', () => {
+    it('Data Quality does not appear even when viewDataQuality permission is true (hidden in demo)', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      const dqBtn = screen.getByRole('button', { name: /Data Quality/i });
-      expect(dqBtn).toBeInTheDocument();
-
-      fireEvent.click(dqBtn);
-      expect(screen.getByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Data Quality/i })).not.toBeInTheDocument();
     });
 
-    it('Model Transparency appears when viewModelTransparency permission is true', () => {
+    it('Model Transparency does not appear even when viewModelTransparency permission is true (hidden in demo)', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      const mtBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      expect(mtBtn).toBeInTheDocument();
-
-      fireEvent.click(mtBtn);
-      expect(screen.getByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
 
-    it('DAPH with both permissions sees both capability items in sub-navigation', () => {
+    it('DAPH with both permissions does not see Data Quality or Model Transparency', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByRole('button', { name: /Data Quality/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Model Transparency/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Data Quality/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
 
     it('DAPH with empty or invalid authorizedDistricts fails closed', () => {
@@ -337,31 +315,36 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
-    it('immediately renders authorized fallback when viewDataQuality permission is removed', () => {
-      const daphWithDq = { ...validDaphContext, permissions: { viewDataQuality: true } };
-      const daphWithoutDq = { ...validDaphContext, permissions: { viewDataQuality: false } };
-
-      const { rerender } = render(<RiskForecastingFeature viewerContext={daphWithDq} />);
-      const dqBtn = screen.getByRole('button', { name: /Data Quality/i });
-      fireEvent.click(dqBtn);
-      expect(screen.getByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeInTheDocument();
-
-      rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
-      expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
+    it('immediately hides hidden navigation tabs and does not mount them even if requested', () => {
+      render(<RiskForecastingFeature viewerContext={validDaphContext} />);
+      expect(screen.queryByRole('button', { name: /Data Quality/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
     });
 
-    it('immediately renders authorized fallback when viewModelTransparency permission is removed', () => {
-      const daphWithMt = { ...validDaphContext, permissions: { viewModelTransparency: true } };
-      const daphWithoutMt = { ...validDaphContext, permissions: { viewModelTransparency: false } };
+    it('Sequence B: Model Transparency is completely removed and unmountable for any role', () => {
+      const { rerender } = render(<RiskForecastingFeature viewerContext={validFarmerContext} />);
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
 
-      const { rerender } = render(<RiskForecastingFeature viewerContext={daphWithMt} />);
-      const mtBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      fireEvent.click(mtBtn);
-      expect(screen.getByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).toBeInTheDocument();
+      rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
+      expect(screen.queryByRole('button', { name: /Model Transparency/i })).not.toBeInTheDocument();
+    });
 
-      rerender(<RiskForecastingFeature viewerContext={daphWithoutMt} />);
-      expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
+    it('Sequence C: Farmer Alerts & Guidance securely falls back when role changes to DAPH', () => {
+      const { rerender } = render(<RiskForecastingFeature viewerContext={validFarmerContext} />);
+      const alertsBtn = screen.getByRole('button', { name: /Alerts & Guidance/i });
+      fireEvent.click(alertsBtn);
+      expect(screen.getByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).toBeInTheDocument();
+
+      rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
+      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
+    });
+
+    it('Sequence E: Vet transitioning to DAPH preserves valid shared UI boundaries or safely falls back', () => {
+      const { rerender } = render(<RiskForecastingFeature viewerContext={validVetContext} />);
+      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
+
+      rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
       expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
     });
 
@@ -393,158 +376,7 @@ describe('RiskForecastingFeature Component', () => {
       expect(screen.getAllByText(/Jaffna/i).length).toBeGreaterThan(0);
     });
 
-    it('swaps rendered component when transitioning from Vet district-forecasts to DAPH district-forecasts', () => {
-      const { rerender } = render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      const vetForecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
-      fireEvent.click(vetForecastsBtn);
-      expect(screen.getByText(/Veterinary Decision Support/i)).toBeInTheDocument();
 
-      rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByText(/Departmental Decision Support/i)).toBeInTheDocument();
-      expect(screen.queryByText(/Veterinary Decision Support/i)).not.toBeInTheDocument();
-    });
-  });
-
-  // 6. Stored Selection Synchronization & Regression Sequences
-  describe('Stored Selection Synchronization & Regression Sequences', () => {
-    it('Sequence A: Data Quality does not return automatically when viewDataQuality is restored', () => {
-      const daphWithDq = { ...validDaphContext, permissions: { viewDataQuality: true } };
-      const daphWithoutDq = { ...validDaphContext, permissions: { viewDataQuality: false } };
-
-      const { rerender } = render(<RiskForecastingFeature viewerContext={daphWithDq} />);
-      const dqBtn = screen.getByRole('button', { name: /Data Quality/i });
-      fireEvent.click(dqBtn);
-      expect(screen.getByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeInTheDocument();
-
-      // Remove permission
-      rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
-      expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
-
-      // Restore permission
-      rerender(<RiskForecastingFeature viewerContext={daphWithDq} />);
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).not.toBeInTheDocument();
-    });
-
-    it('Sequence B (DAPH): Model Transparency does not return automatically when permission is restored', () => {
-      const daphWithMt = { ...validDaphContext, permissions: { viewModelTransparency: true } };
-      const daphWithoutMt = { ...validDaphContext, permissions: { viewModelTransparency: false } };
-
-      const { rerender } = render(<RiskForecastingFeature viewerContext={daphWithMt} />);
-      const mtBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      fireEvent.click(mtBtn);
-      expect(screen.getByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).toBeInTheDocument();
-
-      // Remove permission
-      rerender(<RiskForecastingFeature viewerContext={daphWithoutMt} />);
-      expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
-
-      // Restore permission
-      rerender(<RiskForecastingFeature viewerContext={daphWithMt} />);
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-    });
-
-    it('Sequence B (Farmer): Model Transparency does not return automatically when permission is restored', () => {
-      const farmerWithMt = { ...validFarmerContext, permissions: { viewModelTransparency: true } };
-      const farmerWithoutMt = { ...validFarmerContext, permissions: { viewModelTransparency: false } };
-
-      const { rerender } = render(<RiskForecastingFeature viewerContext={farmerWithMt} />);
-      const mtBtn = screen.getByRole('button', { name: /Model Transparency/i });
-      fireEvent.click(mtBtn);
-      expect(screen.getByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).toBeInTheDocument();
-
-      // Remove permission
-      rerender(<RiskForecastingFeature viewerContext={farmerWithoutMt} />);
-      expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
-
-      // Restore permission
-      rerender(<RiskForecastingFeature viewerContext={farmerWithMt} />);
-      expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Model Transparency & Explainability/i, level: 1 })).not.toBeInTheDocument();
-    });
-
-    it('Sequence C: Farmer Alerts & Guidance does not return after Farmer -> Vet -> Farmer role changes', () => {
-      const { rerender } = render(<RiskForecastingFeature viewerContext={validFarmerContext} />);
-      const alertsBtn = screen.getByRole('button', { name: /Alerts & Guidance/i });
-      fireEvent.click(alertsBtn);
-      expect(screen.getByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).toBeInTheDocument();
-
-      // Change to Vet
-      rerender(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByRole('heading', { name: /Veterinary Forecast Overview/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
-
-      // Change back to Farmer
-      rerender(<RiskForecastingFeature viewerContext={validFarmerContext} />);
-      expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
-    });
-
-    it('Sequence D: Valid -> Invalid -> Valid context does not resurrect previous non-default selection', () => {
-      const { rerender } = render(<RiskForecastingFeature viewerContext={validFarmerContext} />);
-      const alertsBtn = screen.getByRole('button', { name: /Alerts & Guidance/i });
-      fireEvent.click(alertsBtn);
-      expect(screen.getByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).toBeInTheDocument();
-
-      // Render invalid context
-      rerender(<RiskForecastingFeature viewerContext={null} />);
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
-
-      // Restore valid context
-      rerender(<RiskForecastingFeature viewerContext={validFarmerContext} />);
-      expect(screen.getByRole('heading', { name: /Disease Risk in My Area/i, level: 1 })).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).not.toBeInTheDocument();
-    });
-
-    it('Sequence E: Shared district-forecasts ID stays active across Vet -> DAPH -> Vet transitions', () => {
-      const { rerender } = render(<RiskForecastingFeature viewerContext={validVetContext} />);
-      const vetForecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
-      fireEvent.click(vetForecastsBtn);
-      expect(screen.getByText(/Veterinary Decision Support/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /District Forecasts/i })).toHaveAttribute('aria-current', 'page');
-
-      // Change directly to DAPH
-      rerender(<RiskForecastingFeature viewerContext={validDaphContext} />);
-      expect(screen.getByText(/Departmental Decision Support/i)).toBeInTheDocument();
-      expect(screen.queryByText(/Veterinary Decision Support/i)).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /District Forecasts/i })).toHaveAttribute('aria-current', 'page');
-
-      // Change directly back to Vet
-      rerender(<RiskForecastingFeature viewerContext={validVetContext} />);
-      expect(screen.getByText(/Veterinary Decision Support/i)).toBeInTheDocument();
-      expect(screen.queryByText(/Departmental Decision Support/i)).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /District Forecasts/i })).toHaveAttribute('aria-current', 'page');
-    });
-
-    it('Sequence F: Equivalent context rerender preserves authorized selection without unnecessary reset', () => {
-      const { rerender } = render(<RiskForecastingFeature viewerContext={validFarmerContext} />);
-      const alertsBtn = screen.getByRole('button', { name: /Alerts & Guidance/i });
-      fireEvent.click(alertsBtn);
-      expect(screen.getByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).toBeInTheDocument();
-
-      // Rerender with equivalent context object
-      rerender(<RiskForecastingFeature viewerContext={{ ...validFarmerContext }} />);
-      expect(screen.getByRole('heading', { name: /Alerts & Guidance/i, level: 1 })).toBeInTheDocument();
-    });
-
-    it('Sequence G: Transient safety asserts unauthorized content is immediately absent on rerender', () => {
-      const daphWithDq = { ...validDaphContext, permissions: { viewDataQuality: true } };
-      const daphWithoutDq = { ...validDaphContext, permissions: { viewDataQuality: false } };
-
-      const { rerender } = render(<RiskForecastingFeature viewerContext={daphWithDq} />);
-      fireEvent.click(screen.getByRole('button', { name: /Data Quality/i }));
-      expect(screen.getByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeInTheDocument();
-
-      // Synchronous rerender assertion pass without waitFor
-      rerender(<RiskForecastingFeature viewerContext={daphWithoutDq} />);
-      expect(screen.queryByRole('heading', { name: /Data Quality & Input Provenance/i, level: 1 })).toBeNull();
-      expect(screen.getByRole('heading', { name: /National Forecast Overview/i, level: 1 })).toBeInTheDocument();
-    });
   });
 
   // 7. Unknown Selection & Boundary Safety
