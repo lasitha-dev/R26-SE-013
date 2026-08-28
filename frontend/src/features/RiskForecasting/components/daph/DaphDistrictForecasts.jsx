@@ -81,7 +81,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
     setError(null);
 
     try {
-      const recordsRes = await listForecastRecords({ limit: 500 }, { signal: controller.signal });
+      const recordsRes = await listForecastRecords({ limit: 200 }, { signal: controller.signal });
       if (controller.signal.aborted) return;
 
       const fetchedRecords = recordsRes?.records || [];

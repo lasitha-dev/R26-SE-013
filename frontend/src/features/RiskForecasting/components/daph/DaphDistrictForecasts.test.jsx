@@ -291,12 +291,22 @@ describe('DaphDistrictForecasts Component', () => {
 
   // --- END RESTORED REGRESSION TESTS ---
 
-  it('1. Uses listForecastRecords and 2. Does not import useAuthorizedDemoForecast and 3. Does not call FMD/LSD POST', async () => {
+  it('1. Uses listForecastRecords with limit 200, 2. Does not import useAuthorizedDemoForecast and 3. Does not call FMD/LSD POST', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
 
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     await waitFor(() => expect(workflowApi.listForecastRecords).toHaveBeenCalled());
+
+    // Prove it calls with limit 200 and not limit 500
+    expect(workflowApi.listForecastRecords).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 200 }),
+      expect.anything()
+    );
+    expect(workflowApi.listForecastRecords).not.toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 500 }),
+      expect.anything()
+    );
 
     expect(await screen.findByText(/Colombo District · FMD/i)).toBeInTheDocument();
   });
