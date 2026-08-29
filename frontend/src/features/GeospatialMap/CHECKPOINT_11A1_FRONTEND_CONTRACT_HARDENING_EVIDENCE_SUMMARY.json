@@ -1,0 +1,72 @@
+{
+  "label": "TRACKED_AGGREGATE_FRONTEND_EVIDENCE_SUMMARY",
+  "checkpoint": "11A.1",
+  "purpose": "FRONTEND_CONTRACT_SNAPSHOT_STATE_MACHINE_HARDENING_DEPENDENCY_SECURITY_AUDIT_FINAL_11A_LOCK",
+  "supersedes_or_extends": "CHECKPOINT_11A_FRONTEND_CONTRACT_EVIDENCE_SUMMARY.json (additive, that file's own claims were left in place with a wording correction, never overwritten)",
+  "active_frontend_transport_contract_hash_10b1a": "0549339d2d79659048e2d265403507b756b464d454419c28c295d005d8450f0e",
+  "active_api_protocol_hash_10a1": "e44761319870e9196768599ad88fde237d709c2b17b03f17662ab144bd5634b8",
+  "historical_transport_protocol_hash_10b1": "476a7593aafd4011eec840a7ca60cb339302c037f4e00dd7ba11a239ff153a25",
+  "backend_contract_modified": false,
+  "part_status": {
+    "part1_exact_availability_mode_record_domain_scope_validation": "IMPLEMENTED -- AVAILABILITY_MODE_EXPECTED=RETROSPECTIVE_PROXY, RECORD_DOMAIN_SCOPE_EXPECTED=HISTORICAL_ONLY, exact match required, all 7 protocol semantic fields checked simultaneously",
+    "part2_snapshot_begin_origin_id_binding": "IMPLEMENTED -- FORECAST_ORIGIN_ID_MISMATCH rejects and creates no buffer when snapshot_begin.forecast_origin_id != requested origin",
+    "part3_snapshot_begin_metadata_contract_validated_independently": "IMPLEMENTED -- evaluateSnapshotBeginContract() checks active_api_protocol_hash_10a1, active_transport_protocol_hash_10b1 (against historical_transport_protocol_hash_10b1, never 10b1a), runtime_data_mode, live_operational_analysis_status; SNAPSHOT_METADATA_CONTRACT_MISMATCH rejects and creates no buffer on any mismatch",
+    "part4_chunk_count_frozen_at_begin": "IMPLEMENTED -- nChunksExpected set once from snapshot_begin.n_cell_chunks (validated as a non-negative integer) and never rewritten by a later cells_chunk frame; a disagreeing cells_chunk.n_chunks is rejected as CHUNK_COUNT_MISMATCH",
+    "part5_deterministic_frame_sequence_enforced": "IMPLEMENTED -- explicit buffer.stage state machine (AWAITING_SUMMARY -> AWAITING_SOURCES -> AWAITING_CHUNKS_OR_END) plus strict ascending chunk-index tracking; any out-of-order/duplicate/premature frame is rejected as FRAME_SEQUENCE_VIOLATION and never silently reordered. The previous test that ACCEPTED chunk 1 before chunk 0 was replaced with a test that REJECTS it. A real, backend-verified zero-chunk (zero-cell) snapshot is explicitly supported (chunking_10b.py: zero cells produce zero chunks), not invented.",
+    "part6_snapshot_end_chunk_count_verified": "IMPLEMENTED -- snapshot_end.n_cell_chunks_sent now checked for exact equality against both the frozen snapshot_begin.n_cell_chunks and the actual number of chunks received, in addition to the pre-existing cell/source count and integrity checks",
+    "part7_transport_not_ready_is_never_silent": "IMPLEMENTED -- sendSnapshotMessage() dispatches TRANSPORT_SEND_REJECTED (state.transportNotice, status TRANSPORT_NOT_READY) instead of silently returning null; Load/Refresh buttons are disabled via isTransportUsable(phase) until the transport can actually accept a request; no automatic refresh is triggered when the transport later becomes ready -- explicit user action is still required",
+    "part8_protocol_preflight_no_unhandled_rejection": "IMPLEMENTED -- runProtocolPreflight() now always RESOLVES a structured {status, reasons} outcome (via the new pure, independently-tested protocolCheckFailureOutcome() helper) instead of dispatching then rethrowing; the caller's existing .then() (no .catch()) can no longer produce an unhandled promise rejection on a backend-unreachable preflight",
+    "part9_dependency_security_audit": "COMPLETE -- see CHECKPOINT_11A1_DEPENDENCY_SECURITY_AUDIT.json. npm audit --omit=dev: 0 high/critical/moderate/low findings across all 6 production dependencies. npm audit (full, including dev): 4 findings (1 critical vitest, 1 high vite, 2 moderate esbuild/vite-node), all dev-toolchain-only, classified DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD, all requiring a semver-major fix -- none force-fixed or blindly upgraded",
+    "part10_smoke_evidence_wording_corrected": "DONE -- CHECKPOINT_11A_FRONTEND_CONTRACT_EVIDENCE_SUMMARY.json updated non-numerically with an evidence_correction_11a1 field; no science rerun, controlled snapshot_id unchanged"
+  },
+  "invariants_preserved": [
+    "no C0 formula in JavaScript", "no direction/rate/reach recomputation", "no biological thresholds",
+    "raw_c0_score is the verbatim backend value", "color scale remains PRESENTATION_ONLY",
+    "direction remains local geometric tendency only, clarity is not confidence, rate is not wind speed",
+    "nominal reach is visualization only", "bearing null -> no arrow, bearing 0.0 -> North",
+    "GeoJSON coordinate order = [longitude, latitude]", "no setInterval/setTimeout scientific polling",
+    "explicit Refresh only", "committed snapshot cannot be partially overwritten",
+    "stale request_id frames cannot mutate the current request"
+  ],
+  "frontend_test_result": {
+    "test_files": 6,
+    "passed": 76,
+    "failed": 0,
+    "prior_baseline": 31,
+    "regression": "none -- all 31 prior tests still pass unmodified in behavior (one test that asserted acceptance of out-of-order chunks was intentionally replaced per Part 5's explicit instruction, not regressed)"
+  },
+  "production_build_result": {
+    "status": "SUCCESS",
+    "known_warning": "The CJS build of Vite's Node API is deprecated -- present and not hidden"
+  },
+  "lint": "NOT_CONFIGURED_NO_PRE_EXISTING_ESLINT_SETUP_BUILD_IS_THE_DETERMINISTIC_VERIFICATION_PATH",
+  "backend_regression_result": {
+    "passed": 1636,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 1,
+    "warning_type": "StarletteDeprecationWarning",
+    "unchanged_from_10b1a_and_11a": true
+  },
+  "controlled_origin_id": "ORIGIN:Afghanistan:2022-05-29",
+  "controlled_snapshot_id": "cc92c6f716b7c2d04a2f4c18a893e87757876611e1068d9b0c526ae8853e8598",
+  "controlled_smoke_result": {
+    "protocol_preflight_seven_exact_fields": "PROTOCOL_COMPATIBLE",
+    "ws_parent_contract_check": "PROTOCOL_COMPATIBLE",
+    "snapshot_begin_metadata_contract_check": "PROTOCOL_COMPATIBLE",
+    "origin_id_equality": "MATCH",
+    "deterministic_frame_sequence": "NO_VIOLATION_OBSERVED",
+    "final_phase": "SNAPSHOT_COMPLETE",
+    "snapshot_id_unchanged": true,
+    "n_sources": 1,
+    "n_cells": 88,
+    "raw_c0_score_present": true,
+    "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+    "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+    "purpose": "FRONTEND_TRANSPORT_CONTRACT_INTEGRATION_SMOKE_NOT_VISUAL_QUALITY_NOT_SCIENTIFIC_VALIDATION_NOT_PRODUCTION_PERFORMANCE",
+    "temporary_smoke_script_deleted_after_run": true
+  },
+  "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+  "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+  "final_status": "FRONTEND_CONTRACT_STATE_MACHINE_HARDENED_READY_FOR_VISUAL_LAYER_HARDENING"
+}

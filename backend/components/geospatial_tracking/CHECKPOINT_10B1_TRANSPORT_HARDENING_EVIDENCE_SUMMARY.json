@@ -1,0 +1,43 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "10B.1",
+  "purpose": "TRANSPORT_MEMORY_SAFETY_COMPLETE_CONTRACT_IDENTITY_SNAPSHOT_INTEGRITY_REPOSITORY_PROVIDER_CONSOLIDATION",
+  "historical_10a_api_protocol_hash": "8485968af638e34bbfcc7c4c7d8bae30cc297235edb2c9fa8b2f5fa2fca27716",
+  "active_10a1_api_protocol_hash": "e44761319870e9196768599ad88fde237d709c2b17b03f17662ab144bd5634b8",
+  "historical_final_10b_transport_protocol_hash": "071dbd1baebfa18d30626a39b218287bb25269a0ec1e61b809a955b31191f657",
+  "intermediate_10b_implementation_hash": "104d8d94d3aa53ce372fa90b1189c7bb472d3eadc94552b832bd3a93af5afdb9",
+  "intermediate_10b_hash_classification": "INTERMEDIATE_10B_IMPLEMENTATION_HASH_NOT_FINAL_PROTOCOL",
+  "active_10b1_transport_protocol_hash": "476a7593aafd4011eec840a7ca60cb339302c037f4e00dd7ba11a239ff153a25",
+  "active_10b1_hash_classification": "ACTIVE_TRANSPORT_PROTOCOL_HASH_FOR_FRONTEND",
+  "cache_limits": {
+    "max_entries": 8,
+    "ttl_seconds": 60.0,
+    "classification": "ENGINEERING_TRANSPORT_PARAMETERS_NOT_SCIENTIFIC_PARAMETERS"
+  },
+  "auxiliary_state_memory_safety_status": "REFERENCE_COUNTED_PER_KEY_SINGLE_FLIGHT_SLOTS_RECLAIMED_ON_LAST_BORROWER_RELEASE_INCLUDING_ON_COMPUTE_FAILURE",
+  "eviction_diagnostics": {
+    "eviction_count_type": "unbounded_int_counter_o1_memory",
+    "recent_evicted_keys_maxlen": 50
+  },
+  "message_byte_limit": 16384,
+  "message_byte_limit_classification": "ENGINEERING_TRANSPORT_SAFETY_LIMIT_NOT_SCIENTIFIC_PARAMETER",
+  "generated_at_utc_semantics": "time this immutable runtime snapshot object was generated in this process -- never outbreak observation time, data freshness time, operational notification time, or scientific t0",
+  "generated_at_participates_in_snapshot_id": false,
+  "integrity_verification_semantics": "in-memory recomputation via the canonical compute_snapshot_id_10b, compared against snapshot.snapshot_id before snapshot_end is sent -- never cryptographic authenticity or external data provenance certification",
+  "integrity_mismatch_error_status": "SNAPSHOT_CONTENT_INTEGRITY_MISMATCH",
+  "repository_provider_status": "CENTRALIZED_SQLITE_DEVELOPMENT_PROVIDER",
+  "repository_provider_module": "repositories/provider.py::create_outbreak_repository",
+  "mongo_status": "NOT_IMPLEMENTED",
+  "runtime_historical_replay_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+  "availability_mode": "RETROSPECTIVE_PROXY",
+  "record_domain_scope": "HISTORICAL_ONLY",
+  "live_operational_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+  "controlled_snapshot_id_preserved": {
+    "origin_id": "ORIGIN:Afghanistan:2022-05-29",
+    "snapshot_id": "cc92c6f716b7c2d04a2f4c18a893e87757876611e1068d9b0c526ae8853e8598",
+    "unchanged_from_checkpoint_10b": true
+  },
+  "held_out_rate_status": "NOT_EVALUATED",
+  "sri_lanka_rate_status": "NOT_EVALUATED",
+  "final_classification": "REALTIME_TRANSPORT_HARDENED_OVER_FROZEN_HISTORICAL_REPLAY_SNAPSHOTS_READY_FOR_FRONTEND_NOT_LIVE_OPERATIONAL_FORECASTING"
+}
