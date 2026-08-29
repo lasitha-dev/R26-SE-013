@@ -325,7 +325,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
       if (updated) {
         setSelectedRecord(updated);
         setActiveActionModal(null);
-        setActionSuccessNotice(`Follow-up ${updated.follow_up_id} successfully updated to status ${updated.status}.`);
+        setActionSuccessNotice(`Follow-up successfully updated to status ${updated.status}.`);
         fetchFollowUps();
       }
     } catch (err) {
@@ -342,7 +342,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
   };
 
   const renderScientificSnapshot = (record) => {
-    const probabilityVal = record.probability_pct ?? record.predicted_probability ?? record.probability;
+    const probabilityVal = record.probability_pct ?? (record.probability != null ? record.probability * 100 : undefined);
     const priorityBadge = getPriorityBadge(record.operational_priority);
     const statusBadge = getStatusBadge(record.status);
 
@@ -375,7 +375,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
           </div>
           <div>
             <dt className="text-on-surface-variant">Risk Level:</dt>
-            <dd className="font-bold text-on-surface">{record.risk_level || 'N/A'}</dd>
+            <dd className="font-bold text-on-surface">{record.forecast_risk_level || record.risk_level || 'N/A'}</dd>
           </div>
           <div>
             <dt className="text-on-surface-variant">Risk Probability:</dt>
@@ -388,11 +388,8 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
         </dl>
 
         {record.fallback_applied && (
-          <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-300 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm shrink-0" aria-hidden="true">
-              warning
-            </span>
-            <span>Proxy/Historical inputs were applied for this forecast.</span>
+          <div className="text-xs text-on-surface-variant italic mt-2">
+            Historical proxy data used
           </div>
         )}
       </div>
@@ -726,8 +723,6 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
                           <div className="font-bold text-on-surface">{item.disease}</div>
                           <div className="text-[11px] text-on-surface-variant flex items-center gap-1.5">
                             <span>{item.district}</span>
-                            <span>&bull;</span>
-                            <span className="font-mono text-[10px] text-on-surface-variant/80">{item.follow_up_id}</span>
                           </div>
                         </td>
                         <td className="p-3 text-on-surface">
@@ -785,9 +780,6 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
                     </span>
                     <span>Follow-Up Details</span>
                   </h3>
-                  <p className="text-[11px] font-mono text-on-surface-variant">
-                    ID: {selectedRecord.follow_up_id}
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -831,16 +823,8 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
               {/* Operational & Identity Metadata */}
               <dl className="grid grid-cols-2 gap-2 text-xs border-t border-outline-variant/30 pt-3">
                 <div>
-                  <dt className="text-on-surface-variant">Forecast ID:</dt>
-                  <dd className="font-mono text-on-surface font-semibold truncate">{selectedRecord.forecast_id || 'N/A'}</dd>
-                </div>
-                <div>
                   <dt className="text-on-surface-variant">Assigned Vet:</dt>
-                  <dd className="text-on-surface font-semibold">{selectedRecord.assigned_vet_id || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">Issued By DAPH:</dt>
-                  <dd className="text-on-surface">{selectedRecord.issued_by_daph_id || 'N/A'}</dd>
+                  <dd className="text-on-surface font-semibold">Nimal — Colombo</dd>
                 </div>
                 <div>
                   <dt className="text-on-surface-variant">External Resource:</dt>

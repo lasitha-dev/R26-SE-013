@@ -210,7 +210,8 @@ describe('DaphVetFollowUpWorkflowIntegration (Phase 7 Cross-Role Continuity)', (
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/ffu_e2e_integration_999/i)).toBeInTheDocument();
+      expect(screen.getByText(/Conduct high-priority clinical inspection/i)).toBeInTheDocument();
+      expect(screen.queryByText(/ffu_e2e_integration_999/i)).not.toBeInTheDocument();
     });
 
     // Verify Scientific snapshot is rendered unchanged

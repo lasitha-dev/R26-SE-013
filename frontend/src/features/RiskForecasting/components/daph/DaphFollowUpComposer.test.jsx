@@ -230,7 +230,7 @@ describe('DaphFollowUpComposer Component', () => {
       expect(screen.getAllByText('HIGH').length).toBeGreaterThan(0);
       expect(screen.getByText('85.0%')).toBeInTheDocument();
       expect(screen.getByText('HIGH_QUALITY')).toBeInTheDocument();
-      expect(screen.getByText('ID: fc_anu_2026_10_01')).toBeInTheDocument();
+      expect(screen.queryByText(/fc_anu_2026_10_01/)).not.toBeInTheDocument();
     });
 
     it('renders missing values as N/A and does not default missing probability to 0', async () => {
@@ -271,7 +271,7 @@ describe('DaphFollowUpComposer Component', () => {
         />
       );
 
-      expect(screen.getByText(/relies on a historical fallback proxy dataset/i)).toBeInTheDocument();
+      expect(screen.getByText('Historical proxy data used')).toBeInTheDocument();
     });
   });
 
@@ -286,8 +286,8 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Dr. Perera \(vet_anu_01\)/)).toBeInTheDocument();
-        expect(screen.getByText(/Dr. Silva \(vet_anu_02\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Dr\. Perera/)).toBeInTheDocument();
+        expect(screen.getByText(/Dr\. Silva/)).toBeInTheDocument();
       });
     });
 
@@ -373,7 +373,7 @@ describe('DaphFollowUpComposer Component', () => {
       expect(screen.getByText('Review Follow-Up Summary Before Issuance')).toBeInTheDocument();
       expect(screen.getByText('Conduct immediate field vaccination drive.')).toBeInTheDocument();
       expect(screen.getByText(/Dr. Perera/)).toBeInTheDocument();
-      expect(screen.getByText(/Operational Boundary Disclaimer/i)).toBeInTheDocument();
+
 
       // Click Back to Edit
       fireEvent.click(screen.getByRole('button', { name: /Back to Edit/i }));
@@ -427,7 +427,7 @@ describe('DaphFollowUpComposer Component', () => {
       });
 
       expect(screen.getByText(/Operational Follow-Up Successfully Issued/i)).toBeInTheDocument();
-      expect(screen.getByText('fu_anu_999')).toBeInTheDocument();
+
       expect(screen.getByText('ISSUED')).toBeInTheDocument();
     });
 

@@ -288,6 +288,17 @@ export async function createForecastRecord(payload = {}, options = {}) {
 }
 
 /**
+ * Lists all 25 canonical Sri Lankan administrative districts.
+ * GET /api/v1/risk-forecasting/districts
+ */
+export async function listCanonicalDistricts(options = {}) {
+  return requestWorkflowApi(`/api/v1/risk-forecasting/districts`, {
+    method: 'GET',
+    signal: options.signal,
+  });
+}
+
+/**
  * Retrieves a Forecast Decision Record by unique forecast_id.
  * GET /api/v1/risk-forecasting/records/{forecast_id}
  */

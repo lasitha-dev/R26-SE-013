@@ -246,7 +246,7 @@ describe('RiskForecastingFeature Component', () => {
       render(<RiskForecastingFeature viewerContext={validDaphContext} />);
       const forecastsBtn = screen.getByRole('button', { name: /District Forecasts/i });
       fireEvent.click(forecastsBtn);
-      expect(screen.getByText(/Departmental Decision Support/i)).toBeInTheDocument();
+      expect(screen.getByText(/Risk Forecasting Analytics/i)).toBeInTheDocument();
       expect(screen.queryByText(/Veterinary Decision Support/i)).not.toBeInTheDocument();
     });
 

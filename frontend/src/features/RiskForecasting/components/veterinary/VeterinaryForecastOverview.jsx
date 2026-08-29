@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -9,7 +9,6 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import {
   listForecastRecords,
-  createForecastRecord,
 } from '../../services/riskForecastingWorkflowApi.js';
 
 const MONTH_NAMES = [
@@ -17,42 +16,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/**
- * Calculates next calendar period (month/year) from reference date.
- */
-export function getNextTargetPeriod(referenceDate = new Date()) {
-  const currentYear = referenceDate.getFullYear();
-  const currentMonth = referenceDate.getMonth() + 1; // 1-indexed (1-12)
 
-  if (currentMonth === 12) {
-    return { targetYear: currentYear + 1, targetMonth: 1 };
-  }
-  return { targetYear: currentYear, targetMonth: currentMonth + 1 };
-}
-
-/**
- * Deterministically sorts stored records to select the latest one.
- * Priority: target_year DESC, target_month DESC, generated_at DESC.
- */
-export function getLatestRecord(records = []) {
-  if (!Array.isArray(records) || records.length === 0) {
-    return null;
-  }
-  const sorted = [...records].sort((a, b) => {
-    const yA = a.target_year ?? a.targetYear ?? 0;
-    const yB = b.target_year ?? b.targetYear ?? 0;
-    if (yB !== yA) return yB - yA;
-
-    const mA = a.target_month ?? a.targetMonth ?? 0;
-    const mB = b.target_month ?? b.targetMonth ?? 0;
-    if (mB !== mA) return mB - mA;
-
-    const timeA = a.generated_at ? new Date(a.generated_at).getTime() : 0;
-    const timeB = b.generated_at ? new Date(b.generated_at).getTime() : 0;
-    return timeB - timeA;
-  });
-  return sorted[0];
-}
 
 function getRiskBadge(riskLevel) {
   const norm = (riskLevel || '').toUpperCase();
@@ -117,13 +81,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [fmdRecord, setFmdRecord] = useState(null);
   const [lsdRecord, setLsdRecord] = useState(null);
 
-  // Generation state
-  const [generating, setGenerating] = useState(false);
-  const [genNotice, setGenNotice] = useState(null); // { type: 'success'|'warning'|'error', text: '' }
-
-  // Calculate next target period
-  const { targetYear, targetMonth } = React.useMemo(() => getNextTargetPeriod(referenceDate), [referenceDate]);
-  const isYearSupported = targetYear <= 2030;
+  const targetYear = 2025;
+  const targetMonth = 1;
 
   // 3. Load latest stored records for assigned district
   const fetchOverviewRecords = useCallback(async () => {
@@ -140,13 +99,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       if (fmdRes.status === 'fulfilled') {
         const records = fmdRes.value?.records || fmdRes.value || [];
         const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
-        setFmdRecord(exactMatch || getLatestRecord(records));
+        setFmdRecord(exactMatch || null);
       }
 
       if (lsdRes.status === 'fulfilled') {
         const records = lsdRes.value?.records || lsdRes.value || [];
         const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
-        setLsdRecord(exactMatch || getLatestRecord(records));
+        setLsdRecord(exactMatch || null);
       }
 
       if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
@@ -176,65 +135,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     );
   }
 
-  // 4. Generate next-month official forecast handler
-  const handleGenerateNextMonth = async () => {
-    if (generating || !isYearSupported) return;
-    setGenerating(true);
-    setGenNotice(null);
 
-    const fmdKey = `${actorId}_${assignedDistrict}_FMD_${targetYear}_${targetMonth}_overview_gen`;
-    const lsdKey = `${actorId}_${assignedDistrict}_LSD_${targetYear}_${targetMonth}_overview_gen`;
-
-    const [fmdResult, lsdResult] = await Promise.allSettled([
-      createForecastRecord({
-        disease: 'FMD',
-        district: assignedDistrict,
-        year: targetYear,
-        month: targetMonth,
-        trigger_type: 'MANUAL',
-        generated_by: actorId,
-        idempotency_key: fmdKey,
-      }),
-      createForecastRecord({
-        disease: 'LSD',
-        district: assignedDistrict,
-        year: targetYear,
-        month: targetMonth,
-        trigger_type: 'MANUAL',
-        generated_by: actorId,
-        idempotency_key: lsdKey,
-      }),
-    ]);
-
-    const fmdOk = fmdResult.status === 'fulfilled';
-    const lsdOk = lsdResult.status === 'fulfilled';
-
-    if (fmdOk && lsdOk) {
-      setFmdRecord(fmdResult.value);
-      setLsdRecord(lsdResult.value);
-      setGenNotice({
-        type: 'success',
-        text: `Successfully generated official forecasts for ${MONTH_NAMES[targetMonth - 1]} ${targetYear} (FMD: ${fmdResult.value.forecast_id}, LSD: ${lsdResult.value.forecast_id}).`,
-      });
-    } else if (fmdOk || lsdOk) {
-      if (fmdOk) setFmdRecord(fmdResult.value);
-      if (lsdOk) setLsdRecord(lsdResult.value);
-      const okRecord = fmdOk ? fmdResult.value : lsdResult.value;
-      const failedDisease = fmdOk ? 'LSD' : 'FMD';
-      setGenNotice({
-        type: 'warning',
-        text: `Generated ${okRecord.disease} forecast (${okRecord.forecast_id}). ${failedDisease} generation failed.`,
-      });
-    } else {
-      const errMsg = fmdResult.reason?.message || lsdResult.reason?.message || 'Generation failed.';
-      setGenNotice({
-        type: 'error',
-        text: `Failed to generate official forecasts: ${errMsg}`,
-      });
-    }
-
-    setGenerating(false);
-  };
 
   const renderDiseaseCard = (diseaseName, diseaseCode, record) => {
     if (!record) {
@@ -265,7 +166,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
     const badge = getRiskBadge(record.risk_level);
     const targetMonthName = record.target_month ? MONTH_NAMES[record.target_month - 1] : 'Unknown';
-    const hasDataQualityWarning = record.fallback_applied || (record.data_quality && record.data_quality !== 'EXACT');
+
 
     return (
       <article
@@ -284,13 +185,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                   {diseaseName}
                 </h3>
               </div>
-              {!(record.target_year === targetYear && record.target_month === targetMonth) && (
-                <p className="text-[11px] text-amber-500 font-semibold mb-1">
-                  No saved next-month forecast
-                </p>
-              )}
               <p className="text-xs text-on-surface-variant font-medium">
-                {assignedDistrict} District — {(record.target_year === targetYear && record.target_month === targetMonth) ? 'Target' : 'Latest saved forecast'}: {targetMonthName} {record.target_year}
+                {assignedDistrict} District — Target: {targetMonthName} {record.target_year}
               </p>
             </div>
 
@@ -322,31 +218,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
             </div>
           </div>
 
-          {/* Fallback Warning Callout */}
-          {hasDataQualityWarning && (
-            <div
-              role="region"
-              aria-label="Data Quality Notice"
-              className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 space-y-1"
-            >
-              <div className="flex items-center gap-1.5 font-bold">
-                <span className="material-symbols-outlined text-sm" aria-hidden="true">
-                  warning
-                </span>
-                <span>Proxy / Historical Input Data Applied</span>
-              </div>
-              <p className="text-[11px] text-amber-300/90 leading-relaxed">
-                Data quality: {record.data_quality || 'PROXY'}. Historical or spatial proxy metrics were used due to sparse primary surveillance inputs.
-              </p>
-            </div>
-          )}
-
-          {/* Record Metadata Details */}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs border-t border-outline-variant/30 pt-3">
-            <div>
-              <dt className="text-on-surface-variant">Record ID:</dt>
-              <dd className="font-mono text-on-surface font-semibold truncate">{record.forecast_id}</dd>
-            </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs border-t border-outline-variant/30 pt-3">
             <div>
               <dt className="text-on-surface-variant">Status:</dt>
               <dd className="font-semibold text-primary">{record.status || 'GENERATED'}</dd>
@@ -413,11 +285,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
       </header>
 
-      {/* Live Region for Screen Readers */}
       <div role="status" aria-live="polite" className="sr-only">
         {loading && 'Loading official forecast decision records…'}
-        {generating && 'Generating next-month official forecast records…'}
-        {genNotice && genNotice.text}
       </div>
 
       {/* Notifications / Alerts */}
@@ -430,59 +299,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
       )}
 
-      {genNotice && (
-        <div
-          role={genNotice.type === 'error' ? 'alert' : 'status'}
-          className={`p-4 rounded-xl text-sm flex items-center gap-3 border ${
-            genNotice.type === 'error'
-              ? 'bg-error-container/20 border-error/30 text-error'
-              : genNotice.type === 'warning'
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-          }`}
-        >
-          <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
-            {genNotice.type === 'error' ? 'error' : genNotice.type === 'warning' ? 'warning' : 'check_circle'}
-          </span>
-          <span>{genNotice.text}</span>
-        </div>
-      )}
 
-      {/* Generation Bar */}
-      <section
-        aria-labelledby="generate-next-period-heading"
-        className="p-6 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4"
-      >
-        <div className="space-y-1">
-          <h2 id="generate-next-period-heading" className="text-base font-semibold text-on-surface flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-lg" aria-hidden="true">
-              auto_awesome
-            </span>
-            <span>Next-Month Official Forecast Generation</span>
-          </h2>
-          <p className="text-xs text-on-surface-variant">
-            Target Period: <strong className="text-on-surface">{MONTH_NAMES[targetMonth - 1]} {targetYear}</strong> ({assignedDistrict} District)
-          </p>
-        </div>
-
-        {isYearSupported ? (
-          <button
-            type="button"
-            onClick={handleGenerateNextMonth}
-            disabled={generating || loading}
-            className="px-5 py-2.5 bg-primary-container text-on-primary hover:brightness-110 disabled:opacity-50 font-semibold text-sm rounded-xl min-h-[44px] focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all shrink-0 flex items-center justify-center gap-2"
-          >
-            <span className="material-symbols-outlined text-sm" aria-hidden="true">
-              {generating ? 'sync' : 'bolt'}
-            </span>
-            <span>{generating ? 'Generating Official Forecasts…' : 'Generate Next-Month Official Forecasts'}</span>
-          </button>
-        ) : (
-          <div role="status" className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300">
-            Target year {targetYear} exceeds supported forecast range (up to 2030).
-          </div>
-        )}
-      </section>
 
       {/* Loading Skeleton */}
       {loading ? (
@@ -524,5 +341,4 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
 VeterinaryForecastOverview.propTypes = {
   viewerContext: PropTypes.object,
-  referenceDate: PropTypes.instanceOf(Date),
 };

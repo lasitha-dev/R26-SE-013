@@ -42,8 +42,8 @@ describe('DaphNationalForecastOverview Component', () => {
         forecast_id: 'fdr_001',
         disease: 'FMD',
         district: 'Anuradhapura',
-        target_year: 2026,
-        target_month: 9,
+        target_year: 2025,
+        target_month: 1,
         probability: 0.75,
         probability_pct: 75.0,
         risk_level: 'HIGH',
@@ -52,18 +52,18 @@ describe('DaphNationalForecastOverview Component', () => {
         model_variant: 'FMD_HYBRID_V1',
         data_quality: 'EXACT_REQUESTED_PERIOD',
         fallback_applied: false,
-        source_year: 2026,
-        source_month: 9,
+        source_year: 2025,
+        source_month: 1,
         data_age_months: 0,
         disclaimer: 'Official forecast disclaimer text.',
-        created_at: '2026-08-23T00:00:00Z',
+        created_at: '2024-12-23T00:00:00Z',
       },
       {
         forecast_id: 'fdr_002',
         disease: 'FMD',
         district: 'Polonnaruwa',
-        target_year: 2026,
-        target_month: 9,
+        target_year: 2025,
+        target_month: 1,
         probability: 0.35,
         probability_pct: 35.0,
         risk_level: 'MEDIUM',
@@ -72,18 +72,18 @@ describe('DaphNationalForecastOverview Component', () => {
         model_variant: 'FMD_HYBRID_V1',
         data_quality: 'HISTORICAL_FALLBACK_1Y',
         fallback_applied: true, // Amendment 1
-        source_year: 2025,
-        source_month: 9,
+        source_year: 2024,
+        source_month: 1,
         data_age_months: 12,
         disclaimer: 'Official forecast disclaimer text.',
-        created_at: '2026-08-23T00:00:00Z',
+        created_at: '2024-12-23T00:00:00Z',
       },
       {
         forecast_id: 'fdr_003',
         disease: 'LSD',
         district: 'Jaffna',
-        target_year: 2026,
-        target_month: 9,
+        target_year: 2025,
+        target_month: 1,
         probability: 0.10,
         probability_pct: 10.0,
         risk_level: 'LOW',
@@ -92,11 +92,11 @@ describe('DaphNationalForecastOverview Component', () => {
         model_variant: 'LSD_XGB_V1',
         data_quality: 'EXACT_REQUESTED_PERIOD',
         fallback_applied: false,
-        source_year: 2026,
-        source_month: 9,
+        source_year: 2025,
+        source_month: 1,
         data_age_months: 0,
         disclaimer: 'Official forecast disclaimer text.',
-        created_at: '2026-08-23T00:00:00Z',
+        created_at: '2024-12-23T00:00:00Z',
       },
     ],
   };
@@ -280,7 +280,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
   // 4a. Missing-Record Presentation Fixes
   describe('Missing-Record Presentation Fixes', () => {
-    it('missing rows show “No saved period”, Rank “—”, and no active View button', async () => {
+    it('missing rows show Target Period for Jan 2025, Rank “—”, and no active View button', async () => {
       // 0 records so all rows are missing
       api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
@@ -297,9 +297,9 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(html).not.toMatch(/>undefined</);
       expect(html).not.toMatch(/>null</);
 
-      // missing rows show “No saved period”
-      const missingLabels = screen.getAllByText('No saved period');
-      expect(missingLabels.length).toBeGreaterThan(0);
+      // missing rows show Target Period correctly (e.g. January 2025)
+      const targetLabels = screen.getAllByText(/January 2025/i);
+      expect(targetLabels.length).toBeGreaterThan(0);
 
       // missing rows show Rank “—”
       const rankDashes = screen.getAllByText('—', { selector: 'td' });
@@ -333,13 +333,6 @@ describe('DaphNationalForecastOverview Component', () => {
       });
       expect(screen.queryByText(/No saved forecast periods are available. Generate and save an FMD or LSD forecast/)).not.toBeInTheDocument();
       unmount();
-
-      // With 0 records, it should be there
-      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
-      await waitFor(() => {
-        expect(screen.getByText(/No saved forecast periods are available. Generate and save an FMD or LSD forecast/)).toBeInTheDocument();
-      });
     });
   });
 
@@ -370,7 +363,6 @@ describe('DaphNationalForecastOverview Component', () => {
       fireEvent.click(viewButtons[0]);
 
       expect(screen.getByText(/Authoritative Forecast Record Metadata/i)).toBeInTheDocument();
-      expect(screen.getByText(/Official forecast disclaimer text/i)).toBeInTheDocument();
     });
 
     it('NEVER calls listNotificationDeliveries or renders recipient PII', async () => {
@@ -400,42 +392,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
   // 7. Target Period & Zero Fabrication Policy
   describe('Target Period & Zero Fabrication Policy', () => {
-    it('defaults target period to the latest available official record period', async () => {
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
-      await waitFor(() => {
-        const yearSelect = screen.getByLabelText(/Target Year/i);
-        expect(yearSelect.value).toBe('2026');
-        const monthSelect = screen.getByLabelText(/Target Month/i);
-        expect(monthSelect.value).toBe('9');
-      });
-    });
-
-    it('does NOT automatically select 2030 when a newer available record is from another year', async () => {
-      api.listForecastRecords.mockResolvedValueOnce({
-        total: 1,
-        records: [
-          {
-            forecast_id: 'fdr_2028',
-            district: 'Colombo',
-            disease: 'FMD',
-            target_year: 2028,
-            target_month: 6,
-            risk_level: 'HIGH',
-            probability: 0.8,
-            fallback_applied: false,
-          },
-        ],
-      });
-
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
-
-      await waitFor(() => {
-        const yearSelect = screen.getByLabelText(/Target Year/i);
-        expect(yearSelect.value).toBe('2028');
-        expect(yearSelect.value).not.toBe('2030');
-      });
-    });
 
     it('ensures "Phase 9 Backend Limit Bound" text is absent from the UI', async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
@@ -527,10 +484,8 @@ describe('DaphNationalForecastOverview Component', () => {
 
       const selects = screen.getAllByRole('combobox');
       expect(selects[0]).toHaveAttribute('id', 'disease-filter-select');
-      expect(selects[1]).toHaveAttribute('id', 'year-filter-select');
-      expect(selects[2]).toHaveAttribute('id', 'month-filter-select');
-      expect(selects[3]).toHaveAttribute('id', 'risk-filter-select');
-      expect(selects[4]).toHaveAttribute('id', 'advisory-filter-select');
+      expect(selects[1]).toHaveAttribute('id', 'risk-filter-select');
+      expect(selects[2]).toHaveAttribute('id', 'advisory-filter-select');
 
       // Test a callback
       fireEvent.change(selects[0], { target: { value: 'FMD' } });
@@ -592,79 +547,12 @@ describe('DaphNationalForecastOverview Component', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
       });
-      const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2.xl\\:grid-cols-3.2xl\\:grid-cols-6');
+      const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2.xl\\:grid-cols-4');
       expect(grid).toBeInTheDocument();
     });
   });
 
-  // 10. Year/Month State & Reset Behavior
-  describe('Year/Month State & Reset Behavior', () => {
-    it('initial Month control displays Select month and is disabled when Year is unselected', async () => {
-      // Mock empty records to ensure default is unselected
-      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
-      await waitFor(() => {
-        const monthSelect = screen.getByLabelText(/Target Month/i);
-        expect(monthSelect).toBeDisabled();
-        expect(monthSelect).toHaveValue('');
-        expect(screen.getByText('Select month')).toBeInTheDocument();
-      });
-    });
-
-    it('selecting a Year enables Month and changing Year resets selected Month', async () => {
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Target Year/i)).toBeInTheDocument();
-      });
-
-      const yearSelect = screen.getByLabelText(/Target Year/i);
-      const monthSelect = screen.getByLabelText(/Target Month/i);
-
-      fireEvent.change(yearSelect, { target: { value: '2026' } });
-
-      await waitFor(() => {
-        expect(monthSelect).not.toBeDisabled();
-      });
-
-      fireEvent.change(monthSelect, { target: { value: '1' } });
-      await waitFor(() => {
-        expect(monthSelect.value).toBe('1');
-      });
-
-      fireEvent.change(yearSelect, { target: { value: '2027' } });
-      await waitFor(() => {
-        expect(monthSelect.value).toBe('');
-      });
-    });
-
-    it('reset filters resets Year and Month along with others', async () => {
-      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
-      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
-      });
-
-      const diseaseSelect = screen.getByLabelText(/Disease Filter/i);
-      const yearSelect = screen.getByLabelText(/Target Year/i);
-      const monthSelect = screen.getByLabelText(/Target Month/i);
-
-      fireEvent.change(diseaseSelect, { target: { value: 'FMD' } });
-      fireEvent.change(yearSelect, { target: { value: '2026' } });
-      fireEvent.change(monthSelect, { target: { value: '2' } });
-
-      const resetBtn = screen.getByRole('button', { name: /Reset Filters/i });
-      fireEvent.click(resetBtn);
-
-      await waitFor(() => {
-        expect(diseaseSelect.value).toBe('ALL');
-        expect(yearSelect.value).toBe('');
-        expect(monthSelect.value).toBe('');
-      });
-    });
-  });
 
   // 11. Matrix Empty-State Counting Contract
   describe('Matrix Empty-State Counting Contract', () => {

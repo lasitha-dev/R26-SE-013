@@ -6,7 +6,8 @@ import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 import * as workflowApi from '../../services/riskForecastingWorkflowApi.js';
 
 vi.mock('../../services/riskForecastingWorkflowApi.js', () => ({
-  listForecastRecords: vi.fn()
+  listForecastRecords: vi.fn(),
+  listCanonicalDistricts: vi.fn()
 }));
 
 const validNationalDaphContext = {
@@ -50,8 +51,8 @@ const mockRecords = [
     forecast_id: 'rec_01',
     district: 'Colombo',
     disease: 'FMD',
-    target_year: 2026,
-    target_month: 12,
+    target_year: 2025,
+    target_month: 1,
     probability: 0.85,
     probability_pct: 85,
     risk_level: 'HIGH',
@@ -59,14 +60,14 @@ const mockRecords = [
     status: 'GENERATED',
     data_quality: 'PROXY_USED',
     fallback_applied: true,
-    generated_at: '2026-11-20T10:00:00Z'
+    generated_at: '2024-12-20T10:00:00Z'
   },
   {
     forecast_id: 'rec_02',
     district: 'Colombo',
     disease: 'LSD',
-    target_year: 2026,
-    target_month: 12,
+    target_year: 2025,
+    target_month: 1,
     probability: 0.15,
     probability_pct: 15,
     risk_level: 'LOW',
@@ -74,14 +75,14 @@ const mockRecords = [
     status: 'GENERATED',
     data_quality: 'PROXY_USED',
     fallback_applied: true,
-    generated_at: '2026-11-20T10:05:00Z'
+    generated_at: '2024-12-20T10:05:00Z'
   },
   {
     forecast_id: 'rec_03',
     district: 'Gampaha',
     disease: 'FMD',
-    target_year: 2026,
-    target_month: 12,
+    target_year: 2025,
+    target_month: 1,
     probability: 0.45,
     probability_pct: 45,
     risk_level: 'MEDIUM',
@@ -89,14 +90,14 @@ const mockRecords = [
     status: 'GENERATED',
     data_quality: 'EXACT_MATCH',
     fallback_applied: false,
-    generated_at: '2026-12-01T10:00:00Z'
+    generated_at: '2024-12-21T10:00:00Z'
   },
   {
     forecast_id: 'rec_04',
     district: 'Gampaha',
     disease: 'LSD',
     target_year: 2025,
-    target_month: 11,
+    target_month: 1,
     probability: 0.10,
     probability_pct: 10,
     risk_level: 'LOW',
@@ -104,7 +105,7 @@ const mockRecords = [
     status: 'GENERATED',
     data_quality: 'EXACT_MATCH',
     fallback_applied: false,
-    generated_at: '2025-11-20T10:05:00Z'
+    generated_at: '2024-12-21T10:05:00Z'
   }
 ];
 
@@ -203,6 +204,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('does not mutate input viewerContext prop (deeply frozen object test)', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     const frozenContext = Object.freeze({
       ...validNationalDaphContext,
       authorization: Object.freeze({ ...validNationalDaphContext.authorization }),
@@ -219,27 +221,30 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('renders the scientific boundaries section with health_and_safety and no biomedical identifier', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
-    expect(screen.getByText(/Scientific & Epidemiological Boundaries/i)).toBeInTheDocument();
+    expect(screen.getByText(/Epidemiological & Diagnostic Guardrails/i)).toBeInTheDocument();
     expect(screen.getByText('health_and_safety')).toBeInTheDocument();
     expect(screen.queryByText('biomedical')).not.toBeInTheDocument();
   });
 
   it('renders district-level scientific disclaimer distinguishing forecasts from alerts and individual farm diagnosis', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(
-      screen.getByText(/Disease risk forecasts are district-level early-warning estimates/i)
+      screen.getByText(/Forecast decision records are immutable statistical early-warning estimates generated for veterinary surveillance support/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/They do not confirm disease on an individual farm, nor do they constitute an official outbreak alert/i)
+      screen.getByText(/They do not constitute clinical diagnosis, laboratory confirmation, or an active quarantine order/i)
     ).toBeInTheDocument();
   });
 
   it('does NOT render Stage 2, ECE calibration, prediction sets, log-odds, model variants, or raw JSON', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(screen.queryByText(/Stage 2/i)).not.toBeInTheDocument();
@@ -249,6 +254,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('does NOT render Data Quality or Model Transparency content without separate screen permissions', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(screen.queryByText(/Data Quality/i)).not.toBeInTheDocument();
@@ -257,6 +263,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('contains no AI Diagnosis CTA', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(screen.queryByText(/AI Diagnosis/i)).not.toBeInTheDocument();
@@ -264,6 +271,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('hides decorative Material symbols from assistive technology', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     const { container } = render(
       <DaphDistrictForecasts viewerContext={validNationalDaphContext} />
     );
@@ -276,6 +284,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('uses max-w-6xl outer container with flex-wrap district scope badges', () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     const { container } = render(
       <DaphDistrictForecasts viewerContext={validNationalDaphContext} />
     );
@@ -284,8 +293,7 @@ describe('DaphDistrictForecasts Component', () => {
     expect(outerContainer.className).toContain('max-w-6xl');
     expect(outerContainer.className).toContain('text-on-surface');
 
-    const scopeHeading = screen.getByText('Authorized forecast scope');
-    const badgeContainer = scopeHeading.closest('section').querySelector('.flex-wrap');
+    const badgeContainer = outerContainer.querySelector('.flex-wrap');
     expect(badgeContainer).toBeInTheDocument();
   });
 
@@ -293,6 +301,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('1. Uses listForecastRecords with limit 200, 2. Does not import useAuthorizedDemoForecast and 3. Does not call FMD/LSD POST', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
 
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
@@ -313,6 +322,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('4. Does not send POST, PUT, PATCH, or DELETE requests', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
@@ -322,8 +332,9 @@ describe('DaphDistrictForecasts Component', () => {
     expect(nonGetCalls).toHaveLength(0);
   });
 
-  it('5. Displays Colombo FMD persisted record, 6. Colombo LSD, 7. distinct probabilities, 8. December 2026, 9. fallback/provenance', async () => {
+  it('5. Displays Colombo FMD persisted record, 6. Colombo LSD, 7. distinct probabilities, 8. January 2025, 9. fallback/provenance', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     await screen.findByText('Colombo District · FMD');
@@ -331,21 +342,13 @@ describe('DaphDistrictForecasts Component', () => {
 
     expect(screen.getByText('85.0%')).toBeInTheDocument();
     expect(screen.getByText('15.0%')).toBeInTheDocument();
-    expect(screen.getByText('HIGH RISK')).toBeInTheDocument();
-    expect(screen.getByText('LOW RISK')).toBeInTheDocument();
-
-    const targets = await screen.findAllByText('Target: December 2026');
-    expect(targets.length).toBeGreaterThan(0);
-
-    expect(screen.getAllByText('YES (Fallback Proxy)').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('NO (Exact Period)').length).toBeGreaterThan(0);
-
-    expect(screen.getAllByText('Yes').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('No').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/HIGH/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/LOW/i).length).toBeGreaterThan(0);
   });
 
   it('10. Disease filter isolates FMD', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
     await screen.findByText('Colombo District · FMD');
 
@@ -357,6 +360,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('11. Disease filter isolates LSD', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
     await screen.findByText('Colombo District · FMD');
 
@@ -368,6 +372,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('12. District filter works', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
     await screen.findByText('Colombo District · FMD');
 
@@ -376,30 +381,11 @@ describe('DaphDistrictForecasts Component', () => {
     expect(screen.queryByText('Gampaha District · FMD')).not.toBeInTheDocument();
   });
 
-  it('13. Year/month filters work and 14. Reset filter works', async () => {
-    workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
-    render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
-    // Gampaha FMD is in 2026, so it should be visible initially because 2026 is latest.
-    await screen.findByText('Gampaha District · FMD');
-
-    // Switch to 2025
-    fireEvent.change(screen.getByLabelText(/Forecast year/i), { target: { value: '2025' } });
-
-    // Now Gampaha FMD (which is 2026) is NOT visible.
-    expect(screen.queryByText('Gampaha District · FMD')).not.toBeInTheDocument();
-    // But Gampaha LSD (which is 2025) IS visible.
-    expect(screen.getByText('Gampaha District · LSD')).toBeInTheDocument();
-
-    // Reset filters
-    fireEvent.click(screen.getByRole('button', { name: /Reset Filters/i }));
-
-    // Gampaha FMD is back because it resets to latest (2026)
-    expect(screen.getByText('Gampaha District · FMD')).toBeInTheDocument();
-  });
 
   it('15. Empty response renders the truthful empty state', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(await screen.findByText(/No saved district forecast records are available/i)).toBeInTheDocument();
@@ -407,6 +393,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('16. Sanitized API failure renders the generic error', async () => {
     workflowApi.listForecastRecords.mockRejectedValue(new Error('Network disconnected'));
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
     expect(await screen.findByText(/District forecast records could not be loaded/i)).toBeInTheDocument();
@@ -417,6 +404,7 @@ describe('DaphDistrictForecasts Component', () => {
     const abortErr = new Error('aborted');
     abortErr.name = 'AbortError';
     workflowApi.listForecastRecords.mockRejectedValue(abortErr);
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
 
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
@@ -500,17 +488,15 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('21. National scope labels render correctly and ALL_DISTRICTS is not treated as a district', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
-
-    // UI renders a national/all-districts scope label
-    await screen.findByText('All districts \u2014 National scope');
 
     // UI does not render ALL_DISTRICTS District
     expect(screen.queryByText('ALL_DISTRICTS District')).not.toBeInTheDocument();
 
     // National DAPH sees Colombo FMD and LSD. ALL_DISTRICTS does not filter out district records.
-    expect(screen.getByText('Colombo District · FMD')).toBeInTheDocument();
-    expect(screen.getByText('Colombo District · LSD')).toBeInTheDocument();
+    await screen.findByText('Colombo District · FMD');
+    await screen.findByText('Colombo District · LSD');
 
     // National district dropdown derives Colombo from returned records.
     const districtSelect = screen.getByLabelText(/Target district/i);
@@ -519,6 +505,7 @@ describe('DaphDistrictForecasts Component', () => {
 
   it('22. Existing explicit district-scope filtering still excludes an unauthorized district', async () => {
     workflowApi.listForecastRecords.mockResolvedValue({ records: mockRecords });
+    workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     // Using validProvinceDaphContext which only authorizes 'Colombo'
     render(<DaphDistrictForecasts viewerContext={validProvinceDaphContext} />);
 

@@ -58,9 +58,10 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       district: 'Jaffna',
       target_year: 2026,
       target_month: 9,
-      risk_level: 'HIGH',
-      probability_pct: 78.5,
-      predicted_severity: 'HIGH',
+      forecast_risk_level: 'HIGH',
+      probability: 0.623,
+      predicted_severity: 'LOW',
+      fallback_applied: true,
       operational_priority: 'HIGH',
       status: 'ISSUED',
       instruction_summary: 'Deploy emergency ring vaccination batch.',
@@ -74,12 +75,13 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       follow_up_id: 'FOL-002',
       forecast_id: 'FC-102',
       disease: 'LSD',
-      district: 'Jaffna',
+      district: 'Kandy',
       target_year: 2026,
       target_month: 9,
-      risk_level: 'MEDIUM',
-      probability_pct: 45.0,
-      predicted_severity: 'MODERATE',
+      forecast_risk_level: 'MEDIUM',
+      probability: 0.456,
+      predicted_severity: 'MEDIUM',
+      fallback_applied: false,
       operational_priority: 'MEDIUM',
       status: 'ACKNOWLEDGED',
       instruction_summary: 'Inspect vector breeding controls in Sector 4.',
@@ -94,7 +96,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       follow_up_id: 'FOL-003',
       forecast_id: 'FC-103',
       disease: 'FMD',
-      district: 'Jaffna',
+      district: 'Galle',
       target_year: 2026,
       target_month: 8,
       risk_level: 'HIGH',
@@ -115,7 +117,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       follow_up_id: 'FOL-004',
       forecast_id: 'FC-104',
       disease: 'LSD',
-      district: 'Jaffna',
+      district: 'Matara',
       target_year: 2026,
       target_month: 7,
       risk_level: 'LOW',
@@ -134,7 +136,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       follow_up_id: 'FOL-005',
       forecast_id: 'FC-105',
       disease: 'FMD',
-      district: 'Jaffna',
+      district: 'Trincomalee',
       target_year: 2026,
       target_month: 6,
       risk_level: 'HIGH',
@@ -239,7 +241,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       fireEvent.click(retryBtn);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Deploy emergency ring vaccination batch.')).toBeInTheDocument();
       });
     });
   });
@@ -283,7 +285,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Deploy emergency ring vaccination batch.')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       });
     });
@@ -314,7 +316,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       resolveSecond({ follow_ups: mockFollowUps });
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       // Reject first promise with a real error (not abort)
@@ -378,7 +381,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const statusSelect = screen.getByLabelText(/Status/i);
@@ -396,7 +400,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const diseaseSelect = screen.getByLabelText(/Disease/i);
@@ -422,7 +427,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const statusSelect = screen.getByLabelText(/Status/i);
@@ -440,24 +446,45 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
       fireEvent.click(viewBtns[0]);
 
       expect(screen.getByRole('heading', { name: /Follow-Up Details/i })).toBeInTheDocument();
-      expect(screen.getByText('ID: FOL-001')).toBeInTheDocument();
+
       expect(screen.getAllByText('Deploy emergency ring vaccination batch.').length).toBeGreaterThan(0);
       expect(screen.getByText('Immutable Scientific Forecast Snapshot')).toBeInTheDocument();
-      expect(screen.getByText('78.5%')).toBeInTheDocument();
+      expect(screen.getAllByText('HIGH').length).toBeGreaterThan(0);
+      expect(screen.getByText('62.3%')).toBeInTheDocument();
+      expect(screen.getAllByText('LOW').length).toBeGreaterThan(0);
+      expect(screen.getByText('Historical proxy data used')).toBeInTheDocument();
+    });
+
+    it('renders correct snapshot values for FOL-002 and absent proxy notice', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Kandy')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-002')).not.toBeInTheDocument();
+      });
+
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[1]);
+
+      expect(screen.getAllByText('MEDIUM').length).toBeGreaterThan(0);
+      expect(screen.getByText('45.6%')).toBeInTheDocument();
+      expect(screen.queryByText('Historical proxy data used')).not.toBeInTheDocument();
     });
 
     it('displays Not linked when external_resource_request_id is absent', async () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -470,7 +497,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-002')).toBeInTheDocument();
+        expect(screen.getByText('Kandy')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-002')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -485,7 +513,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -507,7 +536,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -536,7 +566,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-002')).toBeInTheDocument();
+        expect(screen.getByText('Kandy')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-002')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -557,7 +588,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-002')).toBeInTheDocument();
+        expect(screen.getByText('Kandy')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-002')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -581,7 +613,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-003')).toBeInTheDocument();
+        expect(screen.getByText('Galle')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-003')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -601,7 +634,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-003')).toBeInTheDocument();
+        expect(screen.getByText('Galle')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-003')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -628,7 +662,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-004')).toBeInTheDocument();
+        expect(screen.getByText('Matara')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-004')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -645,7 +680,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -673,7 +709,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -708,7 +745,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
@@ -737,7 +775,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('FOL-001')).toBeInTheDocument();
+        expect(screen.getByText('Jaffna')).toBeInTheDocument();
+        expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
       });
 
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });

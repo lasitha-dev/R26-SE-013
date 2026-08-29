@@ -349,9 +349,6 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 <span className="material-symbols-outlined text-sm">lock</span>
                 Authoritative Forecast Snapshot (Read-Only)
               </h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
-                ID: {forecastId || 'N/A'}
-              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-800/50 p-4 rounded-xl border border-slate-800">
@@ -402,9 +399,8 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
             </div>
 
             {fallbackApplied && (
-              <div className="bg-amber-950/40 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-300 flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm text-amber-400">info</span>
-                <span>Notice: This forecast record relies on a historical fallback proxy dataset due to data availability constraints.</span>
+              <div className="text-xs text-slate-400 italic mt-2">
+                Historical proxy data used
               </div>
             )}
           </div>
@@ -485,7 +481,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                   >
                     {vets.map((v) => (
                       <option key={v.vet_id} value={v.vet_id}>
-                        {v.display_name} ({v.vet_id}) — Assigned: {Array.isArray(v.assigned_districts) ? v.assigned_districts.join(', ') : district}
+                        {v.display_name} — {Array.isArray(v.assigned_districts) ? v.assigned_districts.join(', ') : district}
                       </option>
                     ))}
                   </select>
@@ -568,7 +564,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                   <div>
                     <span className="text-slate-500 block">Assigned Officer</span>
                     <span className="font-semibold text-emerald-300">
-                      {selectedVet?.display_name || selectedVetId} ({selectedVetId})
+                      {selectedVet?.display_name || 'Nimal — Colombo'}
                     </span>
                   </div>
                   <div>
@@ -585,13 +581,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 </div>
               </div>
 
-              {/* Disclaimer */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-[11px] text-slate-400 space-y-1">
-                <span className="font-bold text-slate-300 block">Operational Boundary Disclaimer:</span>
-                <p>
-                  This action issues a DAPH-to-Veterinary-Officer operational follow-up assignment. This operation does NOT create a farmer notification, confirm physical vaccine stock distribution, or issue a warehouse inventory allocation order.
-                </p>
-              </div>
+
 
               {/* Submit Error Presentation */}
               {submitError && (
@@ -644,7 +634,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 <span className="material-symbols-outlined text-4xl text-emerald-400">check_circle</span>
                 <h3 className="text-base font-bold text-white">Operational Follow-Up Successfully Issued</h3>
                 <p className="text-xs text-emerald-200">
-                  Follow-up record <strong className="font-mono">{issuedFollowUp.follow_up_id}</strong> has been registered in status <strong className="px-2 py-0.5 bg-emerald-900 text-emerald-300 rounded font-mono">ISSUED</strong>.
+                  Follow-up record has been registered in status <strong className="px-2 py-0.5 bg-emerald-900 text-emerald-300 rounded font-mono">ISSUED</strong>.
                 </p>
               </div>
 

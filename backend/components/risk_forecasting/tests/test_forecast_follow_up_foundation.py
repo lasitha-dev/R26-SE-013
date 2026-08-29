@@ -137,6 +137,114 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
     # ─── 2. Follow-Up Issue Tests ──────────────────────────────────────────────
 
+    def test_scientific_snapshot_captured_from_authoritative_record(self):
+        """Verifies that follow-up issue captures probability, severity and fallback from the authoritative ForecastDecisionRecord."""
+        # Fixture 1: Complete record
+        record1 = ForecastDecisionRecord(
+            forecast_id="REC-TEST-001",
+            disease="FMD",
+            district="Colombo",
+            target_year=2026,
+            target_month=12,
+            risk_level="HIGH",
+            probability=0.623,
+            probability_pct=62.3,
+            predicted_severity="LOW",
+            model_variant="test",
+            fallback_applied=True,
+            data_quality="EXACT",
+            disclaimer="test",
+            provenance="test",
+            generated_at="2026-08-23T10:00:00Z",
+            status="GENERATED",
+            created_at="2026-08-23T10:00:00Z",
+            updated_at="2026-08-23T10:00:00Z",
+        )
+        self.forecast_repo.save(record1)
+
+        req1 = CreateFollowUpRequest(
+            forecast_id="REC-TEST-001",
+            assigned_vet_id="vet_officer_01",
+            instruction_summary="Snapshot test.",
+        )
+        fu1 = self.service.issue_follow_up(req1, actor=self.daph_actor)
+
+        self.assertEqual(fu1.forecast_risk_level, "HIGH")
+        self.assertEqual(fu1.probability, 0.623)
+        self.assertEqual(fu1.predicted_severity, "LOW")
+        self.assertTrue(fu1.fallback_applied)
+
+        # Fixture 2: Different values to prevent hardcoding
+        record2 = ForecastDecisionRecord(
+            forecast_id="REC-TEST-002",
+            disease="LSD",
+            district="Kandy",
+            target_year=2026,
+            target_month=12,
+            risk_level="MEDIUM",
+            probability=0.456,
+            probability_pct=45.6,
+            predicted_severity="MEDIUM",
+            model_variant="test",
+            fallback_applied=False,
+            data_quality="EXACT",
+            disclaimer="test",
+            provenance="test",
+            generated_at="2026-08-23T10:00:00Z",
+            status="GENERATED",
+            created_at="2026-08-23T10:00:00Z",
+            updated_at="2026-08-23T10:00:00Z",
+        )
+        self.forecast_repo.save(record2)
+
+        req2 = CreateFollowUpRequest(
+            forecast_id="REC-TEST-002",
+            assigned_vet_id="vet_officer_01",
+            instruction_summary="Snapshot test 2.",
+        )
+        fu2 = self.service.issue_follow_up(req2, actor=self.daph_actor)
+
+        self.assertEqual(fu2.forecast_risk_level, "MEDIUM")
+        self.assertEqual(fu2.probability, 0.456)
+        self.assertEqual(fu2.predicted_severity, "MEDIUM")
+        self.assertFalse(fu2.fallback_applied)
+
+        # Fixture 3: Missing allowed values remain None
+        record3 = ForecastDecisionRecord(
+            forecast_id="REC-TEST-003",
+            disease="FMD",
+            district="Galle",
+            target_year=2026,
+            target_month=12,
+            risk_level="LOW",
+            probability=0.1,
+            probability_pct=10.0,
+            predicted_severity=None,
+            model_variant="test",
+            fallback_applied=False,
+            data_quality="EXACT",
+            disclaimer="test",
+            provenance="test",
+            generated_at="2026-08-23T10:00:00Z",
+            status="GENERATED",
+            created_at="2026-08-23T10:00:00Z",
+            updated_at="2026-08-23T10:00:00Z",
+        )
+        self.forecast_repo.save(record3)
+
+        req3 = CreateFollowUpRequest(
+            forecast_id="REC-TEST-003",
+            assigned_vet_id="vet_officer_01",
+            instruction_summary="Snapshot test 3.",
+        )
+        fu3 = self.service.issue_follow_up(req3, actor=self.daph_actor)
+
+        self.assertEqual(fu3.forecast_risk_level, "LOW")
+        self.assertEqual(fu3.probability, 0.1)
+        self.assertIsNone(fu3.predicted_severity)
+        self.assertFalse(fu3.fallback_applied)
+
+
     def test_successful_issue_follow_up(self):
         """Verifies successful issuance by DAPH with correct scientific snapshot copying and priority derivation."""
         req = CreateFollowUpRequest(

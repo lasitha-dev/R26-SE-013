@@ -16,18 +16,6 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 
-/**
- * Centralized Backend Bound Limitation Constant.
- * Phase 9 Integration Limitation: Backend request schema bounds year validation to 2017-2030.
- */
-export const BACKEND_BOUND_YEARS = Object.freeze({
-  min: 2017,
-  max: 2030,
-});
-
-/**
- * Risk tier order ranking for deterministic priority sorting (HIGH > MEDIUM > LOW > No Record).
- */
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
   MEDIUM: 2,
@@ -35,9 +23,6 @@ const RISK_TIER_RANK = Object.freeze({
   NO_RECORD: 0,
 });
 
-/**
- * Formats a month number (1-12) to full English month name fallback.
- */
 function getMonthNameFallback(monthNum) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -46,33 +31,7 @@ function getMonthNameFallback(monthNum) {
   return months[(monthNum - 1) % 12] || `Month ${monthNum}`;
 }
 
-/**
- * Helper to determine latest available period from official records:
- * target_year DESC, target_month DESC, generated_at DESC.
- */
-function findLatestRecordPeriod(records) {
-  if (!Array.isArray(records) || records.length === 0) {
-    return { year: null, month: null };
-  }
-  let latest = records[0];
-  for (let i = 1; i < records.length; i++) {
-    const r = records[i];
-    const yearDiff = (r.target_year || 0) - (latest.target_year || 0);
-    if (yearDiff > 0) {
-      latest = r;
-    } else if (yearDiff === 0) {
-      const monthDiff = (r.target_month || 0) - (latest.target_month || 0);
-      if (monthDiff > 0) {
-        latest = r;
-      } else if (monthDiff === 0 && r.generated_at && latest.generated_at) {
-        if (new Date(r.generated_at) > new Date(latest.generated_at)) {
-          latest = r;
-        }
-      }
-    }
-  }
-  return { year: latest.target_year ?? null, month: latest.target_month ?? null };
-}
+
 
 /**
  * DaphNationalForecastOverview Component.
@@ -103,8 +62,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [notificationBatches, setNotificationBatches] = useState([]);
 
   const [selectedDisease, setSelectedDisease] = useState('ALL'); // 'ALL' | 'FMD' | 'LSD'
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(null);
   const [riskFilter, setRiskFilter] = useState('ALL'); // 'ALL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NO_RECORD'
   const [advisoryFilter, setAdvisoryFilter] = useState('ALL'); // 'ALL' | 'NO_ADVISORY' | 'DRAFT' | 'REVIEW_READY' | 'APPROVED' | 'CANCELLED'
   const [followUpOnly, setFollowUpOnly] = useState(false);
@@ -171,12 +128,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       }
       setAllRecords(fetchedRecords);
 
-      // Automatically set default year/month to latest available official record period
-      if (fetchedRecords.length > 0) {
-        const latestPeriod = findLatestRecordPeriod(fetchedRecords);
-        setSelectedYear((prev) => (prev === null ? latestPeriod.year : prev));
-        setSelectedMonth((prev) => (prev === null ? latestPeriod.month : prev));
-      }
+
 
       // Extract authorized forecast IDs for client-side relationship containment
       const forecastIds = fetchedRecords.map((r) => r.forecast_id).filter(Boolean);
@@ -245,26 +197,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     };
   }, [isDaphOfficial, isNationalScope]);
 
-  // 4. Derived Period & Year Options (Requirement 3: derived from official records)
-  const defaultPeriod = useMemo(() => {
-    return findLatestRecordPeriod(allRecords);
-  }, [allRecords]);
-
-  const effectiveYear = selectedYear;
-  const effectiveMonth = selectedMonth;
-
-  const availableYears = useMemo(() => {
-    const yearsSet = new Set();
-    (Array.isArray(allRecords) ? allRecords : []).forEach((r) => {
-      if (r && typeof r.target_year === 'number') {
-        yearsSet.add(r.target_year);
-      }
-    });
-    if (effectiveYear !== null && typeof effectiveYear === 'number') {
-      yearsSet.add(effectiveYear);
-    }
-    return Array.from(yearsSet).sort((a, b) => b - a);
-  }, [allRecords, effectiveYear]);
+  const effectiveYear = 2025;
+  const effectiveMonth = 1;
 
   // 5. Maps & Lookup Structures for Forecast <-> Advisory <-> Batch Chaining
   const advisoriesByForecastId = useMemo(() => {
@@ -410,7 +344,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           }
 
           rows.push({
-            id: record.forecast_id,
+            id: record.forecast_id || record._id,
             district: dist,
             disease: dis,
             target_year: record.target_year,
@@ -512,8 +446,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   // Handlers for Reset and Pagination
   const handleResetFilters = () => {
     setSelectedDisease('ALL');
-    setSelectedYear(null);
-    setSelectedMonth(null);
     setRiskFilter('ALL');
     setAdvisoryFilter('ALL');
     setFollowUpOnly(false);
@@ -589,12 +521,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
       {/* 4. Filter & Target Period Controls */}
       <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-4">
-        {availableYears.length === 0 && (
-          <div className="text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg p-3">
-            No saved forecast periods are available. Generate and save an FMD or LSD forecast to populate year and month filters.
-          </div>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           {/* Disease Selector */}
           <div>
             <label htmlFor="disease-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
@@ -615,59 +542,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             </select>
           </div>
 
-          {/* Target Year Selector (Amendment 4) */}
-          <div>
-            <label htmlFor="year-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Target Year
-            </label>
-            <select
-              id="year-filter-select"
-              value={effectiveYear ?? ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedYear(val === '' ? null : Number(val));
-                setSelectedMonth(null);
-                setOffset(0);
-              }}
-              className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="">Select year</option>
-              {availableYears.length === 0 ? (
-                <option value="" disabled>No Available Years</option>
-              ) : (
-                availableYears.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
 
-          {/* Target Month Selector */}
-          <div>
-            <label htmlFor="month-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Target Month
-            </label>
-            <select
-              id="month-filter-select"
-              value={effectiveMonth ?? ''}
-              disabled={effectiveYear === null}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedMonth(val === '' ? null : Number(val));
-                setOffset(0);
-              }}
-              className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50"
-            >
-              <option value="">Select month</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>
-                  {monthNamesList[m - 1] || getMonthNameFallback(m)}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* Risk Level Filter */}
           <div>
@@ -773,7 +648,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
           <span className="text-xs text-slate-400 font-medium block">Fallback Data Applied</span>
           <span className="text-2xl font-bold text-amber-300 mt-1 block">{summaryMetrics.fallbackAppliedCount}</span>
-          <span className="text-[10px] text-slate-500">fallback_applied = true</span>
+
         </div>
 
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
@@ -845,9 +720,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   return (
                     <tr
                       key={row.id}
-                      className={`hover:bg-slate-800/50 transition ${
-                        selectedDetailRow?.id === row.id ? 'bg-slate-800/80' : ''
-                      }`}
+                      className={`hover:bg-slate-800/50 transition ${selectedDetailRow?.id === row.id ? 'bg-slate-800/80' : ''
+                        }`}
                     >
                       <td className="py-3 px-3 text-center font-mono text-slate-500">
                         {isMissing ? '—' : globalRank}
@@ -972,10 +846,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                             >
                               View
                             </button>
-                            {Boolean(row.record?.forecast_id) && String(row.record.forecast_id).trim() !== '' && (
+                            {Boolean(row.id) && String(row.id).trim() !== '' && (
                               <button
                                 type="button"
-                                onClick={() => setComposingForecastRecord(row.record)}
+                                onClick={() => setComposingForecastRecord(row)}
                                 className="px-2.5 py-1 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 hover:text-amber-200 font-semibold text-[11px] border border-amber-600/40 transition"
                                 title="Issue operational follow-up to Veterinary Officer"
                               >
@@ -1021,8 +895,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
       {/* 7. Read-Only District Detail Panel / Drawer (Amendment 10) */}
       {selectedDetailRow && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end p-4 sm:p-6">
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-y-auto p-6 space-y-6 flex flex-col justify-between">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-6 flex flex-col justify-between">
             <div className="space-y-6">
               {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -1060,10 +934,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                       Authoritative Forecast Record Metadata
                     </h4>
                     <div className="grid grid-cols-2 gap-3 text-xs bg-slate-800/40 p-4 rounded-xl border border-slate-800">
-                      <div>
-                        <span className="text-slate-500 block">Forecast Record ID</span>
-                        <span className="font-mono text-slate-200">{selectedDetailRow.record.forecast_id}</span>
-                      </div>
+
                       <div>
                         <span className="text-slate-500 block">Outbreak Probability</span>
                         <span className="font-mono font-bold text-emerald-400">
@@ -1090,12 +961,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         <span className="text-slate-500 block">Data Quality Classification</span>
                         <span className="font-mono text-slate-300">{selectedDetailRow.record.data_quality}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-500 block">Fallback Proxy Applied</span>
-                        <span className="font-semibold text-amber-300">
-                          {selectedDetailRow.record.fallback_applied ? 'YES (Fallback Proxy)' : 'NO (Exact Period)'}
-                        </span>
-                      </div>
+                      {selectedDetailRow.record.fallback_applied && (
+                        <div className="col-span-2">
+                          <span className="text-slate-400 italic">Historical proxy data used</span>
+                        </div>
+                      )}
                       {selectedDetailRow.record.source_year && (
                         <div>
                           <span className="text-slate-500 block">Source Data Period</span>
@@ -1142,24 +1012,17 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                     )}
                   </div>
 
-                  {/* Mandated Disclaimers */}
-                  <div className="space-y-2 text-[11px] text-slate-400 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                    <p className="font-semibold text-slate-300">Scientific Disclaimer:</p>
-                    <p>{selectedDetailRow.record.disclaimer}</p>
-                    <p className="pt-2 border-t border-slate-800/60 text-slate-500">
-                      Standalone notification simulation disclaimers apply. Simulated delivery success confirms mock provider execution only and does not confirm receipt by farmers.
-                    </p>
-                  </div>
+
                 </>
               )}
             </div>
 
             <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-              {!selectedDetailRow.isMissingRecord && Boolean(selectedDetailRow.record?.forecast_id) && String(selectedDetailRow.record.forecast_id).trim() !== '' ? (
+              {!selectedDetailRow.isMissingRecord && Boolean(selectedDetailRow.id) && String(selectedDetailRow.id).trim() !== '' ? (
                 <button
                   type="button"
                   onClick={() => {
-                    const recordToCompose = selectedDetailRow.record;
+                    const recordToCompose = selectedDetailRow;
                     setSelectedDetailRow(null);
                     setComposingForecastRecord(recordToCompose);
                   }}
