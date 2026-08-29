@@ -26,16 +26,29 @@ export default function VetLogin() {
 
       const data = await response.json()
       if (response.ok) {
-        localStorage.setItem("token", data.access_token)
-        localStorage.setItem("full_name", data.full_name)
-        localStorage.setItem("owner_name", data.full_name)
-        localStorage.setItem("veterinarian_name", data.full_name)
-        localStorage.setItem("email", data.email)
-        localStorage.setItem("role", data.role || "vet")
-        localStorage.setItem("license_number", data.license_number || "")
-        localStorage.setItem("phone", data.phone || "")
-        localStorage.setItem("district", data.district || "")
-        navigate('/vet/dashboard')
+        const userRole = data.role
+        if (userRole === "vet" || userRole === "daph") {
+          localStorage.setItem("token", data.access_token)
+          localStorage.setItem("full_name", data.full_name)
+          localStorage.setItem("owner_name", data.full_name)
+          localStorage.setItem("veterinarian_name", data.full_name)
+          localStorage.setItem("email", data.email)
+          localStorage.setItem("role", userRole)
+          localStorage.setItem("license_number", data.license_number || "")
+          localStorage.setItem("phone", data.phone || "")
+          localStorage.setItem("district", data.district || "")
+          
+          if (userRole === "daph") {
+            navigate('/vet/forecasting')
+          } else {
+            navigate('/vet/dashboard')
+          }
+        } else {
+          // Unsupported or missing role
+          localStorage.removeItem("token")
+          localStorage.removeItem("role")
+          setErrorMessage("Authentication failed. Unsupported professional role.")
+        }
       } else {
         setErrorMessage(data.detail || "Authentication failed. Please verify clinical credentials.")
       }

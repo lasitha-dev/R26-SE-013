@@ -5,16 +5,23 @@ from motor.motor_asyncio import AsyncIOMotorClient
 # Load environment variables
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb+srv://user4:user123@cluster0.8e4nq9e.mongodb.net/?appName=Cluster0")
+MONGODB_URL = os.getenv(
+    "MONGODB_URL",
+    "mongodb://127.0.0.1:27017",
+)
 
-# Initialize MongoDB client
-client = AsyncIOMotorClient(MONGODB_URL)
+MONGODB_DB_NAME = os.getenv(
+    "MONGODB_DB_NAME",
+    "adrs_core",
+)
+
+# Initialize MongoDB client with short timeout
+client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=2000)
 
 # Database instance
-db = client.adrs_core
+db = client[MONGODB_DB_NAME]
 
 # Collections
 farms_collection = db.farms
 cattles_collection = db.cattle
 vets_collection = db.vets
-

@@ -259,6 +259,20 @@ async def login_farm(credentials: FarmLogin):
 
 @router.post("/vet/register", status_code=status.HTTP_201_CREATED)
 async def register_vet(vet_data: VetRegister):
+    if vet_data.role == "vet":
+        if not vet_data.district or vet_data.district == "ALL_DISTRICTS":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Veterinary Officer must select a valid district jurisdiction."
+            )
+    elif vet_data.role == "daph":
+        if vet_data.district and vet_data.district != "ALL_DISTRICTS":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="DAPH Official cannot be restricted to a single district."
+            )
+        vet_data.district = "ALL_DISTRICTS"
+
     # Check if the email already exists in vets collection
     existing_vet_email = await vets_collection.find_one({"email": vet_data.email})
     if existing_vet_email:
@@ -279,7 +293,7 @@ async def register_vet(vet_data: VetRegister):
     hashed_password = get_password_hash(vet_data.password)
     vet_doc = vet_data.model_dump()
     vet_doc["password"] = hashed_password
-    vet_doc["role"] = "vet"
+    vet_doc["role"] = vet_data.role
     vet_doc["created_at"] = datetime.utcnow().isoformat()
 
     try:
@@ -306,10 +320,17 @@ async def login_vet(credentials: VetLogin):
             detail="Invalid email or password."
         )
 
+    stored_role = vet.get("role", "vet")
+    if stored_role not in {"vet", "daph"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account role is corrupted or unsupported."
+        )
+
     token_data = {
         "sub": vet["email"],
         "full_name": vet["full_name"],
-        "role": "vet",
+        "role": stored_role,
         "license_number": vet.get("license_number", "")
     }
     access_token = create_access_token(data=token_data)
@@ -319,7 +340,7 @@ async def login_vet(credentials: VetLogin):
         "token_type": "bearer",
         "full_name": vet["full_name"],
         "email": vet["email"],
-        "role": "vet",
+        "role": stored_role,
         "license_number": vet.get("license_number", ""),
         "phone": vet.get("phone", ""),
         "district": vet.get("district") or vet.get("location_district") or "Sri Lanka Central Jurisdiction"

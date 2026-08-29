@@ -12,6 +12,8 @@ from components.smart_diagnostics.implementations.mask_rcnn_segmenter import Mas
 from components.smart_diagnostics.routes import router as sd_router
 
 
+from components.risk_forecasting.routes import router as risk_forecasting_router, setup_production_services
+
 def create_app() -> FastAPI:
     app = FastAPI(title="ADRS Core Backend", version="1.0.0")
     # Development CORS: allow Vite dev server and localhost
@@ -24,6 +26,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(sd_router)
     app.include_router(health_anomaly_router, prefix="/api")
+    app.include_router(risk_forecasting_router, prefix="/api/v1/risk-forecasting", tags=["Risk Forecasting"])
+    setup_production_services()
 
     # Attach configuration and lazy model wrappers to app state.
     app.state.settings = settings
@@ -50,28 +54,6 @@ def create_app() -> FastAPI:
             return {"status": "ok", "database_connected": True, "registered_farms_count": count}
         except Exception as e:
             return {"status": "error", "database_connected": False, "error_details": str(e)}
-
-    @app.get("/reset-pramod-password")
-    async def reset_pramod_password():
-        from core.security import get_password_hash
-        hashed = get_password_hash("123456")
-        existing = await farms_collection.find_one({"email": "pramod@gmail.com"})
-        if existing:
-            await farms_collection.update_one({"email": "pramod@gmail.com"}, {"$set": {"password": hashed}})
-            msg = "Password for pramod@gmail.com successfully updated to 123456"
-        else:
-            doc = {
-                "owner_name": "Pramod Wijenayake",
-                "email": "pramod@gmail.com",
-                "password": hashed,
-                "location_district": "Colombo",
-                "registration_number": "REG-PR-2026",
-                "veterinarian_name": "Dr. Nimal Perera",
-                "total_animals": 10
-            }
-            await farms_collection.insert_one(doc)
-            msg = "Created pramod@gmail.com account with password 123456"
-        return {"status": "success", "email": "pramod@gmail.com", "password": "123456", "message": msg}
 
     return app
 

@@ -16,3 +16,6 @@ openai>=1.0
 
 
 
+
+pandas>=2.0.0
+PyJWT==2.8.0

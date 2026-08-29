@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 class FarmRegister(BaseModel):
     owner_name: str = Field(..., min_length=1)
@@ -31,7 +31,7 @@ class VetRegister(BaseModel):
     license_number: str = Field(..., min_length=1)
     phone: str = Field(..., min_length=7)
     district: Optional[str] = None
-    role: str = "vet"
+    role: Literal["vet", "daph"] = "vet"
     assigned_farms: List[str] = []
     assigned_farm_ids: List[str] = []
 
@@ -44,7 +44,7 @@ class VetTokenResponse(BaseModel):
     token_type: str
     full_name: str
     email: str
-    role: str = "vet"
+    role: Literal["vet", "daph"] = "vet"
     license_number: Optional[str] = None
     phone: Optional[str] = None
     district: Optional[str] = None

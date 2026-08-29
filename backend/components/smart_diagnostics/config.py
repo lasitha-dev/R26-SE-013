@@ -38,11 +38,12 @@ class Settings(BaseSettings):
     })
 
     if _PYDANTIC_V2:
-        model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+        model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
     else:
         class Config:
             env_file = ".env"
             env_file_encoding = "utf-8"
+            extra = "ignore"
 
 
 settings = Settings()
