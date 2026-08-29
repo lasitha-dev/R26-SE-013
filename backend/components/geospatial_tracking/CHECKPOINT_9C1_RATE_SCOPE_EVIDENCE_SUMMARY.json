@@ -1,0 +1,65 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "9C.1",
+  "diagnostic_purpose": "POST_FREEZE_RATE_SCOPE_CONDITIONING_DIAGNOSTIC",
+  "historical_9a_protocol_hash": "326427b08f5c43b9708409ae112460e8f0804db0c972a007caaae8ffca3b58ac",
+  "historical_9b_protocol_hash": "969161e318508edfa2465d2f4598dbca17fcf29ef01bba2df42bec8093835d28",
+  "historical_9c_integration_protocol_hash": "cec826a26c860c752d1fa32d94edcdfba2e0186950cdccfc96067fef2ce51a90",
+  "rate_scope_conditioning_protocol_hash_9c1": "26168ca784b5f8cb5393db872baa1e7e7f1d74f782b16df17c97354b9bf52b8f",
+  "input_observation_csv_sha256": "d67f02709a2ddac8b5f02cb4ebacafe42242229deafea153c600fb2bbd714a2d",
+  "frozen_s0_km_day": 3.946421443154751,
+  "frozen_9b_interval_km_day": {
+    "lower": 3.5491046170907765,
+    "upper": 4.343077329563724
+  },
+  "theoretical_ceiling_table_km_day": {
+    "1": 25.0,
+    "2": 12.5,
+    "3": 8.333333333333334,
+    "4": 6.25,
+    "5": 5.0,
+    "6": 4.166666666666667,
+    "7": 3.5714285714285716
+  },
+  "d7_theoretical_ceiling_below_frozen_s0": true,
+  "pooled_reconciliation": {
+    "n_total_origin_target_rows": 3947,
+    "n_within_25km": 1387,
+    "n_outside_25km": 2560,
+    "n_unresolved": 0
+  },
+  "target_event_inclusion": {
+    "n_unique_target_event_id_all_rows": 879,
+    "n_unique_target_event_id_with_at_least_one_WITHIN": 371,
+    "n_unique_target_event_id_only_OUTSIDE": 508,
+    "n_unique_target_event_id_mixed_WITHIN_and_OUTSIDE": 124,
+    "n_unique_target_event_id_only_WITHIN": 247,
+    "target_event_ids_match_frozen_s0_dataset": true
+  },
+  "zero_distance_diagnostic": {
+    "n_zero_distance_rows": 12,
+    "n_unique_target_events": 4,
+    "all_zero_distance_target_gps_quality_unknown": true,
+    "all_zero_distance_collision_status_unknown": true
+  },
+  "rate_estimand_conditioning": "D1_D7_TARGET_EVENT_APPARENT_RATE_CONDITIONAL_ON_AT_LEAST_ONE_VALID_25KM_LOCAL_SCOPE_OBSERVATION_UNDER_RETROSPECTIVE_PROXY",
+  "rate_scope_conditioning_label": "RATE_SCOPE_CONDITIONING",
+  "lead_dependent_truncation_mechanism_label": "LEAD_DEPENDENT_TRUNCATION_MECHANISM",
+  "no_alternate_s0_status": "NO_ALTERNATE_POOLED_S0_CALCULATED_IN_9C1",
+  "held_out_rate_status": "HELD_OUT_RATE_NOT_INSPECTED_IN_9C1",
+  "sri_lanka_rate_status": "SRI_LANKA_RATE_NOT_INSPECTED_IN_9C1",
+  "s0_changed": false,
+  "ci_changed": false,
+  "envelope_changed": false,
+  "nominal_reach_changed": false,
+  "scientific_limitations": "See services/model_development/rate_scope_conditioning_9c1.py and RATE_MODEL_PROTOCOL.md §23",
+  "final_classification": "RATE_SCOPE_CONDITIONING_AUDIT_COMPLETE_PRIMARY_S0_RETAINED_WITH_EXPLICIT_CONDITIONAL_INTERPRETATION",
+  "local_artifact_root": "local_data/model_development/9c1_rate_scope",
+  "local_artifact_sha256": {
+    "rate_scope_conditioning_protocol_9c1.json": "299ce5ef8891f67183d1ef9ea4625c902b7f5d07f3152da3f4ad55abf1916da2",
+    "lead_day_rate_scope_conditioning_audit.json": "7576f54733d5b607d24fcd0fea7c61e7ec836df17b2340fc19eb531d7622a16a",
+    "target_event_scope_participation_audit.json": "b8d2172f26ff6e39893ab32efd0236e47d6904b547c6234a13429e9f1babd225",
+    "gps_quality_by_lead_rate_audit.json": "e394de2ac90526f471c8f6ba5c350219a6cb68cdd45297f9686e817024cbf2b5",
+    "rate_scope_interpretation_9c1.json": "aba8b5ab34b3e2417b2566011c8fbf69bb1fa6952566d4812ae37228f1c0e1c5"
+  }
+}
