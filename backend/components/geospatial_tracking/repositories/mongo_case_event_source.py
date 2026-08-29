@@ -3,23 +3,29 @@ constructor-injected with generic collection objects only (mirrors
 `host_operational_adapter.py`'s discipline -- no `MongoClient`, no
 connection string, no `core.database` import anywhere in this module).
 
-CHANGE-STREAM CAPABILITY (Section 4 of this checkpoint's own audit):
-this repository has no existing `.watch(` usage anywhere, and no live
-Atlas network test was run (none is safe to run from this checkpoint --
-no `.env`/connection string is present in this branch's tree). The only
-structural evidence available is that `origin/main:backend/core/database.py`
-uses an `mongodb+srv://` Atlas connection string, and Atlas clusters are
-always deployed as replica sets, which is the one deployment requirement
-`.watch()` needs. That evidence is suggestive, not a proof -- this
-checkpoint's report classifies change-stream support INCONCLUSIVE rather
-than VALID, and treats `DeltaPollingCaseEventSource` as the safe default
-until a live capability check is actually run against the real deployment.
+CHANGE-STREAM CAPABILITY (updated by GEO-HOST-READINESS-07's later, bounded
+read-only capability probe -- supersedes this module's original GEO-LIVE-05
+INCONCLUSIVE finding, which had no live Atlas network test to draw on at
+the time): GEO-HOST-READINESS-07 opened `collection.watch(...)` against the
+host's actually-configured `diagnostic_cases` collection, confirmed the
+server accepted the change-stream aggregation, and closed it immediately --
+no document was read, inserted, updated, deleted, or otherwise mutated.
+Change-stream capability in that audited environment is therefore VERIFIED/
+SUPPORTED, not merely suggestive structural evidence. This result describes
+the environment that was probed; it is not a universal guarantee for every
+future deployment, and it says nothing about whether a host router is
+mounted or push transport is already active in the running application --
+capability being SUPPORTED is a separate fact from host composition being
+complete (neither is done by this module).
 
-`MongoChangeStreamCaseEventSource` is still implemented and fully unit-
-tested against a fake watchable collection (Section 4: "If change streams
-are supported, use them as the preferred operational event source") so a
-later checkpoint can wire it in the moment that live check passes, without
-writing this adapter from scratch under time pressure then.
+`MongoChangeStreamCaseEventSource` is accordingly the PREFERRED push-capable
+source once a later host-composition checkpoint supplies this module with
+the host's real, already-configured collection object -- fully implemented
+and unit-tested against a fake watchable collection now, so that wiring
+step needs no adapter work under time pressure then. `DeltaPollingCaseEventSource`
+remains a supported fallback -- for initial deployment, reconnect/degraded
+operation, or any environment where change streams turn out to be
+unavailable -- never removed just because push is preferred where proven.
 """
 
 from __future__ import annotations
