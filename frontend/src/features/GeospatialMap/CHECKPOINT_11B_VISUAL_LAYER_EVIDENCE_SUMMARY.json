@@ -1,0 +1,93 @@
+{
+  "label": "TRACKED_AGGREGATE_FRONTEND_EVIDENCE_SUMMARY",
+  "checkpoint": "11B",
+  "purpose": "PROFESSIONAL_GEOSPATIAL_VISUAL_LAYER_HARDENING_TOKEN_INDEPENDENT_MAP_FOUNDATION_SCIENTIFICALLY_SAFE_RISK_DIRECTION_RENDERING",
+  "backend_contract_modified": false,
+  "active_frontend_transport_contract_hash_10b1a": "0549339d2d79659048e2d265403507b756b464d454419c28c295d005d8450f0e",
+  "active_api_protocol_hash_10a1": "e44761319870e9196768599ad88fde237d709c2b17b03f17662ab144bd5634b8",
+  "mapping_dependency_decision": {
+    "library": "maplibre-gl",
+    "version": "^4.7.1",
+    "rationale": "open-source, no proprietary token, GeoJSON source/layer + fitBounds support, sufficient for the current point-cell/source payload",
+    "not_installed": ["deck.gl", "mapbox-gl", "a state-management package", "a UI framework", "Playwright/Cypress"]
+  },
+  "basemap_configuration_mode": {
+    "config_boundary": "VITE_GEOSPATIAL_BASEMAP_STYLE_URL",
+    "modes": ["REMOTE_STYLE (when configured)", "NEUTRAL_FALLBACK (token-free flat background, default)"],
+    "app_remains_usable_with_no_style_configured": true,
+    "attribution": "MapLibre's own AttributionControl renders whatever attribution the configured remote style declares; never suppressed. The neutral fallback style has no remote sources and needs none."
+  },
+  "fallback_status": {
+    "primary": "MAPLIBRE_AVAILABLE -- interactive MapLibre GL view",
+    "degraded": "VISUAL_MAP_UNAVAILABLE_SNAPSHOT_DATA_PRESERVED -- dependency-free SVG MapCanvas, same committed snapshot, distinct from ANALYSIS_UNAVAILABLE",
+    "trigger": "MapLibre construction throwing (no WebGL) or a MapLibre 'error' event (style/tile load failure)"
+  },
+  "production_dependency_audit_result": {
+    "high": 0, "critical": 0, "moderate": 0, "low": 0,
+    "detail_file": "CHECKPOINT_11B_DEPENDENCY_SECURITY_ADDENDUM.json"
+  },
+  "geojson_coordinate_invariant": "[longitude, latitude], EPSG:4326, consumed verbatim by MapLibre sources -- never reversed, never converted to km in the browser",
+  "risk_rendering_semantics": {
+    "field": "feature.properties.risk.raw_c0_score",
+    "never_mutated": true,
+    "never_renamed_to_probability_or_accuracy": true,
+    "null_handling": "distinct UNAVAILABLE_RISK_COLOR, never interpolated as low/zero",
+    "equal_score_handling": "single NEUTRAL_SINGLE_COLOR, no gradient implied"
+  },
+  "presentation_normalization_semantics": {
+    "scope": "current-snapshot min/max only, expressed as a MapLibre paint EXPRESSION (evaluated per-feature by MapLibre, never precomputed/written back)",
+    "cross_snapshot_comparability_disclosed_in_legend": true,
+    "no_epidemiological_thresholds": true
+  },
+  "direction_rendering_semantics": {
+    "null_bearing": "no direction feature / no arrow",
+    "zero_bearing": "included as a valid North-pointing arrow, never treated as falsy",
+    "rotation_source": "backend bearing_deg read via a nested MapLibre get expression, no recomputation",
+    "arrow_size": "fixed, never scaled by risk/rate/confidence/clarity",
+    "map_orientation": "north-up, non-pitched, rotation disabled -- deterministic rendering"
+  },
+  "source_rendering_completeness": "buildSourcesFeatureCollection is a verbatim pass-through; count always equals snapshot.sources.features.length, no silent filtering",
+  "rate_reach_no_recompute_status": "SummaryPanel unchanged from 11A/11A.1 -- backend values displayed verbatim, no rate x day recomputation, no 25km clipping, no quarantine/disease-boundary circles on the map",
+  "no_auto_polling_status": "NO_SETINTERVAL_NO_SETTIMEOUT_ANYWHERE_IN_FEATURE_SOURCE (structurally verified by test)",
+  "historical_replay_prominence": "ProtocolStatusBadge renders the historical-replay / live-not-implemented disclaimer unconditionally in the header, never inside a collapsible/diagnostics-only element",
+  "frontend_test_result": {
+    "test_files": 10,
+    "passed": 118,
+    "failed": 0,
+    "prior_baseline": 76,
+    "new_test_files": ["mapLibreAdapter.test.js", "basemapConfig.test.js", "visualLayerSemantics.test.js", "visualLayerStructural.test.js"]
+  },
+  "production_build_result": {
+    "status": "SUCCESS",
+    "known_warning": "The CJS build of Vite's Node API is deprecated -- present, not hidden",
+    "bundle_size_warning": "dist/assets/index-*.js is 980.33 kB (gzip 275.44 kB), exceeds Vite's 500kB chunk warning threshold -- attributable to maplibre-gl; reported honestly, not suppressed. Code-splitting (dynamic import of the map feature) is a reasonable follow-up, not attempted this checkpoint since it is not required for correctness."
+  },
+  "lint": "NOT_CONFIGURED_NO_PRE_EXISTING_ESLINT_SETUP_BUILD_IS_THE_DETERMINISTIC_VERIFICATION_PATH",
+  "backend_regression_result": {
+    "passed": 1636, "failed": 0, "skipped": 0, "warnings": 1, "warning_type": "StarletteDeprecationWarning",
+    "unchanged_from_11a1": true
+  },
+  "controlled_origin_id": "ORIGIN:Afghanistan:2022-05-29",
+  "controlled_snapshot_id": "cc92c6f716b7c2d04a2f4c18a893e87757876611e1068d9b0c526ae8853e8598",
+  "controlled_cell_count": 88,
+  "controlled_source_count": 1,
+  "controlled_smoke_result": {
+    "protocol_compatible": true,
+    "ws_parent_compatible": true,
+    "snapshot_begin_compatible": true,
+    "exact_requested_origin_match": true,
+    "final_phase": "SNAPSHOT_COMPLETE",
+    "snapshot_id_unchanged": true,
+    "raw_c0_score_unmutated_after_full_presentation_pipeline": true,
+    "cells_represented_in_map_geojson": 88,
+    "sources_represented_in_map_geojson": 1,
+    "direction_features_with_defined_bearing": 88,
+    "risk_color_stats_observed": { "min": 0.3570505529328514, "max": 0.8680893711457165, "hasVariation": true, "hasUnavailable": false },
+    "fit_bounds_derived_from_real_geometry": true,
+    "temporary_smoke_script_deleted_after_run": true
+  },
+  "browser_visual_qa_status": "BROWSER_VISUAL_QA_NOT_AUTOMATED -- no Playwright/Cypress in this repo; not installed solely for this checkpoint per explicit instruction. See the Part 27 manual visual-QA checklist in the Checkpoint 11B closing report for deterministic final-demo verification steps.",
+  "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+  "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+  "final_classification": "PROFESSIONAL_GEOSPATIAL_VISUAL_LAYER_HARDENED_OVER_LOCKED_SCIENTIFIC_SNAPSHOT_READY_FOR_FINAL_END_TO_END_AUDIT_NOT_LIVE_OPERATIONAL_FORECASTING"
+}

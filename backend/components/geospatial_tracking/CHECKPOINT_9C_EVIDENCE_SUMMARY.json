@@ -1,0 +1,42 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "9C",
+  "frozen_c0_candidate_id": "C7C:C0_FROZEN_B0_ISOTROPIC:830bf1e62664bcc8",
+  "frozen_7c_spec_hash": "ef3511d3527da6d85598846c0d828509ed07f134ac8d987c3d5702b507505a6d",
+  "direction_method_protocol_hash_8b3": "dc3b245aa8ea6748c8abf8bcf0c56db75aca34a6118b02776b9c5490fa6c0282",
+  "direction_evaluation_truth_status": "DIRECTION_EVALUATION_TRUTH_NOT_YET_FROZEN",
+  "historical_9a_protocol_hash": "326427b08f5c43b9708409ae112460e8f0804db0c972a007caaae8ffca3b58ac",
+  "nine_a1_exposure_classification": "PRE_9B_S0_NUMERIC_ESTIMATOR_EXPOSURE_IN_9A_DIAGNOSTIC_DISCLOSED",
+  "s0_bootstrap_protocol_hash_9b": "969161e318508edfa2465d2f4598dbca17fcf29ef01bba2df42bec8093835d28",
+  "rate_input_csv_sha256": "71e7d82f974d1dd01911c45fbbfd7121ef07e915212c3f7004fef6120399b183",
+  "rate_canonical_payload_sha256": "ebbd08e30c14f91e17110dfe42a20b7239812a4f307f3edc2137cde98ca6202f",
+  "integration_protocol_hash_9c": "cec826a26c860c752d1fa32d94edcdfba2e0186950cdccfc96067fef2ce51a90",
+  "apparent_rate_km_day": 3.946421443154751,
+  "apparent_rate_interval_km_day": {
+    "lower": 3.5491046170907765,
+    "upper": 4.343077329563724
+  },
+  "operational_evaluation_envelope_km": 25.0,
+  "nominal_reach_semantics": "VISUALIZATION_ONLY_NOT_HARD_DISEASE_BOUNDARY",
+  "nominal_reach_by_day_km": {
+    "day_1": 3.946421443154751,
+    "day_2": 7.892842886309502,
+    "day_3": 11.839264329464253,
+    "day_4": 15.785685772619004,
+    "day_5": 19.732107215773755,
+    "day_6": 23.678528658928506,
+    "day_7": 27.624950102083258
+  },
+  "day_7_exceeds_operational_envelope": true,
+  "risk_score_semantics": "RELATIVE_SPATIAL_SCORE_NOT_INFECTION_PROBABILITY",
+  "risk_surface_temporal_semantics": "STATIC_T0_FROZEN_C0_SPATIAL_RANK_CONTEXT",
+  "direction_semantics": "C0_DERIVED_CELL_LOCAL_NEGATIVE_GRADIENT_GEOMETRIC_TENDENCY",
+  "nearest_source_semantics": "NEAREST_KNOWN_ELIGIBLE_SOURCE_GEOMETRIC_REFERENCE",
+  "rate_status": "FROZEN_DEVELOPMENT_HISTORICAL_APPARENT_RATE",
+  "rate_scope": "D1_D7_25KM_DEVELOPMENT_LOCAL_SCOPE",
+  "rate_validation_status": "NOT_HELDOUT_RATE_VALIDATED",
+  "sri_lanka_rate_status": "NOT_EVALUATED",
+  "s1_status": "NOT_SELECTED",
+  "scientific_limitations": "See services/integration/geospatial_intelligence_protocol_9c.py LIMITATIONS_9C and GEOSPATIAL_INTELLIGENCE_INTEGRATION_PROTOCOL.md",
+  "final_classification": "FROZEN_GEOSPATIAL_RISK_DIRECTION_APPARENT_RATE_AND_NOMINAL_REACH_INTEGRATION_CONTRACT_READY_FOR_API"
+}

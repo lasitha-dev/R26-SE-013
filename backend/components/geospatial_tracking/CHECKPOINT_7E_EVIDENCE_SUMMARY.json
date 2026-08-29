@@ -1,0 +1,58 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "note": "Aggregate, non-sensitive evidence only. No raw outbreak data, no origin-level personal/private data, no local machine paths. Companion to the gitignored local_data/model_evaluation/7e_sri_lanka/ artifacts, which are the full evidence source -- this file is NOT a replacement for them.",
+  "checkpoint": "7E",
+  "evaluation_role": "SRI_LANKA_TRANSFER_CASE_STUDY",
+  "evaluation_label": "FROZEN_SRI_LANKA_GEOGRAPHIC_TRANSFER_CASE_STUDY_WITH_RETROSPECTIVE_AVAILABILITY_LIMITATIONS_DISCLOSED",
+  "selected_candidate_id": "C7C:C0_FROZEN_B0_ISOTROPIC:830bf1e62664bcc8",
+  "frozen_7c_spec_hash": "ef3511d3527da6d85598846c0d828509ed07f134ac8d987c3d5702b507505a6d",
+  "sri_lanka_case_study_protocol_hash_7e": "4e33483289e510ce76a96216ab04333f31673d0a5a7d5ee75e8601674f4c75ce",
+  "origin_universe": {
+    "n_raw_sri_lanka_historical_records": 7,
+    "n_model_candidate_dedup_resolved_records": 6,
+    "n_excluded_records": 1,
+    "n_sri_lanka_transfer_case_study_origins": 5,
+    "n_ready_origins": 5,
+    "n_blocked_origins": 0
+  },
+  "target_scope": {
+    "n_unique_evaluable_targets": 1,
+    "n_contributing_origins": 1
+  },
+  "pooled_descriptive_result": {
+    "mean_target_percentile": 61.10374178249515,
+    "median_target_percentile": 61.10374178249515,
+    "top5_capture_rate": 0.0,
+    "top10_capture_rate": 0.0,
+    "status": "SMALL_SAMPLE_DESCRIPTIVE_ONLY"
+  },
+  "small_sample": true,
+  "availability_protocol_identity": "RETROSPECTIVE_PROXY_T0_INVARIANT",
+  "all_availability_quality_values_are_proxy_never_actual": true,
+  "final_classification": "SRI_LANKA_TRANSFER_CASE_STUDY_LIMITED_BY_SMALL_SAMPLE",
+  "not_external_validation": true,
+  "comparison_context": {
+    "development_mean_percentile": 62.034006257768795,
+    "held_out_mean_percentile": 73.84712361066521,
+    "sri_lanka_mean_percentile": 61.10374178249515
+  },
+  "local_artifact_sha256": {
+    "checkpoint_7e_audit.json": "d5433d8248283a714e414f0157229c71e2e52bd77b295f25a814a760bbbde99b",
+    "sri_lanka_case_study_metrics.json": "d702e498357b93ce1bc82439066a503036a0185f8bef9db2ca55d32da70f9c56",
+    "sri_lanka_origin_universe_audit.json": "0dd27ace1dd627aef4542d269e5a190a132f5bae00fd6fb4b477aab94b6bc40e",
+    "sri_lanka_temporal_availability_audit.json": "9b2a9ca97ffb38290da758c11acf46b6d5b9d44c6d6df1c5a708b7967cf38a4f",
+    "sri_lanka_geolocation_quality_audit.json": "f0cfbab1c57126921ab1c8fea52d8a4e0830440f63244297bf13a8cf092a3048",
+    "sri_lanka_case_study_interpretation.json": "81bef85b8e24c8461eab86755e840fe1cbd05952d1fcee28fb005f8d8928af61",
+    "sri_lanka_quality_semantics_audit_7e1.json": "6d0d4b3a6d5864f8efe0dcbd9b4b9167c6413d74ddc4299ead8133fc6e95b856",
+    "sri_lanka_target_event_view_7e1.json": "6094d07284fd81f6dc034a490c71cce8b8ba05ad0855ffd46b89fc0376d62f25"
+  },
+  "non_numerical_7e1_semantic_corrections": {
+    "status": "NON_NUMERICAL_7E_SEMANTIC_CORRECTION",
+    "files_with_updated_hash_due_to_legitimate_wording_correction": [
+      "sri_lanka_case_study_interpretation.json",
+      "sri_lanka_temporal_availability_audit.json"
+    ],
+    "reason": "Checkpoint 7E.1 corrected (1) an overly broad D8-D14 claim and (2) imprecise EVENT_DATE_PROXY/confirmation-date causal wording. No numerical frozen value (candidate id, hashes, counts, percentile, TOP5/TOP10, classification) was changed by either correction."
+  },
+  "not_reported_as_sri_lanka_accuracy_or_validation_score": true
+}

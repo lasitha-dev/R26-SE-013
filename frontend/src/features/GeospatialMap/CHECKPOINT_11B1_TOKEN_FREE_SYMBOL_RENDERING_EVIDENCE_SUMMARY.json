@@ -1,0 +1,77 @@
+{
+  "label": "TRACKED_AGGREGATE_FRONTEND_EVIDENCE_SUMMARY",
+  "checkpoint": "11B.1",
+  "purpose": "TOKEN_FREE_MAPLIBRE_SYMBOL_RUNTIME_HARDENING_GLYPH_INDEPENDENT_SOURCE_DIRECTION_OVERLAYS",
+  "backend_contract_modified": false,
+  "maplibre_gl_version": "^4.7.1 (unchanged from Checkpoint 11B -- not upgraded, per explicit instruction to prefer a code fix over dependency churn)",
+  "glyph_compatibility_finding": "Checkpoint 11B's source/direction overlays used text-based symbol layers ('text-field': '■'/'▲'), whose rendering depends on MapLibre's font-glyph pipeline (local PBF glyphs or a remote glyph/sprite URL declared by the active style). The neutral token-free fallback style declares no glyphs URL, so this was classified TOKEN_FREE_TEXT_GLYPH_RENDERING_COMPATIBILITY_NOT_PROVEN and fixed at the source, not worked around.",
+  "reason_for_glyph_independent_overlays": "Avoids adding a remote glyph/sprite dependency (which would make the token-free mode network-dependent) and avoids a MapLibre major-version upgrade undertaken solely to chase newer font behavior.",
+  "source_icon_strategy": "A deterministic diamond marker built as a raw RGBA Uint8ClampedArray pixel buffer (presentationIcons.js::buildSourceMarkerImage), registered via map.addImage() -- zero canvas, zero DOM, zero font/glyph/sprite dependency. Rendered via an icon-image symbol layer (mapLibreAdapter.js::sourceIconLayout), never text-field.",
+  "direction_icon_strategy": "A deterministic north-facing (upright) triangle built the same way (buildDirectionArrowImage), registered via map.addImage(), rendered via icon-image + icon-rotate (directionIconLayout) reading feature.properties.direction.bearing_deg verbatim through a nested MapLibre get expression -- identical to the expression used in Checkpoint 11B, no arithmetic/offset added.",
+  "remote_glyph_dependency": false,
+  "remote_overlay_image_dependency": false,
+  "raw_science_mutation": false,
+  "direction_bearing_pass_through": true,
+  "null_zero_bearing_semantics": {
+    "null_or_undefined": "no direction feature created (buildDirectionFeatureCollection filters it out before the icon layer ever sees it)",
+    "zero": "included as a valid feature; icon-rotate=0 renders the upright (North) icon, never treated as falsy",
+    "ninety_one_eighty_two_seventy": "passed through unchanged via the same verbatim get-expression -- no per-value special-casing exists in the code"
+  },
+  "preserved_scientific_semantics": {
+    "raw_c0_score": "unchanged field, unchanged color-normalization logic (Checkpoint 11B, untouched this checkpoint)",
+    "direction_bearing_deg": "unchanged, read verbatim",
+    "directional_clarity": "unchanged, still labeled 'Directional clarity', never confidence",
+    "apparent_rate": "unchanged, SummaryPanel untouched",
+    "nominal_reach": "unchanged, visualization-only, no boundary circles"
+  },
+  "frontend_test_result": {
+    "test_files": 11,
+    "passed": 137,
+    "failed": 0,
+    "prior_baseline": 118,
+    "new_test_files": ["presentationIcons.test.js"],
+    "new_test_ids": ["11B1-GLYPH-01", "11B1-GLYPH-02", "11B1-GLYPH-03", "11B1-ICON-01..08"]
+  },
+  "production_build_result": {
+    "status": "SUCCESS",
+    "known_warning": "The CJS build of Vite's Node API is deprecated -- present, not hidden",
+    "bundle_size_warning": "dist/assets/index-*.js is 981.05 kB (gzip 275.79 kB) -- unchanged from Checkpoint 11B (no dependency added/removed this checkpoint), still attributable to maplibre-gl, still reported honestly"
+  },
+  "lint": "NOT_CONFIGURED_NO_PRE_EXISTING_ESLINT_SETUP_BUILD_IS_THE_DETERMINISTIC_VERIFICATION_PATH",
+  "production_dependency_security_audit": {
+    "npm_audit_omit_dev": { "high": 0, "critical": 0, "moderate": 0, "low": 0, "total": 0, "prod_dependency_count": 45 },
+    "npm_audit_full": { "high": 1, "critical": 1, "moderate": 2, "low": 0, "total": 4, "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD", "unchanged_from_checkpoint_11b": true },
+    "dependency_version_changed_this_checkpoint": false,
+    "decision_gate_result": "NO_HIGH_OR_CRITICAL_RUNTIME_VULNERABILITY"
+  },
+  "backend_regression_result": {
+    "passed": 1636, "failed": 0, "skipped": 0, "warnings": 1, "warning_type": "StarletteDeprecationWarning",
+    "unchanged_from_11b": true
+  },
+  "controlled_origin_id": "ORIGIN:Afghanistan:2022-05-29",
+  "controlled_snapshot_id": "cc92c6f716b7c2d04a2f4c18a893e87757876611e1068d9b0c526ae8853e8598",
+  "controlled_smoke_result": {
+    "protocol_compatible": true,
+    "final_phase": "SNAPSHOT_COMPLETE",
+    "snapshot_id_unchanged": true,
+    "n_sources": 1,
+    "n_cells": 88,
+    "raw_c0_score_unmutated_after_icon_pipeline": true,
+    "source_icon_feature_count": 1,
+    "direction_icon_feature_count": 88,
+    "backend_defined_bearing_count": 88,
+    "counts_match": true,
+    "source_icon_deterministic_rgba_buffer": true,
+    "direction_icon_deterministic_rgba_buffer": true,
+    "source_layout_uses_icon_image_no_text_field": true,
+    "direction_layout_uses_icon_image_and_icon_rotate_no_text_field": true,
+    "neutral_style_has_no_remote_sources_or_glyphs_key": true,
+    "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+    "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+    "temporary_smoke_script_deleted_after_run": true
+  },
+  "browser_visual_qa_status": "BROWSER_VISUAL_QA_REQUIRED -- no Playwright/Cypress in this repo, none installed for this checkpoint. Human visual acceptance to be performed separately using: (1) `cd backend && python -m uvicorn main:app --reload` (2) `cd frontend && npm run dev` (3) open the printed local URL (Vite default http://localhost:5173) and select ORIGIN:Afghanistan:2022-05-29.",
+  "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+  "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+  "final_classification": "GEOSPATIAL_VISUAL_ENGINEERING_LOCKED_AWAITING_HUMAN_BROWSER_VISUAL_ACCEPTANCE"
+}
