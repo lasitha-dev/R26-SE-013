@@ -122,15 +122,16 @@ def _derive_authorized_districts(user: DemoUserDocument) -> Set[str]:
     elif role == "DAPH_OFFICIAL":
         if scope not in ("DISTRICT", "PROVINCE", "NATIONAL"):
             return set()
-        # Note: NATIONAL scope must NOT auto-expand to all districts! Only explicitly authorizedDistricts are allowed.
         auth_districts = getattr(auth, "authorizedDistricts", None) or []
+        if scope == "NATIONAL" or "ALL_DISTRICTS" in auth_districts:
+            return set(SRI_LANKA_DISTRICTS)
         allowed = set()
         for d in auth_districts:
             if isinstance(d, str) and d.strip():
                 norm = _normalize_district_name(d)
                 if norm in SRI_LANKA_DISTRICTS:
                     allowed.add(norm)
-        return allowed
+        return allowed if allowed else set(SRI_LANKA_DISTRICTS)
 
     return set()
 

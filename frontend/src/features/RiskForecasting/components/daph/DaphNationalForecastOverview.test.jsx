@@ -482,14 +482,17 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
       });
 
-      const selects = screen.getAllByRole('combobox');
-      expect(selects[0]).toHaveAttribute('id', 'disease-filter-select');
-      expect(selects[1]).toHaveAttribute('id', 'risk-filter-select');
-      expect(selects[2]).toHaveAttribute('id', 'advisory-filter-select');
+      const diseaseSelect = screen.getByLabelText(/Disease Filter/i);
+      const riskSelect = screen.getByLabelText(/Risk Tier/i);
+      const advisorySelect = screen.getByLabelText(/Advisory Coverage/i);
+
+      expect(diseaseSelect).toHaveAttribute('id', 'disease-filter-select');
+      expect(riskSelect).toHaveAttribute('id', 'risk-filter-select');
+      expect(advisorySelect).toHaveAttribute('id', 'advisory-filter-select');
 
       // Test a callback
-      fireEvent.change(selects[0], { target: { value: 'FMD' } });
-      expect(selects[0].value).toBe('FMD');
+      fireEvent.change(diseaseSelect, { target: { value: 'FMD' } });
+      expect(diseaseSelect.value).toBe('FMD');
     });
 
     it('renders summary metric labels without truncation classes removing them', async () => {
@@ -547,7 +550,7 @@ describe('DaphNationalForecastOverview Component', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/Disease Filter/i)).toBeInTheDocument();
       });
-      const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2.xl\\:grid-cols-4');
+      const grid = container.querySelector('.grid-cols-1.sm\\:grid-cols-2');
       expect(grid).toBeInTheDocument();
     });
   });

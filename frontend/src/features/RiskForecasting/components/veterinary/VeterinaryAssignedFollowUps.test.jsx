@@ -479,7 +479,7 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       expect(screen.queryByText('Historical proxy data used')).not.toBeInTheDocument();
     });
 
-    it('displays Not linked when external_resource_request_id is absent', async () => {
+    it('verifies external_resource_request_id field is completely absent from DOM', async () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
@@ -490,10 +490,11 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
       fireEvent.click(viewBtns[0]); // FOL-001 has no resource id
 
-      expect(screen.getByText('Not linked')).toBeInTheDocument();
+      expect(screen.queryByText('External Resource')).not.toBeInTheDocument();
+      expect(screen.queryByText('Not linked')).not.toBeInTheDocument();
     });
 
-    it('displays external_resource_request_id as read-only when present', async () => {
+    it('verifies external_resource_request_id is never displayed even when present', async () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
 
       await waitFor(() => {
@@ -504,7 +505,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
       fireEvent.click(viewBtns[1]); // FOL-002 has RES-VEC-99
 
-      expect(screen.getByText('RES-VEC-99')).toBeInTheDocument();
+      expect(screen.queryByText('External Resource')).not.toBeInTheDocument();
+      expect(screen.queryByText('RES-VEC-99')).not.toBeInTheDocument();
     });
   });
 
@@ -545,7 +547,8 @@ describe('VeterinaryAssignedFollowUps Component', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Acknowledge/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      const dialogs = screen.getAllByRole('dialog');
+      expect(dialogs.length).toBeGreaterThan(0);
       expect(screen.getByText(/Confirm Acknowledgement/i)).toBeInTheDocument();
 
       const confirmBtn = screen.getByRole('button', { name: /Confirm/i });
@@ -808,6 +811,101 @@ describe('VeterinaryAssignedFollowUps Component', () => {
       expect(sanitized).toContain('<redacted_path>');
       expect(sanitized).toContain('<redacted_credentials>');
       expect(sanitized).toContain('<redacted_db_url>');
+    });
+  });
+
+  describe('UI Defect Remediation Validation', () => {
+    it('proves raw Vet Mongo ID is absent from DOM', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      expect(screen.queryByText('usr_vet_001')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Officer ID:/)).not.toBeInTheDocument();
+    });
+
+    it('proves raw follow-up ID is absent from DOM', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      expect(screen.queryByText('FOL-001')).not.toBeInTheDocument();
+    });
+
+    it('proves raw forecast ID is absent from DOM', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      expect(screen.queryByText('FC-101')).not.toBeInTheDocument();
+    });
+
+    it('proves the hidden follow-up ID is still passed to mocked acknowledge', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]); // FOL-001
+      fireEvent.click(screen.getByRole('button', { name: /Acknowledge/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Confirm/i }));
+      await waitFor(() => {
+        expect(workflowApi.acknowledgeFollowUp).toHaveBeenCalledWith('FOL-001', expect.any(Object));
+      });
+    });
+
+    it('proves opening View Details performs zero POST/mutation calls', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+
+      expect(workflowApi.acknowledgeFollowUp).not.toHaveBeenCalled();
+      expect(workflowApi.startFollowUpAction).not.toHaveBeenCalled();
+      expect(workflowApi.completeFollowUp).not.toHaveBeenCalled();
+      expect(workflowApi.escalateFollowUp).not.toHaveBeenCalled();
+    });
+
+    it('proves Details modal uses role="dialog" and aria-modal="true"', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      const dialogs = screen.getAllByRole('dialog');
+      expect(dialogs[0]).toHaveAttribute('aria-modal', 'true');
+    });
+
+    it('proves modal contains centered responsive layout classes', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      const dialogWrapper = screen.getAllByRole('dialog')[0];
+      expect(dialogWrapper).toHaveClass('fixed', 'inset-0', 'flex', 'items-center', 'justify-center');
+    });
+
+    it('proves modal close button works', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      expect(screen.getByRole('heading', { name: /Follow-Up Details/i })).toBeInTheDocument();
+
+      const closeBtn = screen.getByRole('button', { name: /Close detail modal/i });
+      fireEvent.click(closeBtn);
+
+      expect(screen.queryByRole('heading', { name: /Follow-Up Details/i })).not.toBeInTheDocument();
+    });
+
+    it('proves Guardrails box is absent', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      expect(screen.queryByText(/Operational Workflow Semantics & Guardrails/i)).not.toBeInTheDocument();
+    });
+
+    it('proves Record Version field is absent', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+      const viewBtns = screen.getAllByRole('button', { name: /View Details/i });
+      fireEvent.click(viewBtns[0]);
+      expect(screen.queryByText(/Record Version:/i)).not.toBeInTheDocument();
     });
   });
 });

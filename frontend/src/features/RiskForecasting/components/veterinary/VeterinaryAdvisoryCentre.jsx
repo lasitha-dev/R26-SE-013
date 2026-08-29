@@ -99,9 +99,9 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         setLoadingForecasts(true);
         setError(null);
 
-        // Fetch records for authorized district(s)
+        // Fetch records for authorized district(s) across all available timeframes
         const fetchPromises = authorizedDistricts.map((district) =>
-          listForecastRecords({ district, limit: 50 }, { signal: controller.signal })
+          listForecastRecords({ district, limit: 100 }, { signal: controller.signal })
             .then((res) => res?.records || [])
             .catch(() => [])
         );
@@ -260,7 +260,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         });
 
         setCurrentAdvisory(draft);
-        setInfoMessage(`Advisory draft created successfully (ID: ${draft.advisory_id}).`);
+        setInfoMessage(`Advisory draft created successfully.`);
       } else {
         // Update existing draft with optimistic versioning
         const updated = await updateAdvisoryDraft(currentAdvisory.advisory_id, {
@@ -485,9 +485,9 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
           ) : forecastRecords.length === 0 ? (
             <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
               <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
-              <h4 className="text-base font-semibold text-slate-200">No Official Forecast Records Available</h4>
+              <h4 className="text-base font-semibold text-slate-200">No Stored Forecast Available</h4>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                No official forecast decision records have been saved for district(s): <strong>{authorizedDistricts.join(', ')}</strong>. Please navigate to <strong>Forecast Overview</strong> to generate and save an official forecast first.
+                No forecast decision record is currently available for your assigned district.
               </p>
             </div>
           ) : (
@@ -527,17 +527,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
 
                     <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
                       <span>Severity: {rec.predicted_severity || 'N/A'}</span>
-                      <span className="font-mono text-[11px] text-slate-500">
-                        ID: {rec.forecast_id}
-                      </span>
                     </div>
-
-                    {rec.fallback_applied && (
-                      <div className="mt-2 text-[11px] text-amber-400 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs" aria-hidden="true">warning</span>
-                        <span>{rec.fallback_message || 'Historical fallback data applied'}</span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -662,7 +652,6 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                           />
                           <div className="truncate">
                             <div className="font-semibold truncate">{rec.recipient_name}</div>
-                            <div className="font-mono text-[11px] text-slate-400">{rec.recipient_id}</div>
                           </div>
                         </div>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
@@ -742,8 +731,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   return (
                     <div key={recId} className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-white">{rec?.recipient_name || recId}</span>
-                        <span className="font-mono text-[11px] text-slate-400">{recId}</span>
+                        <span className="font-semibold text-white">{rec?.recipient_name || 'Recipient'}</span>
                       </div>
                       <input
                         type="text"
@@ -833,7 +821,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   {previewData.previews?.map((p) => (
                     <div key={p.recipient_id} className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white">{p.recipient_name} ({p.recipient_id})</span>
+                        <span className="font-semibold text-white">{p.recipient_name}</span>
                         {p.is_personalized && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
                             Personalized Override

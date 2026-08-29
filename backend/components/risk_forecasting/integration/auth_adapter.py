@@ -11,35 +11,31 @@ import logging
 from core.security import JWT_SECRET, JWT_ALGORITHM
 from core.database import vets_collection
 
+from pydantic import BaseModel, ConfigDict
+
 logger = logging.getLogger(__name__)
 
 class ViewerContextAuthorization(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     scopeLevel: str
     registeredFarmDistrict: Optional[str] = None
     authorizedDistricts: List[str]
     assignedFarmIds: List[str]
 
-    class Config:
-        extra = "forbid"
-
 class ViewerContextPermissions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     viewDataQuality: bool
     viewModelTransparency: bool
     manageAlerts: bool
     recordResponse: bool
     viewReports: bool
 
-    class Config:
-        extra = "forbid"
-
 class ViewerContextResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     userId: str
     role: str
     authorization: ViewerContextAuthorization
     permissions: ViewerContextPermissions
-
-    class Config:
-        extra = "forbid"
 
 async def get_viewer_context(request: Request) -> ViewerContextResponse:
     """

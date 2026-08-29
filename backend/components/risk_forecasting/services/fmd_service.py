@@ -251,7 +251,7 @@ class FMDService:
                 x_raw[col] = 0.0
 
         x_stage1 = x_raw[feat_cols].fillna(0.0).astype(float)
-        x_stage1_scaled = scaler.transform(x_stage1)
+        x_stage1_scaled = scaler.transform(x_stage1.values)
 
         # Stage 1 prediction
         prob = float(model.predict_proba(x_stage1_scaled)[0, 1])
@@ -283,7 +283,7 @@ class FMDService:
                 if col not in x_s2_raw.columns:
                     x_s2_raw[col] = 0.0
             x_s2 = x_s2_raw[s2_cols].fillna(0.0).astype(float)
-            severity_code = int(self.models["stage2_model"].predict(x_s2)[0])
+            severity_code = int(self.models["stage2_model"].predict(x_s2.values)[0])
             severity_pred_str = self._decode_severity(severity_code)
             notes = f"Stage 2 Random Forest severity model evaluated (predicted {severity_pred_str}). ADVISORY ONLY: Stage 2 has limited multi-class severity discrimination; veterinary/DAPH review is required prior to operational intervention."
 

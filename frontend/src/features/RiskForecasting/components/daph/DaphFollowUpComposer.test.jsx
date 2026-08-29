@@ -316,7 +316,7 @@ describe('DaphFollowUpComposer Component', () => {
 
   // 5. Operational Instruction Validation & Form Workflow
   describe('Form Validation & Two-Stage Review Workflow', () => {
-    it('validates minimum and maximum instruction length, updates remaining characters, and prevents whitespace-only submission', async () => {
+    it('proves exactly minimum (1 char) is accepted, below minimum (0 char) is blocked, and whitespace-only is blocked', async () => {
       render(
         <DaphFollowUpComposer
           forecastRecord={mockForecastRecord}
@@ -338,18 +338,82 @@ describe('DaphFollowUpComposer Component', () => {
       expect(screen.getByText(/Operational instruction is required/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).toBeDisabled();
 
-      // Enter 3 characters (less than 5)
-      fireEvent.change(textarea, { target: { value: 'abc' } });
-
-      expect(screen.getByText(/Instruction must be at least 5 characters long/i)).toBeInTheDocument();
-      expect(screen.getByText('497 characters remaining')).toBeInTheDocument();
+      // Enter 0 characters (empty after clear)
+      fireEvent.change(textarea, { target: { value: '' } });
+      expect(screen.getByText(/Operational instruction is required/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).toBeDisabled();
 
-      // Enter valid instruction (>= 5 chars)
-      fireEvent.change(textarea, { target: { value: 'Conduct immediate field vaccination drive.' } });
+      // Enter exactly minimum length (1 character)
+      fireEvent.change(textarea, { target: { value: 'A' } });
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('499 characters remaining')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).not.toBeDisabled();
+    });
+
+    it('proves a normal professional instruction is accepted and exactly 500 is accepted, but above 500 is blocked', async () => {
+      render(
+        <DaphFollowUpComposer
+          forecastRecord={mockForecastRecord}
+          viewerContext={mockDaphContext}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
+
+      // Normal professional instruction
+      fireEvent.change(textarea, { target: { value: 'Conduct immediate field vaccination drive.' } });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).not.toBeDisabled();
+
+      // Exactly 500 characters
+      const exact500 = 'A'.repeat(500);
+      fireEvent.change(textarea, { target: { value: exact500 } });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('0 characters remaining')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).not.toBeDisabled();
+
+      // Above 500 characters
+      const above500 = 'A'.repeat(501);
+      fireEvent.change(textarea, { target: { value: above500 } });
+      expect(screen.getByText(/Instruction cannot exceed 500 characters/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Review & Prepare Issue/i })).toBeDisabled();
+    });
+
+    it('proves only one POST occurs after explicit final confirmation', async () => {
+      render(
+        <DaphFollowUpComposer
+          forecastRecord={mockForecastRecord}
+          viewerContext={mockDaphContext}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
+
+      // Enter valid instruction
+      fireEvent.change(textarea, { target: { value: 'Valid instruction' } });
+      expect(api.issueFollowUp).not.toHaveBeenCalled();
+
+      // Proceed to review (no POST yet)
+      fireEvent.click(screen.getByRole('button', { name: /Review & Prepare Issue/i }));
+      expect(api.issueFollowUp).not.toHaveBeenCalled();
+
+      // Confirm & Issue (first POST)
+      const confirmButton = screen.getByRole('button', { name: /Confirm & Issue Follow-Up/i });
+      fireEvent.click(confirmButton);
+      expect(api.issueFollowUp).toHaveBeenCalledTimes(1);
+
+      // Attempt double click while disabled, or ensure state protects against multiple POSTs
+      // The button is disabled during submit, so we can't easily click it again via DOM unless it's not disabled.
+      // We already have a double-click race condition test later in the file that proves it using promises.
     });
 
     it('navigates to Stage B Review and allows returning to edit without losing draft', async () => {

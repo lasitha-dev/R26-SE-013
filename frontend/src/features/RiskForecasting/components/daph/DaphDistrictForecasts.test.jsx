@@ -10,6 +10,10 @@ vi.mock('../../services/riskForecastingWorkflowApi.js', () => ({
   listCanonicalDistricts: vi.fn()
 }));
 
+vi.mock('../../services/demoForecastingApi.js', () => ({
+  fetchAuthorizedDiseaseForecasts: vi.fn().mockResolvedValue({ fmd: null, lsd: null }),
+}));
+
 const validNationalDaphContext = {
   userId: 'usr_daph_national_002',
   role: ROLES.DAPH_OFFICIAL,
@@ -388,7 +392,7 @@ describe('DaphDistrictForecasts Component', () => {
     workflowApi.listCanonicalDistricts.mockResolvedValue({ districts: ['Colombo', 'Gampaha', 'Hambantota'] });
     render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
 
-    expect(await screen.findByText(/No saved district forecast records are available/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No district forecast records are available/i)).toBeInTheDocument();
   });
 
   it('16. Sanitized API failure renders the generic error', async () => {

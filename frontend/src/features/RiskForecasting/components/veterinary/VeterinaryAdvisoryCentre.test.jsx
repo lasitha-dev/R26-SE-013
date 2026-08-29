@@ -64,9 +64,9 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       forecast_id: 'fdr_older_01',
       disease: 'FMD',
       district: 'Anuradhapura',
-      target_year: 2026,
-      target_month: 5,
-      generated_at: '2026-05-01T10:00:00Z',
+      target_year: 2025,
+      target_month: 1,
+      generated_at: '2025-01-01T10:00:00Z',
       probability: 0.72,
       probability_pct: 72.0,
       risk_level: 'HIGH',
@@ -75,13 +75,26 @@ describe('VeterinaryAdvisoryCentre Component', () => {
     },
     {
       forecast_id: 'fdr_newest_02',
+      disease: 'LSD',
+      district: 'Anuradhapura',
+      target_year: 2025,
+      target_month: 1,
+      generated_at: '2025-01-15T12:00:00Z',
+      probability: 0.85,
+      probability_pct: 85.0,
+      risk_level: 'HIGH',
+      predicted_severity: 'HIGH',
+      fallback_applied: false,
+    },
+    {
+      forecast_id: 'fdr_invalid_2026',
       disease: 'FMD',
       district: 'Anuradhapura',
       target_year: 2026,
-      target_month: 8,
-      generated_at: '2026-08-15T12:00:00Z',
-      probability: 0.85,
-      probability_pct: 85.0,
+      target_month: 5,
+      generated_at: '2026-05-01T10:00:00Z',
+      probability: 0.70,
+      probability_pct: 70.0,
       risk_level: 'HIGH',
       predicted_severity: 'HIGH',
       fallback_applied: false,
@@ -142,9 +155,9 @@ describe('VeterinaryAdvisoryCentre Component', () => {
           forecast_id: 'fdr_polonnaruwa_01',
           disease: 'FMD',
           district: 'Polonnaruwa',
-          target_year: 2026,
-          target_month: 9,
-          generated_at: '2026-08-20T10:00:00Z',
+          target_year: 2025,
+          target_month: 1,
+          generated_at: '2025-01-20T10:00:00Z',
           probability: 0.65,
           probability_pct: 65.0,
           risk_level: 'MEDIUM',
@@ -159,7 +172,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={multiDistrictContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_polonnaruwa_01/i);
+      const forecastCard = await screen.findByText(/FMD — Polonnaruwa/i);
       fireEvent.click(forecastCard);
 
       await waitFor(() => {
@@ -178,7 +191,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const selectedScopeRadio = await screen.findByLabelText(/Selected Farms/i);
@@ -202,7 +215,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       await waitFor(() => {
         expect(workflowApi.listForecastRecords).toHaveBeenCalledWith(
-          expect.objectContaining({ district: 'Anuradhapura' }),
+          expect.objectContaining({ district: 'Anuradhapura', limit: 100 }),
           expect.anything()
         );
       });
@@ -217,9 +230,8 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No Official Forecast Records Available/i)).toBeInTheDocument();
+        expect(screen.getByText(/No Stored Forecast Available/i)).toBeInTheDocument();
       });
-      expect(screen.getByText(/Forecast Overview/i)).toBeInTheDocument();
     });
 
     it('does not automatically generate forecasts or create drafts on load', async () => {
@@ -237,7 +249,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const card1 = await screen.findByText(/fdr_newest_02/i);
+      const card1 = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(card1);
 
       const radioSelected = await screen.findByLabelText(/Selected Farms/i);
@@ -247,8 +259,8 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const step1Tab = screen.getByRole('button', { name: /1\. Select Forecast/i });
       fireEvent.click(step1Tab);
 
-      const card2 = await screen.findByText(/fdr_older_01/i);
-      fireEvent.click(card2);
+      const cards2 = await screen.findAllByText(/FMD — Anuradhapura/i);
+      fireEvent.click(cards2[0]);
 
       // Verify state was reset (step 2 scope defaults back to ALL_ASSIGNED)
       const radioAll = await screen.findByLabelText(/All Assigned Farms/i);
@@ -268,6 +280,28 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       expect(await screen.findByText(/Severity: N\/A/i)).toBeInTheDocument();
     });
+
+    it('ensures raw identifiers and mock/demo fallback notices are absent visually', async () => {
+      const recordWithFallback = {
+        ...mockForecastRecords[0],
+        fallback_applied: true,
+        fallback_message: 'Historical fallback data applied',
+      };
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [recordWithFallback] });
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+
+      const card = await screen.findByText(/Anuradhapura/i);
+      expect(card).toBeInTheDocument();
+
+      // IDs should be absent
+      expect(screen.queryByText(/fdr_older_01/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ID:/i)).not.toBeInTheDocument();
+
+      // Notices should be absent
+      expect(screen.queryByText(/Historical fallback data applied/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/warning/i)).not.toBeInTheDocument();
+    });
   });
 
   // 3. Step 2 — Recipient Selection
@@ -278,7 +312,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       await waitFor(() => {
@@ -296,7 +330,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const selectedScopeRadio = await screen.findByLabelText(/Selected Farms/i);
@@ -317,7 +351,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -347,7 +381,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const selectedScopeRadio = await screen.findByLabelText(/Selected Farms/i);
@@ -387,7 +421,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -432,7 +466,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -492,7 +526,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -536,7 +570,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -575,7 +609,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -612,7 +646,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -652,7 +686,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -696,7 +730,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -748,7 +782,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });
@@ -788,7 +822,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      const forecastCard = await screen.findByText(/fdr_newest_02/i);
+      const forecastCard = await screen.findByText(/LSD — Anuradhapura/i);
       fireEvent.click(forecastCard);
 
       const continueBtn = await screen.findByRole('button', { name: /Continue to Prepare Advice/i });

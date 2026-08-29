@@ -214,7 +214,7 @@ class LSDService:
 
         # Stage 1 Inference
         x_stage1 = feature_row[feat_cols].fillna(0.0).astype(float)
-        x_stage1_scaled = scaler.transform(x_stage1)
+        x_stage1_scaled = scaler.transform(x_stage1.values)
         prob = float(model.predict_proba(x_stage1_scaled)[:, 1][0])
         prob_pct = round(prob * 100, 1)
 
@@ -248,7 +248,7 @@ class LSDService:
                 if col not in feature_row.columns:
                     feature_row[col] = 0.0
             x_stage2 = feature_row[stage2_cols].fillna(0.0).astype(float)
-            severity_code = int(self.models["stage2_model"].predict(x_stage2)[0])
+            severity_code = int(self.models["stage2_model"].predict(x_stage2.values)[0])
             severity_pred_str = self._decode_severity(severity_code)
         else:
             notes = "Stage 2 model artifacts unavailable."

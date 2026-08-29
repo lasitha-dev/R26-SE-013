@@ -193,15 +193,12 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   const trimmedInstruction = instruction.trim();
   const instructionLength = instruction.length;
   const isInstructionValid =
-    trimmedInstruction.length >= 5 && trimmedInstruction.length <= 500;
+    trimmedInstruction.length >= 1 && instructionLength <= 500;
 
   const instructionValidationError = useMemo(() => {
     if (!instructionTouched && instructionLength === 0) return null;
     if (instructionLength === 0 || trimmedInstruction.length === 0) {
       return 'Operational instruction is required.';
-    }
-    if (trimmedInstruction.length < 5) {
-      return 'Instruction must be at least 5 characters long.';
     }
     if (instructionLength > 500) {
       return 'Instruction cannot exceed 500 characters.';

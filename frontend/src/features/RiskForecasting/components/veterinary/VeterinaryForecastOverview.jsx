@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -10,13 +10,12 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import {
   listForecastRecords,
 } from '../../services/riskForecastingWorkflowApi.js';
+import { fetchAuthorizedDiseaseForecasts } from '../../services/demoForecastingApi.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-
-
 
 function getRiskBadge(riskLevel) {
   const norm = (riskLevel || '').toUpperCase();
@@ -81,8 +80,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [fmdRecord, setFmdRecord] = useState(null);
   const [lsdRecord, setLsdRecord] = useState(null);
 
-  const targetYear = 2025;
-  const targetMonth = 1;
+  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedMonth, setSelectedMonth] = useState(1);
 
   // 3. Load latest stored records for assigned district
   const fetchOverviewRecords = useCallback(async () => {
@@ -92,21 +91,25 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
     try {
       const [fmdRes, lsdRes] = await Promise.allSettled([
-        listForecastRecords({ disease: 'FMD', district: assignedDistrict, limit: 50 }),
-        listForecastRecords({ disease: 'LSD', district: assignedDistrict, limit: 50 }),
+        listForecastRecords({ disease: 'FMD', district: assignedDistrict, target_year: selectedYear, target_month: selectedMonth, limit: 50 }),
+        listForecastRecords({ disease: 'LSD', district: assignedDistrict, target_year: selectedYear, target_month: selectedMonth, limit: 50 }),
       ]);
+
+      let foundFmd = null;
+      let foundLsd = null;
 
       if (fmdRes.status === 'fulfilled') {
         const records = fmdRes.value?.records || fmdRes.value || [];
-        const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
-        setFmdRecord(exactMatch || null);
+        foundFmd = records.find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
       }
 
       if (lsdRes.status === 'fulfilled') {
         const records = lsdRes.value?.records || lsdRes.value || [];
-        const exactMatch = records.find(r => (r.target_year ?? r.targetYear) === targetYear && (r.target_month ?? r.targetMonth) === targetMonth);
-        setLsdRecord(exactMatch || null);
+        foundLsd = records.find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
       }
+
+      setFmdRecord(foundFmd);
+      setLsdRecord(foundLsd);
 
       if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
         setApiError(fmdRes.reason?.message || lsdRes.reason?.message || 'Failed to load official forecast records.');
@@ -116,7 +119,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     } finally {
       setLoading(false);
     }
-  }, [assignedDistrict, targetYear, targetMonth]);
+  }, [assignedDistrict, selectedYear, selectedMonth]);
 
   useEffect(() => {
     if (isAccessAllowed) {
@@ -260,27 +263,58 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 text-on-surface">
       {/* Page Header */}
-      <header className="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xl space-y-3">
+      <header className="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-primary tracking-tight">
               Veterinary Forecast Overview
             </h1>
             <p className="text-sm text-on-surface-variant">
-              Latest Official Forecast Decision Records — {assignedDistrict} District
+              Official Risk Forecast Decision Records — {assignedDistrict} District ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
             </p>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-high rounded-full border border-outline-variant/40 text-xs text-on-surface-variant w-fit">
-            <span className="material-symbols-outlined text-primary text-sm" aria-hidden="true">
-              location_on
-            </span>
-            <span>
-              Assigned District:{' '}
-              <span className="font-semibold text-primary uppercase tracking-wide">
-                {assignedDistrict}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/40">
+              <label htmlFor="vet-year-input" className="text-xs text-on-surface-variant font-medium">Year:</label>
+              <input
+                id="vet-year-input"
+                type="number"
+                min={2017}
+                max={2030}
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-transparent text-xs text-on-surface font-semibold w-16 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/40">
+              <label htmlFor="vet-month-select" className="text-xs text-on-surface-variant font-medium">Month:</label>
+              <select
+                id="vet-month-select"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="bg-transparent text-xs text-on-surface font-semibold focus:outline-none"
+              >
+                {MONTH_NAMES.map((mName, idx) => (
+                  <option key={mName} value={idx + 1} className="bg-surface-container text-on-surface">
+                    {idx + 1} — {mName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-high rounded-full border border-outline-variant/40 text-xs text-on-surface-variant w-fit">
+              <span className="material-symbols-outlined text-primary text-sm" aria-hidden="true">
+                location_on
               </span>
-            </span>
+              <span>
+                District:{' '}
+                <span className="font-semibold text-primary uppercase tracking-wide">
+                  {assignedDistrict}
+                </span>
+              </span>
+            </div>
           </div>
         </div>
       </header>

@@ -504,17 +504,10 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
               <span>Assigned Follow-Ups</span>
             </h1>
             <p className="text-sm text-on-surface-variant">
-              DAPH-Issued Operational Follow-Up Tasks — Assigned to Veterinary Officer ({actorId})
+              DAPH-Issued Operational Follow-Up Tasks — Assigned to Veterinary Officer
+              {actorContext?.name ? ` ${actorContext.name}` : ''}
+              {authorizedDistricts.length > 0 ? ` (${authorizedDistricts[0]})` : ''}
             </p>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-high rounded-full border border-outline-variant/40 text-xs text-on-surface-variant w-fit">
-            <span className="material-symbols-outlined text-primary text-sm" aria-hidden="true">
-              person
-            </span>
-            <span>
-              Officer ID: <strong className="text-primary">{actorId}</strong>
-            </span>
           </div>
         </div>
       </header>
@@ -667,14 +660,12 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
         </div>
       </section>
 
-      {/* Main Content Layout (Table & Detail Drawer) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Content Layout (Table & Detail Modal) */}
+      <div className="space-y-6">
         {/* Follow-Up List Table */}
         <section
           aria-label="Follow-Up Tasks List"
-          className={`bg-surface-container rounded-2xl border border-outline-variant/30 shadow-xl overflow-hidden ${
-            selectedRecord ? 'lg:col-span-2' : 'lg:col-span-3'
-          }`}
+          className="bg-surface-container rounded-2xl border border-outline-variant/30 shadow-xl overflow-hidden"
         >
           {loading ? (
             <div className="p-8 text-center text-sm text-on-surface-variant space-y-3">
@@ -764,28 +755,28 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
           )}
         </section>
 
-        {/* Detail Panel / Drawer */}
+        {/* Detail Modal */}
         {selectedRecord && (
-          <aside
+          <div
+            role="dialog"
+            aria-modal="true"
             aria-labelledby="follow-up-detail-heading"
-            className="p-6 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-xl space-y-5 lg:col-span-1 flex flex-col justify-between"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           >
-            <div className="space-y-5">
+            <div className="bg-surface-container rounded-2xl border border-outline-variant/40 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden text-on-surface">
               {/* Header */}
-              <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 pb-4">
-                <div className="space-y-1">
-                  <h3 id="follow-up-detail-heading" className="text-base font-bold text-on-surface flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-primary text-lg" aria-hidden="true">
-                      assignment
-                    </span>
-                    <span>Follow-Up Details</span>
-                  </h3>
-                </div>
+              <div className="flex items-center justify-between p-6 border-b border-outline-variant/30 shrink-0">
+                <h3 id="follow-up-detail-heading" className="text-lg font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-xl" aria-hidden="true">
+                    assignment
+                  </span>
+                  <span>Follow-Up Details</span>
+                </h3>
                 <button
                   type="button"
                   onClick={() => setSelectedRecord(null)}
-                  className="p-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant"
-                  aria-label="Close detail panel"
+                  className="p-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant transition-colors"
+                  aria-label="Close detail modal"
                 >
                   <span className="material-symbols-outlined text-sm" aria-hidden="true">
                     close
@@ -793,11 +784,13 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
                 </button>
               </div>
 
-              {/* Status & Priority Badges */}
-              <div className="flex items-center gap-3">
-                <div>
-                  <span className="text-[10px] text-on-surface-variant uppercase block font-semibold">Status</span>
-                  <span className={`px-2.5 py-1 rounded-lg border text-xs font-extrabold ${getStatusBadge(selectedRecord.status).class}`}>
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-5">
+                {/* Status & Priority Badges */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] text-on-surface-variant uppercase block font-semibold">Status</span>
+                    <span className={`px-2.5 py-1 rounded-lg border text-xs font-extrabold ${getStatusBadge(selectedRecord.status).class}`}>
                     {getStatusBadge(selectedRecord.status).label}
                   </span>
                 </div>
@@ -824,17 +817,10 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
               <dl className="grid grid-cols-2 gap-2 text-xs border-t border-outline-variant/30 pt-3">
                 <div>
                   <dt className="text-on-surface-variant">Assigned Vet:</dt>
-                  <dd className="text-on-surface font-semibold">Nimal — Colombo</dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">External Resource:</dt>
-                  <dd className="font-mono text-on-surface">
-                    {selectedRecord.external_resource_request_id || 'Not linked'}
+                  <dd className="text-on-surface font-semibold">
+                    {actorContext?.name || 'Veterinary Officer'}
+                    {authorizedDistricts.length > 0 ? ` — ${authorizedDistricts[0]}` : ''}
                   </dd>
-                </div>
-                <div>
-                  <dt className="text-on-surface-variant">Record Version:</dt>
-                  <dd className="font-mono text-on-surface">{selectedRecord.version ?? 1}</dd>
                 </div>
               </dl>
 
@@ -885,13 +871,14 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
                   {actionError}
                 </div>
               )}
-            </div>
+              </div>
 
-            {/* Action Buttons */}
-            <div className="border-t border-outline-variant/30 pt-4">
-              {renderActionControls(selectedRecord)}
+              {/* Footer / Action Buttons */}
+              <div className="p-6 border-t border-outline-variant/30 shrink-0 bg-surface-container-low">
+                {renderActionControls(selectedRecord)}
+              </div>
             </div>
-          </aside>
+          </div>
         )}
       </div>
 
@@ -992,21 +979,6 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
         </div>
       )}
 
-      {/* Operational Disclaimer Section */}
-      <section
-        aria-labelledby="vet-disclaimer-heading"
-        className="p-6 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-on-surface space-y-3"
-      >
-        <div className="flex items-center gap-2 text-on-surface font-semibold text-sm">
-          <span className="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">
-            verified_user
-          </span>
-          <h2 id="vet-disclaimer-heading">Operational Workflow Semantics &amp; Guardrails</h2>
-        </div>
-        <p className="text-xs text-on-surface-variant leading-relaxed">
-          Follow-up status transitions record digital administrative progress within the Risk Forecasting subsystem. They do not confirm physical vaccine delivery, farmer contact, or disease eradication. All field intervention operations remain subject to physical inspection and departmental protocol.
-        </p>
-      </section>
     </div>
   );
 }
