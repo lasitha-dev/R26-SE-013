@@ -96,6 +96,8 @@ class CattleCreate(BaseModel):
     health_status: str = "Healthy"
     bcs_score: Optional[float] = None
     last_scored_date: Optional[str] = None
+    death_date: Optional[str] = None
+    death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
 class CattleResponse(BaseModel):
     id: str
@@ -110,6 +112,8 @@ class CattleResponse(BaseModel):
     health_status: str = "Healthy"
     bcs_score: Optional[float] = None
     last_scored_date: Optional[str] = None
+    death_date: Optional[str] = None
+    death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
 
 
@@ -216,6 +220,45 @@ class DiagnosticCaseResponse(BaseModel):
     vet_id: Optional[str] = None
     vet_name: Optional[str] = None
     vet_license: Optional[str] = None
+
+
+class CattleDeathLog(BaseModel):
+    cattle_id: str = Field(..., min_length=1)
+    farm_id: str = Field(..., min_length=1)
+    district: str = Field(..., min_length=1)
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: str
+    reported_by_vet_id: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class CattleDeathLogResponse(BaseModel):
+    id: str
+    cattle_id: str
+    farm_id: str
+    district: str
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: str
+    reported_by_vet_id: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class DeclareDeceasedRequest(BaseModel):
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: str
+    notes: Optional[str] = None
+
+
+class OutbreakStatusResponse(BaseModel):
+    district: str
+    disease: str
+    year: int
+    month: int
+    outbreak_status: float
+    cases_count: int
+    deaths_count: int
 
 
 

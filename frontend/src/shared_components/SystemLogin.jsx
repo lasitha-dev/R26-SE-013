@@ -1,6 +1,8 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+
 export default function SystemLogin() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = React.useState("")
@@ -16,7 +18,7 @@ export default function SystemLogin() {
     const password = formData.get("password")
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/login", {
+      const response = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

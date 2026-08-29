@@ -71,6 +71,11 @@ export const NAVIGATION_ITEMS = Object.freeze({
     label: 'Data Quality',
     icon: 'verified',
   }),
+  OUTBREAK_MONITOR: Object.freeze({
+    id: 'outbreak-monitor',
+    label: 'Outbreak Monitor',
+    icon: 'monitor_heart',
+  }),
   MODEL_TRANSPARENCY: Object.freeze({
     id: 'model-transparency',
     label: 'Model Transparency',
@@ -105,6 +110,7 @@ export function getForecastingNavigation(viewerContext) {
     items.push({ ...NAVIGATION_ITEMS.NATIONAL_OVERVIEW });
     items.push({ ...NAVIGATION_ITEMS.FOLLOW_UP_MONITORING });
     items.push({ ...NAVIGATION_ITEMS.DISTRICT_FORECASTS });
+    items.push({ ...NAVIGATION_ITEMS.OUTBREAK_MONITOR });
   }
 
   // Capability-gated: Model Transparency

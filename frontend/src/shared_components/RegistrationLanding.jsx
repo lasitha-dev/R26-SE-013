@@ -1,6 +1,8 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+
 export default function RegistrationLanding() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = React.useState("")
@@ -41,7 +43,7 @@ export default function RegistrationLanding() {
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/register", {
+      const response = await fetch(`${API_BASE}/api/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

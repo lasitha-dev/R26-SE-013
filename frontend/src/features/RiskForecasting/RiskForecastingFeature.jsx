@@ -21,6 +21,7 @@ import { DaphNationalForecastOverview } from './components/daph/DaphNationalFore
 import { DaphFollowUpMonitoring } from './components/daph/DaphFollowUpMonitoring';
 import { DaphDistrictForecasts } from './components/daph/DaphDistrictForecasts';
 import { DaphDataQuality } from './components/daph/DaphDataQuality';
+import { DaphOutbreakMonitor } from './components/daph/DaphOutbreakMonitor';
 import { ModelTransparency } from './components/transparency/ModelTransparency';
 
 /**
@@ -131,6 +132,12 @@ export function RiskForecastingFeature({ viewerContext, operationalData = null }
         }
         if (role === ROLES.DAPH_OFFICIAL) {
           return <DaphDistrictForecasts viewerContext={normalizedContext} />;
+        }
+        break;
+
+      case 'outbreak-monitor':
+        if (role === ROLES.DAPH_OFFICIAL) {
+          return <DaphOutbreakMonitor viewerContext={normalizedContext} />;
         }
         break;
 

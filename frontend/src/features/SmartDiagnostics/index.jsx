@@ -353,9 +353,35 @@ const SmartDiagnostics = () => {
       )}
 
       <div className="min-h-[400px] md:min-h-[500px]">
-        {/* ========= IDLE / LOADING VIEW ========= */}
-        {(isIdle || isLoading) && (
-          <UploadDropzone isLoading={isLoading} onFile={handleFile} />
+        {/* ========= DECEASED LOCK VIEW ========= */}
+        {cattleInfo && (cattleInfo.status === 'Deceased' || cattleInfo.health_status === 'Deceased') ? (
+          <div className="p-6 bg-error-container text-on-error-container border border-error rounded-2xl space-y-4 max-w-xl mx-auto text-center" data-testid="diagnostics-locked-banner">
+            <div className="flex items-center justify-center gap-2 font-bold text-lg">
+              <span className="material-symbols-outlined text-2xl">block</span>
+              <span>Diagnostics Locked</span>
+            </div>
+            <p className="text-sm">Diagnostics locked for deceased cattle. Disease reporting is locked for deceased subjects.</p>
+            {farmId && (
+              <Link
+                to={`/components/health_anomaly`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/vet/farm/${farmId}`);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-error text-on-error hover:brightness-110 rounded-xl text-xs font-bold uppercase tracking-wider transition-all select-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Return to Herd View</span>
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* ========= IDLE / LOADING VIEW ========= */}
+            {(isIdle || isLoading) && (
+              <UploadDropzone isLoading={isLoading} onFile={handleFile} />
+            )}
+          </>
         )}
 
         {/* ========= SUCCESS VIEW ========= */}

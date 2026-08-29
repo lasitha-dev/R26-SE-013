@@ -20,13 +20,14 @@ except ImportError:
     YOLO = None
 
 from core.security import JWT_SECRET, JWT_ALGORITHM, get_password_hash, verify_password, create_access_token
-from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection, diagnostic_cases_collection
+from components.health_anomaly.database import farms_collection, cattles_collection, daily_logs_collection, breed_settings_collection, bcs_logs_collection, vets_collection, diagnostic_cases_collection, death_logs_collection
 from components.health_anomaly.schemas import (
     FarmRegister, FarmLogin, TokenResponse,
     VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
     CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
-    DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest
+    DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest,
+    CattleDeathLog, CattleDeathLogResponse, DeclareDeceasedRequest, OutbreakStatusResponse
 )
 
 router = APIRouter()
@@ -787,11 +788,13 @@ async def report_diagnostic_case(
         except Exception:
             pass
 
-    # If cattle_id provided, look up cattle details to ensure complete record
-    cattle = None
-    farm = None
     if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
         cattle = await cattles_collection.find_one({"_id": ObjectId(payload.cattle_id)})
+        if cattle and cattle.get("status") == "Deceased":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot create diagnostic case for deceased cattle. Disease reporting is locked for deceased subjects."
+            )
         if cattle:
             owner_email = cattle.get("owner_email")
             if owner_email:
@@ -1365,6 +1368,115 @@ async def delete_cattle(id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error during cattle deletion: {str(e)}"
         )
+
+
+# ─── Cattle Death Reporting Endpoints ────────────────────────────────────────
+
+@router.post("/vet/cattle/{cattle_id}/declare-deceased", response_model=CattleResponse, status_code=status.HTTP_200_OK)
+async def declare_cattle_deceased(
+    cattle_id: str,
+    payload: DeclareDeceasedRequest,
+    authorization: Optional[str] = Header(None)
+):
+    try:
+        cattle = None
+        if not ObjectId.is_valid(cattle_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid cattle ID format."
+            )
+        
+        cattle = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+        if not cattle:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cattle not found."
+            )
+        
+        if cattle.get("status") == "Deceased":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cattle is already marked as deceased."
+            )
+        
+        owner_email = cattle.get("owner_email")
+        farm = await farms_collection.find_one({"email": owner_email}) if owner_email else None
+        district = farm.get("location_district") if farm else None
+        
+        vet_email = None
+        vet_id = None
+        if authorization and authorization.startswith("Bearer "):
+            try:
+                vet_email = await get_current_user_email(authorization)
+                vet = await vets_collection.find_one({"email": vet_email})
+                vet_id = str(vet["_id"]) if vet else None
+            except Exception:
+                pass
+        
+        now = datetime.utcnow()
+        
+        update_doc = {
+            "status": "Deceased",
+            "health_status": "Deceased",
+            "death_date": payload.date_of_death,
+            "death_cause": payload.cause
+        }
+        await cattles_collection.update_one(
+            {"_id": ObjectId(cattle_id)},
+            {"$set": update_doc}
+        )
+        
+        death_log = {
+            "cattle_id": cattle_id,
+            "farm_id": str(farm["_id"]) if farm else None,
+            "district": district,
+            "cause": payload.cause,
+            "date_of_death": payload.date_of_death,
+            "reported_by_vet_id": vet_id,
+            "notes": payload.notes,
+            "created_at": now.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        await death_logs_collection.insert_one(death_log)
+        
+        updated_cattle = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+        updated_cattle["id"] = str(updated_cattle["_id"])
+        updated_cattle.pop("_id", None)
+        return updated_cattle
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while declaring cattle deceased: {str(e)}"
+        )
+
+
+@router.get("/vet/death-logs", response_model=list[CattleDeathLogResponse])
+async def list_death_logs(
+    district: Optional[str] = None,
+    cause: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    try:
+        query = {}
+        if district:
+            query["district"] = district
+        if cause:
+            query["cause"] = cause
+        
+        logs = []
+        async for log in death_logs_collection.find(query).sort("created_at", -1):
+            log["id"] = str(log["_id"])
+            log.pop("_id", None)
+            logs.append(log)
+        return logs
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while retrieving death logs: {str(e)}"
+        )
+
 
 # ─── User Profile & Settings Endpoints ────────────────────────────────────────
 

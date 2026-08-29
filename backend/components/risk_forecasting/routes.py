@@ -32,15 +32,35 @@ def setup_production_services():
     from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
     from components.risk_forecasting.integrations.mongo_vet_directory import MongoVeterinaryOfficerDirectory
     from components.risk_forecasting.integrations.mongo_recipient_directory import MongoRecipientDirectory
+    from components.risk_forecasting.integrations.mongo_shared_client import MongoSharedForecastClient
+    from components.risk_forecasting.integrations.provider_factory import create_forecast_data_provider
+    import os
+    
     forecast_record_service.repository = MongoForecastRecordRepository()
     forecast_follow_up_service.vet_dir = MongoVeterinaryOfficerDirectory()
     recipient_query_service.recipient_dir = MongoRecipientDirectory()
+    
+    if os.getenv("FORECAST_DATA_PROVIDER", "csv").lower() == "shared_api":
+        shared_client = MongoSharedForecastClient(cache_ttl_seconds=3600)
+        shared_provider = create_forecast_data_provider(mode="shared_api", shared_client=shared_client)
+        fmd_service.data_provider = shared_provider
+        lsd_service.data_provider = shared_provider
 
 from components.risk_forecasting.services.advisory_service import advisory_service
 from components.risk_forecasting.services.notification_service import notification_service
 from components.risk_forecasting.services.recipient_query_service import recipient_query_service
 from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
 from components.risk_forecasting.integration.auth_adapter import get_viewer_context, ViewerContextResponse
+from components.health_anomaly.schemas import OutbreakStatusResponse
+
+_shared_client_instance = None
+
+def get_shared_client():
+    global _shared_client_instance
+    if _shared_client_instance is None:
+        from components.risk_forecasting.integrations.mongo_shared_client import MongoSharedForecastClient
+        _shared_client_instance = MongoSharedForecastClient(cache_ttl_seconds=3600)
+    return _shared_client_instance
 
 router = APIRouter()
 
@@ -1239,4 +1259,61 @@ async def forward_to_assigned_farmers(
         import logging
         logging.getLogger(__name__).error(f"Failed to forward advisory to farmers: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error while forwarding notifications.")
+
+
+@router.get(
+    "/outbreak-status/{disease}/{district}/{year}/{month}",
+    response_model=OutbreakStatusResponse,
+    summary="Get Outbreak Status for a District and Month"
+)
+async def get_outbreak_status(disease: str, district: str, year: int, month: int):
+    disease_upper = disease.strip().upper()
+    if disease_upper not in ["FMD", "LSD"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported disease. Allowed: FMD, LSD."
+        )
+    formatted_district = district.strip().title()
+    if formatted_district in ["Moneragala", "Monaragala"]:
+        formatted_district = "Monaragala"
+    elif formatted_district in ["Nuwaraeliya", "Nuwara Eliya"]:
+        formatted_district = "Nuwara Eliya"
+    
+    if formatted_district not in SRI_LANKA_DISTRICTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported Sri Lankan district: '{district}'"
+        )
+    
+    if not (2017 <= year <= 2030):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Year must be between 2017 and 2030."
+        )
+    
+    if not (1 <= month <= 12):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Month must be between 1 and 12."
+        )
+    
+    client = get_shared_client()
+    try:
+        outbreak_status, cases_count, deaths_count = await client.get_district_status_async(
+            disease_upper, formatted_district, year, month
+        )
+        return OutbreakStatusResponse(
+            district=formatted_district,
+            disease=disease_upper,
+            year=year,
+            month=month,
+            outbreak_status=outbreak_status,
+            cases_count=cases_count,
+            deaths_count=deaths_count
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error computing outbreak status: {str(e)}"
+        )
 
