@@ -15,20 +15,80 @@ describe('Farmer Smart Diagnostics & Case History Tests', () => {
   });
 
   describe('FarmerSmartDiagnostics Component', () => {
-    it('renders initial dropzone, headers and guidance for farmer', () => {
-      global.fetch = vi.fn().mockImplementation(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([])
-        })
-      );
+    it('renders cattle selection list when no cattle_id is provided in URL', async () => {
+      const mockHerd = [
+        {
+          id: 'COW-101',
+          identifier: '#BT-101',
+          breed: 'Jersey',
+          gender: 'Female',
+          status: 'Healthy',
+          health_status: 'Healthy',
+          dob: '2022-01-01'
+        },
+        {
+          id: 'COW-102',
+          identifier: '#BT-102',
+          breed: 'Friesian',
+          gender: 'Male',
+          status: 'Alert',
+          health_status: 'Alert',
+          dob: '2021-06-01'
+        }
+      ];
+
+      global.fetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('/api/cattle')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockHerd)
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
 
       renderWithRouter(<FarmerSmartDiagnostics />);
 
       expect(screen.getByText('Smart Livestock Disease Diagnostics')).toBeInTheDocument();
-      expect(screen.getByText('General Diagnostic Scan')).toBeInTheDocument();
-      expect(screen.getByText('My Case History')).toBeInTheDocument();
-      expect(screen.getByText(/Drag and drop clinical imagery/i)).toBeInTheDocument();
+      expect(screen.getByText('Select Cattle from Your Herd')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Search by ear tag, name, breed, or gender/i)).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText('#BT-101')).toBeInTheDocument();
+        expect(screen.getByText('#BT-102')).toBeInTheDocument();
+        expect(screen.getAllByText('Diagnose This Cattle').length).toBe(2);
+      });
+    });
+
+    it('renders image intake dropzone when cattle_id is provided in URL', async () => {
+      global.fetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('/api/cattle/COW-101')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              id: 'COW-101',
+              identifier: '#BT-101',
+              breed: 'Jersey',
+              gender: 'Female',
+              status: 'Healthy',
+              health_status: 'Healthy'
+            })
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/health/diagnostics?cattle_id=COW-101']}>
+          <FarmerSmartDiagnostics />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('#BT-101')).toBeInTheDocument();
+        expect(screen.getByText('Change Cattle')).toBeInTheDocument();
+        expect(screen.getByText(/Drag and drop clinical imagery/i)).toBeInTheDocument();
+      });
     });
 
     it('renders locked banner when cattle is marked deceased', async () => {

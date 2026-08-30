@@ -49,6 +49,47 @@ const FarmerSmartDiagnostics = () => {
   const [showSymptomMask, setShowSymptomMask] = useState(true);
   const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
 
+  const [herdList, setHerdList] = useState([]);
+  const [herdLoading, setHerdLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [herdFilter, setHerdFilter] = useState('all'); // 'all' | 'healthy' | 'alert' | 'deceased'
+
+  // Helper for age formatting
+  const formatAge = (dob) => {
+    if (!dob) return 'Age Unknown';
+    const birth = new Date(dob);
+    if (isNaN(birth.getTime())) return dob;
+    const now = new Date();
+    const diffMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+    if (diffMonths < 12) return `${Math.max(0, diffMonths)} Mos`;
+    const yrs = Math.floor(diffMonths / 12);
+    const mos = diffMonths % 12;
+    return mos > 0 ? `${yrs} Yrs, ${mos} Mos` : `${yrs} Yrs`;
+  };
+
+  // Fetch herd list if no cattle_id is specified
+  useEffect(() => {
+    if (cattleId) return;
+    const fetchHerd = async () => {
+      setHerdLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/cattle`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setHerdList(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error('Error fetching herd for diagnostics:', err);
+      } finally {
+        setHerdLoading(false);
+      }
+    };
+    fetchHerd();
+  }, [cattleId]);
+
   // Fetch cattle metadata if cattleId is passed in URL
   useEffect(() => {
     const fetchCattleContext = async () => {
@@ -80,6 +121,27 @@ const FarmerSmartDiagnostics = () => {
   const isLoading = status === 'processing';
   const isSuccess = status === 'done' && result?.cattle_detected;
   const isFailure = status === 'error' || (status === 'done' && !result?.cattle_detected);
+
+  // Filter herd list
+  const filteredHerd = herdList.filter((c) => {
+    const isDeceased = c.status === 'Deceased' || c.health_status === 'Deceased';
+    const isAlert = !isDeceased && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk');
+    const isHealthy = !isDeceased && !isAlert;
+
+    if (herdFilter === 'healthy' && !isHealthy) return false;
+    if (herdFilter === 'alert' && !isAlert) return false;
+    if (herdFilter === 'deceased' && !isDeceased) return false;
+
+    const term = searchTerm.toLowerCase();
+    const tag = (c.identifier || '').toLowerCase();
+    const breed = (c.breed || '').toLowerCase();
+    const gender = (c.gender || '').toLowerCase();
+    return tag.includes(term) || breed.includes(term) || gender.includes(term);
+  });
+
+  const healthyCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && c.status !== 'Alert' && c.health_status !== 'Alert' && c.status !== 'At Risk').length;
+  const alertCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk')).length;
+  const deceasedCount = herdList.filter(c => c.status === 'Deceased' || c.health_status === 'Deceased').length;
 
   // Animate logic trace steps on success
   useEffect(() => {
@@ -276,7 +338,7 @@ const FarmerSmartDiagnostics = () => {
         </div>
       )}
 
-      {/* Subject Animal Clinical Context Card */}
+      {/* Change Animal Link in Context Card points back to /health/diagnostics */}
       {cattleInfo && (
         <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#131b2e] via-[#0f172a] to-[#0b1326] border border-emerald-500/30 shadow-card-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -324,42 +386,218 @@ const FarmerSmartDiagnostics = () => {
               </button>
             )}
             <Link
-              to="/health/herd-registry"
+              to="/health/diagnostics"
               className="px-3.5 py-2 rounded-lg bg-surface-container-highest/60 hover:bg-surface-container-highest border border-white/10 text-slate-300 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-all"
             >
-              <span className="material-symbols-outlined text-sm">arrow_back</span>
-              <span>Change Animal</span>
+              <span className="material-symbols-outlined text-sm">swap_horiz</span>
+              <span>Change Cattle</span>
             </Link>
           </div>
         </div>
       )}
 
-      {/* Unassigned Animal Guidance Banner */}
-      {!cattleInfo && !loadingContext && (
-        <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-card-subtle">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-lg">info</span>
+      {/* ================= STEP 0: CATTLE SELECTION VIEW (WHEN NO CATTLE SELECTED) ================= */}
+      {!cattleId && (
+        <div className="space-y-6 animate-fadeIn" data-testid="cattle-selection-step">
+          {/* Step Header */}
+          <div className="p-6 rounded-2xl bg-surface-container-low border border-outline-variant/15 shadow-card-subtle space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-xl">pets</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-primary uppercase tracking-wider">Step 1 of 3</span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-xs text-slate-400 font-mono">Animal Identification</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white">Select Cattle from Your Herd</h3>
+                </div>
+              </div>
+
+              <Link
+                to="/health/add-animal"
+                className="px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-mono font-bold flex items-center gap-1.5 transition-all self-end sm:self-auto"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>Register New Cattle</span>
+              </Link>
             </div>
-            <div>
-              <p className="text-xs font-bold text-on-surface">General Diagnostic Scan</p>
-              <p className="text-2xs text-on-surface-variant">
-                You can run a scan directly, or select a specific cattle from your Herd Registry to link this report to its permanent profile.
-              </p>
+
+            <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
+              Select an animal from your farm to begin image intake, Mask R-CNN lesion segmentation, and AI pathology triage.
+            </p>
+
+            {/* Search & Filter Controls */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+              <div className="relative flex-1 max-w-md">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by ear tag, name, breed, or gender..."
+                  className="w-full bg-slate-900/90 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setHerdFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-3xs font-mono font-bold uppercase transition-all ${
+                    herdFilter === 'all' ? 'bg-primary text-black' : 'bg-surface-container text-slate-300 hover:text-white'
+                  }`}
+                >
+                  All ({herdList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHerdFilter('healthy')}
+                  className={`px-3 py-1.5 rounded-lg text-3xs font-mono font-bold uppercase transition-all ${
+                    herdFilter === 'healthy' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-surface-container text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Healthy ({healthyCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHerdFilter('alert')}
+                  className={`px-3 py-1.5 rounded-lg text-3xs font-mono font-bold uppercase transition-all ${
+                    herdFilter === 'alert' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-surface-container text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Alert / At Risk ({alertCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHerdFilter('deceased')}
+                  className={`px-3 py-1.5 rounded-lg text-3xs font-mono font-bold uppercase transition-all ${
+                    herdFilter === 'deceased' ? 'bg-red-500/20 text-red-300 border border-red-500/40' : 'bg-surface-container text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Deceased ({deceasedCount})
+                </button>
+              </div>
             </div>
           </div>
-          <Link
-            to="/health/herd-registry"
-            className="px-3.5 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-all"
-          >
-            <span className="material-symbols-outlined text-sm">pets</span>
-            <span>Select Cattle</span>
-          </Link>
+
+          {/* Cattle Cards Grid */}
+          {herdLoading ? (
+            <div className="p-12 text-center text-slate-400 space-y-2">
+              <span className="material-symbols-outlined text-2xl text-primary animate-spin">progress_activity</span>
+              <p className="text-xs font-mono">Loading farm livestock registry...</p>
+            </div>
+          ) : filteredHerd.length === 0 ? (
+            <div className="p-12 text-center bg-surface-container-low rounded-2xl border border-white/5 space-y-3">
+              <span className="material-symbols-outlined text-3xl text-slate-500">search_off</span>
+              <p className="text-sm font-bold text-white">No Cattle Found</p>
+              <p className="text-xs text-slate-400">
+                {searchTerm ? 'No cattle match your search criteria. Try a different tag or filter.' : 'No livestock registered in your herd yet.'}
+              </p>
+              {!searchTerm && (
+                <Link
+                  to="/health/add-animal"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-black font-bold text-xs"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  <span>Register First Animal</span>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredHerd.map((cattle) => {
+                const isDeceased = cattle.status === 'Deceased' || cattle.health_status === 'Deceased';
+                const isAlert = !isDeceased && (cattle.status === 'Alert' || cattle.health_status === 'Alert' || cattle.status === 'At Risk');
+
+                return (
+                  <div
+                    key={cattle.id}
+                    className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                      isDeceased
+                        ? 'bg-surface-container-lowest/40 border-red-500/20 opacity-70'
+                        : isAlert
+                        ? 'bg-surface-container-low border-amber-500/30 hover:border-amber-500/60'
+                        : 'bg-surface-container-low border-white/10 hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-surface-container-highest overflow-hidden border border-white/10 flex items-center justify-center flex-shrink-0">
+                          {cattle.profile_photo ? (
+                            <img src={cattle.profile_photo} alt={cattle.identifier} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="material-symbols-outlined text-xl text-primary">pets</span>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-white font-mono text-base">{cattle.identifier}</h4>
+                          <p className="text-[11px] text-slate-400">{cattle.breed || 'Dairy Breed'} • {cattle.gender || 'Female'}</p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
+                          isDeceased
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                            : isAlert
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        }`}
+                      >
+                        {isDeceased ? 'Deceased' : isAlert ? 'Alert' : 'Healthy'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-white/5 font-mono">
+                      <div>
+                        <span className="text-slate-500 block text-[9px] uppercase font-bold">Age</span>
+                        <span className="text-slate-300 font-semibold">{formatAge(cattle.dob)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[9px] uppercase font-bold">BCS Score</span>
+                        <span className="text-emerald-400 font-semibold">
+                          {cattle.bcs_score !== null && cattle.bcs_score !== undefined ? `${Number(cattle.bcs_score).toFixed(1)}` : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {isDeceased ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-2.5 rounded-xl bg-surface-container border border-white/5 text-slate-500 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed uppercase font-mono"
+                          title="Diagnostics locked for deceased animal"
+                        >
+                          <span className="material-symbols-outlined text-sm">lock</span>
+                          <span>Diagnostics Locked</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/health/diagnostics?cattle_id=${cattle.id}`)}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary-container hover:brightness-110 active:scale-95 text-on-primary font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-primary/20 transition-all uppercase tracking-wider font-mono"
+                        >
+                          <span className="material-symbols-outlined text-base">psychology</span>
+                          <span>Diagnose This Cattle</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Failure Alert Banner */}
-      {isFailure && (
+      {/* ================= STEP 1 & 2: DIAGNOSTIC PIPELINE (WHEN CATTLE SELECTED) ================= */}
+      {cattleId && isFailure && (
         <div className="mb-8" id="alert-container">
           <div className="flex-1 p-4 md:p-5 rounded-xl bg-surface-container-low border-l-4 border-error border border-outline-variant/10 flex items-start sm:items-center gap-3.5 shadow-card-subtle">
             <div className="p-2 bg-error/10 rounded-lg shrink-0">
@@ -382,10 +620,11 @@ const FarmerSmartDiagnostics = () => {
         </div>
       )}
 
-      <div className="min-h-[400px] md:min-h-[500px]">
-        {/* ========= DECEASED LOCK VIEW ========= */}
-        {cattleInfo && (cattleInfo.status === 'Deceased' || cattleInfo.health_status === 'Deceased') ? (
-          <div className="p-6 bg-error-container text-on-error-container border border-error rounded-2xl space-y-4 max-w-xl mx-auto text-center" data-testid="diagnostics-locked-banner">
+      {cattleId && (
+        <div className="min-h-[400px] md:min-h-[500px]">
+          {/* ========= DECEASED LOCK VIEW ========= */}
+          {cattleInfo && (cattleInfo.status === 'Deceased' || cattleInfo.health_status === 'Deceased') ? (
+            <div className="p-6 bg-error-container text-on-error-container border border-error rounded-2xl space-y-4 max-w-xl mx-auto text-center" data-testid="diagnostics-locked-banner">
             <div className="flex items-center justify-center gap-2 font-bold text-lg">
               <span className="material-symbols-outlined text-2xl">block</span>
               <span>Diagnostics Locked</span>
@@ -777,6 +1016,7 @@ const FarmerSmartDiagnostics = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Mortality Confirmation Modal */}
       {showMortalityModal && cattleInfo && (

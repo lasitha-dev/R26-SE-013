@@ -71,7 +71,7 @@ export default function VetClinicalRecords() {
 
   useEffect(() => {
     fetchCases()
-  }, [selectedFarmId, assignedFarms])
+  }, [selectedFarmId])
 
   const handleDeleteCase = async () => {
     if (!caseToDelete) return
