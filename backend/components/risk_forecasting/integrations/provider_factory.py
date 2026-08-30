@@ -12,6 +12,9 @@ from components.risk_forecasting.integrations.forecast_data_provider import (
     CsvForecastDataProvider,
     SharedApiForecastDataProvider,
 )
+from components.risk_forecasting.integrations.live_weather_provider import (
+    LiveWeatherForecastDataProvider,
+)
 from components.risk_forecasting.integrations.shared_forecast_client import (
     SharedForecastDataClient,
 )
@@ -53,6 +56,14 @@ def create_forecast_data_provider(
             )
         return SharedApiForecastDataProvider(client=shared_client)
 
+    if normalized_mode == "live_weather":
+        fallback = (
+            SharedApiForecastDataProvider(client=shared_client)
+            if shared_client
+            else CsvForecastDataProvider()
+        )
+        return LiveWeatherForecastDataProvider(fallback_provider=fallback)
+
     raise ValueError(
-        f"Invalid FORECAST_DATA_PROVIDER mode '{mode}'. Supported modes are 'csv' or 'shared_api'."
+        f"Invalid FORECAST_DATA_PROVIDER mode '{mode}'. Supported modes are 'csv', 'shared_api', or 'live_weather'."
     )

@@ -9,6 +9,9 @@ from components.risk_forecasting.integrations.forecast_data_provider import (
     CsvForecastDataProvider,
     SharedApiForecastDataProvider,
 )
+from components.risk_forecasting.integrations.live_weather_provider import (
+    LiveWeatherForecastDataProvider,
+)
 from components.risk_forecasting.integrations.shared_forecast_client import (
     SharedForecastRecord,
     SharedForecastDataClient,
@@ -21,6 +24,7 @@ __all__ = [
     "ForecastDataProvider",
     "CsvForecastDataProvider",
     "SharedApiForecastDataProvider",
+    "LiveWeatherForecastDataProvider",
     "SharedForecastRecord",
     "SharedForecastDataClient",
     "create_forecast_data_provider",

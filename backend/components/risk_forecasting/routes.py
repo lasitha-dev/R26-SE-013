@@ -40,11 +40,19 @@ def setup_production_services():
     forecast_follow_up_service.vet_dir = MongoVeterinaryOfficerDirectory()
     recipient_query_service.recipient_dir = MongoRecipientDirectory()
     
-    if os.getenv("FORECAST_DATA_PROVIDER", "csv").lower() == "shared_api":
+    provider_mode = os.getenv("FORECAST_DATA_PROVIDER", "csv").lower()
+    
+    if provider_mode == "shared_api":
         shared_client = MongoSharedForecastClient(cache_ttl_seconds=3600)
-        shared_provider = create_forecast_data_provider(mode="shared_api", shared_client=shared_client)
-        fmd_service.data_provider = shared_provider
-        lsd_service.data_provider = shared_provider
+        provider = create_forecast_data_provider(mode="shared_api", shared_client=shared_client)
+        fmd_service.data_provider = provider
+        lsd_service.data_provider = provider
+    elif provider_mode == "live_weather":
+        from components.risk_forecasting.integrations.live_weather_provider import LiveWeatherForecastDataProvider
+        from components.risk_forecasting.integrations.forecast_data_provider import CsvForecastDataProvider
+        provider = LiveWeatherForecastDataProvider(fallback_provider=CsvForecastDataProvider())
+        fmd_service.data_provider = provider
+        lsd_service.data_provider = provider
 
 from components.risk_forecasting.services.advisory_service import advisory_service
 from components.risk_forecasting.services.notification_service import notification_service
