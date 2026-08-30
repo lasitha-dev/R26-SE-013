@@ -34,7 +34,9 @@ describe('VetClinicalRecords Component Tests', () => {
     renderWithRouter(<VetClinicalRecords />);
 
     expect(screen.getByText('Diagnostic & Pathology Case Records')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search by animal ID, diagnosis, or farm...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by animal tag, diagnosis, or farm...')).toBeInTheDocument();
+    expect(screen.getByText(/Farmer Disease Reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/Vet Case Records/i)).toBeInTheDocument();
   });
 
   it('fetches assigned farms and renders dropdown filter', async () => {

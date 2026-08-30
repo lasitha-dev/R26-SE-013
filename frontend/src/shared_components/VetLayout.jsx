@@ -13,9 +13,29 @@ export default function VetLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
+  const [notifications, setNotifications] = useState([])
+  const [isNotifOpen, setIsNotifOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
   const token = localStorage.getItem("token")
 
-  // Check alert status across herds
+  const fetchNotifications = async () => {
+    if (!token || vetInfo.role !== 'vet') return
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/vet/notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const notifData = await res.json()
+        setNotifications(notifData || [])
+        setUnreadCount((notifData || []).filter(n => !n.read).length)
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  // Check alert status across herds and fetch notifications
   useEffect(() => {
     const fetchVetData = async () => {
       if (!token) return
@@ -35,7 +55,36 @@ export default function VetLayout() {
       }
     }
     fetchVetData()
+    fetchNotifications()
+    const interval = setInterval(fetchNotifications, 20000)
+    return () => clearInterval(interval)
   }, [token])
+
+  const handleMarkAsRead = async (notifId) => {
+    try {
+      await fetch(`http://127.0.0.1:8000/api/vet/notifications/${notifId}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    try {
+      await fetch(`http://127.0.0.1:8000/api/vet/notifications/read-all`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setUnreadCount(0)
+    } catch (err) {
+      // ignore
+    }
+  }
 
   if (!token || (vetInfo.role !== 'vet' && vetInfo.role !== 'daph')) {
     return <Navigate to="/vet/login" replace />
@@ -198,21 +247,101 @@ export default function VetLayout() {
               <span>{vetInfo.role === 'daph' ? 'DAPH NATIONAL SCOPE' : 'VET NODE LIVE'}</span>
             </div>
 
-            <NavLink
-              to="/vet/dashboard"
-              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors relative"
-              title="Notifications"
-            >
-              <span className="material-symbols-outlined">notifications</span>
-              {hasAlerts ? (
-                <>
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0b1326] animate-ping"></span>
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0b1326]"></span>
-                </>
-              ) : (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full border-2 border-[#0b1326]"></span>
+            {/* Notification Bell with Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-300 transition-colors relative rounded-lg hover:bg-white/5"
+                title="Clinical Notifications & Disease Reports"
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                {unreadCount > 0 ? (
+                  <>
+                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center border-2 border-[#0b1326] animate-pulse font-mono">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  </>
+                ) : hasAlerts ? (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-amber-400 rounded-full border-2 border-[#0b1326]"></span>
+                ) : null}
+              </button>
+
+              {/* Notification Dropdown Panel */}
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#0f172a] border border-emerald-500/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                  <div className="px-4 py-3 bg-surface-container border-b border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-400 text-lg">medical_services</span>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Clinical Alerts</span>
+                      {unreadCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[10px] font-bold">
+                          {unreadCount} New
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-[10px] text-emerald-400 hover:underline font-mono font-bold"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-white/5 no-scrollbar">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 space-y-1">
+                        <span className="material-symbols-outlined text-2xl text-slate-600">notifications_off</span>
+                        <p className="text-xs font-semibold">No pending disease notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            handleMarkAsRead(notif.id)
+                            setIsNotifOpen(false)
+                            navigate('/vet/clinical-records')
+                          }}
+                          className={`p-3.5 hover:bg-surface-container/60 cursor-pointer transition-colors space-y-1 ${
+                            !notif.read ? 'bg-amber-500/5' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold font-mono text-amber-400 uppercase flex items-center gap-1">
+                              {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
+                              {notif.type || 'FARMER_DISEASE_REPORT'}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-mono">{notif.created_at?.split(' ')[0] || 'Today'}</span>
+                          </div>
+                          <p className="text-xs font-bold text-white">{notif.disease_name} • {notif.farm_name || 'Assigned Farm'}</p>
+                          <p className="text-[11px] text-slate-300 leading-snug">{notif.message}</p>
+                          <div className="pt-1 flex items-center justify-between text-[10px]">
+                            <span className="font-mono text-slate-400">Tag: {notif.animal_identifier || 'COW-TAG'}</span>
+                            <span className="text-emerald-400 font-bold flex items-center gap-0.5">
+                              Review Case <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-surface-container/80 border-t border-white/5 text-center">
+                    <Link
+                      to="/vet/clinical-records"
+                      onClick={() => setIsNotifOpen(false)}
+                      className="text-xs text-emerald-400 font-bold uppercase tracking-wider hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Open Clinical Records</span>
+                      <span className="material-symbols-outlined text-sm">launch</span>
+                    </Link>
+                  </div>
+                </div>
               )}
-            </NavLink>
+            </div>
 
             {vetInfo.role === 'vet' && (
               <NavLink

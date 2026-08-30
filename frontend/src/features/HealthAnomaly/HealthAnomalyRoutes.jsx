@@ -19,6 +19,8 @@ import SevenDayTriageScan from './screens/SevenDayTriageScan.jsx'
 import AiWellnessReport from './screens/AiWellnessReport.jsx'
 import NotificationsCenter from './screens/NotificationsCenter.jsx'
 import BCSAnalyzer from './screens/BCSAnalyzer.jsx'
+import FarmerSmartDiagnostics from './screens/FarmerSmartDiagnostics.jsx'
+import FarmerCaseHistory from './screens/FarmerCaseHistory.jsx'
 import { ProfileProvider } from '../../context/ProfileContext.jsx'
 
 export default function HealthAnomalyRoutes() {
@@ -49,6 +51,8 @@ export default function HealthAnomalyRoutes() {
         <Route path="ai-wellness-report" element={<AiWellnessReport />} />
         <Route path="notifications" element={<NotificationsCenter />} />
         <Route path="bcs-analyzer" element={<BCSAnalyzer />} />
+        <Route path="diagnostics" element={<FarmerSmartDiagnostics />} />
+        <Route path="case-history" element={<FarmerCaseHistory />} />
       </Route>
 
       <Route path="*" element={<div className="p-6">Not Found</div>} />

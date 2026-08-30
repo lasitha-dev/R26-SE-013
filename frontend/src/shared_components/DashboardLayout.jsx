@@ -28,6 +28,8 @@ export default function DashboardLayout() {
   const navLinks = [
     { to: '/health/dashboard', label: 'Wellness & BCS', icon: 'health_and_safety', matchPaths: wellnessRoutes },
     { to: '/health/herd-registry', label: 'Herd Registry', icon: 'pets' },
+    { to: '/health/diagnostics', label: 'AI Smart Diagnosis', icon: 'psychology' },
+    { to: '/health/case-history', label: 'Case History', icon: 'folder_open' },
   ]
 
   const linkClass = ({ isActive }) =>

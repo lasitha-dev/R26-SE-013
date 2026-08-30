@@ -186,6 +186,9 @@ class DiagnosticCaseCreate(BaseModel):
     clinical_notes: Optional[str] = None
     llm_reasoning: Optional[str] = None
     verified: bool = False
+    reported_by: Optional[str] = None
+    reporter_email: Optional[str] = None
+    assigned_vet_id: Optional[str] = None
 
 
 class DiagnosticCaseVerifyRequest(BaseModel):
@@ -220,6 +223,25 @@ class DiagnosticCaseResponse(BaseModel):
     vet_id: Optional[str] = None
     vet_name: Optional[str] = None
     vet_license: Optional[str] = None
+    reported_by: Optional[str] = "vet"
+    reporter_email: Optional[str] = None
+    assigned_vet_id: Optional[str] = None
+
+
+class VetNotificationResponse(BaseModel):
+    id: str
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+    type: str
+    case_id: Optional[str] = None
+    case_number: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    disease_name: Optional[str] = None
+    severity: Optional[str] = None
+    message: str
+    read: bool = False
+    created_at: str
 
 
 class CattleDeathLog(BaseModel):

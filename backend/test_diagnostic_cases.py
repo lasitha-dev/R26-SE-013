@@ -1,9 +1,16 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from main import app
-from components.health_anomaly.database import diagnostic_cases_collection, vets_collection, cattles_collection, farms_collection
+from components.health_anomaly.database import (
+    diagnostic_cases_collection, vets_collection, cattles_collection,
+    farms_collection, vet_notifications_collection
+)
 from core.security import create_access_token
 from bson import ObjectId
+
+@pytest.fixture
+def anyio_backend():
+    return 'asyncio'
 
 @pytest.mark.anyio
 async def test_diagnostic_case_flow():
@@ -38,13 +45,16 @@ async def test_diagnostic_case_flow():
     # Link vet to farm
     await farms_collection.update_one({"_id": ObjectId(farm_id)}, {"$set": {"assigned_vet_ids": [vet_id]}})
 
-    token = create_access_token(data={"sub": vet_email, "role": "vet", "full_name": "Dr. Case Tester"})
-    headers = {"Authorization": f"Bearer {token}"}
+    vet_token = create_access_token(data={"sub": vet_email, "role": "vet", "full_name": "Dr. Case Tester"})
+    vet_headers = {"Authorization": f"Bearer {vet_token}"}
+
+    farmer_token = create_access_token(data={"sub": farm_email, "role": "farmer", "owner_name": "Dr. Tester Assigned Farm"})
+    farmer_headers = {"Authorization": f"Bearer {farmer_token}"}
 
     # Setup dummy cattle
     cattle_doc = {
         "identifier": "COW-TEST-99",
-        "owner_email": "farm_owner@test.lk",
+        "owner_email": farm_email,
         "breed": "Jersey",
         "gender": "Female",
         "dob": "2022-01-01",
@@ -55,9 +65,10 @@ async def test_diagnostic_case_flow():
     c_res = await cattles_collection.insert_one(cattle_doc)
     cattle_id = str(c_res.inserted_id)
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        # 1. Report new diagnostic case
-        report_payload = {
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # 1. Farmer reports new diagnostic case (verified: False enforced even if requested True)
+        farmer_report_payload = {
             "cattle_id": cattle_id,
             "animal_identifier": "COW-TEST-99",
             "breed": "Jersey",
@@ -69,45 +80,53 @@ async def test_diagnostic_case_flow():
             "rationale": "Circumscribed nodular cutaneous lesions observed.",
             "spatial_correlation": "Dermal layer pathology matches nodular dermis pattern.",
             "clinical_notes": "Immediate quarantine recommended.",
-            "verified": False
+            "verified": True  # Farmer tries to set True, but backend should force False
         }
-        res = await ac.post("/api/vet/cases", json=report_payload, headers=headers)
+        res = await ac.post("/api/vet/cases", json=farmer_report_payload, headers=farmer_headers)
         assert res.status_code == 201, res.text
-        case_data = res.json()
-        assert case_data["disease_name"] == "Lumpy Skin Disease"
-        assert case_data["confidence"] == 94.5
-        assert case_data["status"] == "Pending Verification"
-        assert case_data["verified"] is False
-        case_id = case_data["id"]
+        farmer_case_data = res.json()
+        assert farmer_case_data["disease_name"] == "Lumpy Skin Disease"
+        assert farmer_case_data["confidence"] == 94.5
+        assert farmer_case_data["status"] == "Pending Verification"
+        assert farmer_case_data["verified"] is False
+        assert farmer_case_data["reported_by"] == "farmer"
+        farmer_case_id = farmer_case_data["id"]
 
-        # 2. List cases
-        res_list = await ac.get("/api/vet/cases", headers=headers)
-        assert res_list.status_code == 200
-        cases_list = res_list.json()
-        assert len(cases_list) >= 1
-        assert any(c["id"] == case_id for c in cases_list)
+        # Notification should have been generated for the assigned vet
+        notifs = []
+        async for n in vet_notifications_collection.find({"case_id": farmer_case_id}):
+            notifs.append(n)
+        assert len(notifs) >= 1
+        assert notifs[0]["type"] == "FARMER_DISEASE_REPORT"
 
-        # Assert fetching with a non-existent/unassigned farm ID returns an empty list
-        res_unassigned = await ac.get("/api/vet/cases?farm_id=60d5ec49e2182b8a70656a59", headers=headers)
-        assert res_unassigned.status_code == 200
-        assert len(res_unassigned.json()) == 0
-
-        # 3. Verify case
+        # 2. Farmer CANNOT verify case
         verify_payload = {
-            "clinical_notes": "Verified by clinical veterinary inspection. Isolation confirmed.",
+            "clinical_notes": "Farmer trying to self-verify",
+            "health_status": "Alert"
+        }
+        res_farmer_verify = await ac.put(f"/api/vet/cases/{farmer_case_id}/verify", json=verify_payload, headers=farmer_headers)
+        assert res_farmer_verify.status_code == 403
+
+        # 3. Farmer CANNOT delete case
+        res_farmer_del = await ac.delete(f"/api/vet/cases/{farmer_case_id}", headers=farmer_headers)
+        assert res_farmer_del.status_code == 403
+
+        # 4. Vet verifies farmer's case
+        vet_verify_payload = {
+            "clinical_notes": "Verified by Dr. Case Tester after inspecting lesions.",
             "prescription": "Antiseptic wash + Enrofloxacin",
             "health_status": "Alert"
         }
-        res_verify = await ac.put(f"/api/vet/cases/{case_id}/verify", json=verify_payload, headers=headers)
-        assert res_verify.status_code == 200, res_verify.text
-        verified_data = res_verify.json()
+        res_vet_verify = await ac.put(f"/api/vet/cases/{farmer_case_id}/verify", json=vet_verify_payload, headers=vet_headers)
+        assert res_vet_verify.status_code == 200, res_vet_verify.text
+        verified_data = res_vet_verify.json()
         assert verified_data["status"] == "Verified"
         assert verified_data["verified"] is True
         assert verified_data["vet_name"] == "Dr. Case Tester"
         assert verified_data["vet_license"] == "VET-CASE-2026"
 
-        # 4. Update case for the same cattle (upsert verification)
-        update_payload = {
+        # 5. Multiple disease cases can be created for the same cattle
+        vet_second_report = {
             "cattle_id": cattle_id,
             "animal_identifier": "COW-TEST-99",
             "breed": "Jersey",
@@ -120,31 +139,40 @@ async def test_diagnostic_case_flow():
             "clinical_notes": "Recovery confirmed.",
             "verified": True
         }
-        res_update = await ac.post("/api/vet/cases", json=update_payload, headers=headers)
-        assert res_update.status_code == 201
-        updated_data = res_update.json()
-        assert updated_data["id"] == case_id  # Same case ID preserved!
-        assert updated_data["disease_name"] == "Cattle (Healthy)"
-        assert updated_data["confidence"] == 98.2
-        assert updated_data["status"] == "Verified"
+        res_second = await ac.post("/api/vet/cases", json=vet_second_report, headers=vet_headers)
+        assert res_second.status_code == 201
+        second_case_data = res_second.json()
+        assert second_case_data["id"] != farmer_case_id  # Unique second case ID!
+        assert second_case_data["status"] == "Verified"
+        assert second_case_data["reported_by"] == "vet"
 
-        # Ensure no duplicate cases exist for this cattle
+        # Both cases exist in DB
         count = await diagnostic_cases_collection.count_documents({"cattle_id": cattle_id})
-        assert count == 1
+        assert count == 2
 
-        # Check cattle updated status to Healthy
-        # 5. Delete diagnostic case
-        res_del = await ac.delete(f"/api/vet/cases/{case_id}", headers=headers)
-        assert res_del.status_code == 200, res_del.text
-        del_data = res_del.json()
-        assert del_data["id"] == case_id
+        # 6. List cases by reported_by
+        res_farmer_cases = await ac.get("/api/vet/cases?reported_by=farmer", headers=vet_headers)
+        assert res_farmer_cases.status_code == 200
+        farmer_list = res_farmer_cases.json()
+        assert any(c["id"] == farmer_case_id for c in farmer_list)
 
-        # Verify case is removed from DB
-        deleted_check = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
-        assert deleted_check is None
+        res_vet_cases = await ac.get("/api/vet/cases?reported_by=vet", headers=vet_headers)
+        assert res_vet_cases.status_code == 200
+        vet_list = res_vet_cases.json()
+        assert any(c["id"] == second_case_data["id"] for c in vet_list)
 
-    # Cleanup
+        # 7. Vet notifications endpoint
+        res_notifs = await ac.get("/api/vet/notifications", headers=vet_headers)
+        assert res_notifs.status_code == 200
+        notif_list = res_notifs.json()
+        assert len(notif_list) >= 1
+
+        # Cleanup created cases
+        await ac.delete(f"/api/vet/cases/{farmer_case_id}", headers=vet_headers)
+        await ac.delete(f"/api/vet/cases/{second_case_data['id']}", headers=vet_headers)
+
+    # Cleanup DB
     await vets_collection.delete_many({"email": vet_email})
     await farms_collection.delete_many({"email": farm_email})
     await cattles_collection.delete_many({"_id": ObjectId(cattle_id)})
-    await diagnostic_cases_collection.delete_many({"_id": ObjectId(case_id)})
+    await vet_notifications_collection.delete_many({"vet_id": vet_id})

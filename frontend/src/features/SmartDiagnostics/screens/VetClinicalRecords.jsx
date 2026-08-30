@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { deleteDiagnosticCase } from '../services/api'
+import { deleteDiagnosticCase, verifyDiagnosticCase } from '../services/api'
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export default function VetClinicalRecords() {
   const navigate = useNavigate()
@@ -9,17 +11,25 @@ export default function VetClinicalRecords() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCase, setSelectedCase] = useState(null)
   const [activeImageTab, setActiveImageTab] = useState('symptoms') // 'symptoms' | 'cropped'
+  const [activeTab, setActiveTab] = useState('farmer') // 'farmer' | 'vet' | 'all'
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'pending' | 'verified'
   const [caseToDelete, setCaseToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState(null)
   const [assignedFarms, setAssignedFarms] = useState([])
   const [selectedFarmId, setSelectedFarmId] = useState('all')
 
+  // Verification in modal states
+  const [verificationNotes, setVerificationNotes] = useState('')
+  const [verificationPrescription, setVerificationPrescription] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+
   useEffect(() => {
     const fetchFarms = async () => {
       try {
         const token = localStorage.getItem("token")
-        const response = await fetch("http://127.0.0.1:8000/api/vet/my-farms", {
+        const response = await fetch(`${API_BASE}/api/vet/my-farms`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
         if (response.ok) {
@@ -33,134 +43,33 @@ export default function VetClinicalRecords() {
     fetchFarms()
   }, [])
 
-  useEffect(() => {
-    const fetchCases = async () => {
-      setLoading(true)
-      try {
-        const token = localStorage.getItem("token")
-        let url = "http://127.0.0.1:8000/api/vet/cases"
-        if (selectedFarmId && selectedFarmId !== "all") {
-          url += `?farm_id=${encodeURIComponent(selectedFarmId)}`
-        }
-        const response = await fetch(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        })
-        if (response.ok) {
-          const data = await response.json()
-          if (Array.isArray(data) && data.length > 0) {
-            setCases(data)
-          } else {
-            // Seed with illustrative default clinical case records if no records saved yet
-            const currentFarm = assignedFarms.find(f => f.id === selectedFarmId || f.registration_number === selectedFarmId || f.email === selectedFarmId)
-            const farmNameFilter = currentFarm ? currentFarm.owner_name : ''
-
-            const defaultCases = [
-              {
-                id: 'REC-2026-081',
-                case_number: 'REC-2026-081',
-                created_at: '2026-08-23 14:30:00',
-                animal_identifier: 'SL-COW-4402',
-                breed: 'Holstein-Friesian',
-                farm_name: 'Highland Dairy Holdings',
-                disease_name: 'Lumpy Skin Disease',
-                confidence: 94.2,
-                severity: 'High',
-                stage: 'Acute Phase',
-                prognosis: 'Guarded',
-                rationale: 'Circumscribed cutaneous nodules with central epidermal necrosis and surrounding inflammatory halos.',
-                spatial_correlation: 'Multiple discrete nodular eruptions distributed across the cervical, flank, and perineal dermis.',
-                clinical_notes: 'Quarantine protocol initiated. Localized antiseptic wound debridement and supportive anti-inflammatory therapy administered.',
-                symptoms_image: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=800&q=80',
-                cropped_image: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=800&q=80',
-                vet_name: 'Dr. Sarah Connor',
-                vet_license: 'VET-AUTH-2026',
-                status: 'Verified',
-                verified: true
-              },
-              {
-                id: 'REC-2026-079',
-                case_number: 'REC-2026-079',
-                created_at: '2026-08-22 10:15:00',
-                animal_identifier: 'SL-COW-1092',
-                breed: 'Jersey Cross',
-                farm_name: 'Greenfield Pastures',
-                disease_name: 'Foot and Mouth Disease',
-                confidence: 89.7,
-                severity: 'Moderate',
-                stage: 'Prodromal Phase',
-                prognosis: 'Guarded to Fair',
-                rationale: 'Early vesicular eruptions and hyperemic erosion observed along the coronary band and interdigital cleft.',
-                spatial_correlation: 'Bilateral distal extremity localization with mucosal irritation.',
-                clinical_notes: 'Isolation from milking herd completed. Bio-security perimeter established.',
-                symptoms_image: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=800&q=80',
-                vet_name: 'Dr. Sarah Connor',
-                vet_license: 'VET-AUTH-2026',
-                status: 'Verified',
-                verified: true
-              },
-              {
-                id: 'REC-2026-072',
-                case_number: 'REC-2026-072',
-                created_at: '2026-08-20 16:45:00',
-                animal_identifier: 'SL-COW-8842',
-                breed: 'Ayrshire',
-                farm_name: 'Highland Dairy Holdings',
-                disease_name: 'Cattle (Healthy)',
-                confidence: 97.5,
-                severity: 'Low',
-                stage: 'Normal Baseline',
-                prognosis: 'Excellent',
-                rationale: 'Unblemished epidermal tissue with normal coat sheen. No lesions, vesicle formation, or swelling detected.',
-                spatial_correlation: 'Uniform morphological contours throughout abdominal and cranial regions.',
-                clinical_notes: 'Routine herd wellness screening passed with optimal health rating.',
-                symptoms_image: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=800&q=80',
-                vet_name: 'Dr. Sarah Connor',
-                vet_license: 'VET-AUTH-2026',
-                status: 'Verified',
-                verified: true
-              },
-              {
-                id: 'REC-2026-068',
-                case_number: 'REC-2026-068',
-                created_at: '2026-08-18 09:20:00',
-                animal_identifier: 'SL-COW-3110',
-                breed: 'Sahiwal',
-                farm_name: 'Lanka Agro Farmstead',
-                disease_name: 'Mastitis',
-                confidence: 91.3,
-                severity: 'Moderate',
-                stage: 'Acute Inflammation',
-                prognosis: 'Good with Treatment',
-                rationale: 'Asymmetric swelling with erythema and localized hyperthermia in the right hind udder quarter.',
-                spatial_correlation: 'Mammary gland quadrant localization with localized vascular dilation.',
-                clinical_notes: 'Intramammary antibiotic infusion administered. Daily somatic cell count monitoring scheduled.',
-                symptoms_image: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=800&q=80',
-                vet_name: 'Dr. Sarah Connor',
-                vet_license: 'VET-AUTH-2026',
-                status: 'Verified',
-                verified: true
-              }
-            ]
-
-            const allowedFarmNames = assignedFarms.map(f => f.owner_name?.toLowerCase() || "")
-
-            const filteredFallback = defaultCases.filter(c => {
-              const cFarm = c.farm_name.toLowerCase()
-              if (selectedFarmId && selectedFarmId !== "all") {
-                return farmNameFilter && cFarm.includes(farmNameFilter.toLowerCase())
-              }
-              return allowedFarmNames.length === 0 || allowedFarmNames.some(name => cFarm.includes(name) || name.includes(cFarm))
-            })
-
-            setCases(filteredFallback)
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching clinical cases:", err)
-      } finally {
-        setLoading(false)
+  const fetchCases = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem("token")
+      let url = `${API_BASE}/api/vet/cases`
+      if (selectedFarmId && selectedFarmId !== "all") {
+        url += `?farm_id=${encodeURIComponent(selectedFarmId)}`
       }
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data) && data.length > 0) {
+          setCases(data)
+        } else {
+          setCases([])
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching clinical cases:", err)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchCases()
   }, [selectedFarmId, assignedFarms])
 
@@ -195,7 +104,50 @@ export default function VetClinicalRecords() {
     }
   }
 
-  const filtered = cases.filter(r => {
+  const handleVerifyCaseSubmit = async () => {
+    if (!selectedCase) return
+    setIsVerifying(true)
+    setVerifyError('')
+    try {
+      const caseId = selectedCase.id
+      const payload = {
+        clinical_notes: verificationNotes || selectedCase.clinical_notes,
+        prescription: verificationPrescription || undefined,
+        health_status: 'Alert'
+      }
+      const updatedCase = await verifyDiagnosticCase(caseId, payload)
+      setCases(prev => prev.map(c => c.id === caseId ? { ...c, ...updatedCase, verified: true, status: 'Verified' } : c))
+      setSelectedCase(prev => ({ ...prev, ...updatedCase, verified: true, status: 'Verified' }))
+      setFeedbackMessage({
+        type: 'success',
+        text: `Case ${updatedCase.case_number || caseId} has been successfully verified & synchronized.`
+      })
+      setTimeout(() => setFeedbackMessage(null), 5000)
+    } catch (err) {
+      console.error("Verification error:", err)
+      setVerifyError(err.message || 'Failed to verify case report.')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  // Split counts
+  const farmerCases = cases.filter(c => c.reported_by === 'farmer')
+  const vetCases = cases.filter(c => c.reported_by !== 'farmer')
+  const pendingFarmerCases = farmerCases.filter(c => !c.verified).length
+
+  // Filter based on active tab and search
+  const tabFilteredCases = activeTab === 'farmer' ? farmerCases : (activeTab === 'vet' ? vetCases : cases)
+
+  const filtered = tabFilteredCases.filter(r => {
+    const isVer = Boolean(r.verified)
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'verified' && isVer) ||
+      (statusFilter === 'pending' && !isVer)
+
+    if (!matchesStatus) return false
+
     const animalId = r.animal_identifier || r.animalId || ''
     const diagnosis = r.disease_name || r.diagnosis || ''
     const farmName = r.farm_name || r.farmName || ''
@@ -208,7 +160,6 @@ export default function VetClinicalRecords() {
     )
   })
 
-  // Determine active display image for modal
   const displayModalImage = selectedCase
     ? (activeImageTab === 'cropped' && selectedCase.cropped_image
         ? selectedCase.cropped_image
@@ -222,7 +173,7 @@ export default function VetClinicalRecords() {
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold uppercase tracking-wider">
-              Clinical Case History
+              Clinical Case History &amp; Verification
             </span>
             <span className="text-slate-500">•</span>
             <span className="text-slate-400 text-xs font-mono">CV Diagnostic Logs</span>
@@ -231,7 +182,7 @@ export default function VetClinicalRecords() {
             Diagnostic &amp; Pathology Case Records
           </h1>
           <p className="text-slate-400 text-xs md:text-sm mt-1">
-            Historical automated diagnoses, Mask R-CNN segmentation overlays, and clinical treatment notes. Click any record to inspect the full case report.
+            Review disease reports submitted by farm owners and veterinary officers. Verify pending cases to synchronize regional outbreak feeds.
           </p>
         </div>
 
@@ -257,9 +208,83 @@ export default function VetClinicalRecords() {
         </div>
       )}
 
-      {/* Search and Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+      {/* Navigation Subsections: Farmer Reports vs Vet Records */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-2 bg-surface-container-low border border-white/5 rounded-2xl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActiveTab('farmer')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 transition-all ${
+              activeTab === 'farmer'
+                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+                : 'bg-surface-container text-slate-300 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">agriculture</span>
+            <span>Farmer Disease Reports</span>
+            {pendingFarmerCases > 0 && (
+              <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${activeTab === 'farmer' ? 'bg-black text-amber-400' : 'bg-amber-500 text-black animate-pulse'}`}>
+                {pendingFarmerCases} PENDING
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('vet')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 transition-all ${
+              activeTab === 'vet'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/20'
+                : 'bg-surface-container text-slate-300 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">medical_services</span>
+            <span>Vet Case Records ({vetCases.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'all'
+                ? 'bg-primary text-black'
+                : 'bg-surface-container text-slate-400 hover:text-white'
+            }`}
+          >
+            All ({cases.length})
+          </button>
+        </div>
+
+        {/* Status filter within tab */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono uppercase text-slate-500 font-bold">Status:</span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-2.5 py-1 rounded-lg text-3xs font-bold uppercase transition-all ${statusFilter === 'all' ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className={`px-2.5 py-1 rounded-lg text-3xs font-bold uppercase transition-all ${statusFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-white'}`}
+          >
+            Pending
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('verified')}
+            className={`px-2.5 py-1 rounded-lg text-3xs font-bold uppercase transition-all ${statusFilter === 'verified' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-white'}`}
+          >
+            Verified
+          </button>
+        </div>
+      </div>
+
+      {/* Search and Farm Dropdown */}
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="relative flex-1 w-full max-w-md">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
             search
           </span>
@@ -267,13 +292,13 @@ export default function VetClinicalRecords() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-2.5 pl-10 pr-4 text-xs text-on-surface placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Search by animal ID, diagnosis, or farm..."
+            placeholder="Search by animal tag, diagnosis, or farm..."
             type="text"
           />
         </div>
 
         {assignedFarms.length > 0 && (
-          <div className="relative flex items-center min-w-[200px]">
+          <div className="relative flex items-center min-w-[200px] w-full sm:w-auto">
             <select
               value={selectedFarmId}
               onChange={(e) => setSelectedFarmId(e.target.value)}
@@ -304,8 +329,8 @@ export default function VetClinicalRecords() {
                 <th className="py-3 px-4">Animal ID &amp; Breed</th>
                 <th className="py-3 px-4">Farm Network</th>
                 <th className="py-3 px-4">AI Diagnosis</th>
-                <th className="py-3 px-4">Confidence</th>
-                <th className="py-3 px-4">Clinical Protocol</th>
+                <th className="py-3 px-4">Reported By</th>
+                <th className="py-3 px-4">Verification Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -320,7 +345,11 @@ export default function VetClinicalRecords() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="py-8 text-center text-slate-400">
-                    <p className="text-xs">No clinical case records found matching your search.</p>
+                    <p className="text-xs">
+                      {activeTab === 'farmer'
+                        ? 'No farmer disease reports found for the selected filter.'
+                        : 'No clinical case records found matching your search.'}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -331,8 +360,8 @@ export default function VetClinicalRecords() {
                   const breed = record.breed || 'Dairy Breed';
                   const farmName = record.farm_name || record.farmName || 'Estate Herd';
                   const diagnosis = record.disease_name || record.diagnosis || 'Cattle (Healthy)';
-                  const conf = typeof record.confidence === 'number' ? `${record.confidence.toFixed(1)}%` : (record.confidence || '90.0%');
                   const isVerified = record.verified || record.status === 'Verified';
+                  const isFarmerReport = record.reported_by === 'farmer';
 
                   return (
                     <tr
@@ -340,8 +369,13 @@ export default function VetClinicalRecords() {
                       onClick={() => {
                         setSelectedCase(record)
                         setActiveImageTab(record.symptoms_image ? 'symptoms' : 'cropped')
+                        setVerificationNotes('')
+                        setVerificationPrescription('')
+                        setVerifyError('')
                       }}
-                      className="hover:bg-surface-container-high/60 cursor-pointer transition-colors group"
+                      className={`hover:bg-surface-container-high/60 cursor-pointer transition-colors group ${
+                        !isVerified && isFarmerReport ? 'bg-amber-500/5' : ''
+                      }`}
                     >
                       <td className="py-3.5 px-4 font-mono font-bold text-emerald-400 group-hover:underline flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-xs text-slate-500 group-hover:text-emerald-400">visibility</span>
@@ -357,8 +391,14 @@ export default function VetClinicalRecords() {
                         <span className="font-bold text-white">{diagnosis}</span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
-                          {conf}
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border uppercase ${
+                            isFarmerReport
+                              ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                              : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                          }`}
+                        >
+                          {isFarmerReport ? 'Farmer' : 'Veterinarian'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -375,6 +415,22 @@ export default function VetClinicalRecords() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {!isVerified && (
+                            <button
+                              onClick={() => {
+                                setSelectedCase(record)
+                                setActiveImageTab(record.symptoms_image ? 'symptoms' : 'cropped')
+                                setVerificationNotes('')
+                                setVerificationPrescription('')
+                                setVerifyError('')
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-amber-500 text-black hover:brightness-110 text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm"
+                              title="Verify Case"
+                            >
+                              <span className="material-symbols-outlined text-sm">fact_check</span>
+                              <span>Verify</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               setSelectedCase(record)
@@ -404,7 +460,7 @@ export default function VetClinicalRecords() {
         </div>
       </div>
 
-      {/* Case Report Detail Modal */}
+      {/* Case Report Detail & Verification Modal */}
       {selectedCase && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 md:p-6 overflow-y-auto animate-fadeIn">
           <div className="bg-surface-container-low border border-emerald-500/30 rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden my-auto flex flex-col max-h-[90vh]">
@@ -417,8 +473,18 @@ export default function VetClinicalRecords() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold text-emerald-400">{selectedCase.case_number || selectedCase.id}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase">
-                      {selectedCase.status || 'Verified'}
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border uppercase ${
+                        selectedCase.verified
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                      }`}
+                    >
+                      {selectedCase.status || (selectedCase.verified ? 'Verified' : 'Pending Verification')}
+                    </span>
+                    <span className="text-slate-500 text-xs">•</span>
+                    <span className="text-[10px] font-mono text-slate-300">
+                      Reported by {selectedCase.reported_by === 'farmer' ? 'Farmer' : 'Veterinarian'}
                     </span>
                   </div>
                   <h2 className="text-base font-bold text-white">Clinical Pathology Case Report</h2>
@@ -452,12 +518,16 @@ export default function VetClinicalRecords() {
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Inspection Date</span>
                   <span className="font-bold text-white font-mono">{selectedCase.created_at || selectedCase.date || '2026-08-24'}</span>
-                  <span className="text-emerald-400 text-[10px] block">Verified Telemetry</span>
+                  <span className="text-emerald-400 text-[10px] block">
+                    {selectedCase.verified ? 'Verified Telemetry' : 'Pending Review'}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Veterinarian</span>
-                  <span className="font-bold text-white">{selectedCase.vet_name || 'Clinical Practitioner'}</span>
-                  <span className="text-slate-400 font-mono text-[10px] block">{selectedCase.vet_license || 'VET-AUTH-2026'}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Verifying Veterinarian</span>
+                  <span className={`font-bold ${selectedCase.verified ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {selectedCase.vet_name || 'Pending Sign-off'}
+                  </span>
+                  <span className="text-slate-400 font-mono text-[10px] block">{selectedCase.vet_license || 'Awaiting Sign-off'}</span>
                 </div>
               </div>
 
@@ -504,11 +574,11 @@ export default function VetClinicalRecords() {
                   </div>
 
                   <p className="text-[11px] text-slate-400 italic text-center">
-                    High-resolution imagery analyzed via YOLOv8 detection &amp; Vision Transformer triage.
+                    Multi-modal automated pathology analyzed via YOLO detection &amp; Vision Transformer.
                   </p>
                 </div>
 
-                {/* Right: Diagnostic Telemetry & Assessment */}
+                {/* Right: Diagnostic Telemetry & Verification Controls */}
                 <div className="lg:col-span-7 space-y-4">
                   {/* Diagnosis Card */}
                   <div className="p-4 rounded-xl bg-surface-container border border-primary/20 space-y-3">
@@ -552,7 +622,7 @@ export default function VetClinicalRecords() {
                   {/* Clinical Treatment & Notes */}
                   {selectedCase.clinical_notes && (
                     <div className="p-3.5 rounded-xl bg-surface-container border border-white/5 space-y-1.5">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Veterinary Clinical Protocol</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Existing Clinical Notes</span>
                       <p className="text-xs text-slate-300 leading-relaxed">{selectedCase.clinical_notes}</p>
                     </div>
                   )}
@@ -567,6 +637,67 @@ export default function VetClinicalRecords() {
                       <div className="text-xs text-slate-300 leading-relaxed max-h-32 overflow-y-auto no-scrollbar font-mono text-[11px] bg-black/40 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">
                         {typeof selectedCase.llm_reasoning === 'string' ? selectedCase.llm_reasoning : JSON.stringify(selectedCase.llm_reasoning, null, 2)}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Verification Sign-off Box (for Unverified Cases) */}
+                  {!selectedCase.verified && (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase font-mono">
+                        <span className="material-symbols-outlined text-base">fact_check</span>
+                        <span>Veterinary Clinical Sign-Off Required</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-[10px] uppercase font-bold text-slate-300">
+                          Veterinary Treatment Protocol &amp; Remarks (Optional)
+                        </label>
+                        <textarea
+                          value={verificationNotes}
+                          onChange={(e) => setVerificationNotes(e.target.value)}
+                          placeholder="Add clinical observations, quarantine protocols, or follow-up instructions..."
+                          rows="2"
+                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-[10px] uppercase font-bold text-slate-300">
+                          Prescription / Medication (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={verificationPrescription}
+                          onChange={(e) => setVerificationPrescription(e.target.value)}
+                          placeholder="e.g. Antiseptic wash + Enrofloxacin 10%"
+                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      {verifyError && (
+                        <div className="p-2.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-xs">
+                          {verifyError}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleVerifyCaseSubmit}
+                        disabled={isVerifying}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:brightness-110 text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isVerifying ? (
+                          <>
+                            <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                            <span>Verifying &amp; Synchronizing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-base">verified</span>
+                            <span>Verify &amp; Approve Case Report</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -595,7 +726,7 @@ export default function VetClinicalRecords() {
                     className="px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-primary-container text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all"
                   >
                     <span className="material-symbols-outlined text-sm">published_with_changes</span>
-                    <span>Update in Smart Diagnostics</span>
+                    <span>Re-evaluate in Smart Diagnostics</span>
                   </button>
                 )}
               </div>

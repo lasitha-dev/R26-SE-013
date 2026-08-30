@@ -9,5 +9,6 @@ bcs_logs_collection = db.bcs_logs
 vets_collection = db.vets
 diagnostic_cases_collection = db.diagnostic_cases
 death_logs_collection = db.death_logs
+vet_notifications_collection = db.vet_notifications
 
 
