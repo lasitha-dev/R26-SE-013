@@ -349,9 +349,10 @@ class SharedApiForecastDataProvider(ForecastDataProvider):
 
         record = self.client.fetch_feature_record(disease_upper, district, month_num, year)
         if record is None:
-            raise RuntimeError(
-                f"Forecasting input dataset for {disease_upper} is empty or unavailable."
-            )
+            # Delegate feature queries to CSV fallback as only lag1 is live DB updated
+            from components.risk_forecasting.integrations.forecast_data_provider import CsvForecastDataProvider
+            csv_provider = CsvForecastDataProvider()
+            return csv_provider.get_feature_row(disease, district, month_num, year, feature_cols, district_enc_val)
 
         if not isinstance(getattr(record, "feature_values", None), dict):
             raise ValueError(f"Invalid feature_values in shared record for '{disease_upper}'")

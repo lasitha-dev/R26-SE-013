@@ -40,7 +40,7 @@ def setup_production_services():
     forecast_follow_up_service.vet_dir = MongoVeterinaryOfficerDirectory()
     recipient_query_service.recipient_dir = MongoRecipientDirectory()
     
-    provider_mode = os.getenv("FORECAST_DATA_PROVIDER", "csv").lower()
+    provider_mode = "shared_api"
     
     if provider_mode == "shared_api":
         shared_client = MongoSharedForecastClient(cache_ttl_seconds=3600)

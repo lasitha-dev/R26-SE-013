@@ -141,16 +141,62 @@ class MongoSharedForecastClient(SharedForecastDataClient):
             return (cached[0], True)
 
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                return self._fetch_from_cache_or_default(disease, district, target_year, target_month)
+            import pymongo
+            from bson import ObjectId
+            from core.database import MONGODB_URL
+            
+            disease_upper = disease.strip().upper()
+            formatted_district = district.strip().title()
+            if formatted_district in ["Moneragala", "Monaragala"]:
+                formatted_district = "Monaragala"
+            elif formatted_district in ["Nuwaraeliya", "Nuwara Eliya"]:
+                formatted_district = "Nuwara Eliya"
+
+            start_date = f"{target_year}-{target_month:02d}-01"
+            if target_month == 12:
+                end_date = f"{target_year + 1}-01-01"
             else:
-                outbreak_status, _, _ = loop.run_until_complete(
-                    self.get_district_status_async(disease, district, target_year, target_month)
-                )
-                return (outbreak_status, True)
+                end_date = f"{target_year}-{target_month + 1:02d}-01"
+
+            with pymongo.MongoClient(MONGODB_URL) as client:
+                db = client.get_database("adrs_core")
+                diagnostic_cases_collection = db.get_collection("diagnostic_cases")
+                farms_collection = db.get_collection("farms")
+                death_logs_collection = db.get_collection("death_logs")
+                
+                cases_count = 0
+                for case in diagnostic_cases_collection.find({
+                    "verified": True,
+                    "disease_name": {"$regex": f"^{disease_upper}$", "$options": "i"},
+                    "created_at": {"$gte": start_date, "$lt": end_date}
+                }):
+                    farm_id = case.get("farm_id")
+                    if farm_id:
+                        farm = None
+                        try:
+                            if isinstance(farm_id, ObjectId):
+                                farm = farms_collection.find_one({"_id": farm_id})
+                            elif ObjectId.is_valid(str(farm_id)):
+                                farm = farms_collection.find_one({"_id": ObjectId(farm_id)})
+                            else:
+                                farm = farms_collection.find_one({"_id": farm_id})
+                        except Exception:
+                            farm = None
+                        
+                        if farm and farm.get("location_district") == formatted_district:
+                            cases_count += 1
+                
+                deaths_count = death_logs_collection.count_documents({
+                    "cause": disease_upper,
+                    "district": formatted_district,
+                    "date_of_death": {"$gte": start_date, "$lt": end_date}
+                })
+                
+                outbreak_status = 1.0 if (cases_count >= 1 or deaths_count >= 1) else 0.0
+
+            return (outbreak_status, True)
         except Exception as e:
-            logger.error(f"Error executing synch fetch_valid_lag1 wrapper: {e}")
+            logger.error(f"Error executing synch fetch_valid_lag1 wrapper via PyMongo: {e}")
             return self._fetch_from_cache_or_default(disease, district, target_year, target_month)
 
     def _fetch_from_cache_or_default(

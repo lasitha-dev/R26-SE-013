@@ -41,11 +41,11 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
             if self._indexes_initialized:
                 return
             try:
-                # 1. Unique sparse index on idempotency_key
                 self.collection.create_index(
-                    "idempotency_key",
+                    [("idempotency_key", 1)],
                     unique=True,
-                    sparse=True
+                    partialFilterExpression={"idempotency_key": {"$type": "string"}},
+                    name="idempotency_key_1"
                 )
                 # 2. Compound read index based on current list filters and sorting
                 self.collection.create_index([
@@ -64,6 +64,8 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
         data = record.model_dump()
         # Enforce string forecast_id as _id
         data["_id"] = record.forecast_id
+        if data.get("idempotency_key") is None:
+            data.pop("idempotency_key", None)
         
         # Ensure enums remain strings (model_dump does this for string enums)
         
