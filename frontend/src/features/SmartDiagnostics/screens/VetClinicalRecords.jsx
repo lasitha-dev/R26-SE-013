@@ -12,12 +12,37 @@ export default function VetClinicalRecords() {
   const [caseToDelete, setCaseToDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState(null)
+  const [assignedFarms, setAssignedFarms] = useState([])
+  const [selectedFarmId, setSelectedFarmId] = useState('all')
+
+  useEffect(() => {
+    const fetchFarms = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const response = await fetch("http://127.0.0.1:8000/api/vet/my-farms", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setAssignedFarms(data)
+        }
+      } catch (err) {
+        console.error("Error fetching assigned farms:", err)
+      }
+    }
+    fetchFarms()
+  }, [])
 
   useEffect(() => {
     const fetchCases = async () => {
+      setLoading(true)
       try {
         const token = localStorage.getItem("token")
-        const response = await fetch("http://127.0.0.1:8000/api/vet/cases", {
+        let url = "http://127.0.0.1:8000/api/vet/cases"
+        if (selectedFarmId && selectedFarmId !== "all") {
+          url += `?farm_id=${encodeURIComponent(selectedFarmId)}`
+        }
+        const response = await fetch(url, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
         if (response.ok) {
@@ -26,7 +51,10 @@ export default function VetClinicalRecords() {
             setCases(data)
           } else {
             // Seed with illustrative default clinical case records if no records saved yet
-            setCases([
+            const currentFarm = assignedFarms.find(f => f.id === selectedFarmId || f.registration_number === selectedFarmId || f.email === selectedFarmId)
+            const farmNameFilter = currentFarm ? currentFarm.owner_name : ''
+
+            const defaultCases = [
               {
                 id: 'REC-2026-081',
                 case_number: 'REC-2026-081',
@@ -112,7 +140,19 @@ export default function VetClinicalRecords() {
                 status: 'Verified',
                 verified: true
               }
-            ])
+            ]
+
+            const allowedFarmNames = assignedFarms.map(f => f.owner_name?.toLowerCase() || "")
+
+            const filteredFallback = defaultCases.filter(c => {
+              const cFarm = c.farm_name.toLowerCase()
+              if (selectedFarmId && selectedFarmId !== "all") {
+                return farmNameFilter && cFarm.includes(farmNameFilter.toLowerCase())
+              }
+              return allowedFarmNames.length === 0 || allowedFarmNames.some(name => cFarm.includes(name) || name.includes(cFarm))
+            })
+
+            setCases(filteredFallback)
           }
         }
       } catch (err) {
@@ -122,7 +162,7 @@ export default function VetClinicalRecords() {
       }
     }
     fetchCases()
-  }, [])
+  }, [selectedFarmId, assignedFarms])
 
   const handleDeleteCase = async () => {
     if (!caseToDelete) return
@@ -231,6 +271,26 @@ export default function VetClinicalRecords() {
             type="text"
           />
         </div>
+
+        {assignedFarms.length > 0 && (
+          <div className="relative flex items-center min-w-[200px]">
+            <select
+              value={selectedFarmId}
+              onChange={(e) => setSelectedFarmId(e.target.value)}
+              className="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-2.5 pl-3 pr-10 text-xs text-on-surface placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer font-semibold"
+            >
+              <option value="all">All Assigned Farms</option>
+              {assignedFarms.map((farm) => (
+                <option key={farm.id} value={farm.id}>
+                  {farm.owner_name}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">
+              expand_more
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Records Table */}

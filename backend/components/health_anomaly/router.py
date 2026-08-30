@@ -932,8 +932,84 @@ async def list_diagnostic_cases(
     query = {}
     if cattle_id:
         query["cattle_id"] = cattle_id
-    if farm_id:
-        query["farm_id"] = farm_id
+
+    # Resolve assigned farms if authorized
+    email = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            email = await get_current_user_email(authorization)
+        except Exception:
+            pass
+
+    if email:
+        # Check if user is a veterinarian
+        vet = await vets_collection.find_one({"email": email})
+        if vet:
+            vet_id_str = str(vet["_id"])
+            assigned_f_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
+            assigned_f_emails = vet.get("assigned_farms", [])
+            
+            farms_query = {
+                "$or": [
+                    {"_id": {"$in": assigned_f_ids}},
+                    {"email": {"$in": assigned_f_emails}},
+                    {"assigned_vet_ids": vet_id_str},
+                    {"assigned_vet_emails": vet["email"]}
+                ]
+            }
+            
+            assigned_farm_ids_str = []
+            assigned_farm_names = []
+            async for f_doc in farms_collection.find(farms_query):
+                assigned_farm_ids_str.append(str(f_doc["_id"]))
+                if f_doc.get("owner_name"):
+                    assigned_farm_names.append(f_doc["owner_name"])
+                    assigned_farm_names.append(f_doc["owner_name"] + "'s Farm")
+                if f_doc.get("email"):
+                    assigned_farm_ids_str.append(f_doc["email"])
+
+            # Filter by matching farm_id or farm_name
+            if farm_id:
+                if farm_id in assigned_farm_ids_str:
+                    query["farm_id"] = farm_id
+                else:
+                    # Explicit farm requested and not in assigned farms
+                    return []
+            else:
+                # No specific farm_id provided, default to all assigned farms
+                if not assigned_farm_ids_str:
+                    return []
+                query["$or"] = [
+                    {"farm_id": {"$in": assigned_farm_ids_str}},
+                    {"farm_name": {"$in": assigned_farm_names}}
+                ]
+        else:
+            # Check if user is a farmer
+            farm = await farms_collection.find_one({"email": email})
+            if farm:
+                farm_id_str = str(farm["_id"])
+                farm_email = farm.get("email")
+                farm_name = farm.get("owner_name")
+                
+                allowed_ids = [farm_id_str]
+                if farm_email:
+                    allowed_ids.append(farm_email)
+                
+                if farm_id:
+                    if farm_id in allowed_ids:
+                        query["farm_id"] = farm_id
+                    else:
+                        return []
+                else:
+                    query["$or"] = [
+                        {"farm_id": {"$in": allowed_ids}},
+                        {"farm_name": farm_name if farm_name else "NO_MATCH"}
+                    ]
+            else:
+                return []
+    else:
+        if farm_id:
+            query["farm_id"] = farm_id
 
     cursor = diagnostic_cases_collection.find(query).sort("_id", -1).limit(100)
     cases = []

@@ -7,6 +7,18 @@ from bson import ObjectId
 
 @pytest.mark.anyio
 async def test_diagnostic_case_flow():
+    # Setup dummy farm
+    farm_email = "farm_owner@test.lk"
+    await farms_collection.delete_many({"email": farm_email})
+    farm_doc = {
+        "owner_name": "Dr. Tester Assigned Farm",
+        "email": farm_email,
+        "registration_number": "REG-TEST-FARM-99",
+        "assigned_vet_ids": []
+    }
+    farm_res = await farms_collection.insert_one(farm_doc)
+    farm_id = str(farm_res.inserted_id)
+
     # Setup test vet token
     vet_email = "test_case_vet@adrs.lk"
     vet_doc = {
@@ -16,11 +28,15 @@ async def test_diagnostic_case_flow():
         "license_number": "VET-CASE-2026",
         "phone": "+94771239999",
         "district": "Kandy",
-        "role": "vet"
+        "role": "vet",
+        "assigned_farm_ids": [farm_id]
     }
     await vets_collection.delete_many({"email": vet_email})
     vet_res = await vets_collection.insert_one(vet_doc)
     vet_id = str(vet_res.inserted_id)
+
+    # Link vet to farm
+    await farms_collection.update_one({"_id": ObjectId(farm_id)}, {"$set": {"assigned_vet_ids": [vet_id]}})
 
     token = create_access_token(data={"sub": vet_email, "role": "vet", "full_name": "Dr. Case Tester"})
     headers = {"Authorization": f"Bearer {token}"}
@@ -70,6 +86,11 @@ async def test_diagnostic_case_flow():
         cases_list = res_list.json()
         assert len(cases_list) >= 1
         assert any(c["id"] == case_id for c in cases_list)
+
+        # Assert fetching with a non-existent/unassigned farm ID returns an empty list
+        res_unassigned = await ac.get("/api/vet/cases?farm_id=60d5ec49e2182b8a70656a59", headers=headers)
+        assert res_unassigned.status_code == 200
+        assert len(res_unassigned.json()) == 0
 
         # 3. Verify case
         verify_payload = {
@@ -124,5 +145,6 @@ async def test_diagnostic_case_flow():
 
     # Cleanup
     await vets_collection.delete_many({"email": vet_email})
+    await farms_collection.delete_many({"email": farm_email})
     await cattles_collection.delete_many({"_id": ObjectId(cattle_id)})
     await diagnostic_cases_collection.delete_many({"_id": ObjectId(case_id)})
