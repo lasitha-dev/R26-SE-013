@@ -75,7 +75,6 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
             composite_score=0.0,
             grade="Healthy Baseline",
             description="Epidermal surface presents homogeneous texture with zero anomalous lesion density or inflammatory markers.",
-            stage="Healthy Baseline",
             prognosis="Excellent",
             diagnostic_rationale="No pathological tissue disruptions detected. Dermal contour aligns with physiological baseline.",
             spatial_correlation=signals.get("spatial_correlation"),
@@ -102,10 +101,9 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
     )
     composite_score = round(s, 4)
 
-    # 2. Determine Grade, Stage, Prognosis, and baseline Confidence
+    # 2. Determine Grade, Prognosis, and baseline Confidence
     if composite_score >= GRADE_BOUNDARIES["SEVERE"]:
         grade = "Severe"
-        stage = "Acute Eruptive / Advanced"
         prognosis = "Guarded"
         confidence_level = "High" if v_margin > 0.30 else "Moderate"
         description = (
@@ -115,7 +113,6 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         )
     elif composite_score >= GRADE_BOUNDARIES["MODERATE"]:
         grade = "Moderate"
-        stage = "Active Progression / Multifocal"
         prognosis = "Recoverable with Intervention"
         confidence_level = "High" if v_margin > 0.30 else "Moderate"
         description = (
@@ -125,7 +122,6 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         )
     elif composite_score >= GRADE_BOUNDARIES["MILD"]:
         grade = "Mild"
-        stage = "Early Focal / Prodromal"
         prognosis = "Favorable"
         confidence_level = "High" if v_conf > 0.80 else "Moderate"
         description = (
@@ -135,7 +131,6 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         )
     else:
         grade = "Healthy Baseline"
-        stage = "Healthy Baseline"
         prognosis = "Excellent"
         confidence_level = "High"
         description = (
@@ -168,14 +163,13 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         composite_score=composite_score,
         grade=grade,
         description=description,
-        stage=stage,
         prognosis=prognosis,
         diagnostic_rationale=diagnostic_rationale,
         spatial_correlation=signals.get("spatial_correlation"),
         lesion_coverage_pct=float(signals.get("lesion_coverage_pct", 0.0)),
         cluster_count=int(signals.get("cluster_count", 0)),
         mean_intensity=float(signals.get("mean_intensity", 0.0)),
-        formatted=f"{grade} ({stage})",
+        formatted=grade,
         source="composite_scoring",
         confidence_level=confidence_level,
         needs_review=needs_review,
@@ -183,3 +177,4 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         attention_cluster_count=attn_cls_raw,
         top2_margin=top2_margin_raw,
     )
+

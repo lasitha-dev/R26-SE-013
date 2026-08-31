@@ -598,7 +598,6 @@ describe('SmartDiagnostics', () => {
       severity: {
         grade: 'Moderate',
         description: 'Moderate multifocal progression of Lumpy Skin Disease (Composite Score: 0.52).',
-        stage: 'Active Progression / Multifocal',
         prognosis: 'Recoverable with Intervention',
         diagnostic_rationale: 'Multi-signal composite score (0.52) synthesizes ViT classification certainty.',
         spatial_correlation: 'ViT self-attention rollout identified 4 focal cluster(s).',
@@ -611,6 +610,7 @@ describe('SmartDiagnostics', () => {
         needs_review: false,
         source: 'composite_scoring',
       },
+
       cropped_image: null,
       image_size: { width: 640, height: 480 },
       device: 'cpu',

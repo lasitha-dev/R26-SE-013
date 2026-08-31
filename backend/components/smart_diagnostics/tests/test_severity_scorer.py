@@ -32,7 +32,6 @@ class TestCompositeSeverityScorer:
         sev = compute_composite_severity(signals)
 
         assert sev.grade == "Healthy Baseline"
-        assert sev.stage == "Healthy Baseline"
         assert sev.prognosis == "Excellent"
         assert sev.confidence_level == "High"
         assert sev.needs_review is False
@@ -54,7 +53,6 @@ class TestCompositeSeverityScorer:
         sev = compute_composite_severity(signals)
 
         assert sev.grade == "Severe"
-        assert sev.stage == "Acute Eruptive / Advanced"
         assert sev.prognosis == "Guarded"
         assert sev.composite_score >= GRADE_BOUNDARIES["SEVERE"]
         assert sev.confidence_level == "High"
@@ -75,7 +73,6 @@ class TestCompositeSeverityScorer:
         sev = compute_composite_severity(signals)
 
         assert sev.grade == "Moderate"
-        assert sev.stage == "Active Progression / Multifocal"
         assert sev.prognosis == "Recoverable with Intervention"
         assert 0.35 <= sev.composite_score < 0.65
         assert sev.confidence_level == "High"
@@ -96,9 +93,9 @@ class TestCompositeSeverityScorer:
         sev = compute_composite_severity(signals)
 
         assert sev.grade == "Mild"
-        assert sev.stage == "Early Focal / Prodromal"
         assert sev.prognosis == "Favorable"
         assert 0.10 <= sev.composite_score < 0.35
+
         # 0.284 is within ±0.05 of 0.30? 0.35 - 0.284 = 0.066 (> 0.05)
         # Check boundary proximity rule
         if abs(sev.composite_score - 0.35) <= BOUNDARY_MARGIN:

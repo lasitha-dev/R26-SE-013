@@ -217,7 +217,7 @@ class TestReasonEndpoint:
     ):
         """Successful LLM report generation returns status=ok with Markdown content and severity assessment."""
         from components.smart_diagnostics.schemas import SeverityMetrics
-        mock_sev = SeverityMetrics(grade="Mild", stage="Early Focal", prognosis="Favorable", confidence_level="High")
+        mock_sev = SeverityMetrics(grade="Mild", prognosis="Favorable", confidence_level="High")
         mock_generate.return_value = ("## 1. Primary Diagnostic Assessment\nAll clear.", mock_sev)
 
         resp = client.post("/api/reason", json={
@@ -244,7 +244,7 @@ class TestReasonEndpoint:
     ):
         """An LLM error report (starting with ⚠) returns status=error."""
         from components.smart_diagnostics.schemas import SeverityMetrics
-        mock_sev = SeverityMetrics(grade="Moderate", stage="Progression", prognosis="Guarded", confidence_level="Low", needs_review=True)
+        mock_sev = SeverityMetrics(grade="Moderate", prognosis="Guarded", confidence_level="Low", needs_review=True)
         mock_generate.return_value = ("⚠️  **Tier 3 Error — LLM Unreachable**", mock_sev)
 
         resp = client.post("/api/reason", json={
