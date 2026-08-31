@@ -96,11 +96,14 @@ async def detect(request: Request, image: UploadFile = File(...)):
     x1, y1, x2, y2 = best["bbox"]
 
     cropped = image_service.crop_image(pil, best["bbox"])
-    disease = await run_in_threadpool(classifier.predict, cropped)
+    if hasattr(classifier, "predict_with_attention"):
+        disease = await run_in_threadpool(classifier.predict_with_attention, cropped)
+    else:
+        disease = await run_in_threadpool(classifier.predict, cropped)
 
     crop_b64 = image_service.encode_image_base64(cropped)
     
-    # Run segmentation only if the animal is diseased (not "cattle" / healthy)
+    # Run segmentation overlay only if the animal is diseased (not "cattle" / healthy)
     symptoms_b64 = None
     severity_model = None
     stage_str = None
@@ -109,6 +112,9 @@ async def detect(request: Request, image: UploadFile = File(...)):
     predicted_name = disease.get("name", "").lower()
     is_healthy = predicted_name in ("cattle", "cattle (healthy)")
     vit_conf = float(disease.get("confidence", 0.0))
+    attn_cov = float(disease.get("attention_coverage_pct", 0.0))
+    attn_clusters = int(disease.get("attention_cluster_count", 0))
+    top2_margin = float(disease.get("top2_margin", 0.0))
 
     img_w, img_h = pil.size
     bbox_norm = BoundingBoxNormalized(x1=x1 / img_w, y1=y1 / img_h, x2=x2 / img_w, y2=y2 / img_h)
@@ -118,6 +124,7 @@ async def detect(request: Request, image: UploadFile = File(...)):
     cy = (bbox_norm.y1 + bbox_norm.y2) / 2.0
     bw_pct = (bbox_norm.x2 - bbox_norm.x1) * 100
     bh_pct = (bbox_norm.y2 - bbox_norm.y1) * 100
+    area_pct = round(((x2 - x1) * (y2 - y1) / max(img_w * img_h, 1)) * 100, 2)
 
     if cy < 0.40 and cx < 0.50:
         anatomical_site = "Anterior Cranial & Oral / Muzzle Zone"
@@ -130,77 +137,69 @@ async def detect(request: Request, image: UploadFile = File(...)):
     else:
         anatomical_site = "Mid-Thoracic Flank & Lateral Dermal Wall"
 
-    if is_healthy:
+    from .implementations.severity_scorer import compute_composite_severity
+
+    if is_healthy and vit_conf >= 80.0:
         spatial_correlation_str = (
             f"Full-frame anatomical scan across the {anatomical_site} reveals homogeneous epidermal contour "
             "with zero focal lesion clustering or inflammatory edema."
         )
-        severity_model = SeverityMetrics(
-            grade="Healthy Baseline",
-            description="Epidermal surface presents homogeneous texture with zero anomalous lesion density or inflammatory markers.",
-            stage="Healthy Baseline",
-            prognosis="Excellent",
-            diagnostic_rationale="No pathological tissue disruptions detected. Dermal contour aligns with physiological baseline.",
-            spatial_correlation=spatial_correlation_str,
-            lesion_coverage_pct=0.0,
-            cluster_count=0,
-            mean_intensity=0.0,
-            formatted="Healthy Baseline",
-            source="vision_telemetry",
-        )
-        stage_str = "Healthy Baseline"
-    elif segmenter and predicted_name:
-        symptoms_img, metrics = await run_in_threadpool(segmenter.predict_with_metrics, cropped)
-        symptoms_b64 = image_service.encode_image_base64(symptoms_img)
+        severity_model = compute_composite_severity({
+            "attention_coverage_pct": attn_cov,
+            "attention_cluster_count": attn_clusters,
+            "vit_confidence_pct": vit_conf,
+            "top2_margin": top2_margin,
+            "yolo_detection_count": len(detections),
+            "yolo_max_bbox_area_pct": area_pct,
+            "predicted_class": "cattle",
+            "predicted_display": "Cattle (Healthy)",
+            "spatial_correlation": spatial_correlation_str,
+        })
+        stage_str = severity_model.stage
+    else:
+        seg_metrics = {}
+        if segmenter and predicted_name:
+            if hasattr(segmenter, "predict_with_metrics"):
+                symptoms_img, seg_metrics = await run_in_threadpool(segmenter.predict_with_metrics, cropped)
+            else:
+                symptoms_img = await run_in_threadpool(segmenter.predict, cropped)
+                seg_metrics = {"lesion_coverage_pct": 0.0, "cluster_count": 0, "mean_intensity": 0.0}
+            symptoms_b64 = image_service.encode_image_base64(symptoms_img)
 
-        lsr = metrics.get("lesion_coverage_pct", 0.0)
-        clusters = metrics.get("cluster_count", 0)
-        intensity = metrics.get("mean_intensity", 0.0)
+        lsr = seg_metrics.get("lesion_coverage_pct", 0.0)
+        clusters = seg_metrics.get("cluster_count", 0)
+        intensity = seg_metrics.get("mean_intensity", 0.0)
 
-        # Preliminary visual stage estimation from morphological telemetry
-        if lsr >= 12.0 or clusters >= 8:
-            prelim_grade = "Severe"
-            stage_str = "Acute Eruptive / Advanced"
-            prelim_prognosis = "Guarded"
-        elif lsr >= 4.0 or clusters >= 3:
-            prelim_grade = "Moderate"
-            stage_str = "Active Progression / Multifocal"
-            prelim_prognosis = "Recoverable with Intervention"
-        else:
-            prelim_grade = "Mild"
-            stage_str = "Early Focal / Prodromal"
-            prelim_prognosis = "Favorable"
+        # Build signals for composite severity scorer
+        signals = {
+            "attention_coverage_pct": attn_cov,
+            "attention_cluster_count": attn_clusters,
+            "vit_confidence_pct": vit_conf,
+            "top2_margin": top2_margin,
+            "yolo_detection_count": len(detections),
+            "yolo_max_bbox_area_pct": area_pct,
+            "predicted_class": disease.get("name", "Condition"),
+            "predicted_display": disease.get("name", "Condition"),
+            "lesion_coverage_pct": lsr,
+            "cluster_count": clusters,
+            "mean_intensity": intensity,
+        }
 
-        if lsr == 0 and clusters == 0:
+        # Spatial correlation telemetry
+        if attn_cov > 0 or attn_clusters > 0:
             spatial_correlation_str = (
-                f"Localized ROI focus at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame area). "
+                f"ViT self-attention rollout identified {attn_clusters} focal cluster(s) covering {attn_cov:.1f}% "
+                f"saliency localized at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame ROI)."
+            )
+        else:
+            spatial_correlation_str = (
+                f"Localized ROI focus at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame ROI). "
                 "Low surface disruption detected at early baseline threshold."
             )
-        else:
-            spatial_correlation_str = (
-                f"Automated segmentation identified {clusters} distinct focal lesion cluster(s) covering {lsr:.1f}% "
-                f"surface area localized at the {anatomical_site} ({bw_pct:.1f}% × {bh_pct:.1f}% frame ROI). "
-                f"Spatial density aligns with {prelim_grade.lower()} pathological progression."
-            )
+        signals["spatial_correlation"] = spatial_correlation_str
 
-        prelim_rationale = (
-            f"Vision classifier identified morphological biomarkers consistent with {disease.get('name')} "
-            f"({vit_conf:.1f}% confidence), corroborated by {clusters} segmented nodular/lesion cluster(s)."
-        )
-
-        severity_model = SeverityMetrics(
-            grade=prelim_grade,
-            description=f"Automated segmentation identified {clusters} distinct lesion cluster(s) covering {lsr:.1f}% anatomical surface area.",
-            stage=stage_str,
-            prognosis=prelim_prognosis,
-            diagnostic_rationale=prelim_rationale,
-            spatial_correlation=spatial_correlation_str,
-            lesion_coverage_pct=lsr,
-            cluster_count=clusters,
-            mean_intensity=intensity,
-            formatted=f"{prelim_grade} ({stage_str})",
-            source="vision_telemetry",
-        )
+        severity_model = compute_composite_severity(signals)
+        stage_str = severity_model.stage
 
     best_det = BestDetection(bbox=best["bbox"], confidence=best["confidence"], bbox_normalized=bbox_norm)
     disease_model = Disease(
@@ -268,10 +267,21 @@ async def reason(body: ReasoningRequest):
         if sev:
             det_dict.update({
                 "severity_grade": sev.grade,
+                "composite_score": sev.composite_score or sev.score,
+                "confidence_level": sev.confidence_level,
+                "needs_review": sev.needs_review,
+                "attention_coverage_pct": sev.attention_coverage_pct,
+                "attention_cluster_count": sev.attention_cluster_count,
+                "top2_margin": sev.top2_margin,
                 "lesion_coverage_pct": sev.lesion_coverage_pct,
                 "cluster_count": sev.cluster_count,
+                "mean_intensity": sev.mean_intensity,
                 "stage": body.stage or sev.stage or "N/A",
+                "prognosis": sev.prognosis or "Guarded",
+                "description": sev.description or "",
+                "diagnostic_rationale": sev.diagnostic_rationale or "",
                 "spatial_correlation": body.spatial_correlation or sev.spatial_correlation or "",
+                "source": sev.source or "composite_scoring",
             })
 
         detections_for_llm.append(det_dict)

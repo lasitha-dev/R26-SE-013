@@ -579,7 +579,7 @@ describe('SmartDiagnostics', () => {
     expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
   });
 
-  it('renders LLM-synthesized clinical severity grade and pathological narrative', async () => {
+  it('renders authoritative composite severity metrics and ensures stability across reasoning resolution', async () => {
     const detectImage = await getDetectImage();
     const fetchReasoning = await getFetchReasoning();
     detectImage.mockResolvedValue({
@@ -597,12 +597,19 @@ describe('SmartDiagnostics', () => {
       },
       severity: {
         grade: 'Moderate',
-        description: 'Initial vision telemetry preview.',
-        stage: 'Active Progression',
-        prognosis: 'Recoverable',
+        description: 'Moderate multifocal progression of Lumpy Skin Disease (Composite Score: 0.52).',
+        stage: 'Active Progression / Multifocal',
+        prognosis: 'Recoverable with Intervention',
+        diagnostic_rationale: 'Multi-signal composite score (0.52) synthesizes ViT classification certainty.',
+        spatial_correlation: 'ViT self-attention rollout identified 4 focal cluster(s).',
         lesion_coverage_pct: 12.4,
         cluster_count: 7,
-        source: 'vision_telemetry',
+        attention_coverage_pct: 35.0,
+        attention_cluster_count: 4,
+        composite_score: 0.52,
+        confidence_level: 'High',
+        needs_review: false,
+        source: 'composite_scoring',
       },
       cropped_image: null,
       image_size: { width: 640, height: 480 },
@@ -612,17 +619,6 @@ describe('SmartDiagnostics', () => {
       status: 'ok',
       reasoning_report: '## 1. Clinical Severity Assessment\nAcute systemic infection risk.',
       model_name: 'qwen2.5',
-      severity_assessment: {
-        grade: 'Severe',
-        description: 'Extensive multifocal nodular eruptions with high viral load indicators.',
-        stage: 'Acute Eruptive Phase',
-        prognosis: 'Guarded',
-        diagnostic_rationale: 'Characteristic circumscribed dermal nodules with central necrosis detected across the nape.',
-        spatial_correlation: 'Automated segmentation localized 7 clusters at the Cervical & Dorsal Nape Region.',
-        lesion_coverage_pct: 12.4,
-        cluster_count: 7,
-        source: 'llm_reasoning',
-      },
     });
 
     renderWithRouter(<SmartDiagnostics />);
@@ -634,19 +630,19 @@ describe('SmartDiagnostics', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('severity-grade')).toHaveTextContent('Severe');
+      expect(screen.getByTestId('severity-grade')).toHaveTextContent('Moderate');
     });
 
     expect(screen.getByTestId('severity-narrative')).toHaveTextContent(
-      'Extensive multifocal nodular eruptions with high viral load indicators.'
+      'Moderate multifocal progression of Lumpy Skin Disease (Composite Score: 0.52).'
     );
     expect(screen.getByTestId('diagnostic-rationale')).toHaveTextContent(
-      'Characteristic circumscribed dermal nodules'
+      'Multi-signal composite score'
     );
     expect(screen.getByTestId('spatial-correlation')).toHaveTextContent(
-      'Cervical & Dorsal Nape Region'
+      'ViT self-attention rollout identified'
     );
-    expect(screen.getAllByText('LLM REASONED').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('COMPOSITE SCORER').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('ANATOMICAL TELEMETRY')).toBeInTheDocument();
   });
 });

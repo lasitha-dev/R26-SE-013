@@ -326,13 +326,30 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 text-3xs font-mono font-bold uppercase">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <span className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 text-3xs font-mono font-bold uppercase" data-testid="briefing-severity-grade">
                   {severityAssessment.grade}
                 </span>
                 {severityAssessment.stage && (
                   <span className="px-2 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-primary text-3xs font-mono font-bold uppercase">
                     {severityAssessment.stage}
+                  </span>
+                )}
+                {severityAssessment.confidence_level && (
+                  <span className={`px-2 py-0.5 rounded-md text-3xs font-mono font-bold uppercase border ${
+                    severityAssessment.confidence_level === 'High'
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                      : severityAssessment.confidence_level === 'Moderate'
+                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                      : 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                  }`} data-testid="briefing-confidence-badge">
+                    {severityAssessment.confidence_level} Conf.
+                  </span>
+                )}
+                {severityAssessment.needs_review && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 text-3xs font-mono font-bold uppercase flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[11px]">warning</span>
+                    Review Flag
                   </span>
                 )}
               </div>

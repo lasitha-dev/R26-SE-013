@@ -141,6 +141,12 @@ def _print_vision_results(results: dict) -> None:
             f"    ViT prediction   : {det.get('vit_predicted_display', '?')}  "
             f"({det.get('vit_confidence_pct', '?')}%)"
         )
+        if det.get("top2_margin") is not None:
+            print(f"    Top-2 margin     : {det.get('top2_margin')}%")
+        if det.get("attention_coverage_pct") is not None:
+            print(f"    Attention cover  : {det.get('attention_coverage_pct')}%")
+        if det.get("attention_cluster_count") is not None:
+            print(f"    Attention clusters: {det.get('attention_cluster_count')}")
 
         probs = det.get("vit_probabilities", {})
         if probs:

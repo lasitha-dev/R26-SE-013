@@ -119,6 +119,9 @@ def mock_vit_prediction_healthy() -> Dict:
             "Lumpy Skin Disease": 1.5,
             "Mastitis": 1.5,
         },
+        "top2_margin": 93.0,
+        "attention_coverage_pct": 0.0,
+        "attention_cluster_count": 0,
     }
 
 
@@ -134,6 +137,27 @@ def mock_vit_prediction_diseased() -> Dict:
             "Lumpy Skin Disease": 91.5,
             "Mastitis": 3.0,
         },
+        "top2_margin": 88.5,
+        "attention_coverage_pct": 45.0,
+        "attention_cluster_count": 5,
+    }
+
+
+@pytest.fixture
+def mock_vit_prediction_with_attention_diseased() -> Dict:
+    """Deterministic ViT output with detailed attention rollout telemetry."""
+    return {
+        "name": "Lumpy Skin Disease",
+        "confidence": 91.5,
+        "all_probabilities": {
+            "Cattle (Healthy)": 3.0,
+            "Foot and Mouth Disease": 2.5,
+            "Lumpy Skin Disease": 91.5,
+            "Mastitis": 3.0,
+        },
+        "top2_margin": 88.5,
+        "attention_coverage_pct": 65.0,
+        "attention_cluster_count": 8,
     }
 
 
@@ -152,6 +176,9 @@ def mock_vit_prediction_cattle_with_secondary_risk() -> Dict:
             "Lumpy Skin Disease": 2.0,
             "Mastitis": 10.0,
         },
+        "top2_margin": 75.0,
+        "attention_coverage_pct": 0.0,
+        "attention_cluster_count": 0,
     }
 
 
@@ -185,15 +212,25 @@ class FakeClassifier:
             "name": "Cattle (Healthy)",
             "confidence": 95.0,
             "all_probabilities": {"Cattle (Healthy)": 95.0},
+            "top2_margin": 95.0,
+            "attention_coverage_pct": 0.0,
+            "attention_cluster_count": 0,
         }
         self.is_loaded = True
 
     def predict(self, image) -> Dict:
         return self._result
 
+    def predict_with_attention(self, image) -> Dict:
+        res = dict(self._result)
+        res.setdefault("attention_coverage_pct", 0.0)
+        res.setdefault("attention_cluster_count", 0)
+        res.setdefault("top2_margin", 0.0)
+        return res
+
 
 class FakeSegmenter:
-    """Fake segmenter that returns a small test image."""
+    """Fake segmenter that returns a test image and metrics."""
 
     def __init__(self):
         self.is_loaded = True
@@ -201,6 +238,16 @@ class FakeSegmenter:
     def predict(self, image):
         # Return a small RGB image as the "symptoms overlay"
         return Image.new("RGB", (100, 100), color=(255, 0, 0))
+
+    def predict_with_metrics(self, image):
+        img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        metrics = {
+            "lesion_coverage_pct": 5.0,
+            "cluster_count": 2,
+            "lesion_pixels": 500,
+            "mean_intensity": 0.75,
+        }
+        return img, metrics
 
 
 # ═══════════════════════════════════════════════════════════════════════════

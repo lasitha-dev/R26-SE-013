@@ -246,16 +246,19 @@ def _extract_crop(
 # Tier 2 — ViT classification of a single crop
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _classify_crop(crop: Image.Image) -> Dict[str, Any]:
-    """Run ViT-B/16 inference on a single ROI crop.
+def _classify_crop(crop: Image.Image, extract_attention: bool = True) -> Dict[str, Any]:
+    """Run ViT-B/16 inference on a single ROI crop, with attention rollout metrics.
 
     Returns
     -------
     dict
-        ``predicted_class``  — the argmax class name (internal key).
-        ``predicted_display`` — human-readable display name.
-        ``confidence_pct``    — top-class softmax probability in [0, 100].
-        ``probabilities``     — dict mapping each display name → probability %.
+        ``predicted_class``        — the argmax class name (internal key).
+        ``predicted_display``      — human-readable display name.
+        ``confidence_pct``          — top-class softmax probability in [0, 100].
+        ``probabilities``           — dict mapping each display name → probability %.
+        ``top2_margin``             — difference between top-1 and top-2 probabilities (%).
+        ``attention_coverage_pct``  — ViT attention rollout coverage %.
+        ``attention_cluster_count`` — ViT attention focal clusters count.
     """
     model, device = _get_vit_model()
 
@@ -265,6 +268,12 @@ def _classify_crop(crop: Image.Image) -> Dict[str, Any]:
         logits = model(tensor)                              # (1, num_classes)
         probs = F.softmax(logits, dim=1)[0]                 # (num_classes,)
         top_conf, top_idx = torch.max(probs, dim=0)
+
+        # Top-2 margin
+        sorted_probs, _ = torch.sort(probs, descending=True)
+        top1_val = float(sorted_probs[0].item())
+        top2_val = float(sorted_probs[1].item()) if sorted_probs.size(0) > 1 else 0.0
+        top2_margin = round((top1_val - top2_val) * 100.0, 2)
 
     top_idx_int = int(top_idx.item())
     top_conf_pct = round(float(top_conf.item()) * 100, 2)
@@ -281,11 +290,32 @@ def _classify_crop(crop: Image.Image) -> Dict[str, Any]:
         display = cfg.VIT_DISPLAY_NAMES.get(cls_key, cls_key)
         probabilities[display] = round(float(probs[i].item()) * 100, 2)
 
+    # Attention rollout extraction
+    coverage_pct = 0.0
+    cluster_count = 0
+    if extract_attention:
+        try:
+            from components.smart_diagnostics.implementations.vit_attention import extract_attention_rollout
+            attn_data = extract_attention_rollout(
+                model,
+                tensor,
+                image_size=crop.size,
+                percentile_threshold=75.0,
+                original_image=crop,
+            )
+            coverage_pct = attn_data["attention_coverage_pct"]
+            cluster_count = attn_data["attention_cluster_count"]
+        except Exception as exc:
+            logger.warning("Could not extract attention rollout in vision engine: %s", exc)
+
     return {
         "predicted_class": predicted_class,
         "predicted_display": predicted_display,
         "confidence_pct": top_conf_pct,
         "probabilities": probabilities,
+        "top2_margin": top2_margin,
+        "attention_coverage_pct": coverage_pct,
+        "attention_cluster_count": cluster_count,
     }
 
 
@@ -311,7 +341,7 @@ def run_vision_pipeline(image_path: str) -> Dict[str, Any]:
             ``{"status": "PROCESSED", "image_path": ..., "image_size": {...},
                "detections": [...]}``
         Each detection dict contains bounding box coords, YOLO class info,
-        ViT classification results, and the full probability distribution.
+        ViT classification results, attention rollout metrics, and probability distribution.
     """
     # ------------------------------------------------------------------
     # Validate input image
@@ -371,7 +401,7 @@ def run_vision_pipeline(image_path: str) -> Dict[str, Any]:
         crop = _extract_crop(img, bbox, cls_name, img_w, img_h)
         area_pct = round(_bbox_area_fraction(bbox, img_w, img_h) * 100, 2)
 
-        # ViT classification.
+        # ViT classification with attention rollout.
         vit_result = _classify_crop(crop)
 
         # Compute bbox dimensions (pixels).
@@ -390,6 +420,9 @@ def run_vision_pipeline(image_path: str) -> Dict[str, Any]:
             "vit_predicted_display": vit_result["predicted_display"],
             "vit_confidence_pct": vit_result["confidence_pct"],
             "vit_probabilities": vit_result["probabilities"],
+            "top2_margin": vit_result["top2_margin"],
+            "attention_coverage_pct": vit_result["attention_coverage_pct"],
+            "attention_cluster_count": vit_result["attention_cluster_count"],
         })
 
     # ------------------------------------------------------------------
