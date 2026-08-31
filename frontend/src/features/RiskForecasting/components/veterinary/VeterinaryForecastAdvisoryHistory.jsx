@@ -14,8 +14,32 @@ import {
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+const MODEL_VARIANT_LABELS = {
+  '31_feature_autocorrelation': '31-Feature Surveillance Model',
+  '30_feature_baseline': '30-Feature Baseline Model',
+  '28_feature_autocorrelation': '28-Feature Elastic Net',
+  '27_feature_fallback': '27-Feature Fallback Model'
+};
+
+const DATA_QUALITY_LABELS = {
+  'EXACT_REQUESTED_PERIOD': 'Exact Period Match',
+  'HISTORICAL_SAME_MONTH_PROXY': 'Historical Proxy',
+  'DISTRICT_HISTORICAL_MEDIAN': 'District Median',
+  'NATIONAL_HISTORICAL_MEDIAN': 'National Baseline'
+};
+
+function getDataQualityColor(quality) {
+  switch(quality) {
+    case 'EXACT_REQUESTED_PERIOD': return 'text-emerald-400';
+    case 'HISTORICAL_SAME_MONTH_PROXY': return 'text-amber-400';
+    case 'DISTRICT_HISTORICAL_MEDIAN': return 'text-orange-400';
+    case 'NATIONAL_HISTORICAL_MEDIAN': return 'text-rose-400';
+    default: return 'text-slate-300';
+  }
+}
 
 /**
  * Sanitizes technical error messages to avoid displaying sensitive internal traces,
@@ -584,7 +608,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
 
                   <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
                     <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
-                    <span>Quality: {record.data_quality}</span>
+                    <span>Quality: {DATA_QUALITY_LABELS[record.data_quality] || record.data_quality}</span>
                   </div>
                 </div>
               );
@@ -634,7 +658,12 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                       <span className="material-symbols-outlined text-emerald-400">shield</span>
                       Forecast Decision Record
                     </h3>
-                    <span className="text-xs text-slate-400 font-mono">ID: {selectedForecastRecord.forecast_id}</span>
+                    <div className="mt-1 flex items-center gap-2">
+                       <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] font-mono text-slate-300 border border-slate-700 flex items-center gap-1">
+                         <span className="material-symbols-outlined text-[12px] text-slate-400">tag</span>
+                         Ref: {selectedForecastRecord.forecast_id.split('_').pop().substring(0,8).toUpperCase()}
+                       </span>
+                    </div>
                   </div>
                   <span className="px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 border border-slate-700 text-emerald-400">
                     Status: {selectedForecastRecord.status}
@@ -692,8 +721,8 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                 {/* Provenance & Scientific Disclaimer */}
                 <div className="space-y-2 text-xs pt-2 border-t border-slate-800">
                   <div className="flex flex-wrap items-center justify-between text-slate-400 gap-2 text-[11px]">
-                    <span>Model: <strong className="text-slate-300">{selectedForecastRecord.model_variant}</strong></span>
-                    <span>Data Quality: <strong className="text-slate-300">{selectedForecastRecord.data_quality}</strong></span>
+                    <span>Model: <strong className="text-slate-300">{MODEL_VARIANT_LABELS[selectedForecastRecord.model_variant] || selectedForecastRecord.model_variant}</strong></span>
+                    <span>Data Quality: <strong className={getDataQualityColor(selectedForecastRecord.data_quality)}>{DATA_QUALITY_LABELS[selectedForecastRecord.data_quality] || selectedForecastRecord.data_quality}</strong></span>
                     <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>
                   </div>
 
