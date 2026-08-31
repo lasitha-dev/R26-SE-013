@@ -61,6 +61,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   const [forecastRecords, setForecastRecords] = useState([]);
   const [selectedForecast, setSelectedForecast] = useState(null);
   const [loadingForecasts, setLoadingForecasts] = useState(false);
+  const [timeframeTab, setTimeframeTab] = useState('CURRENT'); // 'PREVIOUS', 'CURRENT', 'NEXT'
 
   // Step 2 State: Recipient Selection
   const [recipientList, setRecipientList] = useState([]);
@@ -475,6 +476,30 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                 Advisories must reference an authoritative forecast record saved in your authorized district.
               </p>
             </div>
+            
+            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setTimeframeTab('PREVIOUS')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'PREVIOUS' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Previous Months
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimeframeTab('CURRENT')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'CURRENT' ? 'bg-emerald-900/60 text-emerald-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Current Month
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimeframeTab('NEXT')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'NEXT' ? 'bg-amber-900/60 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Next Month (Forecast)
+              </button>
+            </div>
           </div>
 
           {loadingForecasts ? (
@@ -482,57 +507,80 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               <span className="material-symbols-outlined text-2xl animate-spin text-emerald-400" aria-hidden="true">progress_activity</span>
               <p>Loading official forecast decision records...</p>
             </div>
-          ) : forecastRecords.length === 0 ? (
-            <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
-              <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
-              <h4 className="text-base font-semibold text-slate-200">No Stored Forecast Available</h4>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                No forecast decision record is currently available for your assigned district.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {forecastRecords.map((rec) => {
-                const isSelected = selectedForecast?.forecast_id === rec.forecast_id;
-                const isHigh = rec.risk_level === 'HIGH';
-                const isMed = rec.risk_level === 'MEDIUM';
+          ) : (() => {
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1; // e.g. August 2026
 
-                let riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-                if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
-                else if (isMed) riskBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-800';
-                else riskBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-800';
+            const filteredForecasts = forecastRecords.filter(rec => {
+              const recYear = rec.target_year;
+              const recMonth = rec.target_month;
+              
+              const isCurrent = recYear === currentYear && recMonth === currentMonth;
+              const isNext = (recYear === currentYear && recMonth === currentMonth + 1) || (recMonth === 1 && currentMonth === 12 && recYear === currentYear + 1);
+              
+              if (timeframeTab === 'CURRENT') return isCurrent;
+              if (timeframeTab === 'NEXT') return isNext;
+              if (timeframeTab === 'PREVIOUS') return !isCurrent && !isNext;
+              return true;
+            });
 
-                return (
-                  <div
-                    key={rec.forecast_id}
-                    onClick={() => handleSelectForecast(rec)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-slate-800/90 border-emerald-500 ring-2 ring-emerald-500/30'
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">
-                        {rec.disease} — {rec.district}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${riskBadgeClass}`}>
-                        {rec.risk_level} RISK ({rec.probability_pct}%)
-                      </span>
+            if (filteredForecasts.length === 0) {
+              return (
+                <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
+                  <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
+                  <h4 className="text-base font-semibold text-slate-200">No Records Found</h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    No forecast decision records are currently available for the selected timeframe ({timeframeTab}).
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredForecasts.map((rec) => {
+                  const isSelected = selectedForecast?.forecast_id === rec.forecast_id;
+                  const isHigh = rec.risk_level === 'HIGH';
+                  const isMed = rec.risk_level === 'MEDIUM';
+
+                  let riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+                  if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
+                  else if (isMed) riskBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-800';
+                  else riskBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-800';
+
+                  return (
+                    <div
+                      key={rec.forecast_id}
+                      onClick={() => handleSelectForecast(rec)}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-slate-800/90 border-emerald-500 ring-2 ring-emerald-500/30'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-700">
+                          {rec.disease} — {rec.district}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${riskBadgeClass}`}>
+                          {rec.risk_level} RISK ({rec.probability_pct}%)
+                        </span>
+                      </div>
+
+                      <div className="text-sm font-semibold text-white">
+                        Target: {rec.target_year}-{String(rec.target_month).padStart(2, '0')}
+                      </div>
+
+                      <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
+                        <span>Severity: {rec.predicted_severity || 'N/A'}</span>
+                      </div>
                     </div>
-
-                    <div className="text-sm font-semibold text-white">
-                      Target: {rec.target_year}-{String(rec.target_month).padStart(2, '0')}
-                    </div>
-
-                    <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
-                      <span>Severity: {rec.predicted_severity || 'N/A'}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
