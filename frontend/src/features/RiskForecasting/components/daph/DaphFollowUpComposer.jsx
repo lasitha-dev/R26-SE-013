@@ -90,14 +90,14 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   const [existingLoading, setExistingLoading] = useState(false);
   const [existingError, setExistingError] = useState(null);
 
-  const [selectedVetId, setSelectedVetId] = useState('');
+  const [selectedVetIds, setSelectedVetIds] = useState([]);
   const [instruction, setInstruction] = useState('');
   const [instructionTouched, setInstructionTouched] = useState(false);
 
   const [stage, setStage] = useState('PREPARE'); // 'PREPARE' | 'REVIEW' | 'SUCCESS'
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [issuedFollowUp, setIssuedFollowUp] = useState(null);
+  const [issuedFollowUps, setIssuedFollowUps] = useState([]);
 
   // AbortController ref for race condition safeguarding
   const abortControllerRef = useRef(null);
@@ -150,7 +150,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
       const loadedVets = vetRes?.veterinary_officers || [];
       setVets(loadedVets);
       if (loadedVets.length > 0) {
-        setSelectedVetId((prev) => (prev ? prev : loadedVets[0].vet_id));
+        setSelectedVetIds((prev) => (prev.length > 0 ? prev : [loadedVets[0].vet_id]));
       }
       setVetsLoading(false);
     } catch (err) {
@@ -206,10 +206,10 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
     return null;
   }, [instructionLength, trimmedInstruction, instructionTouched]);
 
-  // Selected Vet Object
-  const selectedVet = useMemo(() => {
-    return vets.find((v) => v.vet_id === selectedVetId) || null;
-  }, [vets, selectedVetId]);
+  // Selected Vet Objects
+  const selectedVets = useMemo(() => {
+    return vets.filter((v) => selectedVetIds.includes(v.vet_id));
+  }, [vets, selectedVetIds]);
 
   // Check Active Existing Follow-ups
   const activeExistingFollowUps = useMemo(() => {
@@ -221,15 +221,16 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   // 6. Deterministic Idempotency Key Derivation
   const idempotencyKey = useMemo(() => {
     const actorId = normalizedContext?.userId || 'daph_official';
-    if (!forecastId || !selectedVetId) return null;
-    return `daph-follow-up:${actorId}:${forecastId}:${selectedVetId}`;
-  }, [normalizedContext, forecastId, selectedVetId]);
+    if (!forecastId || selectedVetIds.length === 0) return null;
+    // We base the key on the first vet, backend handles per-vet derivation
+    return `daph-follow-up:${actorId}:${forecastId}:${[...selectedVetIds].sort().join(',')}`;
+  }, [normalizedContext, forecastId, selectedVetIds]);
 
   // Form Handlers
   const handleProceedToReview = (e) => {
     e.preventDefault();
     setInstructionTouched(true);
-    if (!selectedVetId || !isInstructionValid) {
+    if (selectedVetIds.length === 0 || !isInstructionValid) {
       return;
     }
     setSubmitError(null);
@@ -242,7 +243,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   };
 
   const handleConfirmAndIssue = async () => {
-    if (!hasValidForecastRecord || !selectedVetId || !isInstructionValid || submitting || stage === 'SUCCESS') {
+    if (!hasValidForecastRecord || selectedVetIds.length === 0 || !isInstructionValid || submitting || stage === 'SUCCESS') {
       return;
     }
 
@@ -251,7 +252,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
 
     const payload = {
       forecast_id: forecastId,
-      assigned_vet_id: selectedVetId,
+      assigned_vet_ids: selectedVetIds,
       instruction_summary: trimmedInstruction,
     };
 
@@ -262,7 +263,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
     try {
       const res = await issueFollowUp(payload, { actorContext: viewerContext });
       setSubmitting(false);
-      setIssuedFollowUp(res);
+      setIssuedFollowUps(res);
       setStage('SUCCESS');
       if (typeof onFollowUpCreated === 'function') {
         onFollowUpCreated(res);
@@ -439,11 +440,25 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
           {/* STAGE 1: PREPARE FORM */}
           {stage === 'PREPARE' && (
             <form onSubmit={handleProceedToReview} className="space-y-5">
-              {/* Eligible Vet Selector */}
               <div className="space-y-1.5">
-                <label htmlFor="vet-select" className="block text-xs font-semibold text-slate-200">
-                  Assign Active Veterinary Officer <span className="text-rose-400">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="vet-select" className="block text-xs font-semibold text-slate-200">
+                    Assign Active Veterinary Officers <span className="text-rose-400">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedVetIds.length === vets.length) {
+                        setSelectedVetIds([]);
+                      } else {
+                        setSelectedVetIds(vets.map(v => v.vet_id));
+                      }
+                    }}
+                    className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition"
+                  >
+                    {selectedVetIds.length === vets.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
                 {vetsLoading ? (
                   <div className="p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400 flex items-center gap-2 border border-slate-700">
                     <span className="material-symbols-outlined text-sm animate-spin text-emerald-400">sync</span>
@@ -470,18 +485,28 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                     </p>
                   </div>
                 ) : (
-                  <select
-                    id="vet-select"
-                    value={selectedVetId}
-                    onChange={(e) => setSelectedVetId(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-xl px-3 py-2.5 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
+                  <div className="max-h-40 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-2 space-y-1">
                     {vets.map((v) => (
-                      <option key={v.vet_id} value={v.vet_id}>
-                        {v.display_name} — {Array.isArray(v.assigned_districts) ? v.assigned_districts.join(', ') : district}
-                      </option>
+                      <label key={v.vet_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800 cursor-pointer transition">
+                        <input
+                          type="checkbox"
+                          value={v.vet_id}
+                          checked={selectedVetIds.includes(v.vet_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedVetIds(prev => [...prev, v.vet_id]);
+                            } else {
+                              setSelectedVetIds(prev => prev.filter(id => id !== v.vet_id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-slate-800"
+                        />
+                        <span className="text-xs text-slate-200">
+                          {v.display_name} — {Array.isArray(v.assigned_districts) ? v.assigned_districts.join(', ') : district}
+                        </span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 )}
               </div>
 
@@ -530,7 +555,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 )}
                 <button
                   type="submit"
-                  disabled={vets.length === 0 || !selectedVetId || !isInstructionValid || vetsLoading}
+                  disabled={vets.length === 0 || selectedVetIds.length === 0 || !isInstructionValid || vetsLoading}
                   className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-lg transition flex items-center gap-1.5"
                 >
                   <span>Review & Prepare Issue</span>
@@ -559,9 +584,9 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Assigned Officer</span>
+                    <span className="text-slate-500 block">Assigned Officers</span>
                     <span className="font-semibold text-emerald-300">
-                      {selectedVet?.display_name || 'Nimal — Colombo'}
+                      {selectedVets.map(v => v.display_name).join(', ') || 'None selected'}
                     </span>
                   </div>
                   <div>
@@ -625,13 +650,13 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
           )}
 
           {/* STAGE 3: SUCCESS STATE */}
-          {stage === 'SUCCESS' && issuedFollowUp && (
+          {stage === 'SUCCESS' && issuedFollowUps.length > 0 && (
             <div className="space-y-5">
               <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-5 text-center space-y-3">
                 <span className="material-symbols-outlined text-4xl text-emerald-400">check_circle</span>
                 <h3 className="text-base font-bold text-white">Operational Follow-Up Successfully Issued</h3>
                 <p className="text-xs text-emerald-200">
-                  Follow-up record has been registered in status <strong className="px-2 py-0.5 bg-emerald-900 text-emerald-300 rounded font-mono">ISSUED</strong>.
+                  {issuedFollowUps.length} follow-up record(s) have been registered in status <strong className="px-2 py-0.5 bg-emerald-900 text-emerald-300 rounded font-mono">ISSUED</strong>.
                 </p>
               </div>
 
@@ -639,8 +664,10 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400">Issued Assignment Details</h4>
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <span className="text-slate-500 block">Assigned Officer</span>
-                    <span className="font-semibold text-white">{selectedVet?.display_name || issuedFollowUp.assigned_vet_id}</span>
+                    <span className="text-slate-500 block">Assigned Officers</span>
+                    <span className="font-semibold text-white">
+                      {selectedVets.map(v => v.display_name).join(', ') || issuedFollowUps.map(f => f.assigned_vet_id).join(', ')}
+                    </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block">District & Disease</span>
@@ -652,12 +679,12 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                   </div>
                   <div>
                     <span className="text-slate-500 block">Priority</span>
-                    <span className="font-bold text-amber-300">{issuedFollowUp.operational_priority || operationalPriority}</span>
+                    <span className="font-bold text-amber-300">{issuedFollowUps[0].operational_priority || operationalPriority}</span>
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-800/60">
                   <span className="text-slate-500 text-xs block mb-1">Instruction:</span>
-                  <p className="font-mono text-slate-300 bg-slate-900 p-2.5 rounded border border-slate-800">{issuedFollowUp.instruction_summary}</p>
+                  <p className="font-mono text-slate-300 bg-slate-900 p-2.5 rounded border border-slate-800">{issuedFollowUps[0].instruction_summary}</p>
                 </div>
               </div>
 

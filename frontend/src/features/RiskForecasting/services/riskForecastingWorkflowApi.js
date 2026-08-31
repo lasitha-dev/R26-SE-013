@@ -676,7 +676,7 @@ export async function issueFollowUp(payload = {}, options = {}) {
   }
 
   const forecastId = payload.forecast_id ?? payload.forecastId;
-  const assignedVetId = payload.assigned_vet_id ?? payload.assignedVetId;
+  const assignedVetIds = payload.assigned_vet_ids ?? payload.assignedVetIds;
   const instructionSummary = payload.instruction_summary ?? payload.instructionSummary;
   const bodyIdempotencyKey = payload.idempotency_key ?? payload.idempotencyKey;
   const optionIdempotencyKey = options.idempotencyKey;
@@ -702,9 +702,9 @@ export async function issueFollowUp(payload = {}, options = {}) {
     });
   }
 
-  if (!assignedVetId || String(assignedVetId).trim() === '') {
+  if (!Array.isArray(assignedVetIds) || assignedVetIds.length === 0) {
     throw new RiskForecastingWorkflowApiError({
-      message: 'assigned_vet_id is required for issuing a follow-up.',
+      message: 'assigned_vet_ids must be a non-empty array of veterinary officer IDs.',
       endpoint: '/api/v1/risk-forecasting/follow-ups',
     });
   }
@@ -722,7 +722,7 @@ export async function issueFollowUp(payload = {}, options = {}) {
   // and camelCase idempotencyKey is not leaked into JSON
   const body = {
     forecast_id: String(forecastId).trim(),
-    assigned_vet_id: String(assignedVetId).trim(),
+    assigned_vet_ids: assignedVetIds.map(id => String(id).trim()),
     instruction_summary: String(instructionSummary).trim(),
   };
 

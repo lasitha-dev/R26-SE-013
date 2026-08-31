@@ -668,7 +668,7 @@ class CreateFollowUpRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     forecast_id: str = Field(..., description="ID of the target ForecastDecisionRecord.")
-    assigned_vet_id: str = Field(..., description="User ID of the assigned Veterinary Officer.")
+    assigned_vet_ids: List[str] = Field(..., description="List of user IDs of the assigned Veterinary Officers. Must not be empty.")
     instruction_summary: str = Field(..., min_length=1, max_length=1000, description="Detailed operational instruction summary.")
     idempotency_key: Optional[str] = Field(default=None, description="Optional client idempotency key.")
 

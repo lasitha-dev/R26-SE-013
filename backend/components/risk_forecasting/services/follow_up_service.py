@@ -86,80 +86,97 @@ class ForecastFollowUpService:
         self,
         request: CreateFollowUpRequest,
         actor: Optional[FollowUpActorContext] = None,
-    ) -> ForecastFollowUpRecord:
+    ) -> List[ForecastFollowUpRecord]:
         """
-        Issues a new DAPH operational follow-up instruction linked to an authoritative forecast.
+        Issues new DAPH operational follow-up instructions linked to an authoritative forecast.
         Scientific snapshot values are copied server-side directly from stored ForecastDecisionRecord.
+        Generates one independent follow-up record per assigned Veterinary Officer.
         """
         # 1. Actor Authorization
         self._validate_daph_authority(actor)
+
+        if not request.assigned_vet_ids:
+            raise ValueError("At least one Veterinary Officer must be assigned.")
 
         # 2. Fetch Authoritative Forecast Record
         forecast = self.forecast_service.get_record(request.forecast_id)
         if forecast.status == "SUPERSEDED":
             raise ValueError(f"Cannot issue follow-up for superseded forecast record '{request.forecast_id}'.")
 
-        # 3. Verify Assigned Veterinary Officer Directory Assignment
-        assigned_vet_id = request.assigned_vet_id.strip()
-        vet_info = self.vet_dir.get_vet(assigned_vet_id)
-        if not vet_info:
-            raise ValueError(f"Assigned Veterinary Officer ID '{assigned_vet_id}' not found in directory.")
-        if not vet_info.active:
-            raise ValueError(f"Assigned Veterinary Officer '{assigned_vet_id}' is inactive.")
-        if not self.vet_dir.is_vet_assigned_to_district(assigned_vet_id, forecast.district):
-            raise ValueError(
-                f"Assigned Veterinary Officer '{assigned_vet_id}' is not assigned to district '{forecast.district}'."
-            )
-
-        # 4. Idempotency Check
-        if request.idempotency_key:
-            existing = self.follow_up_repo.find_by_idempotency_key(request.idempotency_key)
-            if existing:
-                matches = (
-                    existing.forecast_id == request.forecast_id
-                    and existing.assigned_vet_id == assigned_vet_id
-                    and existing.instruction_summary == request.instruction_summary.strip()
+        # 3. Verify All Assigned Veterinary Officer Directory Assignments
+        for vet_id in request.assigned_vet_ids:
+            assigned_vet_id = vet_id.strip()
+            vet_info = self.vet_dir.get_vet(assigned_vet_id)
+            if not vet_info:
+                raise ValueError(f"Assigned Veterinary Officer ID '{assigned_vet_id}' not found in directory.")
+            if not vet_info.active:
+                raise ValueError(f"Assigned Veterinary Officer '{assigned_vet_id}' is inactive.")
+            if not self.vet_dir.is_vet_assigned_to_district(assigned_vet_id, forecast.district):
+                raise ValueError(
+                    f"Assigned Veterinary Officer '{assigned_vet_id}' is not assigned to district '{forecast.district}'."
                 )
-                if matches:
-                    return existing
-                else:
-                    raise ValueError(
-                        f"Idempotency key collision: Key '{request.idempotency_key}' "
-                        f"was previously used with different follow-up request parameters."
-                    )
 
         # 5. Operational Priority Derivation
         priority = self._derive_operational_priority(forecast.risk_level)
 
-        # 6. Construct Immutable Record
         now_iso = self.clock().isoformat()
-        follow_up_id = self.id_generator()
         issuing_daph_id = actor.actor_id if actor else "daph_hq_01"
+        
+        created_records = []
 
-        record = ForecastFollowUpRecord(
-            follow_up_id=follow_up_id,
-            forecast_id=forecast.forecast_id,
-            district=forecast.district,
-            disease=forecast.disease,
-            target_year=forecast.target_year,
-            target_month=forecast.target_month,
-            forecast_risk_level=forecast.risk_level,
-            probability=forecast.probability,
-            predicted_severity=forecast.predicted_severity,
-            fallback_applied=forecast.fallback_applied,
-            operational_priority=priority,
-            instruction_summary=request.instruction_summary.strip(),
-            issued_by_daph_id=issuing_daph_id,
-            assigned_vet_id=assigned_vet_id,
-            status="ISSUED",
-            version=1,
-            idempotency_key=request.idempotency_key,
-            issued_at=now_iso,
-            created_at=now_iso,
-            updated_at=now_iso,
-        )
+        # 6. Construct Immutable Records for each assigned Vet
+        for vet_id in request.assigned_vet_ids:
+            assigned_vet_id = vet_id.strip()
+            
+            # 4. Idempotency Check per Vet
+            idempotency_key = None
+            if request.idempotency_key:
+                idempotency_key = f"{request.idempotency_key}:{assigned_vet_id}"
+                existing = self.follow_up_repo.find_by_idempotency_key(idempotency_key)
+                if existing:
+                    matches = (
+                        existing.forecast_id == request.forecast_id
+                        and existing.assigned_vet_id == assigned_vet_id
+                        and existing.instruction_summary == request.instruction_summary.strip()
+                    )
+                    if matches:
+                        created_records.append(existing)
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Idempotency key collision: Key '{idempotency_key}' "
+                            f"was previously used with different follow-up request parameters."
+                        )
 
-        return self.follow_up_repo.save(record)
+            follow_up_id = self.id_generator()
+
+            record = ForecastFollowUpRecord(
+                follow_up_id=follow_up_id,
+                forecast_id=forecast.forecast_id,
+                district=forecast.district,
+                disease=forecast.disease,
+                target_year=forecast.target_year,
+                target_month=forecast.target_month,
+                forecast_risk_level=forecast.risk_level,
+                probability=forecast.probability,
+                predicted_severity=forecast.predicted_severity,
+                fallback_applied=forecast.fallback_applied,
+                operational_priority=priority,
+                instruction_summary=request.instruction_summary.strip(),
+                issued_by_daph_id=issuing_daph_id,
+                assigned_vet_id=assigned_vet_id,
+                status="ISSUED",
+                version=1,
+                idempotency_key=idempotency_key,
+                issued_at=now_iso,
+                created_at=now_iso,
+                updated_at=now_iso,
+            )
+
+            saved_record = self.follow_up_repo.save(record)
+            created_records.append(saved_record)
+
+        return created_records
 
     def get_follow_up(
         self,

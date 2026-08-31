@@ -4,7 +4,7 @@ Defines endpoints for FMD and LSD outbreak risk prediction, severity classificat
 all-district climatological forecasts, district metadata, and health checks.
 """
 
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from fastapi import APIRouter, Body, Depends, HTTPException, Header, Query, status
 from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 from components.risk_forecasting.schemas import (
@@ -791,9 +791,9 @@ def list_eligible_follow_up_vets(
 @router.post(
     "/follow-ups",
 
-    response_model=ForecastFollowUpRecord,
+    response_model=List[ForecastFollowUpRecord],
     status_code=status.HTTP_201_CREATED,
-    summary="Issue DAPH Operational Follow-Up Instruction"
+    summary="Issue DAPH Operational Follow-Up Instructions"
 )
 def issue_follow_up(
     request: CreateFollowUpRequest,
@@ -802,7 +802,7 @@ def issue_follow_up(
     x_actor_role: Optional[str] = Header(None, alias="X-Actor-Role"),
 ):
     """
-    Issues a new DAPH operational follow-up instruction linked to an official forecast record.
+    Issues new DAPH operational follow-up instructions linked to an official forecast record.
     Copies scientific snapshots directly from stored ForecastDecisionRecord.
     """
     body_key = request.idempotency_key
