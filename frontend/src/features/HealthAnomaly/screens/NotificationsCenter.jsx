@@ -133,7 +133,7 @@ export default function NotificationsCenter() {
                     <h3 className="text-xl font-bold text-on-surface tracking-tight mb-2">
                       {n.title}
                     </h3>
-                    <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                    <p className="text-slate-400 text-sm leading-relaxed max-w-2xl whitespace-pre-wrap">
                       {n.message}
                     </p>
                   </div>

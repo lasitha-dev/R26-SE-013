@@ -1,4 +1,5 @@
 import threading
+import re
 from typing import List, Optional
 
 import pymongo
@@ -74,7 +75,7 @@ class MongoRecipientDirectory(RecipientDirectory):
                 formatted = "Monaragala"
             elif formatted in ["Nuwaraeliya", "Nuwara Eliya"]:
                 formatted = "Nuwara Eliya"
-            query["location_district"] = formatted
+            query["location_district"] = {"$regex": formatted, "$options": "i"}
 
         try:
             cursor = self.collection.find(query)
@@ -90,7 +91,12 @@ class MongoRecipientDirectory(RecipientDirectory):
                     
                 seen.add(recipient_id)
                 recipient_name = str(doc.get("owner_name") or doc.get("email") or "Unknown Farm").strip()
-                farm_district = str(doc.get("location_district", "")).strip()
+                raw_dist = str(doc.get("location_district", "")).strip()
+                m = re.search(r'\(([^)]+)\)', raw_dist)
+                if m:
+                    farm_district = m.group(1).replace("District", "").strip()
+                else:
+                    farm_district = raw_dist.replace("District", "").strip()
                 
                 results.append(Recipient(
                     recipient_id=recipient_id,
@@ -141,7 +147,12 @@ class MongoRecipientDirectory(RecipientDirectory):
                     
                 seen.add(recipient_id)
                 recipient_name = str(doc.get("owner_name") or doc.get("email") or "Unknown Farm").strip()
-                farm_district = str(doc.get("location_district", "")).strip()
+                raw_dist = str(doc.get("location_district", "")).strip()
+                m = re.search(r'\(([^)]+)\)', raw_dist)
+                if m:
+                    farm_district = m.group(1).replace("District", "").strip()
+                else:
+                    farm_district = raw_dist.replace("District", "").strip()
                 
                 results.append(Recipient(
                     recipient_id=recipient_id,

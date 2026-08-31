@@ -30,15 +30,29 @@ import sys
 
 def setup_production_services():
     from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
+    from components.risk_forecasting.repositories.mongo_advisory_repository import MongoAdvisoryRepository
+    from components.risk_forecasting.repositories.mongo_follow_up_repository import MongoFollowUpRepository
     from components.risk_forecasting.integrations.mongo_vet_directory import MongoVeterinaryOfficerDirectory
     from components.risk_forecasting.integrations.mongo_recipient_directory import MongoRecipientDirectory
     from components.risk_forecasting.integrations.mongo_shared_client import MongoSharedForecastClient
     from components.risk_forecasting.integrations.provider_factory import create_forecast_data_provider
     import os
+    from components.risk_forecasting.services.advisory_service import advisory_service
+    from components.risk_forecasting.services.notification_service import notification_service
+    from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
     
     forecast_record_service.repository = MongoForecastRecordRepository()
     forecast_follow_up_service.vet_dir = MongoVeterinaryOfficerDirectory()
-    recipient_query_service.recipient_dir = MongoRecipientDirectory()
+    
+    # Inject MongoDB Repositories instead of In-Memory
+    advisory_service.advisory_repo = MongoAdvisoryRepository()
+    forecast_follow_up_service.follow_up_repo = MongoFollowUpRepository()
+    
+    # Inject real MongoDB directory into all services that need it
+    shared_recipient_dir = MongoRecipientDirectory()
+    recipient_query_service.recipient_dir = shared_recipient_dir
+    advisory_service.recipient_dir = shared_recipient_dir
+    notification_service.recipient_dir = shared_recipient_dir
     
     provider_mode = "shared_api"
     

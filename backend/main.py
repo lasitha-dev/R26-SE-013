@@ -1,3 +1,7 @@
+import dns.resolver
+dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
+dns.resolver.default_resolver.nameservers = ['8.8.8.8']
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from core.database import farms_collection
