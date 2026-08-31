@@ -172,10 +172,11 @@ class TestGenerateVeterinaryReport:
             "image_size": {"width": 640, "height": 480},
         }
 
-        report = generate_veterinary_report(vision_results)
+        report, sev = generate_veterinary_report(vision_results)
 
         assert "Primary Diagnostic Assessment" in report
         assert "Test report content" in report
+        assert sev is not None
 
     @patch("openai.OpenAI")
     def test_generate_report_empty_response_returns_warning(self, MockOpenAI):
@@ -195,10 +196,11 @@ class TestGenerateVeterinaryReport:
             "image_size": {"width": 640, "height": 480},
         }
 
-        report = generate_veterinary_report(vision_results)
+        report, sev = generate_veterinary_report(vision_results)
 
         assert "⚠" in report
         assert "empty" in report.lower()
+        assert sev is not None
 
     @patch("openai.OpenAI")
     def test_generate_report_api_connection_error_returns_fallback(self, MockOpenAI):
@@ -221,12 +223,13 @@ class TestGenerateVeterinaryReport:
             "image_size": {"width": 640, "height": 480},
         }
 
-        # Should NOT raise — returns fallback string instead
-        report = generate_veterinary_report(vision_results)
+        # Should NOT raise — returns fallback string and severity model instead
+        report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
         assert "⚠" in report
-        assert "LM Studio" in report or "Unreachable" in report or "Error" in report
+        assert "LM Studio" in report or "Unreachable" in report or "Error" in report or "Standby" in report
+        assert sev is not None
 
     @patch("openai.OpenAI")
     def test_generate_report_api_timeout_error_returns_fallback(self, MockOpenAI):
@@ -244,7 +247,8 @@ class TestGenerateVeterinaryReport:
             "image_size": {"width": 640, "height": 480},
         }
 
-        report = generate_veterinary_report(vision_results)
+        report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
         assert "⚠" in report
+        assert sev is not None

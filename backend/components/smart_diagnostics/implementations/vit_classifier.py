@@ -130,3 +130,64 @@ class ViTClassifier(ClassifierInterface):
             "confidence": round(top_conf * 100, 2),
             "all_probabilities": all_probs,
         }
+
+    def predict_with_attention(self, image: Image) -> Dict:
+        """Run classification and extract attention rollout metrics across ViT layers."""
+        self._ensure_loaded()
+        import torch
+        from .vit_attention import extract_attention_rollout
+
+        tensor = self._transform(image).unsqueeze(0).to(self._device)
+        with torch.no_grad():
+            outputs = self._model(tensor)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
+            top_conf, top_idx = torch.max(probabilities, dim=0)
+
+            # Top-2 margin
+            sorted_probs, _ = torch.sort(probabilities, descending=True)
+            top1_val = float(sorted_probs[0].item())
+            top2_val = float(sorted_probs[1].item()) if sorted_probs.size(0) > 1 else 0.0
+            top2_margin = round((top1_val - top2_val) * 100.0, 2)
+
+        top_idx = int(top_idx.item())
+        top_conf = float(top_conf.item())
+
+        all_probs = {}
+        for i in range(len(self.class_names)):
+            key = self.class_names[i]
+            display = self.display_names.get(key, key) if hasattr(self, 'display_names') else key
+            all_probs[display] = round(float(probabilities[i].item()) * 100, 2)
+
+        top_key = self.class_names[top_idx] if top_idx < len(self.class_names) else f"Class_{top_idx}"
+        top_display = self.display_names.get(top_key, top_key) if hasattr(self, 'display_names') else top_key
+
+        # Extract attention rollout
+        try:
+            attn_data = extract_attention_rollout(
+                self._model,
+                tensor,
+                image_size=image.size,
+                percentile_threshold=75.0,
+                original_image=image,
+            )
+            coverage_pct = attn_data["attention_coverage_pct"]
+            cluster_count = attn_data["attention_cluster_count"]
+            attn_map = attn_data["attention_map"]
+            overlay_img = attn_data.get("attention_overlay_image")
+        except Exception as e:
+            logger.warning("Failed to extract attention rollout: %s", e)
+            coverage_pct = 0.0
+            cluster_count = 0
+            attn_map = None
+            overlay_img = None
+
+        return {
+            "name": top_display,
+            "confidence": round(top_conf * 100, 2),
+            "all_probabilities": all_probs,
+            "top2_margin": top2_margin,
+            "attention_coverage_pct": coverage_pct,
+            "attention_cluster_count": cluster_count,
+            "attention_map": attn_map,
+            "attention_overlay_image": overlay_img,
+        }

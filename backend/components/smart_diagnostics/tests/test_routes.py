@@ -215,8 +215,10 @@ class TestReasonEndpoint:
     def test_reason_endpoint_success_returns_ok_report(
         self, mock_generate, client
     ):
-        """Successful LLM report generation returns status=ok with Markdown content."""
-        mock_generate.return_value = "## 1. Primary Diagnostic Assessment\nAll clear."
+        """Successful LLM report generation returns status=ok with Markdown content and severity assessment."""
+        from components.smart_diagnostics.schemas import SeverityMetrics
+        mock_sev = SeverityMetrics(grade="Mild", stage="Early Focal", prognosis="Favorable", confidence_level="High")
+        mock_generate.return_value = ("## 1. Primary Diagnostic Assessment\nAll clear.", mock_sev)
 
         resp = client.post("/api/reason", json={
             "cattle_detected": True,
@@ -234,13 +236,16 @@ class TestReasonEndpoint:
         data = resp.json()
         assert data["status"] == "ok"
         assert "Primary Diagnostic Assessment" in data["reasoning_report"]
+        assert data["severity_assessment"]["grade"] == "Mild"
 
     @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_veterinary_report")
     def test_reason_endpoint_llm_error_returns_error_status(
         self, mock_generate, client
     ):
         """An LLM error report (starting with ⚠) returns status=error."""
-        mock_generate.return_value = "⚠️  **Tier 3 Error — LLM Unreachable**"
+        from components.smart_diagnostics.schemas import SeverityMetrics
+        mock_sev = SeverityMetrics(grade="Moderate", stage="Progression", prognosis="Guarded", confidence_level="Low", needs_review=True)
+        mock_generate.return_value = ("⚠️  **Tier 3 Error — LLM Unreachable**", mock_sev)
 
         resp = client.post("/api/reason", json={
             "cattle_detected": True,
@@ -252,6 +257,7 @@ class TestReasonEndpoint:
         data = resp.json()
         assert data["status"] == "error"
         assert "Unreachable" in data["reasoning_report"]
+        assert data["severity_assessment"]["needs_review"] is True
 
     @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_veterinary_report")
     def test_reason_endpoint_exception_returns_error_gracefully(

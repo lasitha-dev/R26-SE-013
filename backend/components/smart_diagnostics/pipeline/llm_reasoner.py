@@ -32,8 +32,8 @@ Southeast Asia.
 You are embedded in a 3-tier AI diagnostic pipeline. Upstream computer-vision models \
 have analyzed the animal photograph and provided multi-modal physical telemetry:
 - **YOLOv8s:** Anatomical localization and Region-of-Interest (ROI) framing.
-- **ViT-B/16:** Fine-grained disease classification, prediction certainty, and full probability distribution.
-- **Mask R-CNN:** Precise symptom/lesion pixel segmentation, anatomical surface area coverage percentage, distinct eruptive nodule/cluster counts, and spatial density.
+- **ViT-B/16 & Attention Rollout:** Fine-grained disease classification, prediction certainty, transformer self-attention saliency coverage percentage, focal cluster density, and weighted composite severity score.
+- **Mask R-CNN:** Anatomical symptom overlay and visual lesion presentation.
 
 Your role is to act as the primary **Clinical Decision Support & Severity Reasoning Engine**.
 You must synthesize all visual evidence, pathological markers, and farm metadata into an actionable **Veterinary Diagnostic Briefing**.
@@ -46,7 +46,7 @@ Your response MUST begin on the very first line with a structured metadata tag f
 Following the metadata header, your Markdown output MUST contain exactly these six sections (use level-2 headings):
 
 ## 1. Clinical Severity Assessment & Pathological Stage
-Provide an in-depth clinical explanation of the disease severity and pathological progression. Evaluate how the Mask R-CNN lesion surface coverage percentage and nodular cluster count correlate with the disease's acute vs. chronic manifestations, tissue damage, and transmission risk.
+Provide an in-depth clinical explanation of the disease severity and pathological progression. Evaluate how the ViT self-attention saliency coverage percentage, focal cluster count, and composite severity score correlate with the disease's acute vs. chronic manifestations, tissue damage, and transmission risk.
 
 ## 2. Primary Diagnostic Assessment & Certainty Level
 State the most likely diagnosis and assign a certainty level: **High** (>85% AI \
@@ -115,15 +115,29 @@ def _build_user_prompt(
             f"({det.get('vit_confidence_pct', '?')}% confidence)"
         )
 
-        # Dynamic Mask R-CNN Segmentation & Quantitative Pathology
+        # ViT Attention Rollout & Composite Severity Telemetry
+        attn_cov = float(det.get("attention_coverage_pct", 0.0))
+        attn_cls = int(det.get("attention_cluster_count", 0))
+        lines.append(
+            f"- **ViT Attention Saliency Coverage:** {attn_cov:.1f}% of anatomical ROI"
+        )
+        lines.append(
+            f"- **ViT Attention Focal Clusters:** {attn_cls} distinct clusters"
+        )
+        if det.get("composite_score") is not None:
+            lines.append(f"- **Composite Severity Score:** {det.get('composite_score'):.2f}")
+        if det.get("confidence_level"):
+            lines.append(f"- **Severity Confidence Level:** {det.get('confidence_level')}")
+        if det.get("top2_margin") is not None:
+            lines.append(f"- **Diagnostic Margin (Top 1 vs Top 2):** {det.get('top2_margin'):.1f}%")
+
+        # Dynamic Mask R-CNN Segmentation & Quantitative Pathology (Visual Overlay)
         lsr = det.get("lesion_coverage_pct", 0.0)
         clusters = det.get("cluster_count", 0)
-        lines.append(
-            f"- **Mask R-CNN Symptom Surface Area:** {lsr:.1f}% of anatomical region"
-        )
-        lines.append(
-            f"- **Distinct Lesion / Nodule Clusters:** {clusters} focal clusters identified"
-        )
+        if lsr > 0 or clusters > 0:
+            lines.append(
+                f"- **Mask R-CNN Visual Symptom Overlay:** {lsr:.1f}% surface area ({clusters} segmented cluster(s))"
+            )
         if det.get("spatial_correlation"):
             lines.append(f"- **Spatial Morphology Telemetry:** {det.get('spatial_correlation')}")
         if det.get("stage"):
@@ -180,66 +194,27 @@ def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> Severit
 
     Used when LLM service is offline or in test environments.
     """
+    from components.smart_diagnostics.implementations.severity_scorer import compute_composite_severity
+
     detections = vision_results.get("detections", [])
     primary_det = detections[0] if detections else {}
-    
-    predicted_class = primary_det.get("vit_predicted_class", "").lower()
-    is_healthy = "cattle" in predicted_class and "disease" not in predicted_class
-    
-    lsr = float(primary_det.get("lesion_coverage_pct", 0.0))
-    clusters = int(primary_det.get("cluster_count", 0))
-    vit_conf = float(primary_det.get("vit_confidence_pct", 0.0))
-    disease_name = primary_det.get("vit_predicted_display", primary_det.get("vit_predicted_class", "Condition"))
 
-    if is_healthy or (lsr == 0.0 and clusters == 0 and "healthy" in predicted_class):
-        return SeverityMetrics(
-            grade="Healthy Baseline",
-            description="Epidermal surface presents homogeneous texture with zero anomalous lesion density or inflammatory markers.",
-            stage="Healthy Baseline",
-            prognosis="Excellent",
-            lesion_coverage_pct=0.0,
-            cluster_count=0,
-            mean_intensity=0.0,
-            formatted="Healthy Baseline",
-            source="vision_telemetry",
-        )
+    signals = {
+        "attention_coverage_pct": primary_det.get("attention_coverage_pct", primary_det.get("lesion_coverage_pct", 0.0)),
+        "attention_cluster_count": primary_det.get("attention_cluster_count", primary_det.get("cluster_count", 0)),
+        "vit_confidence_pct": primary_det.get("vit_confidence_pct", 0.0),
+        "top2_margin": primary_det.get("top2_margin", 0.0),
+        "yolo_detection_count": len(detections),
+        "yolo_max_bbox_area_pct": primary_det.get("bbox_area_pct", 0.0),
+        "predicted_class": primary_det.get("vit_predicted_class", "cattle"),
+        "predicted_display": primary_det.get("vit_predicted_display", primary_det.get("vit_predicted_class", "Condition")),
+        "spatial_correlation": primary_det.get("spatial_correlation"),
+        "lesion_coverage_pct": primary_det.get("lesion_coverage_pct", 0.0),
+        "cluster_count": primary_det.get("cluster_count", 0),
+        "mean_intensity": primary_det.get("mean_intensity", 0.0),
+    }
 
-    # Dynamic grade determination based on lesion distribution
-    if lsr >= 12.0 or clusters >= 8:
-        grade = "Severe"
-        stage = "Acute Eruptive / Advanced"
-        prognosis = "Guarded"
-        desc = (
-            f"Severe pathological manifestation of {disease_name}. Segmented {clusters} distinct coalescent lesion "
-            f"clusters spanning {lsr:.1f}% surface area, indicating high eruptive density and active transmission risk."
-        )
-    elif lsr >= 4.0 or clusters >= 3:
-        grade = "Moderate"
-        stage = "Active Progression / Multifocal"
-        prognosis = "Recoverable with Intervention"
-        desc = (
-            f"Moderate multifocal progression of {disease_name}. Automated segmentation identified {clusters} focal nodular "
-            f"eruption(s) covering {lsr:.1f}% surface area, requiring immediate isolation."
-        )
-    else:
-        grade = "Mild"
-        stage = "Early Focal / Prodromal"
-        prognosis = "Favorable"
-        desc = (
-            f"Mild localized presentation of {disease_name}. Early focal lesions detected covering {lsr:.1f}% surface area "
-            f"with {clusters} cluster(s). Prompt antiviral/supportive triage recommended."
-        )
-
-    return SeverityMetrics(
-        grade=grade,
-        description=desc,
-        stage=stage,
-        prognosis=prognosis,
-        lesion_coverage_pct=lsr,
-        cluster_count=clusters,
-        formatted=f"{grade} ({stage})",
-        source="vision_telemetry",
-    )
+    return compute_composite_severity(signals)
 
 
 def extract_section_snippet(report_text: str, section_keyword: str) -> Optional[str]:
@@ -265,6 +240,12 @@ def parse_llm_severity_assessment(
     primary_det = detections[0] if detections else {}
     lsr = float(primary_det.get("lesion_coverage_pct", 0.0))
     clusters = int(primary_det.get("cluster_count", 0))
+    attn_cov = float(primary_det.get("attention_coverage_pct", lsr))
+    attn_clusters = int(primary_det.get("attention_cluster_count", clusters))
+    top2_margin = float(primary_det.get("top2_margin", 0.0))
+    comp_score = primary_det.get("composite_score")
+    conf_level = primary_det.get("confidence_level", "High")
+    needs_review = bool(primary_det.get("needs_review", False))
     spatial_telemetry = primary_det.get("spatial_correlation", "")
 
     # Multi-format regex: handles [SEVERITY_META: ...], ### SEVERITY META: ..., SEVERITY META: ..., etc.
@@ -288,13 +269,64 @@ def parse_llm_severity_assessment(
     # Extract dynamic severity section content from Section 1 ("Clinical Severity Assessment")
     dynamic_severity_section = extract_section_snippet(cleaned_report, "Severity Assessment") or extract_section_snippet(cleaned_report, "Clinical Severity")
 
+    # If primary_det contains upstream composite severity metrics from vision pipeline, preserve them
+    if primary_det.get("severity_grade"):
+        grade = primary_det["severity_grade"]
+        stage = primary_det.get("stage", "N/A")
+        prognosis = primary_det.get("prognosis", "Guarded")
+        description = primary_det.get("description") or f"Clinical condition evaluated as {grade}."
+        rationale = dynamic_rationale or primary_det.get("diagnostic_rationale")
+        spatial_telemetry = primary_det.get("spatial_correlation", "")
+        comp_score = primary_det.get("composite_score")
+        conf_level = primary_det.get("confidence_level", "High")
+        needs_review = bool(primary_det.get("needs_review", False))
+        lsr = float(primary_det.get("lesion_coverage_pct", 0.0))
+        clusters = int(primary_det.get("cluster_count", 0))
+        attn_cov = float(primary_det.get("attention_coverage_pct", lsr))
+        attn_clusters = int(primary_det.get("attention_cluster_count", clusters))
+        top2_margin = float(primary_det.get("top2_margin", 0.0))
+        intensity = float(primary_det.get("mean_intensity", 0.0))
+
+        sev_model = SeverityMetrics(
+            score=comp_score,
+            composite_score=comp_score,
+            grade=grade,
+            description=description,
+            stage=stage,
+            prognosis=prognosis,
+            diagnostic_rationale=rationale,
+            spatial_correlation=spatial_telemetry,
+            lesion_coverage_pct=lsr,
+            cluster_count=clusters,
+            mean_intensity=intensity,
+            attention_coverage_pct=attn_cov,
+            attention_cluster_count=attn_clusters,
+            top2_margin=top2_margin,
+            confidence_level=conf_level,
+            needs_review=needs_review,
+            formatted=f"{grade} ({stage})",
+            source="composite_scoring",
+        )
+        return cleaned_report, sev_model
+
     if match:
         grade = match.group(1).strip()
         stage = match.group(2).strip()
         prognosis = match.group(3).strip()
         description = match.group(4).strip()
+        lsr = float(primary_det.get("lesion_coverage_pct", 0.0))
+        clusters = int(primary_det.get("cluster_count", 0))
+        attn_cov = float(primary_det.get("attention_coverage_pct", lsr))
+        attn_clusters = int(primary_det.get("attention_cluster_count", clusters))
+        top2_margin = float(primary_det.get("top2_margin", 0.0))
+        comp_score = primary_det.get("composite_score")
+        conf_level = primary_det.get("confidence_level", "High")
+        needs_review = bool(primary_det.get("needs_review", False))
+        spatial_telemetry = primary_det.get("spatial_correlation", "")
 
         sev_model = SeverityMetrics(
+            score=comp_score,
+            composite_score=comp_score,
             grade=grade,
             description=description or dynamic_severity_section or f"Clinical severity classified as {grade}.",
             stage=stage,
@@ -303,6 +335,11 @@ def parse_llm_severity_assessment(
             spatial_correlation=spatial_telemetry or f"Anatomical cluster density correlates with {stage.lower()} pathology.",
             lesion_coverage_pct=lsr,
             cluster_count=clusters,
+            attention_coverage_pct=attn_cov,
+            attention_cluster_count=attn_clusters,
+            top2_margin=top2_margin,
+            confidence_level=conf_level,
+            needs_review=needs_review,
             formatted=f"{grade} ({stage})",
             source="llm_reasoning",
         )

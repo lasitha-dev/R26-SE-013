@@ -39,7 +39,13 @@ class SeverityMetrics(BaseModel):
     cluster_count: int = 0
     mean_intensity: float = 0.0
     formatted: Optional[str] = None  # e.g. "Severe / Acute Eruptive"
-    source: Optional[str] = "llm_reasoning"  # "llm_reasoning" | "vision_telemetry"
+    source: Optional[str] = "llm_reasoning"  # "llm_reasoning" | "vision_telemetry" | "composite_scoring"
+    confidence_level: Optional[str] = "High"  # "High" | "Moderate" | "Low"
+    needs_review: bool = False
+    attention_coverage_pct: float = 0.0
+    attention_cluster_count: int = 0
+    top2_margin: Optional[float] = None
+    composite_score: Optional[float] = None
 
 
 class DetectResponse(BaseModel):

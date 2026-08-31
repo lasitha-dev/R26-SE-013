@@ -159,17 +159,20 @@ const FarmerSmartDiagnostics = () => {
     return () => timers.forEach(clearTimeout);
   }, [isSuccess]);
 
-  // Dynamic clinical severity & profile resolution
+  // Authoritative clinical severity & profile resolution from vision composite pipeline
   const disease = result?.disease;
-  const staticProfile = getDiseaseProfile(disease?.name);
+  const diseaseName = disease?.name || '';
+  const staticProfile = getDiseaseProfile(diseaseName);
 
-  const effectiveSeverity = severityAssessment || result?.severity;
+  const effectiveSeverity = result?.severity;
   const dynamicSeverity = effectiveSeverity;
-  const dynamicStage = severityAssessment?.stage || result?.stage;
-  const dynamicSpatialCorrelation = severityAssessment?.spatial_correlation || result?.spatial_correlation;
+  const dynamicStage = result?.stage || result?.severity?.stage;
+  const dynamicSpatialCorrelation = result?.spatial_correlation || result?.severity?.spatial_correlation;
 
   const severityGrade = effectiveSeverity?.grade || (staticProfile.severity.split('/')[1] || '').trim() || 'Moderate';
   const severityDescription = effectiveSeverity?.description || staticProfile.rationale;
+  const confidenceLevel = effectiveSeverity?.confidence_level || 'High';
+  const needsReview = Boolean(effectiveSeverity?.needs_review);
 
   const gradeLower = (severityGrade || '').toLowerCase();
   const severityColor = gradeLower.includes('severe') || gradeLower.includes('high')
@@ -182,7 +185,7 @@ const FarmerSmartDiagnostics = () => {
 
   const stage = dynamicStage || staticProfile.stage;
   const spatialCorrelation = dynamicSpatialCorrelation || staticProfile.spatialCorrelation;
-  const rationale = severityAssessment?.diagnostic_rationale || effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
+  const rationale = effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
   
   const rawPrognosis = effectiveSeverity?.prognosis || staticProfile.prognosis;
   const prognosis = rawPrognosis;
@@ -809,13 +812,32 @@ const FarmerSmartDiagnostics = () => {
                       {/* Step 3: Clinical Metrics */}
                       <div className={`p-2.5 rounded-xl border transition-all duration-300 ${visibleSteps >= 3 ? 'bg-surface-container border-primary/30 opacity-100' : 'bg-surface-container/30 border-transparent opacity-30'}`}>
                         <div className="flex items-center justify-between text-2xs mb-0.5">
-                          <span className="text-outline uppercase font-bold">Step 3 • Severity Assessment</span>
-                          <span className={`font-bold ${severityColor}`}>{severityGrade}</span>
+                          <span className="text-outline uppercase font-bold">Step 3 • Severity &amp; AI Confidence</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-bold ${severityColor}`}>{severityGrade}</span>
+                            {confidenceLevel && (
+                              <span className={`px-1 py-0.2 rounded text-[9px] font-mono font-bold ${
+                                confidenceLevel === 'High'
+                                  ? 'bg-emerald-500/15 text-emerald-300'
+                                  : confidenceLevel === 'Moderate'
+                                  ? 'bg-amber-500/15 text-amber-300'
+                                  : 'bg-rose-500/15 text-rose-300'
+                              }`}>
+                                {confidenceLevel} Conf.
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 mt-1 text-3xs text-on-surface-variant">
                           <div>Stage: <strong className="text-white">{stage}</strong></div>
                           <div>Prognosis: <strong className={prognosisColor}>{prognosis}</strong></div>
                         </div>
+                        {needsReview && (
+                          <div className="mt-1.5 p-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-xs text-amber-400">warning</span>
+                            <span>Uncertainty Notice: Requires field veterinarian verification.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -928,7 +950,7 @@ const FarmerSmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {severityAssessment?.diagnostic_rationale ? 'LLM REASONED' : 'VISION INFERENCE'}
+                        {effectiveSeverity?.diagnostic_rationale ? 'COMPOSITE SCORER' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
@@ -944,7 +966,7 @@ const FarmerSmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {severityAssessment?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
+                        {effectiveSeverity?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
@@ -986,7 +1008,7 @@ const FarmerSmartDiagnostics = () => {
               reasoning={reasoning}
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
-              severityAssessment={severityAssessment}
+              severityAssessment={effectiveSeverity}
             />
           </div>
         )}
