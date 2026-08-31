@@ -1,0 +1,81 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "note": "Aggregate, non-sensitive evidence only. No raw outbreak data, no origin-level records, no personal data, no local machine paths. Companion to the gitignored local_data/model_evaluation/7d/ artifacts, which are the full evidence source -- this file is NOT a replacement for them.",
+  "checkpoint": "7D / 7D.1 / 7D.1.1 / 7D.1.2",
+  "selected_candidate_id": "C7C:C0_FROZEN_B0_ISOTROPIC:830bf1e62664bcc8",
+  "frozen_7c_spec_hash": "ef3511d3527da6d85598846c0d828509ed07f134ac8d987c3d5702b507505a6d",
+  "historical_7d_protocol_hash": "74be1d652fff4739ddeb612dd21a273004d35117bedc718981c5e7636ce6cb90",
+  "corrected_7d1_evidence_label": "FROZEN_HELD_OUT_FROM_FITTING_EVALUATION_WITH_PRIOR_DATASET_AND_PRE_FINAL_PREDICTIVE_SUBSET_EXPOSURE_DISCLOSED",
+  "heldout_exposure_classification": "PRE_FINAL_HELDOUT_PREDICTIVE_SUBSET_EXPOSURE_DISCLOSED",
+  "origin_counts": {
+    "n_heldout_origins": 229,
+    "n_contributing_origins": 126,
+    "n_zero_primary_target_origins": 103,
+    "n_blocked_origins": 0
+  },
+  "target_counts": {
+    "n_all_d1d7_targets": 588,
+    "n_within_targets": 323,
+    "n_outside_targets": 265,
+    "n_unresolved_targets": 0
+  },
+  "scope_and_participation_rates": {
+    "target_scope_inclusion_rate": 0.5493197278911565,
+    "target_scope_outside_rate": 0.45068027210884354,
+    "origin_primary_metric_participation_rate": 0.5502183406113537,
+    "origin_zero_primary_target_rate": 0.4497816593886463
+  },
+  "pooled_metrics": {
+    "mean_target_percentile": 73.84712361066521,
+    "top5_capture_rate": 0.17389455782312924,
+    "top10_capture_rate": 0.29191232048374904
+  },
+  "development_metrics_for_comparison": {
+    "mean_target_percentile": 62.034006257768795,
+    "top5_capture_rate": 0.11446417040201254,
+    "top10_capture_rate": 0.2024113191944899
+  },
+  "origin_bootstrap_ci_95": {
+    "mean_target_percentile": [
+      70.51127691123925,
+      77.11474074137233
+    ],
+    "top5_capture_rate": [
+      0.1274565381708239,
+      0.22269463340891912
+    ],
+    "top10_capture_rate": [
+      0.23478835978835977,
+      0.3524187452758881
+    ]
+  },
+  "target_event_sensitivity_ci_95": {
+    "mean_target_percentile": [
+      66.91262443412818,
+      75.78648166402472
+    ],
+    "top5_capture_rate": [
+      0.10150273224043715,
+      0.21775956284153006
+    ],
+    "top10_capture_rate": [
+      0.19972677595628416,
+      0.34494535519125685
+    ]
+  },
+  "evidence_bounded_no_retuning_status": "NO_POST_EXPOSURE_NUMERICALLY_LOAD_BEARING_CODE_CHANGE_DETECTED_IN_RECORDED_SESSION",
+  "project_conclusion_no_retuning": "NO_POST_EXPOSURE_MODEL_RETUNING_DETECTED",
+  "availability_protocol_identity": "RETROSPECTIVE_PROXY_T0_INVARIANT",
+  "result_nature": "RETROSPECTIVE_HELD_OUT_FROM_FITTING_SPATIAL_RANKING_EVIDENCE_NOT_PROSPECTIVE_OPERATIONAL_VALIDATION",
+  "final_checkpoint_7d_classification": "CHECKPOINT_7D_FROZEN_HELDOUT_EVALUATION_ACCEPTED_WITH_PRE_FINAL_PREDICTIVE_SUBSET_EXPOSURE_DISCLOSED",
+  "local_artifact_sha256": {
+    "checkpoint_7d_audit.json": "a1c068d35fa4e59f8949ccc122f408949eff91dc66db85094ce288716225a4f9",
+    "heldout_metrics.json": "0142a4db6b4738f03b6cc856c6838653f955d7a84e5f0eab524f9ffa2659587b",
+    "heldout_origin_participation_audit_7d1.json": "bd2fe2276e87b5d0c203a0143dd3166fb936727cb6e6c2e71858f62bda0cbc7d",
+    "scope_and_participation_summary_7d12.json": "001fc9bf644aa1db3e3e67d8237acfdaf70222c27fe13c480d5a3df59eae9c1e",
+    "procedural_exposure_correction_7d1.json": "2b990de02498a1a7a9d9ff4b5e44ddcd0a6211cfbe368559f5d9e5d3f2697844",
+    "pre_final_40_origin_sanity_exposure.json": "542e421f0dbfa915798e5a3d602f760cdb1546d4430e0325ef269b3c54c75149",
+    "evaluation_label_provenance_audit_7d11.json": "680f65ae9cb62fe5a3d672e025fb5b5a6a4ce6e4c9cc73106debeb18b40396ce",
+    "pre_evaluation_manifest_provenance_7d11.json": "c2ca94e43b5167c136f774caf4a685f590f3ac52caeb1236e6767e6e4e98e937"
+  }
+}

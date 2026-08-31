@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
  * to an icon, accent border colour, and subtle background tint.
  */
 const SECTION_META = [
-  { icon: 'psychology', accent: 'border-rose-500', bg: 'bg-rose-500/5', label: 'Clinical Severity & Staging' },
+  { icon: 'psychology', accent: 'border-rose-500', bg: 'bg-rose-500/5', label: 'Clinical Severity Assessment' },
   { icon: 'verified', accent: 'border-primary', bg: 'bg-primary/5', label: 'Diagnostic Assessment' },
   { icon: 'biotech', accent: 'border-secondary', bg: 'bg-secondary/5', label: 'Morphological Rationale' },
   { icon: 'compare_arrows', accent: 'border-tertiary', bg: 'bg-surface-container-high/40', label: 'Differential Diagnosis' },
@@ -330,9 +330,9 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
                 <span className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 text-3xs font-mono font-bold uppercase" data-testid="briefing-severity-grade">
                   {severityAssessment.grade}
                 </span>
-                {severityAssessment.stage && (
-                  <span className="px-2 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-primary text-3xs font-mono font-bold uppercase">
-                    {severityAssessment.stage}
+                {severityAssessment.prognosis && (
+                  <span className="px-2 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-primary text-3xs font-mono font-bold uppercase" data-testid="briefing-prognosis">
+                    {severityAssessment.prognosis}
                   </span>
                 )}
                 {severityAssessment.confidence_level && (

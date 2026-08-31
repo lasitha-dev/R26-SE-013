@@ -235,9 +235,9 @@ describe('ReasoningBriefing', () => {
   });
 
   it('cleans leading SEVERITY META headers and does not render them as section cards', () => {
-    const rawReportWithMeta = `### SEVERITY META: Grade=Mild | Stage=Early Acute | Prognosis=Guarded | Description=Minimal lesions
+    const rawReportWithMeta = `### SEVERITY META: Grade=Mild | Prognosis=Guarded | Description=Minimal lesions
 
-## 1. Clinical Severity Assessment & Pathological Stage
+## 1. Clinical Severity & Pathological Assessment
 Lesion coverage indicates mild early presentation.
 
 ## 2. Primary Diagnostic Assessment & Certainty Level
@@ -254,14 +254,13 @@ High certainty.`;
     vi.advanceTimersByTime(3000);
 
     expect(screen.queryByText(/SEVERITY META/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/1\. Clinical Severity Assessment/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\. Clinical Severity/i)).toBeInTheDocument();
     expect(screen.getByText(/2\. Primary Diagnostic Assessment/i)).toBeInTheDocument();
   });
 
   it('renders synthesized severity top banner when severityAssessment is provided', () => {
     const severityAssessment = {
       grade: 'Moderate',
-      stage: 'Active Progression',
       prognosis: 'Recoverable',
       description: 'Multifocal eruptive nodules detected.',
     };
@@ -280,6 +279,7 @@ High certainty.`;
     expect(screen.getByText(/Synthesized Severity Grade & Prognosis/i)).toBeInTheDocument();
     expect(screen.getByText(/Multifocal eruptive nodules detected/i)).toBeInTheDocument();
     expect(screen.getByText('Moderate')).toBeInTheDocument();
-    expect(screen.getByText('Active Progression')).toBeInTheDocument();
+    expect(screen.getByText('Recoverable')).toBeInTheDocument();
   });
 });
+

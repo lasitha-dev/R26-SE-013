@@ -106,7 +106,6 @@ async def detect(request: Request, image: UploadFile = File(...)):
     # Run segmentation overlay only if the animal is diseased (not "cattle" / healthy)
     symptoms_b64 = None
     severity_model = None
-    stage_str = None
     spatial_correlation_str = None
 
     predicted_name = disease.get("name", "").lower()
@@ -155,7 +154,6 @@ async def detect(request: Request, image: UploadFile = File(...)):
             "predicted_display": "Cattle (Healthy)",
             "spatial_correlation": spatial_correlation_str,
         })
-        stage_str = severity_model.stage
     else:
         seg_metrics = {}
         if segmenter and predicted_name:
@@ -199,7 +197,6 @@ async def detect(request: Request, image: UploadFile = File(...)):
         signals["spatial_correlation"] = spatial_correlation_str
 
         severity_model = compute_composite_severity(signals)
-        stage_str = severity_model.stage
 
     best_det = BestDetection(bbox=best["bbox"], confidence=best["confidence"], bbox_normalized=bbox_norm)
     disease_model = Disease(
@@ -212,7 +209,6 @@ async def detect(request: Request, image: UploadFile = File(...)):
         best_detection=best_det,
         disease=disease_model,
         severity=severity_model,
-        stage=stage_str,
         spatial_correlation=spatial_correlation_str,
         cropped_image=f"data:image/jpeg;base64,{crop_b64}",
         symptoms_image=f"data:image/jpeg;base64,{symptoms_b64}" if symptoms_b64 else None,
@@ -276,7 +272,6 @@ async def reason(body: ReasoningRequest):
                 "lesion_coverage_pct": sev.lesion_coverage_pct,
                 "cluster_count": sev.cluster_count,
                 "mean_intensity": sev.mean_intensity,
-                "stage": body.stage or sev.stage or "N/A",
                 "prognosis": sev.prognosis or "Guarded",
                 "description": sev.description or "",
                 "diagnostic_rationale": sev.diagnostic_rationale or "",
@@ -285,6 +280,7 @@ async def reason(body: ReasoningRequest):
             })
 
         detections_for_llm.append(det_dict)
+
 
     vision_results = {
         "status": "PROCESSED",

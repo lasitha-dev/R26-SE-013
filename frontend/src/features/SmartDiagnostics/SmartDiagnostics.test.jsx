@@ -375,8 +375,10 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByTestId('success-view')).toBeInTheDocument();
     });
 
-    // ReasoningBriefing should show loading skeleton
+    // ReasoningBriefing should show loading skeleton and Inference Results should show Synthesising badge
     expect(screen.getByText(/Generating Clinical Briefing/)).toBeInTheDocument();
+    expect(screen.getByTestId('synthesising-badge')).toHaveTextContent('Synthesising');
+    expect(screen.getByTestId('synthesising-placeholder')).toBeInTheDocument();
   });
 
   it('shows reasoning error fallback when LLM reasoning API fails', async () => {
@@ -598,7 +600,6 @@ describe('SmartDiagnostics', () => {
       severity: {
         grade: 'Moderate',
         description: 'Moderate multifocal progression of Lumpy Skin Disease (Composite Score: 0.52).',
-        stage: 'Active Progression / Multifocal',
         prognosis: 'Recoverable with Intervention',
         diagnostic_rationale: 'Multi-signal composite score (0.52) synthesizes ViT classification certainty.',
         spatial_correlation: 'ViT self-attention rollout identified 4 focal cluster(s).',
@@ -611,6 +612,7 @@ describe('SmartDiagnostics', () => {
         needs_review: false,
         source: 'composite_scoring',
       },
+
       cropped_image: null,
       image_size: { width: 640, height: 480 },
       device: 'cpu',
@@ -630,7 +632,7 @@ describe('SmartDiagnostics', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('severity-grade')).toHaveTextContent('Moderate');
+      expect(screen.getByTestId('predicted-condition')).toHaveTextContent('Lumpy Skin Disease');
     });
 
     expect(screen.getByTestId('severity-narrative')).toHaveTextContent(
@@ -646,3 +648,4 @@ describe('SmartDiagnostics', () => {
     expect(screen.getByText('ANATOMICAL TELEMETRY')).toBeInTheDocument();
   });
 });
+

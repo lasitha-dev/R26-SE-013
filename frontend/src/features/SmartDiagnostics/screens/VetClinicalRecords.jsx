@@ -595,14 +595,12 @@ export default function VetClinicalRecords() {
                         <span className="px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-3xs font-mono font-bold border border-amber-500/30 uppercase">
                           Severity: {selectedCase.severity || 'Moderate'}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 text-3xs font-mono font-bold border border-cyan-500/30 uppercase">
-                          Stage: {selectedCase.stage || 'Acute Phase'}
-                        </span>
                         <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-3xs font-mono font-bold border border-emerald-500/30 uppercase">
                           Prognosis: {selectedCase.prognosis || 'Favorable'}
                         </span>
                       </div>
                     </div>
+
 
                     {selectedCase.rationale && (
                       <div className="pt-2 border-t border-white/5">
