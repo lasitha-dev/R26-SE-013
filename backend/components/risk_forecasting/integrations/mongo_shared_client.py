@@ -76,11 +76,18 @@ class MongoSharedForecastClient(SharedForecastDataClient):
         else:
             end_date = f"{year}-{month + 1:02d}-01"
 
+        # Map acronyms to full names for diagnostic_cases matching
+        disease_name_regex = f"^{disease_upper}$"
+        if disease_upper == "FMD":
+            disease_name_regex = "FMD|Foot and Mouth Disease"
+        elif disease_upper == "LSD":
+            disease_name_regex = "LSD|Lumpy Skin Disease"
+
         # Count verified diagnostic cases
         cases_count = 0
         async for case in diagnostic_cases_collection.find({
             "verified": True,
-            "disease_name": {"$regex": f"^{disease_upper}$", "$options": "i"},
+            "disease_name": {"$regex": disease_name_regex, "$options": "i"},
             "created_at": {"$gte": start_date, "$lt": end_date}
         }):
             farm_id = case.get("farm_id")
@@ -96,14 +103,16 @@ class MongoSharedForecastClient(SharedForecastDataClient):
                 except Exception:
                     farm = None
                 
-                if farm and farm.get("location_district") == formatted_district:
-                    cases_count += 1
+                # Use regex for farm district to handle coordinates prefix
+                if farm and farm.get("location_district"):
+                    if formatted_district.lower() in farm.get("location_district").lower():
+                        cases_count += 1
 
         # Count deaths logs
         deaths_count = 0
         async for death in death_logs_collection.find({
             "cause": disease_upper,
-            "district": formatted_district,
+            "district": {"$regex": formatted_district, "$options": "i"},
             "date_of_death": {"$gte": start_date, "$lt": end_date}
         }):
             deaths_count += 1

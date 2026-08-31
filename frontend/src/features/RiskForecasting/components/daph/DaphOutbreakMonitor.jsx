@@ -58,7 +58,16 @@ export function DaphOutbreakMonitor({ viewerContext }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const cacheRef = React.useRef({});
+
   const fetchOutbreakStatuses = useCallback(async () => {
+    const cacheKey = `${selectedDisease}-${selectedYear}-${selectedMonth}-${scopeLevel}`;
+    
+    if (cacheRef.current[cacheKey]) {
+      setDistrictStatuses(cacheRef.current[cacheKey]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const token = localStorage.getItem('token');
@@ -68,19 +77,36 @@ export function DaphOutbreakMonitor({ viewerContext }) {
       : authorizedDistricts;
 
     try {
-      await Promise.all(
-        districtsToQuery.map(async (district) => {
-          try {
-            const res = await fetch(
-              `${API_BASE}/api/v1/risk-forecasting/outbreak-status/${selectedDisease}/${encodeURIComponent(district)}/${selectedYear}/${selectedMonth}`,
-              {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // Chunking logic to prevent N+1 browser stalling (limit 5 concurrent requests)
+      const chunkSize = 5;
+      for (let i = 0; i < districtsToQuery.length; i += chunkSize) {
+        const chunk = districtsToQuery.slice(i, i + chunkSize);
+        
+        await Promise.all(
+          chunk.map(async (district) => {
+            try {
+              const res = await fetch(
+                `${API_BASE}/api/v1/risk-forecasting/outbreak-status/${selectedDisease}/${encodeURIComponent(district)}/${selectedYear}/${selectedMonth}`,
+                {
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                }
+              );
+              if (res.ok) {
+                const data = await res.json();
+                statuses[district] = data;
+              } else {
+                statuses[district] = {
+                  district,
+                  disease: selectedDisease,
+                  year: selectedYear,
+                  month: selectedMonth,
+                  outbreak_status: 0.0,
+                  cases_count: 0,
+                  deaths_count: 0,
+                  error: true,
+                };
               }
-            );
-            if (res.ok) {
-              const data = await res.json();
-              statuses[district] = data;
-            } else {
+            } catch {
               statuses[district] = {
                 district,
                 disease: selectedDisease,
@@ -92,20 +118,12 @@ export function DaphOutbreakMonitor({ viewerContext }) {
                 error: true,
               };
             }
-          } catch {
-            statuses[district] = {
-              district,
-              disease: selectedDisease,
-              year: selectedYear,
-              month: selectedMonth,
-              outbreak_status: 0.0,
-              cases_count: 0,
-              deaths_count: 0,
-              error: true,
-            };
-          }
-        })
-      );
+          })
+        );
+      }
+      
+      // Save to cache to prevent re-fetching when user switches tabs/months
+      cacheRef.current[cacheKey] = statuses;
       setDistrictStatuses(statuses);
     } catch (err) {
       setError('Failed to load outbreak status data.');
