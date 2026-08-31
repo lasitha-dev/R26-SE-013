@@ -582,13 +582,6 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                     <span>Status: <strong className="text-slate-300">{record.status}</strong></span>
                   </div>
 
-                  {record.fallback_applied && (
-                    <div className="text-[10px] text-amber-300/90 bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">warning</span>
-                      Historical Proxy Applied
-                    </div>
-                  )}
-
                   <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
                     <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
                     <span>Quality: {record.data_quality}</span>
@@ -704,12 +697,6 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                     <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>
                   </div>
 
-                  {selectedForecastRecord.fallback_message && (
-                    <p className="text-[11px] text-amber-300/90 bg-amber-950/40 p-2 rounded border border-amber-800/40">
-                      {selectedForecastRecord.fallback_message}
-                    </p>
-                  )}
-
                   <div className="p-2.5 bg-slate-950/80 rounded border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
                     <span className="material-symbols-outlined text-amber-400 text-sm flex-shrink-0 mt-0.5">info</span>
                     <span>{selectedForecastRecord.disclaimer || 'Scientific decision-support output. Model forecasts do not constitute confirmed clinical diagnoses.'}</span>
@@ -801,10 +788,14 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                          <div>Scope: <strong className="text-slate-200">{adv.recipient_scope}</strong></div>
+                          <div>Scope: <strong className="text-slate-200">
+                            {adv.recipient_scope === 'ALL_ASSIGNED' ? 'All Assigned Farmers' : 
+                             adv.recipient_scope === 'DISTRICT_WIDE' ? 'Entire District' : 
+                             adv.recipient_scope}
+                          </strong></div>
                           <div>Targeted: <strong className="text-slate-200">{adv.recipient_summary?.selected_count ?? 0}</strong></div>
-                          <div>Created By: <strong className="text-slate-200">{adv.created_by}</strong></div>
-                          <div>Approved By: <strong className="text-slate-200">{adv.approved_by || 'N/A'}</strong></div>
+                          <div>Created By: <strong className="text-slate-200" title={adv.created_by}>{adv.created_by ? 'Veterinary Officer (You)' : 'N/A'}</strong></div>
+                          <div>Approved By: <strong className="text-slate-200" title={adv.approved_by}>{adv.approved_by ? 'DAPH Official' : 'Pending'}</strong></div>
                         </div>
                       </div>
                     );
