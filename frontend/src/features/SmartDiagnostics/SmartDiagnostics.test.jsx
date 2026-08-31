@@ -375,8 +375,10 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByTestId('success-view')).toBeInTheDocument();
     });
 
-    // ReasoningBriefing should show loading skeleton
+    // ReasoningBriefing should show loading skeleton and Inference Results should show Synthesising badge
     expect(screen.getByText(/Generating Clinical Briefing/)).toBeInTheDocument();
+    expect(screen.getByTestId('synthesising-badge')).toHaveTextContent('Synthesising');
+    expect(screen.getByTestId('synthesising-placeholder')).toBeInTheDocument();
   });
 
   it('shows reasoning error fallback when LLM reasoning API fails', async () => {
@@ -630,7 +632,7 @@ describe('SmartDiagnostics', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('severity-grade')).toHaveTextContent('Moderate');
+      expect(screen.getByTestId('predicted-condition')).toHaveTextContent('Lumpy Skin Disease');
     });
 
     expect(screen.getByTestId('severity-narrative')).toHaveTextContent(
@@ -646,3 +648,4 @@ describe('SmartDiagnostics', () => {
     expect(screen.getByText('ANATOMICAL TELEMETRY')).toBeInTheDocument();
   });
 });
+

@@ -691,73 +691,69 @@ const SmartDiagnostics = () => {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3.5 gap-x-4">
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
-                          Predicted Condition
-                        </p>
-                        <p className="text-xs md:text-sm font-extrabold text-on-surface truncate" data-testid="predicted-condition">
-                          {disease?.name || 'Unknown'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs text-primary">psychology</span>
-                          Clinical Severity
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className={`text-xs md:text-sm font-extrabold ${severityColor}`} data-testid="severity-grade">
-                            {severityGrade}
+                    <div className="space-y-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
+                            Predicted Condition
                           </p>
-                          {confidenceLevel && (
-                            <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${
-                              confidenceLevel === 'High'
-                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                                : confidenceLevel === 'Moderate'
-                                ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                                : 'bg-rose-500/10 text-rose-300 border-rose-500/20'
-                            }`} data-testid="confidence-badge">
-                              {confidenceLevel} Conf.
-                            </span>
-                          )}
+                          <p className="text-sm md:text-base font-extrabold text-on-surface truncate" data-testid="predicted-condition">
+                            {disease?.name || 'Unknown'}
+                          </p>
                         </div>
-                      </div>
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
-                          Prognosis
-                        </p>
-                        <p className={`text-xs font-semibold ${prognosisColor} truncate`} data-testid="prognosis-text">
-                          {prognosis}
-                        </p>
+                        {confidence && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-2xs font-mono font-bold border border-primary/20 shrink-0">
+                            <span className="material-symbols-outlined text-xs">verified</span>
+                            {confidence}% Conf.
+                          </span>
+                        )}
                       </div>
 
                       {/* Needs Review Alert Banner */}
                       {needsReview && (
-                        <div className="col-span-1 sm:col-span-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
+                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
                           <span className="font-medium">Uncertainty Flag: Severity score near decision threshold. In-person clinical validation recommended.</span>
                         </div>
                       )}
 
-                      {/* Dynamic Pathological Severity Narrative from LLM */}
-                      {severityDescription && (
-                        <div className="col-span-1 sm:col-span-3 pt-2.5 mt-0.5 border-t border-outline-variant/15">
-                          <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1 flex items-center justify-between">
-                            <span className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
-                              Pathological Severity Assessment
+                      {/* Dynamic Pathological Severity Narrative from LLM with Lazy Loading */}
+                      <div className="pt-2.5 mt-0.5 border-t border-outline-variant/15" data-testid="pathological-severity-container">
+                        <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1.5 flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
+                            Pathological Severity Assessment
+                          </span>
+                          {reasoningStatus === 'loading' ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 animate-pulse" data-testid="synthesising-badge">
+                              <span className="material-symbols-outlined text-[11px] animate-spin">progress_activity</span>
+                              Synthesising
                             </span>
+                          ) : (
                             <span className="text-[9px] font-mono text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10">
                               {severityAssessment ? 'AI CLINICAL REASONING' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
                             </span>
-                          </p>
+                          )}
+                        </p>
+
+                        {reasoningStatus === 'loading' ? (
+                          <div className="space-y-1.5 py-1.5 animate-pulse" data-testid="synthesising-placeholder">
+                            <div className="flex items-center gap-1.5 text-2xs text-amber-300/90 font-medium">
+                              <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                              <span>Synthesising clinical telemetry &amp; pathological evidence...</span>
+                            </div>
+                            <div className="h-2 bg-surface-variant/40 rounded w-5/6" />
+                            <div className="h-2 bg-surface-variant/20 rounded w-4/6" />
+                          </div>
+                        ) : (
                           <p className="text-2xs text-on-surface-variant leading-relaxed" data-testid="severity-narrative">
-                            {severityDescription}
+                            {severityDescription || 'Pathological telemetry evaluated.'}
                           </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
+
 
 
                   {/* Vet Action & Verification Area */}
