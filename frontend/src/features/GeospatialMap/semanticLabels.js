@@ -61,7 +61,18 @@ export const PRESENTATION_ONLY_COLOR_SCALE = 'PRESENTATION_ONLY_COLOR_SCALE'
  * See `SnapshotStatusChip.jsx`, which uses ONLY the three labels below.
  */
 export const PAGE_TITLE = 'Geospatial Disease Intelligence'
-export const PAGE_TAGLINE = 'Historical outbreak replay and spatial model context'
+// GEO29A Part 9 asked for a punchier subtitle mentioning "live"
+// surveillance. Deliberately NOT adopted verbatim: `semanticLabels.test.js`
+// (LSD-PAGE1-HARDENING) locks this exact string AND asserts it never
+// contains the word "Live" -- a prior checkpoint added that guard after
+// the original reference copy ("Live outbreak surveillance and spatial
+// forecasting") was found to imply live FORECASTING, which is false (the
+// scientific/forecast layer is historical replay; only the separate
+// verified-case SSE layer is genuinely live). Modernized to drop the
+// "historical replay" jargon per Part 9's intent without reopening that
+// fixed issue -- "live"-ness is still communicated, honestly, by
+// `OperationalStatusChip`'s own real-time wording elsewhere on this page.
+export const PAGE_TAGLINE = 'Verified-case surveillance and spatial intelligence'
 
 export const LABEL_SNAPSHOT_CONNECTED = 'Snapshot connected'
 export const LABEL_SNAPSHOT_LOADING = 'Loading snapshot…'
@@ -123,6 +134,110 @@ export const LABEL_OPERATIONAL_DISTRICT = 'District'
 export const LABEL_OPERATIONAL_VERIFIED_AT = 'Verification time'
 export const LABEL_OPERATIONAL_LOCATION_STATUS = 'Location status'
 
+// GEO26B Section 8/10: farm-aggregate popup -- a farm marker represents
+// one or more real verified cases at ONE farm, so the popup states the
+// real count and the real latest/recent verification times, never an
+// invented density/confidence/outbreak-speed value.
+export const LABEL_OPERATIONAL_CASE_COUNT = 'Verified cases at this farm'
+export const LABEL_OPERATIONAL_LATEST_VERIFIED = 'Latest verified'
+export const LABEL_OPERATIONAL_RECENT_VERIFIED = 'Recent verified dates'
+export const LABEL_OPERATIONAL_CASE_IDS = 'Case identifiers'
+
+// GEO29A Phase 5: a farm that only qualifies through district-wide
+// surveillance (never personally assigned to the signed-in vet) shows a
+// neutral location label instead of its real farm identifier -- never
+// leaking a farmer's identity to a vet with no personal relationship to
+// that farm.
+export const LABEL_OPERATIONAL_NEUTRAL_LOCATION = 'Verified clinical location'
+
+// GEO26B Section 6/25: the Observation Date Range control -- a
+// clinical-history filter, deliberately distinct wording from the
+// scientific forecast timeline's D0/D+N labels.
+// GEO31A: "Window" (matches the approved reference's "WINDOW:" label) --
+// content unchanged in meaning, just shorter; casing is a CSS concern
+// (`uppercase` utility class), never baked into the string itself.
+export const LABEL_OBSERVATION_WINDOW = 'Window'
+
+// GEO26B Section 15: the Location control -- "My District" is honestly
+// scoped to the vet's own authorized assigned-farm bounds (no real Sri
+// Lanka ADM2 boundary dataset is available in this codebase), never a
+// fabricated polygon.
+// GEO30A Section 5: "My District" (dynamically suffixed with the vet's
+// real registered district, e.g. "My District · Matara" -- never
+// hardcoded, never "My District" alone with no real district behind it).
+// This control fits real district/assigned-farm bounds ONLY (camera, not
+// a data filter) -- never a fabricated district boundary, since no real
+// Sri Lanka ADM2 dataset exists in this repo.
+export const LABEL_LOCATION_SCOPE = 'Location'
+export const LABEL_LOCATION_SRI_LANKA = 'Sri Lanka'
+export const LABEL_LOCATION_MY_DISTRICT = 'My District'
+export const LABEL_LOCATION_MY_DISTRICT_UNAVAILABLE = 'No real farm location is available to focus on yet'
+
+// GEO26D Section 6/7: honest empty-state copy for Cases mode when the
+// real, already-filtered clinical-context list has zero entries -- never
+// silence, never a fabricated marker.
+export const LABEL_NO_VERIFIED_CASES_IN_WINDOW = 'No verified cases in the selected window'
+
+// GEO31A Section 5/6/18: the Cases-mode Observed Timeline/status surface --
+// distinct wording from the scientific D0/D+N timeline (`LABEL_FORECAST_D0`
+// etc.) so a vet never confuses "which real dates were verified" with "the
+// model's own forecast frames".
+export const LABEL_OBSERVED_TIMELINE_PREFIX = 'Observed'
+export const LABEL_OBSERVED_TIMELINE_SNAPSHOT_HINT = 'Play reveals verified events by their own real date.'
+
+/**
+ * GEO33B Section 10: the Cases-mode timeline header must name WHICH real
+ * dataset it is replaying, explicitly and always -- not only in its
+ * zero-events branch, where the only header used to live.
+ *
+ * Two genuinely different real datasets could drive an "observed" replay
+ * on this page and they must never be silently mixed in one timeline or
+ * one header:
+ *  - OBSERVED CASES  -> the authorized VERIFIED CLINICAL replay. Real
+ *    dates come from each case's own real `verification_time`
+ *    (`adapters/observedReplay.js`). This is what Cases mode actually
+ *    renders today.
+ *  - OBSERVED OUTBREAKS -> the national HISTORICAL/SCIENTIFIC replay.
+ *    Declared here so the distinction is nameable and reviewable, and so
+ *    the two can never collapse into one ambiguous "Observed" string if a
+ *    later checkpoint wires that layer up. It is deliberately NOT in use
+ *    yet: the real `/analysis/{id}/sources` response carries only
+ *    `source_id`/`availability_quality`/`gps_quality` and NO date field
+ *    (`api/router.py::_source_features`), so there is no defensible real
+ *    timestamp to build a national replay from -- and a fabricated one is
+ *    never acceptable.
+ *
+ * Neither label may ever read "FORECAST": both describe real observations
+ * that already happened. The scientific D0/D+N forecast timeline is a
+ * separate control (`TimelineControl.jsx`) with its own separate wording.
+ */
+export const LABEL_OBSERVED_CASES_TIMELINE = 'Observed cases'
+export const LABEL_OBSERVED_OUTBREAKS_TIMELINE = 'Observed outbreaks'
+/** Shown in place of a date when the vet has NOT scrubbed back -- i.e.
+ * every real event in the current window is revealed. Never a fabricated
+ * "today"/date. */
+export const LABEL_OBSERVED_AT_LATEST = 'At latest'
+
+/**
+ * GEO-UI-TIMELINE-01: the Risk-Zones-mode scientific D0/D+N timeline's own
+ * dataset name, mirroring `LABEL_OBSERVED_CASES_TIMELINE`'s pattern so
+ * `TimelineControl.jsx`'s header is exactly as explicit about which real
+ * dataset it replays as `ObservedTimelineControl.jsx` already is. "Forecast"
+ * describes the model's own D0..D+N horizon terminology (already used
+ * throughout this codebase -- `LABEL_FORECAST_ORIGINS`,
+ * `LABEL_FORECAST_D0`, the pre-existing "Forecast timeline" aria-label);
+ * it never claims LIVE/real-time forecasting -- this page's actual
+ * transport is `LABEL_RUNTIME_MODE`/`DISCLAIMER_RUNTIME_MODE` above
+ * ("Historical retrospective replay"), unchanged by this label.
+ */
+export const LABEL_FORECAST_RISK_TIMELINE = 'Forecast risk'
+
+// GEO26B Section 32: the risk-cell popup -- real per-cell scientific
+// fields only (mirrors `CellDetailPanel.jsx`'s existing field list),
+// plus which real forecast day it belongs to.
+export const LABEL_CELL_POPUP_TITLE = 'Spatial cell'
+export const LABEL_CELL_POPUP_DAY_PREFIX = 'Forecast day'
+
 // GEO-INT-03 Section 14/20: honest controlled-refresh wording -- never
 // "LIVE"/"Real-time"/"Streaming". The current transport is plain HTTP
 // request/response, not a push mechanism.
@@ -143,8 +258,17 @@ export const ACTION_REFRESH_OPERATIONAL_CONTEXT = 'Refresh'
  * exactly (`distance_basis`, `anchor_basis`) -- never a shorter/looser
  * paraphrase that could imply more than the backend actually proved.
  */
-export const MY_AREA_PAGE_TITLE = 'My Area'
-export const MY_AREA_PAGE_TAGLINE = 'Authorized farm context · historical/model evidence'
+// GEO-MY-AREA-VISUAL-QA-REBUILD: page heading matches the reference
+// "Area Risk Intelligence" composition; the persistent local-nav tab
+// itself stays "My Area" (`GeospatialLayout.jsx`, unchanged) -- the same
+// split the reference screenshots themselves show (tab says "My Area",
+// page heading says "Area Risk Intelligence"). Tagline reworded from the
+// reference's "...which outbreaks are responsible" to "...are relevant":
+// this page never computes outbreak-level attribution/responsibility,
+// only real origin relevance (`relevantOrigins`), so "responsible" would
+// overstate what the real contract proves.
+export const MY_AREA_PAGE_TITLE = 'Area Risk Intelligence'
+export const MY_AREA_PAGE_TAGLINE = 'What may affect my area in the coming days, and which outbreaks are relevant.'
 
 // Section 10: `distance_basis === 'NEAREST_T0_TRIGGER_SOURCE'` wording --
 // never "outbreak"/"origin distance"/"threat" (Section 10's explicit
@@ -190,6 +314,14 @@ export const LABEL_MY_AREA_ORIGIN_NOT_FOUND = 'Selected historical/model origin 
 // Section 15/16: the authorized-farm map marker -- never "outbreak"/
 // "clinical case"/"risk zone"/"forecast origin".
 export const LABEL_MY_AREA_FARM_MARKER = 'My assigned area'
+
+// GEO-MY-AREA-VISUAL-QA-REBUILD: truthful badge wording for the
+// "Outbreaks influencing my area" list -- keyed off the real
+// `distance_basis` field already on each relevant origin, never a
+// fabricated "trajectory intersects"/"active cluster" claim (neither
+// trajectory nor clustering has a current Page runtime/API contract).
+export const LABEL_BADGE_NEAREST_TRIGGER_SOURCE = 'NEAREST TRIGGER SOURCE'
+export const LABEL_BADGE_RELEVANT_HISTORICAL_ORIGIN = 'RELEVANT HISTORICAL ORIGIN'
 
 // Section 19: D0 wording -- never a fabricated "0 km".
 export const LABEL_FORECAST_D0 = 'Observed / origin context'

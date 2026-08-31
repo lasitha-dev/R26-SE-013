@@ -18,20 +18,20 @@ export const SNAPSHOT_STATUS = {
 }
 
 const CONFIG = {
-  [SNAPSHOT_STATUS.CONNECTED]: { dot: 'bg-emerald-400', text: 'text-emerald-300', label: LABEL_SNAPSHOT_CONNECTED },
+  [SNAPSHOT_STATUS.CONNECTED]: { dot: 'bg-primary', text: 'text-primary', label: LABEL_SNAPSHOT_CONNECTED },
   [SNAPSHOT_STATUS.LOADING]: { dot: 'bg-amber-400', text: 'text-amber-300', label: LABEL_SNAPSHOT_LOADING },
-  [SNAPSHOT_STATUS.UNAVAILABLE]: { dot: 'bg-slate-500', text: 'text-slate-400', label: LABEL_SNAPSHOT_UNAVAILABLE },
+  [SNAPSHOT_STATUS.UNAVAILABLE]: { dot: 'bg-on-surface-variant/40', text: 'text-on-surface-variant/70', label: LABEL_SNAPSHOT_UNAVAILABLE },
 }
 
 export default function SnapshotStatusChip({ status, asOfDate, onCheckForNewer }) {
   const config = CONFIG[status] ?? CONFIG[SNAPSHOT_STATUS.UNAVAILABLE]
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs">
+    <div className="flex items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container/70 px-3 py-1 text-xs">
       <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
       <span className={`font-mono uppercase tracking-wide ${config.text}`}>{config.label}</span>
-      {asOfDate && <span className="text-slate-400">· historical replay, {asOfDate}</span>}
+      {asOfDate && <span className="text-on-surface-variant/70">· historical replay, {asOfDate}</span>}
       {onCheckForNewer && (
-        <button type="button" onClick={onCheckForNewer} className="ml-1 text-slate-300 underline decoration-dotted hover:text-white">
+        <button type="button" onClick={onCheckForNewer} className="ml-1 text-on-surface-variant underline decoration-dotted hover:text-on-surface">
           {ACTION_CHECK_FOR_NEWER_SNAPSHOT}
         </button>
       )}

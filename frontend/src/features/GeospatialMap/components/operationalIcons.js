@@ -1,29 +1,37 @@
 /**
- * GEO-INT-03 Section 9: deterministic, glyph-independent presentation
- * icons for the Verified Clinical Context overlay -- same raw-RGBA-
- * buffer technique as `presentationIcons.js` (Section 3: reuse the
- * existing visual-language convention rather than inventing a second
- * one), kept in a sibling module so that file's own documented scope
- * (source/direction overlay icons) stays accurate.
+ * GEO-INT-03 Section 9, REDESIGNED by GEO31A Section 2: deterministic,
+ * glyph-independent presentation icons for the Verified Clinical
+ * Context / observed-outbreak overlay -- same raw-RGBA-buffer technique
+ * as `presentationIcons.js`.
  *
- * Section 9: hollow/outlined only (transparent interior, no fill) with a
- * single restrained neutral-mint stroke -- never the risk red/orange/
- * amber/yellow/green family used elsewhere in this feature
- * (`mapLibreAdapter.js`'s risk gradient, `presentationIcons.js`'s amber
- * source fill), never a glow/pulse. Shape alone carries disease identity
- * (diamond=LSD, circle=FMD, matching `disease/diseaseRegistry.js`'s
- * existing `markerShape` convention) -- color never varies by disease.
+ * GEO31A Section 2 explicitly supersedes GEO-INT-03's original "hollow
+ * mint, never red, never a glow" restraint: the owner's reference shows a
+ * STEADY RED CORE + RED INNER RING for an observed outbreak marker,
+ * matching the same red family `presentationIcons.js`'s historical
+ * `SOURCE_FILL` already uses for the scientific "source" layer (GEO30B) --
+ * one consistent "red = a real observed event" language across both
+ * layers. The soft EXPANDING outer halo (arrival pulse, steady selection
+ * ring) is a separate, larger MapLibre `circle` layer underneath this
+ * icon (`operationalMarkerLayer.js`/`MapLibreCanvas.jsx`), never baked
+ * into this raster icon -- this icon alone is the "the center dot MUST
+ * remain visible at all times" guarantee (Section 2): its own opacity
+ * never drops to 0 (`operationalMarkerPaint`), only the halo around it
+ * animates. Shape alone still carries disease identity (diamond=LSD,
+ * circle=FMD, matching `disease/diseaseRegistry.js`'s `markerShape`
+ * convention) -- color never varies by disease.
  */
 
 export const CLINICAL_DIAMOND_ICON_ID = 'geo-clinical-diamond-icon'
 export const CLINICAL_CIRCLE_ICON_ID = 'geo-clinical-circle-icon'
 export const CLINICAL_ICON_SIZE = 18
 
-// teal-400 -- a restrained clinical mint, deliberately distinct from the
-// amber source fill, the emerald selection halo (#10b981), the teal reach
-// ring (#14b8a6), and the entire red-orange-amber-yellow-green risk family.
-export const CLINICAL_MARKER_COLOR_HEX = '#2dd4bf'
-const CLINICAL_STROKE = [45, 212, 191, 255]
+// GEO31A Section 2/10: red-500 core / red-700 ring -- the SAME red family
+// `presentationIcons.js`'s historical SOURCE_FILL/SOURCE_STROKE use, so
+// "red" consistently means "a real observed event" across both the
+// scientific-origin layer and this operational/clinical layer.
+export const CLINICAL_MARKER_COLOR_HEX = '#ef4444'
+const CLINICAL_FILL = [239, 68, 68, 255]
+const CLINICAL_STROKE = [185, 28, 28, 255]
 
 function makeRgbaBuffer(width, height) {
   return new Uint8ClampedArray(width * height * 4)
@@ -38,7 +46,8 @@ function setPixel(data, width, x, y, [r, g, b, a]) {
   data[idx + 3] = a
 }
 
-/** Hollow diamond (LSD) -- an outline band only, transparent interior. */
+/** Solid red diamond (LSD) with a darker red ring -- steady core, always
+ * visible (Section 2: "the center dot MUST remain visible at all times"). */
 export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
   const data = makeRgbaBuffer(size, size)
   const cx = (size - 1) / 2
@@ -47,7 +56,9 @@ export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const norm = Math.abs(x - cx) / r + Math.abs(y - cy) / r // diamond (L1) distance
-      if (norm > 0.82 && norm <= 1.15) {
+      if (norm <= 0.82) {
+        setPixel(data, size, x, y, CLINICAL_FILL)
+      } else if (norm <= 1.15) {
         setPixel(data, size, x, y, CLINICAL_STROKE)
       }
     }
@@ -55,7 +66,8 @@ export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
   return { width: size, height: size, data }
 }
 
-/** Hollow circle (FMD) -- an outline band only, transparent interior. */
+/** Solid red circle (FMD) with a darker red ring -- steady core, always
+ * visible (Section 2: "the center dot MUST remain visible at all times"). */
 export function buildClinicalCircleIcon(size = CLINICAL_ICON_SIZE) {
   const data = makeRgbaBuffer(size, size)
   const cx = (size - 1) / 2
@@ -64,7 +76,9 @@ export function buildClinicalCircleIcon(size = CLINICAL_ICON_SIZE) {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / r // circular (L2) distance
-      if (dist > 0.78 && dist <= 1.0) {
+      if (dist <= 0.78) {
+        setPixel(data, size, x, y, CLINICAL_FILL)
+      } else if (dist <= 1.0) {
         setPixel(data, size, x, y, CLINICAL_STROKE)
       }
     }

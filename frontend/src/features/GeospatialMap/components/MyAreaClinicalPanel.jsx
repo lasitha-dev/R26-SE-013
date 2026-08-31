@@ -21,20 +21,20 @@ export default function MyAreaClinicalPanel({ verifiedClinicalContexts }) {
   if (!verifiedClinicalContexts || verifiedClinicalContexts.length === 0) return null
 
   return (
-    <div className="rounded-lg border border-teal-400/30 bg-slate-900/70 p-3 text-xs">
-      <div className="font-mono uppercase tracking-wide text-teal-300">{LABEL_OPERATIONAL_CONTEXT}</div>
+    <div className="rounded-lg border border-primary/20 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">{LABEL_OPERATIONAL_CONTEXT}</div>
       <ul className="mt-2 space-y-2">
         {verifiedClinicalContexts.map((ctx) => (
-          <li key={ctx.caseId} className="rounded-md border border-white/10 p-2">
+          <li key={ctx.caseId} className="rounded-md border border-outline-variant/30 p-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-500">{LABEL_OPERATIONAL_DISEASE}</span>
-              <span className="text-slate-300">{ctx.disease}</span>
+              <span className="text-on-surface-variant/70">{LABEL_OPERATIONAL_DISEASE}</span>
+              <span className="text-on-surface-variant">{ctx.disease}</span>
             </div>
             <div className="mt-0.5 flex items-center justify-between gap-2">
-              <span className="text-slate-500">{LABEL_OPERATIONAL_VERIFIED_AT}</span>
-              <span className="text-slate-300">{ctx.verificationTime ?? 'unknown'}</span>
+              <span className="text-on-surface-variant/70">{LABEL_OPERATIONAL_VERIFIED_AT}</span>
+              <span className="text-on-surface-variant">{ctx.verificationTime ?? 'unknown'}</span>
             </div>
-            <div className="mt-1 truncate text-slate-600" title={ctx.caseId}>
+            <div className="mt-1 truncate text-on-surface-variant/50" title={ctx.caseId}>
               {ctx.caseId}
             </div>
           </li>

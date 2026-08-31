@@ -184,3 +184,120 @@ class TestFiltering:
         source = FakeCaseEventSource(transport="delta_refresh")
         service = OperationalEventStreamService(FakeOperationalDataPort(), source)
         assert service.transport_mode() == "delta_refresh"
+
+
+class TestDistrictSurveillanceRelevance:
+    """GEO31A Section 4: LIVE_SSE_DISTRICT_SCOPE=PARTIAL -- a genuine event
+    for a farm that is in the vet's registered district but NOT personally
+    assigned to them must still reach this vet's stream, additively,
+    without disturbing assigned-farm relevance."""
+
+    def test_district_only_farm_event_is_relevant(self):
+        async def scenario():
+            # Vet has ZERO personally-assigned farms (mirrors the real
+            # Dr. Thushan / VET-LK-44444 Matara scenario from GEO29A) but a
+            # real registered district containing a real farm.
+            port = FakeOperationalDataPort(
+                farms=[],
+                district="Matara",
+                district_farms=[HostFarmRecord(farm_id="F-DISTRICT", latitude=5.95, longitude=80.55, location_district="Matara")],
+            )
+            source = FakeCaseEventSource()
+            service = OperationalEventStreamService(port, source)
+            stream = service.stream_events(_VET_A)
+
+            task = asyncio.ensure_future(stream.__anext__())
+            await asyncio.sleep(0)
+            source.push(RawCaseChange(case=_lsd_case(case_id="D1", farm_id="F-DISTRICT"), change_kind=CaseChangeKind.CREATED))
+
+            event = await asyncio.wait_for(task, timeout=1.0)
+            assert event.case_id == "D1"
+            assert event.farm_id == "F-DISTRICT"
+            await stream.aclose()
+
+        _run(scenario())
+
+    def test_assigned_farm_relevance_is_unchanged_alongside_a_real_district(self):
+        async def scenario():
+            port = FakeOperationalDataPort(
+                farms=[HostFarmRecord(farm_id="F-ASSIGNED", latitude=6.9, longitude=79.8)],
+                district="Matara",
+                district_farms=[HostFarmRecord(farm_id="F-DISTRICT", latitude=5.95, longitude=80.55, location_district="Matara")],
+            )
+            source = FakeCaseEventSource()
+            service = OperationalEventStreamService(port, source)
+            stream = service.stream_events(_VET_A)
+
+            task = asyncio.ensure_future(stream.__anext__())
+            await asyncio.sleep(0)
+            source.push(RawCaseChange(case=_lsd_case(case_id="A1", farm_id="F-ASSIGNED"), change_kind=CaseChangeKind.CREATED))
+
+            event = await asyncio.wait_for(task, timeout=1.0)
+            assert event.case_id == "A1"
+            assert event.farm_id == "F-ASSIGNED"
+            await stream.aclose()
+
+        _run(scenario())
+
+    def test_event_outside_both_assigned_farms_and_district_is_excluded(self):
+        async def scenario():
+            port = FakeOperationalDataPort(
+                farms=[HostFarmRecord(farm_id="F-ASSIGNED", latitude=6.9, longitude=79.8)],
+                district="Matara",
+                district_farms=[HostFarmRecord(farm_id="F-DISTRICT", latitude=5.95, longitude=80.55, location_district="Matara")],
+            )
+            source = FakeCaseEventSource()
+            service = OperationalEventStreamService(port, source)
+            stream = service.stream_events(_VET_A)
+
+            task = asyncio.ensure_future(stream.__anext__())
+            await asyncio.sleep(0)
+            # Neither assigned nor district-surveillance -- must never arrive.
+            source.push(RawCaseChange(case=_lsd_case(case_id="OUTSIDE", farm_id="F-ELSEWHERE"), change_kind=CaseChangeKind.CREATED))
+            # The one genuinely relevant event, pushed second, proves the
+            # stream is alive and OUTSIDE was silently dropped, not queued.
+            source.push(RawCaseChange(case=_lsd_case(case_id="D1", farm_id="F-DISTRICT"), change_kind=CaseChangeKind.CREATED))
+
+            event = await asyncio.wait_for(task, timeout=1.0)
+            assert event.case_id == "D1"
+            await stream.aclose()
+
+        _run(scenario())
+
+    def test_a_district_resolution_failure_never_breaks_assigned_farm_relevance(self):
+        async def scenario():
+            port = FakeOperationalDataPort(
+                farms=[HostFarmRecord(farm_id="F-ASSIGNED", latitude=6.9, longitude=79.8)],
+                raise_on_district=True,
+            )
+            source = FakeCaseEventSource()
+            service = OperationalEventStreamService(port, source)
+            stream = service.stream_events(_VET_A)
+
+            task = asyncio.ensure_future(stream.__anext__())
+            await asyncio.sleep(0)
+            source.push(RawCaseChange(case=_lsd_case(case_id="A1", farm_id="F-ASSIGNED"), change_kind=CaseChangeKind.CREATED))
+
+            event = await asyncio.wait_for(task, timeout=1.0)
+            assert event.case_id == "A1"
+            await stream.aclose()
+
+        _run(scenario())
+
+    def test_reconciliation_on_reconnect_includes_district_only_farms(self):
+        async def scenario():
+            port = FakeOperationalDataPort(
+                farms=[],
+                district="Matara",
+                district_farms=[HostFarmRecord(farm_id="F-DISTRICT", latitude=5.95, longitude=80.55, location_district="Matara")],
+            )
+            source = FakeCaseEventSource()
+            source.seed_snapshot(_lsd_case(case_id="MISSED-DISTRICT", farm_id="F-DISTRICT"))
+            service = OperationalEventStreamService(port, source)
+
+            stream = service.stream_events(_VET_A)
+            first_event = await asyncio.wait_for(stream.__anext__(), timeout=1.0)
+            assert first_event.case_id == "MISSED-DISTRICT"
+            await stream.aclose()
+
+        _run(scenario())

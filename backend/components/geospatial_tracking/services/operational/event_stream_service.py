@@ -4,12 +4,26 @@ one authorized, deduplicated `VerifiedClinicalEvent` stream for exactly one
 vet connection. Mirrors `context_service.py`'s "one orchestrator, gates
 delegated to smaller modules" shape.
 
-Authorization (Section 6): a raw change is only ever considered for a vet
-if its `farm_id` is in that vet's OWN assigned-farm set, resolved the exact
-same way `OperationalContextService`/`MongoOperationalDataPort` already
-resolve it (via the injected `OperationalDataPort`) -- never a client-
-supplied vet_id/farm_id, never another vet's farms. This is the one place
-that guarantees "Vet A cannot receive Vet B's farm event."
+Authorization (Section 6, extended by GEO31A Section 4): a raw change is
+only ever considered for a vet if its `farm_id` is in that vet's OWN
+ADDITIVE relevance scope -- personally-assigned farms OR the vet's
+registered-district surveillance farms (`OperationalContextService`'s own
+`_resolve_surveillance`, mirrored here via the SAME
+`get_vet_district`/`get_district_surveillance_farms` port methods) --
+resolved the exact same way `OperationalContextService`/
+`MongoOperationalDataPort` already resolve it (via the injected
+`OperationalDataPort`) -- never a client-supplied vet_id/farm_id, never
+another vet's farms. This is the one place that guarantees "Vet A cannot
+receive Vet B's farm event."
+
+GEO31A Section 4 fix: before this change, this service only ever resolved
+`get_assigned_farms` -- a genuine, real relevant event for a vet's
+registered district (e.g. a farm the polled `/operational-context`
+endpoint already surfaces via `surveillance_contexts`, GEO29A) was
+silently dropped here even though it was NOT private/unauthorized, simply
+because the live SSE path never looked past personally-assigned farms.
+`relevant = assigned-farm relevant OR district-surveillance relevant`,
+additive -- assigned-farm relevance is completely unchanged.
 """
 
 from __future__ import annotations
@@ -56,6 +70,35 @@ class OperationalEventStreamService:
         raw_farms = await self._port.get_assigned_farms(vet)
         return {farm.farm_id: normalize_assigned_farm(farm) for farm in raw_farms}
 
+    async def _resolve_district_farms(self, vet: AuthenticatedVetContext) -> dict[str, OperationalFarm]:
+        """GEO31A Section 4: the vet's registered-district surveillance
+        scope, mirroring `OperationalContextService._resolve_surveillance`'s
+        own resolution exactly (same two port calls, same try/except-to-
+        empty fallback so a district-resolution failure never breaks the
+        stream's still-valid assigned-farm relevance). `personally_assigned
+        =False` matches the privacy redaction the polled endpoint already
+        applies to a district-only farm -- irrelevant to the event payload
+        itself (which carries no farm-detail fields, Section 5), but kept
+        consistent so this dict is safe to reuse anywhere a caller expects
+        the same `OperationalFarm` shape the polling path produces."""
+        try:
+            district = await self._port.get_vet_district(vet)
+            if not district:
+                return {}
+            raw_farms = await self._port.get_district_surveillance_farms(vet, district)
+        except Exception:
+            return {}
+        return {farm.farm_id: normalize_assigned_farm(farm, personally_assigned=False) for farm in raw_farms}
+
+    async def _resolve_relevant_farms(self, vet: AuthenticatedVetContext) -> dict[str, OperationalFarm]:
+        """GEO31A Section 4: additive relevance -- district-surveillance
+        farms first, then assigned farms merged in on top so a farm that is
+        BOTH personally assigned AND inside the vet's own district keeps its
+        `personally_assigned=True` entry, never the district-only one."""
+        district_farms = await self._resolve_district_farms(vet)
+        assigned_farms = await self._resolve_assigned_farms(vet)
+        return {**district_farms, **assigned_farms}
+
     def _reconciliation_changes(self, vet_email: str, assigned_farm_ids: set[str]) -> list[RawCaseChange]:
         """Section 15: diff this vet's own last-delivered map against the
         source's current authoritative snapshot (delta-polling sources
@@ -83,15 +126,20 @@ class OperationalEventStreamService:
         if vet is None or not vet.is_vet():
             return  # Section 6: router already gates 401/403 before calling this; defensive no-op here too.
 
-        assigned_farms_by_id = await self._resolve_assigned_farms(vet)
+        # GEO31A Section 4: `relevant_farms_by_id` is the ADDITIVE union of
+        # assigned-farm relevance and registered-district surveillance
+        # relevance -- see `_resolve_relevant_farms`. Assigned-farm
+        # relevance behaves exactly as before; a district-only farm is now
+        # ALSO included, closing the LIVE_SSE_DISTRICT_SCOPE=PARTIAL gap.
+        relevant_farms_by_id = await self._resolve_relevant_farms(vet)
         farms_resolved_at = self._clock()
         dedup = SeenEventTracker()
         delivered = self._delivered_by_vet.setdefault(vet.email, {})
 
         async def _emit(raw_change: RawCaseChange) -> VerifiedClinicalEvent | None:
-            if raw_change.case.farm_id not in assigned_farms_by_id:
-                return None  # Section 6: not this vet's farm -- silently excluded, never an error
-            event = normalize_case_event(raw_change, assigned_farms_by_id=assigned_farms_by_id)
+            if raw_change.case.farm_id not in relevant_farms_by_id:
+                return None  # Section 6: not this vet's farm/district -- silently excluded, never an error
+            event = normalize_case_event(raw_change, assigned_farms_by_id=relevant_farms_by_id)
             if event is None:
                 return None
             if dedup.seen(event.event_id):
@@ -100,14 +148,14 @@ class OperationalEventStreamService:
             delivered[raw_change.case.case_id] = raw_change.case.verified_at
             return event
 
-        for raw_change in self._reconciliation_changes(vet.email, set(assigned_farms_by_id)):
+        for raw_change in self._reconciliation_changes(vet.email, set(relevant_farms_by_id)):
             event = await _emit(raw_change)
             if event is not None:
                 yield event
 
         async for raw_change in self._source.watch():
             if self._clock() - farms_resolved_at >= _ASSIGNED_FARM_CACHE_TTL_SECONDS:
-                assigned_farms_by_id = await self._resolve_assigned_farms(vet)
+                relevant_farms_by_id = await self._resolve_relevant_farms(vet)
                 farms_resolved_at = self._clock()
             event = await _emit(raw_change)
             if event is not None:

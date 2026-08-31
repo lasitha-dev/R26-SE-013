@@ -23,34 +23,68 @@ import {
  * clean panel of explicit "not available" statements. This is
  * scientifically stronger and visually cleaner than a page full of
  * placeholder `—`/`0`/`N/A %` values (Section 34's own framing).
+ *
+ * Each row shows a short, vet-facing primary status (never inventing an
+ * "Available" state that isn't real) plus the exact underlying reason as
+ * small secondary text -- the longer technical phrasing stays readable
+ * for anyone who wants it without dominating the row.
  */
 export default function AnalysisTrendsEvidencePanel({ modelEvaluation, modelRunComparison, confidence, drivers }) {
-  const evaluationLabel =
-    modelEvaluation?.status === 'ANALYSIS_UNAVAILABLE_DISEASE_MODEL_NOT_READY'
-      ? LABEL_MODEL_EVALUATION_MODEL_NOT_READY
-      : LABEL_MODEL_EVALUATION_NOT_AVAILABLE
+  const modelNotReady = modelEvaluation?.status === 'ANALYSIS_UNAVAILABLE_DISEASE_MODEL_NOT_READY'
+
+  const rows = [
+    {
+      label: LABEL_MODEL_EVALUATION,
+      status: modelNotReady ? 'Not ready' : 'Unavailable',
+      detail: modelNotReady ? LABEL_MODEL_EVALUATION_MODEL_NOT_READY : LABEL_MODEL_EVALUATION_NOT_AVAILABLE,
+    },
+    {
+      label: LABEL_ORIGIN_LEVEL_DIRECTION,
+      status: 'Unavailable',
+      detail: LABEL_DIRECTION_NOT_DEFINED,
+    },
+    {
+      label: LABEL_CONFIDENCE,
+      status: LABEL_CONFIDENCE_NOT_AVAILABLE,
+      detail: null,
+    },
+    {
+      label: LABEL_DRIVERS,
+      status: LABEL_DRIVERS_NOT_AVAILABLE,
+      detail: null,
+    },
+    {
+      label: LABEL_MODEL_RUN_COMPARISON,
+      status: LABEL_MODEL_RUN_COMPARISON_NOT_AVAILABLE,
+      detail: null,
+    },
+  ]
 
   return (
-    <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-      <div className="font-mono uppercase tracking-wide text-emerald-300">{LABEL_EVIDENCE_AVAILABILITY}</div>
-      <ul className="mt-2 space-y-1.5">
-        <EvidenceRow label={LABEL_MODEL_EVALUATION} state={evaluationLabel} />
-        <EvidenceRow label={LABEL_ORIGIN_LEVEL_DIRECTION} state={LABEL_DIRECTION_NOT_DEFINED} />
-        <EvidenceRow label={LABEL_CONFIDENCE} state={LABEL_CONFIDENCE_NOT_AVAILABLE} />
-        <EvidenceRow label={LABEL_DRIVERS} state={LABEL_DRIVERS_NOT_AVAILABLE} />
-        <EvidenceRow label={LABEL_MODEL_RUN_COMPARISON} state={LABEL_MODEL_RUN_COMPARISON_NOT_AVAILABLE} />
+    <div className="rounded-xl border border-white/10 bg-slate-900/60 p-3 text-xs sm:p-4">
+      <div>
+        <div className="font-mono text-xs uppercase tracking-wide text-emerald-300">{LABEL_EVIDENCE_AVAILABILITY}</div>
+        <p className="mt-0.5 text-[11px] text-slate-500">Available evidence for the current runtime/model context</p>
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {rows.map((row) => (
+          <EvidenceRow key={row.label} label={row.label} status={row.status} detail={row.detail} />
+        ))}
       </ul>
     </div>
   )
 }
 
-function EvidenceRow({ label, state }) {
+function EvidenceRow({ label, status, detail }) {
   return (
-    <li className="flex items-center justify-between gap-2 rounded-md border border-white/5 bg-slate-950/40 px-2 py-1.5">
+    <li className="flex items-start justify-between gap-3 rounded-lg border border-white/5 bg-slate-950/40 px-2.5 py-2">
       <span className="text-slate-300">{label}</span>
-      <span className="flex items-center gap-1.5 text-slate-500">
-        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-        {state}
+      <span className="flex flex-col items-end gap-0.5 text-right">
+        <span className="flex items-center gap-1.5 text-slate-400">
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-600" />
+          {status}
+        </span>
+        {detail && <span className="text-[10px] text-slate-600">{detail}</span>}
       </span>
     </li>
   )

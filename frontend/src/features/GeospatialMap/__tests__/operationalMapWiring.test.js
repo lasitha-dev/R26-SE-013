@@ -91,25 +91,31 @@ describe('GEO-INT-03-WIRING-05: separate selection state (Section 12)', () => {
   })
 })
 
-describe('GEO-INT-03-WIRING-06: cleanup safety (Section 17) -- structural presence check', () => {
+describe('GEO-HYBRID-LIVE-SYNC-08-WIRING-06: cleanup safety (Phase 5) -- structural presence check', () => {
   const hookSrc = readFileSync(join(FEATURE_ROOT, 'context', 'useOperationalContext.js'), 'utf-8')
 
-  it('cancels the RAF loop and aborts any in-flight request in the mount effect cleanup', () => {
+  it('clears the reconciliation timeout, aborts any in-flight request, and removes the visibilitychange listener in the mount effect cleanup', () => {
     const cleanupStart = hookSrc.lastIndexOf('return () => {')
     const cleanupBody = hookSrc.slice(cleanupStart)
-    expect(cleanupBody).toContain('cancelAnimationFrame')
+    expect(cleanupBody).toContain('clearTimeout(timeoutRef.current)')
     expect(cleanupBody).toContain('.abort()')
+    expect(cleanupBody).toContain("removeEventListener('visibilitychange'")
   })
 
-  it('uses requestAnimationFrame, never setInterval/setTimeout (also covered globally by noAutoPolling.test.js)', () => {
-    expect(hookSrc).toContain('requestAnimationFrame')
+  it('uses a self-scheduling setTimeout as the ONE reconciliation clock, never setInterval and never RAF as a busy polling clock', () => {
+    expect(hookSrc).toContain('setTimeout(runFetch, REFRESH_INTERVAL_MS)')
     expect(hookSrc.includes('setInterval(')).toBe(false)
-    expect(hookSrc.includes('setTimeout(')).toBe(false)
+    expect(hookSrc.includes('requestAnimationFrame(')).toBe(false)
   })
 
-  it('a manual refresh aborts a still-in-flight request before starting a new one (no duplicate requests)', () => {
+  it('a manual/scheduled/SSE-triggered refresh all share the same overlap guard -- no duplicate in-flight requests', () => {
     expect(hookSrc).toContain('inFlightRef.current')
     expect(hookSrc).toContain('abortControllerRef.current?.abort()')
+  })
+
+  it('adds the visibilitychange listener on mount, pairing the removal in cleanup (no listener leak)', () => {
+    expect(hookSrc).toContain("addEventListener('visibilitychange'")
+    expect(hookSrc).toContain("removeEventListener('visibilitychange'")
   })
 })
 
@@ -131,18 +137,21 @@ describe('GEO-OWNED-FINAL-08-WIRING-09: logout/token-disappearance terminates th
   const hookSrc = readFileSync(join(FEATURE_ROOT, 'context', 'useOperationalContext.js'), 'utf-8')
   const eventsHookSrc = readFileSync(join(FEATURE_ROOT, 'context', 'useVerifiedClinicalEvents.js'), 'utf-8')
 
-  it('useOperationalContext.js checks for a disappeared token on every tick, before the interval-based fetch branch', () => {
-    const tickStart = hookSrc.indexOf('const tick = () => {')
-    const tickBody = hookSrc.slice(tickStart, hookSrc.indexOf('rafRef.current = requestAnimationFrame(tick)', tickStart))
-    expect(tickBody).toContain('hasTokenDisappeared(')
-    expect(tickBody.indexOf('hasTokenDisappeared(')).toBeLessThan(tickBody.indexOf('shouldFetchOnTick('))
+  it('useOperationalContext.js checks for a disappeared token at the very start of runFetch, before starting any new request', () => {
+    const fnStart = hookSrc.indexOf('const runFetch = useCallback(() => {')
+    const braceOpen = hookSrc.indexOf('{', fnStart + 'const runFetch = useCallback('.length)
+    const fnBody = hookSrc.slice(braceOpen, hookSrc.indexOf('}, [])', braceOpen))
+    expect(fnBody).toContain('hasTokenDisappeared(')
+    expect(fnBody.indexOf('hasTokenDisappeared(')).toBeLessThan(fnBody.indexOf('new AbortController()'))
   })
 
-  it('useOperationalContext.js aborts the in-flight request and surfaces SESSION_REQUIRED on token disappearance', () => {
-    const tickStart = hookSrc.indexOf('const tick = () => {')
-    const tickBody = hookSrc.slice(tickStart, hookSrc.indexOf('rafRef.current = requestAnimationFrame(tick)', tickStart))
-    expect(tickBody).toContain('abortControllerRef.current?.abort()')
-    expect(tickBody).toContain("operationalStatus: 'SESSION_REQUIRED'")
+  it('useOperationalContext.js aborts the in-flight request, clears any pending cycle, and surfaces SESSION_REQUIRED on token disappearance', () => {
+    const fnStart = hookSrc.indexOf('const runFetch = useCallback(() => {')
+    const braceOpen = hookSrc.indexOf('{', fnStart + 'const runFetch = useCallback('.length)
+    const fnBody = hookSrc.slice(braceOpen, hookSrc.indexOf('}, [])', braceOpen))
+    expect(fnBody).toContain('abortControllerRef.current?.abort()')
+    expect(fnBody).toContain('clearTimeout(timeoutRef.current)')
+    expect(fnBody).toContain("operationalStatus: 'SESSION_REQUIRED'")
   })
 
   it('useVerifiedClinicalEvents.js checks for a disappeared token on every tick, before the reconnect-timer branch', () => {

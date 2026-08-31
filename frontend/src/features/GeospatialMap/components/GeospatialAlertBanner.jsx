@@ -25,32 +25,32 @@ export default function GeospatialAlertBanner({ notifications, onViewUpdate, onD
   return (
     <div
       role="status"
-      className="pointer-events-auto flex max-w-sm flex-col gap-1 rounded-lg border border-emerald-400/30 bg-slate-900/90 px-3 py-2 text-xs text-slate-200 shadow-lg backdrop-blur"
+      className="pointer-events-auto flex max-w-sm flex-col gap-1 rounded-lg border border-primary/30 bg-surface-container/90 px-3 py-2 text-xs text-on-surface shadow-card-subtle backdrop-blur"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="font-medium text-emerald-200">{title}</span>
+        <span className="font-medium text-primary">{title}</span>
         <button
           type="button"
           onClick={() => onDismiss?.(newest.eventId)}
           aria-label="Dismiss update"
-          className="text-slate-400 hover:text-white"
+          className="text-on-surface-variant/70 hover:text-on-surface"
         >
           &times;
         </button>
       </div>
 
-      {explanation?.whatChanged && <p className="text-slate-300">{explanation.whatChanged}</p>}
-      {explanation?.whyThisMatters && <p className="text-slate-400">{explanation.whyThisMatters}</p>}
+      {explanation?.whatChanged && <p className="text-on-surface-variant">{explanation.whatChanged}</p>}
+      {explanation?.whyThisMatters && <p className="text-on-surface-variant/70">{explanation.whyThisMatters}</p>}
 
       <div className="mt-1 flex items-center gap-3">
         <button
           type="button"
           onClick={() => onViewUpdate?.(newest.event)}
-          className="rounded border border-emerald-300/40 px-2 py-0.5 font-medium text-emerald-100 hover:bg-emerald-400/20"
+          className="rounded border border-primary/40 px-2 py-0.5 font-medium text-primary hover:bg-primary/20"
         >
           View update
         </button>
-        <button type="button" onClick={() => onDismiss?.(newest.eventId)} className="text-slate-400 hover:text-slate-200">
+        <button type="button" onClick={() => onDismiss?.(newest.eventId)} className="text-on-surface-variant/70 hover:text-on-surface-variant">
           Dismiss
         </button>
       </div>

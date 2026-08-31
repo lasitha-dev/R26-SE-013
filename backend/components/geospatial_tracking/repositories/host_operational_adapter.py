@@ -66,6 +66,35 @@ def _valid_object_id(value: Any) -> ObjectId | None:
     return None
 
 
+def district_matches(vet_district: str | None, farm_location_district: str | None) -> bool:
+    """GEO29A Phase 4/7: whether a farm's real `location_district` string
+    belongs to a vet's registered district.
+
+    Real `farms.location_district` values are not a clean district name
+    -- e.g. `"8.4162, 80.0261 (Anuradhapura District)"` (verified read-only
+    against the live host database) -- so this is a normalized substring
+    match, never exact equality: `vet_district` (e.g. `"Anuradhapura"`)
+    must appear, case-insensitively, inside `farm_location_district`.
+
+    `vet.district == "ALL_DISTRICTS"` (an existing real value on several
+    host vet documents -- national/authority-level accounts) matches
+    every farm that has SOME real district on file, never a farm with no
+    district at all (never a guess).
+
+    Never matches when either side is missing -- a vet with no registered
+    district gets no surveillance scope, and a farm with no district
+    string can never be claimed by any district."""
+    if not vet_district or not farm_location_district:
+        return False
+    normalized_vet = vet_district.strip().casefold()
+    normalized_farm = farm_location_district.strip().casefold()
+    if not normalized_vet or not normalized_farm:
+        return False
+    if normalized_vet == "all_districts":
+        return True
+    return normalized_vet in normalized_farm
+
+
 class MongoOperationalDataPort:
     """Host-adapter implementation of
     `repositories.operational_port.OperationalDataPort`. Every method takes
@@ -129,13 +158,21 @@ class MongoOperationalDataPort:
     async def get_verified_clinical_cases(self, vet: AuthenticatedVetContext) -> list[HostDiagnosticCase]:
         farm_documents = await self._resolve_assigned_farm_documents(vet)
         assigned_farm_ids = [str(doc["_id"]) for doc in farm_documents]
-        if not assigned_farm_ids:
+        return await self.get_verified_clinical_cases_for_farm_ids(assigned_farm_ids)
+
+    async def get_verified_clinical_cases_for_farm_ids(self, farm_ids: list[str]) -> list[HostDiagnosticCase]:
+        """GEO29A: the generic case-fetch shared by both the assigned-farm
+        path and the district-surveillance path (Phase 4) -- extracted
+        unchanged from the original `get_verified_clinical_cases` body so
+        neither scope duplicates, or can silently diverge from, the other's
+        query/mapping logic."""
+        if not farm_ids:
             return []
 
         # Section 7: filter as early as safely possible -- both
-        # `verified` and the assigned-farm scope are pushed into the
-        # Mongo query itself, not applied only after fetching everything.
-        query = {"verified": True, "farm_id": {"$in": assigned_farm_ids}}
+        # `verified` and the farm-id scope are pushed into the Mongo
+        # query itself, not applied only after fetching everything.
+        query = {"verified": True, "farm_id": {"$in": farm_ids}}
 
         cases: list[HostDiagnosticCase] = []
         async for case_doc in self._diagnostic_cases.find(query):
@@ -150,3 +187,41 @@ class MongoOperationalDataPort:
                 )
             )
         return cases
+
+    async def get_vet_district(self, vet: AuthenticatedVetContext) -> str | None:
+        """GEO29A Phase 4: the vet's own registered district, straight off
+        the `vets` document -- `district` is the primary field
+        (`health_anomaly`'s registration/profile contract); `location_district`
+        is a secondary mirror some profile-update paths also set. Never
+        guessed/defaulted here -- a vet with neither field gets `None`,
+        and the service layer treats that as "no surveillance scope",
+        never "every district"."""
+        vet_doc = await self._vets.find_one({"email": vet.email})
+        if vet_doc is None:
+            return None
+        district = vet_doc.get("district") or vet_doc.get("location_district")
+        return district if isinstance(district, str) and district.strip() else None
+
+    async def get_district_surveillance_farms(self, vet: AuthenticatedVetContext, district: str) -> list[HostFarmRecord]:
+        """GEO29A Phase 4: every real farm whose `location_district`
+        belongs to `district` (via `district_matches`) -- NOT filtered by
+        assignment at all, since this is the broader surveillance scope
+        (Phase 4: "Keep two concepts distinct"). Farm candidates are
+        fetched unfiltered from Mongo (this host collection is small; the
+        actual district match happens in the pure, independently-tested
+        `district_matches` function, never as a second, divergent Mongo
+        query shape) and matching happens in Python."""
+        documents = []
+        async for farm_doc in self._farms.find({}):
+            if district_matches(district, farm_doc.get("location_district")):
+                documents.append(farm_doc)
+        return [
+            HostFarmRecord(
+                farm_id=str(doc["_id"]),
+                latitude=doc.get("latitude"),
+                longitude=doc.get("longitude"),
+                location_district=doc.get("location_district"),
+                total_animals=doc.get("total_animals"),
+            )
+            for doc in documents
+        ]

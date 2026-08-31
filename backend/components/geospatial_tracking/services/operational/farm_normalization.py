@@ -40,10 +40,17 @@ def _has_valid_coordinates(latitude: object, longitude: object) -> bool:
     return -90.0 <= float(latitude) <= 90.0 and -180.0 <= float(longitude) <= 180.0
 
 
-def normalize_assigned_farm(raw: HostFarmRecord) -> OperationalFarm:
+def normalize_assigned_farm(raw: HostFarmRecord, *, personally_assigned: bool = True) -> OperationalFarm:
     """Section 8/9: builds the minimal `OperationalFarm` DTO from one raw
     host farm record, classifying its GPS usability. Never repairs or
-    guesses a coordinate (Section 9/11)."""
+    guesses a coordinate (Section 9/11).
+
+    GEO29A: `personally_assigned` defaults to `True` -- every call site
+    that existed before this parameter was added is the assigned-farm
+    path, so its behavior is unchanged. The new district-surveillance
+    path (Phase 4) passes `personally_assigned=False` for a farm that
+    only qualifies through the vet's registered district, never through
+    a direct assignment relationship."""
     valid = _has_valid_coordinates(raw.latitude, raw.longitude)
     return OperationalFarm(
         farm_id=raw.farm_id,
@@ -51,5 +58,9 @@ def normalize_assigned_farm(raw: HostFarmRecord) -> OperationalFarm:
         longitude=float(raw.longitude) if valid else None,
         location_status=(LocationStatus.VALID if valid else LocationStatus.LOCATION_REQUIRED).value,
         location_district=raw.location_district,
-        total_animals=raw.total_animals,
+        # GEO29A Phase 5: herd size is a farm operating detail, not needed
+        # for district-wide surveillance -- only exposed for a farm the
+        # vet personally administers.
+        total_animals=raw.total_animals if personally_assigned else None,
+        personally_assigned=personally_assigned,
     )

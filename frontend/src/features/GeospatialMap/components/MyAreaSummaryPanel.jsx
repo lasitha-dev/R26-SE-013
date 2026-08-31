@@ -21,8 +21,8 @@ export default function MyAreaSummaryPanel({ area, relevantOrigins, selectedOrig
   return (
     <div className="flex flex-col gap-3">
       {area && (
-        <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-          <div className="font-mono uppercase tracking-wide text-emerald-300">Area summary</div>
+        <div className="rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Area summary</div>
           <dl className="mt-2 space-y-1">
             <Row label="Farm identifier" value={area.farmId} mono />
             {area.locationDistrict && <Row label="District" value={area.locationDistrict} />}
@@ -32,11 +32,11 @@ export default function MyAreaSummaryPanel({ area, relevantOrigins, selectedOrig
         </div>
       )}
 
-      <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-        <div className="font-mono uppercase tracking-wide text-emerald-300">{LABEL_RELEVANT_ORIGINS}</div>
+      <div className="rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">{LABEL_RELEVANT_ORIGINS}</div>
 
         {relevantOrigins.length === 0 ? (
-          <div className="mt-2 text-slate-400">{LABEL_MY_AREA_NO_RELEVANT_ORIGINS}</div>
+          <div className="mt-2 text-on-surface-variant">{LABEL_MY_AREA_NO_RELEVANT_ORIGINS}</div>
         ) : (
           <>
             <ul className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
@@ -50,33 +50,33 @@ export default function MyAreaSummaryPanel({ area, relevantOrigins, selectedOrig
                       aria-pressed={active}
                       className={
                         active
-                          ? 'w-full rounded-md border border-emerald-400/40 bg-emerald-400/10 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
-                          : 'w-full rounded-md border border-white/10 p-2 text-left hover:border-emerald-400/30 hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
+                          ? 'w-full rounded-md border border-primary/40 bg-primary/10 p-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                          : 'w-full rounded-md border border-outline-variant/30 p-2 text-left hover:border-primary/30 hover:bg-surface-container-high focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
                       }
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-mono text-[11px] text-slate-300" title={origin.originId}>
+                        <span className="truncate font-mono text-[11px] text-on-surface" title={origin.originId}>
                           {origin.originId}
                         </span>
-                        <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-400">{origin.disease}</span>
+                        <span className="shrink-0 rounded-full border border-outline-variant/30 px-1.5 py-0.5 text-[10px] text-on-surface-variant">{origin.disease}</span>
                       </div>
-                      {origin.t0 && <div className="mt-0.5 text-slate-500">t0: {origin.t0}</div>}
+                      {origin.t0 && <div className="mt-0.5 text-on-surface-variant">t0: {origin.t0}</div>}
                       {origin.distanceBasis === 'NEAREST_T0_TRIGGER_SOURCE' ? (
-                        <div className="mt-0.5 text-slate-400">
+                        <div className="mt-0.5 text-on-surface-variant">
                           {LABEL_NEAREST_T0_TRIGGER_SOURCE}: {origin.distanceFromAreaKm.toFixed(1)} km
                         </div>
                       ) : (
-                        <div className="mt-0.5 text-slate-400">
+                        <div className="mt-0.5 text-on-surface-variant">
                           {LABEL_DISTANCE_FROM_AREA}: {origin.distanceFromAreaKm.toFixed(1)} km
                         </div>
                       )}
-                      {origin.scientificMode && <div className="mt-0.5 text-slate-600">{origin.scientificMode}</div>}
+                      {origin.scientificMode && <div className="mt-0.5 text-on-surface-variant/50">{origin.scientificMode}</div>}
                     </button>
                   </li>
                 )
               })}
             </ul>
-            {!selectedOriginId && <div className="mt-2 text-slate-500">{LABEL_MY_AREA_SELECT_ORIGIN}</div>}
+            {!selectedOriginId && <div className="mt-2 text-on-surface-variant/70">{LABEL_MY_AREA_SELECT_ORIGIN}</div>}
           </>
         )}
       </div>
@@ -87,8 +87,8 @@ export default function MyAreaSummaryPanel({ area, relevantOrigins, selectedOrig
 function Row({ label, value, mono }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className={mono ? 'truncate font-mono text-slate-300' : 'text-slate-300'}>{value}</dd>
+      <dt className="text-on-surface-variant/70">{label}</dt>
+      <dd className={mono ? 'truncate font-mono text-on-surface-variant' : 'text-on-surface-variant'}>{value}</dd>
     </div>
   )
 }

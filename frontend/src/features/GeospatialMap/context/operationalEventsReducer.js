@@ -23,6 +23,19 @@ export const TRANSPORT_MODE = {
   DELTA_REFRESH: 'delta_refresh',
 }
 
+/** GEO-HYBRID-LIVE-SYNC-08 Phase 1/3: the real backend event-identity
+ * contract (`domain/operational_events.py::OperationalEventType`) -- an
+ * `event_id` is a per-observation DEDUP key (`vcc:{case_id}:{verified_at}`,
+ * changes on every re-verification of the SAME case), never the same
+ * thing as the case's own stable entity identity (`case_id`). This
+ * distinguishes a genuinely NEW case from an existing case being
+ * re-verified/updated, so callers never pulse an "arrival" for a case
+ * that was already on the map (Phase 3 #13/#14, Phase 9). */
+export const EVENT_TYPE = {
+  CREATED: 'VERIFIED_CLINICAL_CONTEXT_CREATED',
+  UPDATED: 'VERIFIED_CLINICAL_CONTEXT_UPDATED',
+}
+
 /** Section 9 "stale/fallback" required state, exposed as one derived
  * label rather than a separate connection-state enum value -- it can
  * apply to a genuinely CONNECTED stream (fallback transport, or a

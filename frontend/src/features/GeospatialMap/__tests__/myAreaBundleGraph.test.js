@@ -30,7 +30,16 @@ describe('GEO-AREA-02H-BUNDLE-01: MyAreaPage module graph actually resolves', ()
       platform: 'browser',
       format: 'esm',
       jsx: 'automatic',
-      loader: { '.css': 'empty' },
+      // GEO-MY-AREA-STITCH-16: MyAreaPage now genuinely imports
+      // `useDistrictGeometry.js` (the same real district-polygon hook
+      // Page 1 already uses), which imports the real district dataset via
+      // a Vite `?url` asset reference -- plain esbuild resolves that to
+      // its underlying `.geojson` extension (the `?url` suffix is not a
+      // loader hint esbuild understands on its own) and has no loader
+      // registered for it by default. `'empty'` mirrors the existing
+      // `.css` entry: this test proves the module GRAPH resolves, not
+      // that raw asset bytes match production Vite's own `?url` handling.
+      loader: { '.css': 'empty', '.geojson': 'empty' },
       absWorkingDir: FRONTEND_ROOT,
       logLevel: 'silent',
     })

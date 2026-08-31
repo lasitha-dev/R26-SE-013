@@ -36,7 +36,13 @@ import {
 export default function AnalysisTrendsOriginAnalyticsPanel({ selectedOriginAnalytics }) {
   if (!selectedOriginAnalytics) {
     return (
-      <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs text-slate-400">{LABEL_SELECT_ORIGIN_FOR_CONTEXT}</div>
+      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-white/10 bg-slate-950/30 px-4 py-7 text-center">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V9m3 8V5m3 12v-4M4.5 20h15a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 19.5 4h-15A1.5 1.5 0 0 0 3 5.5v13A1.5 1.5 0 0 0 4.5 20Z" />
+        </svg>
+        <div className="text-xs font-medium text-slate-300">No origin selected</div>
+        <div className="max-w-[26rem] text-[11px] text-slate-500">{LABEL_SELECT_ORIGIN_FOR_CONTEXT}</div>
+      </div>
     )
   }
 
@@ -60,7 +66,7 @@ export default function AnalysisTrendsOriginAnalyticsPanel({ selectedOriginAnaly
   const { apparentRate, directionContext, nominalReach, relativeSpatialScoreDistribution } = selectedOriginAnalytics
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
         <dl className="space-y-1">
           <Row label="Origin" value={selectedOriginAnalytics.originId} mono />

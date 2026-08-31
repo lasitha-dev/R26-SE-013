@@ -58,11 +58,28 @@ describe('GEO-LIVE-05-WIRING-02: Page 1 -- a clinical event refetches operationa
     expect(handlerBody).not.toContain('setPopupFeature')
   })
 
-  it('handleViewClinicalUpdate never touches playback/camera controls', () => {
+  it('handleViewClinicalUpdate never touches playback/timeline controls', () => {
     const handlerBody = extractFunctionBody(outbreakMapPageSrc, 'handleViewClinicalUpdate')
-    for (const forbidden of ['ctx.play', 'ctx.pause', 'fitBounds', 'flyTo', 'resetView', 'selectDay']) {
+    for (const forbidden of ['ctx.play', 'ctx.pause', 'selectDay']) {
       expect(handlerBody).not.toContain(forbidden)
     }
+  })
+
+  // GEO26C Section 6: "View update" now brings the real farm this event
+  // belongs to into view -- by reusing the SAME `resetView(explicitBounds)`
+  // primitive the Location control's "My assigned farms" option uses,
+  // never a second/new camera-fit call site (`fitBounds(`/`flyTo(` still
+  // never appear directly in this handler).
+  it('focuses the real farm via the shared resetView(bounds) primitive, never a new fitBounds/flyTo call site', () => {
+    const handlerBody = extractFunctionBody(outbreakMapPageSrc, 'handleViewClinicalUpdate')
+    expect(handlerBody).toContain('resetView(bounds)')
+    expect(handlerBody).not.toContain('fitBounds')
+    expect(handlerBody).not.toContain('flyTo')
+  })
+
+  it('only fits the camera when the event farm has a real, valid location -- never a guessed coordinate', () => {
+    const handlerBody = extractFunctionBody(outbreakMapPageSrc, 'handleViewClinicalUpdate')
+    expect(handlerBody).toContain("farm?.locationStatus === 'VALID'")
   })
 })
 

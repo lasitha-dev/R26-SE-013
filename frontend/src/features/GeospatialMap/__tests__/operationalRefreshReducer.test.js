@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  MIN_REFRESH_INTERVAL_MS,
   OPERATIONAL_STATE,
   REFRESH_INTERVAL_MS,
   applyFetchResult,
   beginFetch,
   initialOperationalRefreshState,
-  shouldFetchOnTick,
+  shouldPauseForHiddenTab,
   shouldPoll,
 } from '../context/operationalRefreshReducer'
 
@@ -84,34 +85,39 @@ describe('GEO-INT-03-REFRESH-04: transient failures retain stale previous data a
   })
 })
 
-describe('GEO-INT-03-REFRESH-05: 60s controlled tick, never faster than 30s', () => {
-  it('REFRESH_INTERVAL_MS is 60000 (60s)', () => {
-    expect(REFRESH_INTERVAL_MS).toBe(60000)
+describe('GEO-HYBRID-LIVE-SYNC-08-REFRESH-05: ~2s fallback reconciliation cycle, never faster than the floor', () => {
+  it('REFRESH_INTERVAL_MS is 2000 (2s) -- the hybrid model\'s fallback cadence', () => {
+    expect(REFRESH_INTERVAL_MS).toBe(2000)
   })
 
-  it('REFRESH_INTERVAL_MS is never shorter than 30s (Section 14 floor)', () => {
-    expect(REFRESH_INTERVAL_MS).toBeGreaterThanOrEqual(30000)
+  it('REFRESH_INTERVAL_MS is never shorter than MIN_REFRESH_INTERVAL_MS (a hard floor against a request storm)', () => {
+    expect(REFRESH_INTERVAL_MS).toBeGreaterThanOrEqual(MIN_REFRESH_INTERVAL_MS)
+    expect(MIN_REFRESH_INTERVAL_MS).toBeGreaterThanOrEqual(1000)
   })
 
-  it('fetches immediately when there is no prior attempt', () => {
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.IDLE, null, 0)).toBe(true)
+  it('shouldPoll permits the three transient/steady states to keep the reconciliation cycle scheduling', () => {
+    expect(shouldPoll(OPERATIONAL_STATE.IDLE)).toBe(true)
+    expect(shouldPoll(OPERATIONAL_STATE.CONNECTED)).toBe(true)
+    expect(shouldPoll(OPERATIONAL_STATE.STALE)).toBe(true)
   })
 
-  it('does not fetch before the interval has elapsed', () => {
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.CONNECTED, 1000, 1000 + REFRESH_INTERVAL_MS - 1)).toBe(false)
+  it('shouldPoll is false for exactly the three terminal 401/403/404 states -- the cycle must stop rescheduling', () => {
+    expect(shouldPoll(OPERATIONAL_STATE.SESSION_REQUIRED)).toBe(false)
+    expect(shouldPoll(OPERATIONAL_STATE.FORBIDDEN)).toBe(false)
+    expect(shouldPoll(OPERATIONAL_STATE.HOST_COMPOSITION_REQUIRED)).toBe(false)
+  })
+})
+
+describe('GEO-LIVE-UPDATE-RECOVERY-06: hidden-tab pause', () => {
+  it('pauses when the document is hidden', () => {
+    expect(shouldPauseForHiddenTab('hidden')).toBe(true)
   })
 
-  it('fetches once the interval has fully elapsed', () => {
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.CONNECTED, 1000, 1000 + REFRESH_INTERVAL_MS)).toBe(true)
+  it('does not pause when visible', () => {
+    expect(shouldPauseForHiddenTab('visible')).toBe(false)
   })
 
-  it('never fetches on tick while in a stopped-polling state (401/403/404), regardless of elapsed time', () => {
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.SESSION_REQUIRED, 0, 10 * REFRESH_INTERVAL_MS)).toBe(false)
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.FORBIDDEN, 0, 10 * REFRESH_INTERVAL_MS)).toBe(false)
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.HOST_COMPOSITION_REQUIRED, 0, 10 * REFRESH_INTERVAL_MS)).toBe(false)
-  })
-
-  it('a STALE state keeps polling on tick', () => {
-    expect(shouldFetchOnTick(OPERATIONAL_STATE.STALE, 0, REFRESH_INTERVAL_MS)).toBe(true)
+  it('does not pause when visibility is unknown (non-browser environment)', () => {
+    expect(shouldPauseForHiddenTab(undefined)).toBe(false)
   })
 })

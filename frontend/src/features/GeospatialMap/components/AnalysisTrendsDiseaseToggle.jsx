@@ -33,8 +33,8 @@ export default function AnalysisTrendsDiseaseToggle({ selected, onSelect }) {
             onClick={() => onSelect(code)}
             className={
               active
-                ? 'rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-medium text-emerald-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
-                : 'rounded-full px-3 py-1 text-xs text-slate-300 hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
+                ? 'rounded-full bg-emerald-400/20 px-3.5 py-1.5 text-sm font-medium text-emerald-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
+                : 'rounded-full px-3.5 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
             }
           >
             {config.shortLabel}

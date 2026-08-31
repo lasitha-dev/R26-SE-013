@@ -6,8 +6,8 @@
 
 import { GEOSPATIAL_API_PREFIX } from './apiConfig'
 
-async function getJson(path) {
-  const response = await fetch(`${GEOSPATIAL_API_PREFIX}${path}`)
+async function getJson(path, { signal } = {}) {
+  const response = await fetch(`${GEOSPATIAL_API_PREFIX}${path}`, signal ? { signal } : undefined)
   if (!response.ok) {
     let detail = null
     try {
@@ -37,12 +37,12 @@ export function fetchProtocol() {
  * ask for a disease explicitly rather than rely on an implicit default
  * once FMD becomes selectable.
  */
-export function fetchOrigins({ disease, country } = {}) {
+export function fetchOrigins({ disease, country, signal } = {}) {
   const params = new URLSearchParams()
   if (disease) params.set('disease', disease)
   if (country) params.set('country', country)
   const query = params.toString()
-  return getJson(`/origins${query ? `?${query}` : ''}`)
+  return getJson(`/origins${query ? `?${query}` : ''}`, { signal })
 }
 
 /**
@@ -54,11 +54,11 @@ export function fetchOrigins({ disease, country } = {}) {
  * convention as every other geometry response in this file -- returned
  * verbatim, never recomputed.
  */
-export function fetchOriginTriggerSources(forecastOriginId, { disease } = {}) {
+export function fetchOriginTriggerSources(forecastOriginId, { disease, signal } = {}) {
   const params = new URLSearchParams()
   if (disease) params.set('disease', disease)
   const query = params.toString()
-  return getJson(`/origins/${encodeURIComponent(forecastOriginId)}/trigger-sources${query ? `?${query}` : ''}`)
+  return getJson(`/origins/${encodeURIComponent(forecastOriginId)}/trigger-sources${query ? `?${query}` : ''}`, { signal })
 }
 
 export function fetchAnalysisSummary(forecastOriginId) {
@@ -69,8 +69,8 @@ export function fetchAnalysisCells(forecastOriginId) {
   return getJson(`/analysis/${encodeURIComponent(forecastOriginId)}/cells`)
 }
 
-export function fetchAnalysisSources(forecastOriginId) {
-  return getJson(`/analysis/${encodeURIComponent(forecastOriginId)}/sources`)
+export function fetchAnalysisSources(forecastOriginId, { signal } = {}) {
+  return getJson(`/analysis/${encodeURIComponent(forecastOriginId)}/sources`, { signal })
 }
 
 /**

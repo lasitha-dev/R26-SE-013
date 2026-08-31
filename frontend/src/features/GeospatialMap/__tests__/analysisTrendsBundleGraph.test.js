@@ -29,7 +29,13 @@ describe('GEO-ANALYSIS-02-BUNDLE-01: AnalysisTrendsPage module graph actually re
       platform: 'browser',
       format: 'esm',
       jsx: 'automatic',
-      loader: { '.css': 'empty' },
+      // URGENT-MATARA-FIXED-SCOPE: AnalysisTrendsPage now genuinely imports
+      // `useDistrictGeometry.js` (the same real district-polygon hook Page 1/
+      // Page 2 already use), which imports the real district dataset via a
+      // Vite `?url` asset reference -- plain esbuild resolves that to its
+      // underlying `.geojson` extension and has no loader registered for it
+      // by default. Mirrors `myAreaBundleGraph.test.js`'s identical fix.
+      loader: { '.css': 'empty', '.geojson': 'empty' },
       absWorkingDir: FRONTEND_ROOT,
       logLevel: 'silent',
     })

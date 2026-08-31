@@ -10,6 +10,8 @@
  * (GEO-AREA-01H's whole point).
  */
 
+import { normalizeDistrictDisplayName } from './districtGeometry'
+
 const KNOWN_DISEASES = new Set(['LSD', 'FMD'])
 
 function isFiniteNumber(value) {
@@ -25,7 +27,14 @@ function normalizeArea(rawArea) {
     latitude: hasValidLocation ? rawArea.latitude : null,
     longitude: hasValidLocation ? rawArea.longitude : null,
     locationStatus: hasValidLocation ? 'VALID' : 'LOCATION_REQUIRED',
-    locationDistrict: typeof rawArea.location_district === 'string' ? rawArea.location_district : null,
+    // GEO-MY-AREA-FINAL-PASS: the real raw value is NOT a clean district
+    // name (e.g. "8.4162, 80.0261 (Anuradhapura District)" -- see
+    // `normalizeDistrictDisplayName`'s own docstring for the verified
+    // real example) -- normalized ONCE here so every consumer of
+    // `area.locationDistrict` (this page's KPI/map-title/Intelligence-
+    // panel labels AND the district-geometry lookup that reads this same
+    // field) gets a genuine short display name, never raw coordinates.
+    locationDistrict: normalizeDistrictDisplayName(rawArea.location_district),
     totalAnimals: typeof rawArea.total_animals === 'number' ? rawArea.total_animals : null,
   }
 }
