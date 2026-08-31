@@ -29,7 +29,8 @@ from components.risk_forecasting.config import (
 from components.risk_forecasting.schemas import (
     LSDOutbreakPredictRequest, LSDOutbreakPredictResponse,
     Stage1Prediction, Stage2Prediction, CalibrationInfo, UncertaintyInfo, DataProvenance, LSDDataProvenance,
-    DistrictForecastResponse, LSDDistrictForecastResponse, DistrictForecastItem
+    DistrictForecastResponse, LSDDistrictForecastResponse, DistrictForecastItem,
+    ExplanationInfo, FeatureContribution
 )
 
 logger = logging.getLogger(__name__)
@@ -262,6 +263,21 @@ class LSDService:
             "during active outbreak waves (0% specificity during 2023 wave)."
         )
 
+        explanation_info = self._compute_explanation(
+            model=model,
+            scaler=scaler,
+            feat_cols=feat_cols,
+            x_stage1=x_stage1,
+            x_stage1_scaled=x_stage1_scaled,
+            variant_name=model_variant,
+            fallback_applied=model_fallback_applied,
+            data_quality=data_qual,
+            requested_year=request.year,
+            requested_month=request.month,
+            source_year=src_yr,
+            source_month=src_m
+        )
+
         return LSDOutbreakPredictResponse(
             disease="LSD",
             district=request.district,
@@ -314,7 +330,84 @@ class LSDService:
                 lag1_message=lag1_msg,
                 model_fallback_applied=model_fallback_applied,
                 model_fallback_reason=model_fallback_reason
-            )
+            ),
+            explanation_info=explanation_info
+        )
+
+    def _compute_explanation(
+        self,
+        model: Any,
+        scaler: Any,
+        feat_cols: List[str],
+        x_stage1: pd.DataFrame,
+        x_stage1_scaled: np.ndarray,
+        variant_name: str,
+        fallback_applied: bool,
+        data_quality: str,
+        requested_year: int,
+        requested_month: int,
+        source_year: Optional[int],
+        source_month: Optional[int]
+    ) -> ExplanationInfo:
+        if hasattr(model, 'calibrated_classifiers_'):
+            coefs = np.mean([clf.estimator.coef_[0] for clf in model.calibrated_classifiers_], axis=0)
+            intercept = np.mean([clf.estimator.intercept_[0] for clf in model.calibrated_classifiers_], axis=0)
+        else:
+            intercept = float(model.intercept_[0]) if hasattr(model, 'intercept_') else 0.0
+            coefs = model.coef_[0] if hasattr(model, 'coef_') else np.zeros(len(feat_cols))
+
+        contributions = coefs * x_stage1_scaled[0]
+        reconstructed_score = float(intercept + np.sum(contributions))
+        reconstructed_prob = float(1.0 / (1.0 + np.exp(-reconstructed_score)))
+
+        items: List[FeatureContribution] = []
+        for i, col in enumerate(feat_cols):
+            val = float(x_stage1[col].iloc[0])
+            c_val = float(contributions[i])
+
+            label = col.replace("_", " ").title()
+
+            if c_val > 1e-6:
+                direction = "RISK_INCREASING"
+            elif c_val < -1e-6:
+                direction = "RISK_DECREASING"
+            else:
+                direction = "NEUTRAL"
+
+            items.append(FeatureContribution(
+                feature=col,
+                display_label=label,
+                raw_value=round(val, 4),
+                contribution_log_odds=round(c_val, 4),
+                direction=direction
+            ))
+
+        positives = sorted([it for it in items if it.direction == "RISK_INCREASING"], key=lambda x: x.contribution_log_odds, reverse=True)[:5]
+        negatives = sorted([it for it in items if it.direction == "RISK_DECREASING"], key=lambda x: x.contribution_log_odds)[:5]
+
+        provenance_warning = None
+        if fallback_applied:
+            if data_quality == "HISTORICAL_SAME_MONTH_PROXY" and source_year is not None and source_month is not None:
+                src_m_name = MONTH_NAMES[source_month - 1]
+                req_m_name = MONTH_NAMES[requested_month - 1]
+                provenance_warning = f"This explanation uses a {src_m_name} {source_year} historical feature row as a proxy for the requested {req_m_name} {requested_year} period."
+            else:
+                provenance_warning = "This explanation uses aggregated historical median feature values."
+
+        notes = "Elastic Net feature contributions represent additive impacts on the linear Log-Odds score. Note: This model is not fully validated for local severity feature explanation during active outbreak waves."
+
+        return ExplanationInfo(
+            method="Elastic Net Log-Odds Decomposition",
+            model_variant=variant_name,
+            explanation_scope="LOCAL_PREDICTION",
+            contribution_unit="LOG_ODDS",
+            baseline_description="Model decision score relative to standardized baseline.",
+            top_risk_increasing=positives,
+            top_risk_decreasing=negatives,
+            decision_score=round(reconstructed_score, 6),
+            reconstructed_probability=round(reconstructed_prob, 6),
+            provenance_warning=provenance_warning,
+            notes=notes
         )
 
     def get_feature_row(self, district: str, month_num: int, year: int, feature_cols: List[str]) -> Tuple[pd.DataFrame, bool, str, Optional[int], Optional[int], Optional[int], str]:

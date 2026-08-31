@@ -201,6 +201,7 @@ class LSDOutbreakPredictResponse(BaseModel):
         description="Mandatory scientific disclaimer regarding LSD Stage 2 limitations."
     )
     provenance: LSDDataProvenance
+    explanation_info: Optional[ExplanationInfo] = Field(default=None, description="Local explainability breakdown of Stage 1 Elastic Net prediction factors.")
 
 
 # ─── Forecast Schemas ────────────────────────────────────────────────────────

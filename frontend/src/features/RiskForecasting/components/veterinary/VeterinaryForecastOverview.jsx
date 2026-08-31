@@ -416,13 +416,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
       )}
 
-      {explanationData && explanationData.disease === 'FMD' && explanationData.explanation_info && (
+      {explanationData && explanationData.explanation_info && (
         <section className="p-6 rounded-2xl bg-surface-container-high border border-outline-variant/40 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3">
              <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">psychology</span>
              <div>
-               <h3 className="text-lg font-bold text-on-surface">SHAP Explainability Breakdown — FMD</h3>
-               <p className="text-xs text-on-surface-variant font-medium">Live model feature contributions (Linear Log-Odds Decomposition)</p>
+               <h3 className="text-lg font-bold text-on-surface">SHAP Explainability Breakdown — {explanationData.disease}</h3>
+               <p className="text-xs text-on-surface-variant font-medium">Live model feature contributions ({explanationData.explanation_info.method || 'Log-Odds Decomposition'})</p>
              </div>
           </div>
           <p className="text-xs text-on-surface-variant max-w-3xl">
@@ -481,7 +481,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </section>
       )}
 
-      {explanationData && explanationData.disease === 'LSD' && (
+      {explanationData && !explanationData.explanation_info && explanationData.disease === 'LSD' && (
          <section className="p-6 rounded-2xl bg-surface-container-high border border-outline-variant/40 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3">
              <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">psychology</span>
