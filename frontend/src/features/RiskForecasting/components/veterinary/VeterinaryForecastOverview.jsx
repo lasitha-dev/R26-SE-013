@@ -83,6 +83,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [selectedYear, setSelectedYear] = useState(2025);
   const [selectedMonth, setSelectedMonth] = useState(1);
 
+  const [explanationData, setExplanationData] = useState(null);
+  const [explainingDisease, setExplainingDisease] = useState(null);
+  const [explanationError, setExplanationError] = useState(null);
+
   // 3. Load latest stored records for assigned district
   const fetchOverviewRecords = useCallback(async () => {
     if (!assignedDistrict) return;
@@ -138,7 +142,41 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     );
   }
 
+  const handleExplainForecast = async (diseaseCode, record) => {
+    if (!record) return;
+    setExplainingDisease(diseaseCode);
+    setExplanationError(null);
+    setExplanationData(null);
 
+    try {
+      // Live API call to the actual prediction endpoint for SHAP explainability
+      const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
+      const endpoint = `${API_BASE}/api/v1/risk-forecasting/predict/${diseaseCode.toLowerCase()}`;
+      
+      const payload = {
+        district: assignedDistrict,
+        year: record.target_year || record.targetYear || selectedYear,
+        month: record.target_month || record.targetMonth || selectedMonth
+      };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to calculate live explainability (Status: ${res.status})`);
+      }
+
+      const data = await res.json();
+      setExplanationData(data);
+    } catch (err) {
+      setExplanationError(err.message || 'Unable to generate SHAP breakdown at this moment.');
+    } finally {
+      setExplainingDisease(null);
+    }
+  };
 
   const renderDiseaseCard = (diseaseName, diseaseCode, record) => {
     if (!record) {
@@ -251,6 +289,20 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               </dd>
             </div>
           </dl>
+
+          {/* Explainability Button */}
+          <div className="pt-4 border-t border-outline-variant/30 flex justify-end">
+            <button
+              onClick={() => handleExplainForecast(diseaseCode, record)}
+              disabled={explainingDisease === diseaseCode || explainingDisease !== null}
+              className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold tracking-wide transition-colors disabled:opacity-50"
+            >
+              <span className={`material-symbols-outlined text-sm ${explainingDisease === diseaseCode ? 'animate-spin' : ''}`}>
+                {explainingDisease === diseaseCode ? 'sync' : 'psychology'}
+              </span>
+              {explainingDisease === diseaseCode ? 'CALCULATING...' : 'EXPLAIN FORECAST'}
+            </button>
+          </div>
         </div>
 
         <p className="text-[11px] text-on-surface-variant/70 italic border-t border-outline-variant/20 pt-2">
@@ -352,6 +404,96 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
             {renderDiseaseCard('Lumpy Skin Disease (LSD)', 'LSD', lsdRecord)}
           </div>
         </section>
+      )}
+
+      {/* SHAP Explanation Block */}
+      {explanationError && (
+        <div role="alert" className="p-4 bg-error-container/20 border border-error/30 rounded-xl text-error text-sm flex items-center gap-3">
+          <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
+            error
+          </span>
+          <span>{explanationError}</span>
+        </div>
+      )}
+
+      {explanationData && explanationData.disease === 'FMD' && explanationData.explanation_info && (
+        <section className="p-6 rounded-2xl bg-surface-container-high border border-outline-variant/40 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-3">
+             <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">psychology</span>
+             <div>
+               <h3 className="text-lg font-bold text-on-surface">SHAP Explainability Breakdown — FMD</h3>
+               <p className="text-xs text-on-surface-variant font-medium">Live model feature contributions (Linear Log-Odds Decomposition)</p>
+             </div>
+          </div>
+          <p className="text-xs text-on-surface-variant max-w-3xl">
+             {explanationData.explanation_info.notes || explanationData.explanation_info.baseline_description}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Risk Increasing */}
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-3">
+              <h4 className="text-sm font-semibold text-rose-300 flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">trending_up</span>
+                Top Risk Increasing Drivers
+              </h4>
+              <ul className="space-y-3">
+                {explanationData.explanation_info.top_risk_increasing?.map((f, i) => (
+                  <li key={i} className="flex flex-col gap-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-on-surface font-semibold">{f.display_label}</span>
+                      <span className="font-mono text-rose-300 font-bold">+{f.contribution_log_odds.toFixed(2)}</span>
+                    </div>
+                    <div className="w-full bg-rose-950 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-rose-500 h-1.5 rounded-full" style={{ width: `${Math.min((f.contribution_log_odds / 2) * 100, 100)}%` }}></div>
+                    </div>
+                  </li>
+                ))}
+                {(!explanationData.explanation_info.top_risk_increasing || explanationData.explanation_info.top_risk_increasing.length === 0) && (
+                   <li className="text-xs text-on-surface-variant">No significant increasing drivers identified.</li>
+                )}
+              </ul>
+            </div>
+
+            {/* Risk Decreasing */}
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
+              <h4 className="text-sm font-semibold text-emerald-300 flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">trending_down</span>
+                Top Risk Decreasing Drivers
+              </h4>
+              <ul className="space-y-3">
+                {explanationData.explanation_info.top_risk_decreasing?.map((f, i) => (
+                  <li key={i} className="flex flex-col gap-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-on-surface font-semibold">{f.display_label}</span>
+                      <span className="font-mono text-emerald-300 font-bold">{f.contribution_log_odds.toFixed(2)}</span>
+                    </div>
+                    <div className="w-full bg-emerald-950 rounded-full h-1.5 overflow-hidden flex justify-end">
+                      <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${Math.min((Math.abs(f.contribution_log_odds) / 2) * 100, 100)}%` }}></div>
+                    </div>
+                  </li>
+                ))}
+                {(!explanationData.explanation_info.top_risk_decreasing || explanationData.explanation_info.top_risk_decreasing.length === 0) && (
+                   <li className="text-xs text-on-surface-variant">No significant decreasing drivers identified.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {explanationData && explanationData.disease === 'LSD' && (
+         <section className="p-6 rounded-2xl bg-surface-container-high border border-outline-variant/40 shadow-xl space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-3">
+             <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">psychology</span>
+             <div>
+               <h3 className="text-lg font-bold text-on-surface">Model Diagnostics — LSD</h3>
+               <p className="text-xs text-on-surface-variant font-medium">Verified Operational Status</p>
+             </div>
+          </div>
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+             <p className="text-sm text-amber-300">{explanationData.disclaimer || 'LSD Explainability is strictly constrained. Model does not validate active outbreak severity.'}</p>
+          </div>
+         </section>
       )}
 
       {/* Scientific & Diagnostic Disclaimer */}
