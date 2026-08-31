@@ -111,7 +111,7 @@ describe('GEO-HYBRID-LIVE-SYNC-08: the scientific/historical plane is never poll
 })
 
 describe('GEO-HYBRID-LIVE-SYNC-08: the operational reconciliation scheduler is safe (cleanup, overlap, staleness, hidden-tab, resume)', () => {
-  const hookSrc = readFileSync(join(FEATURE_ROOT, OPERATIONAL_SCHEDULER_FILE), 'utf-8')
+  const hookSrc = readFileSync(join(FEATURE_ROOT, OPERATIONAL_SCHEDULER_FILE), 'utf-8').replace(/\r\n/g, '\n')
 
   it('exists only while mounted -- clears the pending cycle, aborts any in-flight request, and removes the visibility listener on unmount', () => {
     const cleanupStart = hookSrc.lastIndexOf('return () => {')

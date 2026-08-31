@@ -12,7 +12,10 @@ import VetAssignedFarms from './shared_components/VetAssignedFarms.jsx'
 import VetClinicalRecords from './features/SmartDiagnostics/screens/VetClinicalRecords.jsx'
 import VetSettings from './shared_components/VetSettings.jsx'
 import VetFarmCattleView from './shared_components/VetFarmCattleView.jsx'
-import GeospatialMock from './features/GeospatialMap/screens/GeospatialMock.jsx'
+import GeospatialLayout from './features/GeospatialMap/GeospatialLayout.jsx'
+import OutbreakMapPage from './features/GeospatialMap/pages/OutbreakMapPage.jsx'
+import MyAreaPage from './features/GeospatialMap/pages/MyAreaPage.jsx'
+import AnalysisTrendsPage from './features/GeospatialMap/pages/AnalysisTrendsPage.jsx'
 import RiskForecastingIntegrationAdapter from './features/RiskForecasting/integration/RiskForecastingIntegrationAdapter.jsx'
 import { RiskForecastingDemoEntry } from './features/RiskForecasting/RiskForecastingDemoEntry'
 
@@ -90,9 +93,13 @@ export default function App() {
         } />
         <Route path="geospatial" element={
           <RoleGuard allowedRoles={['vet']}>
-            <GeospatialMock />
+            <GeospatialLayout />
           </RoleGuard>
-        } />
+        }>
+          <Route index element={<OutbreakMapPage />} />
+          <Route path="my-area" element={<MyAreaPage />} />
+          <Route path="analysis" element={<AnalysisTrendsPage />} />
+        </Route>
         <Route path="forecasting" element={<RiskForecastingIntegrationAdapter />} />
         <Route path="assigned-farms" element={
           <RoleGuard allowedRoles={['vet']}>
