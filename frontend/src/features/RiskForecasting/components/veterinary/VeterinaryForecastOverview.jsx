@@ -17,6 +17,42 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+const FEATURE_LABELS = {
+  'Iod Dmi': 'Indian Ocean Dipole (Sea Temp Anomaly)',
+  'Rfq': 'Rainfall Frequency (Days with Rain)',
+  'Humidity Lag1': 'Relative Humidity (Previous Month)',
+  'Humidity Lag2': 'Relative Humidity (2 Months Ago)',
+  'Humidity Lag3': 'Relative Humidity (3 Months Ago)',
+  'Cos Month': 'Seasonal Cycle (Time of Year)',
+  'Sin Month': 'Seasonal Cycle (Time of Year)',
+  'Nino34 Lag3': 'El Niño Indicator (3 Months Ago)',
+  'Nino34 Lag2': 'El Niño Indicator (2 Months Ago)',
+  'Nino34 Lag1': 'El Niño Indicator (Previous Month)',
+  'Nino34': 'El Niño Indicator (Current)',
+  'Rain Lag3': 'Total Rainfall (3 Months Ago)',
+  'Rain Lag2': 'Total Rainfall (2 Months Ago)',
+  'Rain Lag1': 'Total Rainfall (Previous Month)',
+  'Rain': 'Total Rainfall (Current Month)',
+  'Own Outbreak Lag1': 'Local Outbreak History (Previous Month)',
+  'Own Outbreak Lag2': 'Local Outbreak History (2 Months Ago)',
+  'Own Outbreak Lag3': 'Local Outbreak History (3 Months Ago)',
+  'Monsoon Phase First Inter Monsoon': 'First Inter-Monsoon Phase',
+  'Monsoon Phase Second Inter Monsoon': 'Second Inter-Monsoon Phase',
+  'Monsoon Phase South West Monsoon': 'South-West Monsoon Phase',
+  'Monsoon Phase North East Monsoon': 'North-East Monsoon Phase',
+  'Tmax': 'Maximum Temperature',
+  'Tmin': 'Minimum Temperature',
+  'Tmax Lag1': 'Max Temperature (Previous Month)',
+  'Tmax Lag2': 'Max Temperature (2 Months Ago)',
+  'Tmin Lag1': 'Min Temperature (Previous Month)',
+  'Tmin Lag2': 'Min Temperature (2 Months Ago)',
+  'Ndvi': 'Vegetation Index (NDVI)',
+  'Ndvi Lag1': 'Vegetation Index (Previous Month)',
+  'Ndvi Lag2': 'Vegetation Index (2 Months Ago)',
+  'Elevation': 'District Elevation (Topography)',
+  'Cattle Density': 'District Cattle Density'
+};
+
 function getRiskBadge(riskLevel) {
   const norm = (riskLevel || '').toUpperCase();
   switch (norm) {
@@ -118,6 +154,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
         setApiError(fmdRes.reason?.message || lsdRes.reason?.message || 'Failed to load official forecast records.');
       }
+      
+      // Clear previous explanation data when the selected period changes
+      setExplanationData(null);
+      setExplanationError(null);
     } catch (err) {
       setApiError(err.message || 'An unexpected error occurred loading forecast overview.');
     } finally {
@@ -440,7 +480,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 {explanationData.explanation_info.top_risk_increasing?.map((f, i) => (
                   <li key={i} className="flex flex-col gap-1 text-xs">
                     <div className="flex justify-between items-center">
-                      <span className="text-on-surface font-semibold">{f.display_label}</span>
+                      <span className="text-on-surface font-semibold">{FEATURE_LABELS[f.display_label] || f.display_label}</span>
                       <span className="font-mono text-rose-300 font-bold">+{f.contribution_log_odds.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-rose-950 rounded-full h-1.5 overflow-hidden">
@@ -464,7 +504,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 {explanationData.explanation_info.top_risk_decreasing?.map((f, i) => (
                   <li key={i} className="flex flex-col gap-1 text-xs">
                     <div className="flex justify-between items-center">
-                      <span className="text-on-surface font-semibold">{f.display_label}</span>
+                      <span className="text-on-surface font-semibold">{FEATURE_LABELS[f.display_label] || f.display_label}</span>
                       <span className="font-mono text-emerald-300 font-bold">{f.contribution_log_odds.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-emerald-950 rounded-full h-1.5 overflow-hidden flex justify-end">
