@@ -24,10 +24,24 @@ describe('GEO-AREA-02-ICON-01: farm marker is deterministic', () => {
 })
 
 describe('GEO-AREA-02-ICON-02: visually distinct from every other marker family (Section 16)', () => {
-  it('is SOLID (filled center), unlike the hollow clinical markers', () => {
+  it('is SOLID (filled center) -- GEO31A Section 2 also made the clinical markers solid, so pixel data (not fill-style) is what must stay distinct', () => {
     expect(centerAlpha(buildFarmMarkerImage())).toBeGreaterThan(0)
-    expect(centerAlpha(buildClinicalDiamondIcon())).toBe(0)
-    expect(centerAlpha(buildClinicalCircleIcon())).toBe(0)
+    expect(centerAlpha(buildClinicalDiamondIcon())).toBeGreaterThan(0)
+    expect(centerAlpha(buildClinicalCircleIcon())).toBeGreaterThan(0)
+    expect(Array.from(buildFarmMarkerImage(20).data)).not.toEqual(Array.from(buildClinicalDiamondIcon(20).data))
+    expect(Array.from(buildFarmMarkerImage(20).data)).not.toEqual(Array.from(buildClinicalCircleIcon(20).data))
+  })
+
+  it('is never the red observed-event color the clinical markers now use (Section 2/16: distinct color families)', () => {
+    const image = buildFarmMarkerImage(20)
+    const cx = 10
+    const cy = 10
+    const idx = (cy * 20 + cx) * 4
+    const [r, g, b, a] = [image.data[idx], image.data[idx + 1], image.data[idx + 2], image.data[idx + 3]]
+    expect(a).toBeGreaterThan(0)
+    // CLINICAL_MARKER_COLOR_HEX (#ef4444) is red-dominant -- the farm
+    // marker's own fill must never match that channel signature.
+    expect(r > g && r > b).toBe(false)
   })
 
   it('pixel data differs from the historical-source (amber diamond) icon', () => {

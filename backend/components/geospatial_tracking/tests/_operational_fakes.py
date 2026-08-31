@@ -33,13 +33,25 @@ class FakeOperationalDataPort:
         cases: list[HostDiagnosticCase] | None = None,
         raise_on_farms: bool = False,
         raise_on_cases: bool = False,
+        # GEO29A Phase 4/21: district-surveillance fixtures, all optional
+        # and empty by default -- an existing test that never sets these
+        # exercises the exact same assigned-farm-only behavior as before.
+        district: str | None = None,
+        district_farms: list[HostFarmRecord] | None = None,
+        district_cases_by_farm_id: dict[str, list[HostDiagnosticCase]] | None = None,
+        raise_on_district: bool = False,
     ) -> None:
         self._farms = farms or []
         self._cases = cases or []
         self._raise_on_farms = raise_on_farms
         self._raise_on_cases = raise_on_cases
+        self._district = district
+        self._district_farms = district_farms or []
+        self._district_cases_by_farm_id = district_cases_by_farm_id or {}
+        self._raise_on_district = raise_on_district
         self.farms_calls: list[AuthenticatedVetContext] = []
         self.cases_calls: list[AuthenticatedVetContext] = []
+        self.district_farm_calls: list[str] = []
 
     async def get_assigned_farms(self, vet: AuthenticatedVetContext) -> list[HostFarmRecord]:
         self.farms_calls.append(vet)
@@ -52,6 +64,25 @@ class FakeOperationalDataPort:
         if self._raise_on_cases:
             raise RuntimeError("simulated host data source outage")
         return list(self._cases)
+
+    async def get_vet_district(self, vet: AuthenticatedVetContext) -> str | None:
+        if self._raise_on_district:
+            raise RuntimeError("simulated host data source outage")
+        return self._district
+
+    async def get_district_surveillance_farms(self, vet: AuthenticatedVetContext, district: str) -> list[HostFarmRecord]:
+        self.district_farm_calls.append(district)
+        if self._raise_on_district:
+            raise RuntimeError("simulated host data source outage")
+        return list(self._district_farms)
+
+    async def get_verified_clinical_cases_for_farm_ids(self, farm_ids: list[str]) -> list[HostDiagnosticCase]:
+        if self._raise_on_district:
+            raise RuntimeError("simulated host data source outage")
+        result: list[HostDiagnosticCase] = []
+        for farm_id in farm_ids:
+            result.extend(self._district_cases_by_farm_id.get(farm_id, []))
+        return result
 
 
 def _field_matches(doc_value: Any, condition: Any) -> bool:

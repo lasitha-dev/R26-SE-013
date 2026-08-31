@@ -20,7 +20,7 @@ import {
  * plain HTTP request/response, not push).
  */
 const DOT_CLASS = {
-  [OPERATIONAL_STATE.CONNECTED]: 'bg-teal-400',
+  [OPERATIONAL_STATE.CONNECTED]: 'bg-primary',
   [OPERATIONAL_STATE.STALE]: 'bg-amber-400',
   [OPERATIONAL_STATE.LOADING]: 'bg-amber-400',
 }
@@ -58,20 +58,20 @@ function labelFor(state, clock) {
 
 export default function OperationalStatusChip({ state, lastRefreshedAt, onRefresh }) {
   const clock = formatClock(lastRefreshedAt)
-  const dotClass = DOT_CLASS[state] ?? 'bg-slate-500'
+  const dotClass = DOT_CLASS[state] ?? 'bg-on-surface-variant/40'
   const isLoading = state === OPERATIONAL_STATE.LOADING
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs">
+    <div className="flex items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container/70 px-3 py-1 text-xs">
       <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-      <span className="text-slate-300">{labelFor(state, clock)}</span>
+      <span className="text-on-surface-variant">{labelFor(state, clock)}</span>
       <button
         type="button"
         onClick={onRefresh}
         disabled={isLoading}
         aria-label="Refresh operational context"
         title={ACTION_REFRESH_OPERATIONAL_CONTEXT}
-        className="ml-1 text-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        className="ml-1 text-on-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
       >
         {ACTION_REFRESH_OPERATIONAL_CONTEXT}
       </button>

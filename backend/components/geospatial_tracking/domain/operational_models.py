@@ -93,7 +93,14 @@ class OperationalFarm:
     """Section 8 minimal operational farm DTO. Deliberately excludes
     owner_name/email/phone/registration_number — those exist on the
     upstream `FarmSummaryResponse` (verified read-only) but are never
-    needed by, or copied into, this boundary."""
+    needed by, or copied into, this boundary.
+
+    GEO29A: `personally_assigned` distinguishes a farm the vet
+    administers directly (any of the four `assigned_*` relationships)
+    from one that only qualifies through district-wide surveillance
+    (Phase 5's privacy firewall) — `True` for every existing caller
+    (the assigned-farm path never set this explicitly before this field
+    existed), so no prior behavior changes."""
 
     farm_id: str
     latitude: float | None
@@ -101,6 +108,7 @@ class OperationalFarm:
     location_status: str  # LocationStatus value
     location_district: str | None = None
     total_animals: int | None = None
+    personally_assigned: bool = True
 
 
 @dataclass(frozen=True)
@@ -138,6 +146,16 @@ class OperationalGeospatialContext:
     states) always reflects the least-available data — see
     `services/operational/context_service.py` for exactly which state maps
     to which value.
+
+    GEO29A Phase 6: `vet_district`/`surveillance_farms`/
+    `surveillance_contexts` are ADDITIVE fields for the Page-1 registered-
+    district surveillance concept (Phase 4) — deliberately separate from
+    `farms`/`clinical_contexts`, which keep their original
+    personally-assigned-only meaning unchanged so no existing client/test
+    is affected by their presence. `surveillance_farms`/
+    `surveillance_contexts` are the BROADER set (every farm/case in the
+    vet's registered district, which may overlap with `farms`/
+    `clinical_contexts` but is never a subset of them).
     """
 
     status: str  # OperationalStatus value
@@ -145,6 +163,9 @@ class OperationalGeospatialContext:
     farms: list[OperationalFarm] = field(default_factory=list)
     clinical_contexts: list[VerifiedClinicalContext] = field(default_factory=list)
     generated_at: str | None = None
+    vet_district: str | None = None
+    surveillance_farms: list[OperationalFarm] = field(default_factory=list)
+    surveillance_contexts: list[VerifiedClinicalContext] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {f.name: getattr(self, f.name) for f in fields(self)}

@@ -5,10 +5,13 @@
  * `state/useGeospatialSnapshot.js`'s thin hook wiring it to real
  * fetch/transport; `outbreakSelectionReducer.js` + `GeospatialContext.jsx`).
  * `useOperationalContext.js` is the only caller of the impure side (real
- * `requestAnimationFrame`/`fetch`/`AbortController`); it contains no
- * state-transition DECISION logic of its own -- every decision below is
- * made here, independently unit-testable in this repo's Node-only Vitest
- * environment without any DOM/timer/fetch.
+ * self-scheduling `setTimeout`/`fetch`/`AbortController` -- GEO-HYBRID-
+ * LIVE-SYNC-08: the interval itself is enforced by scheduling the NEXT
+ * cycle only after the current fetch settles, never by an elapsed-time
+ * check against a ticking clock); it contains no state-transition
+ * DECISION logic of its own -- every decision below is made here,
+ * independently unit-testable in this repo's Node-only Vitest environment
+ * without any DOM/timer/fetch.
  */
 
 export const OPERATIONAL_STATE = {
@@ -23,8 +26,14 @@ export const OPERATIONAL_STATE = {
   ERROR: 'error',
 }
 
-// Section 14: 60s controlled refresh -- never shorter than 30s.
-export const REFRESH_INTERVAL_MS = 60000
+// GEO-LIVE-UPDATE-RECOVERY-06: this reconciliation fetch is now the
+// hybrid model's FALLBACK safety net (push/SSE stays primary -- see
+// `useVerifiedClinicalEvents.js`) rather than a plain slow poll, so it
+// runs roughly every 2s to catch a genuine case the push stream failed
+// to deliver. `MIN_REFRESH_INTERVAL_MS` is a hard floor against a future
+// accidental reduction turning this into a request storm.
+export const MIN_REFRESH_INTERVAL_MS = 1000
+export const REFRESH_INTERVAL_MS = 2000
 
 export const initialOperationalRefreshState = {
   state: OPERATIONAL_STATE.IDLE,
@@ -44,16 +53,14 @@ export function shouldPoll(state) {
 }
 
 /**
- * Section 14/15: whether enough real time has passed since the last
- * fetch ATTEMPT to trigger the next controlled auto-refresh, and whether
- * the current state even permits one. `now`/`lastFetchAt` are both
- * monotonic milliseconds (`performance.now()`-style), injected by the
- * caller -- never read from a global here, keeping this pure/testable.
+ * GEO-LIVE-UPDATE-RECOVERY-06: the operational reconciliation tick must
+ * pause while the Geospatial live page's tab is hidden (never a request
+ * storm running unattended in a background tab). `visibilityState` is
+ * caller-supplied (`document.visibilityState`, or `undefined` outside a
+ * browser) so this stays pure/testable without any DOM.
  */
-export function shouldFetchOnTick(currentState, lastFetchAt, now, intervalMs = REFRESH_INTERVAL_MS) {
-  if (!shouldPoll(currentState)) return false
-  if (lastFetchAt == null) return true
-  return now - lastFetchAt >= intervalMs
+export function shouldPauseForHiddenTab(visibilityState) {
+  return visibilityState === 'hidden'
 }
 
 /**

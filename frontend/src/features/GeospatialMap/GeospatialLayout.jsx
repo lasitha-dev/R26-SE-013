@@ -28,20 +28,31 @@ const GEOSPATIAL_TABS = [
   { to: 'analysis', label: 'Analysis & Trends', end: false },
 ]
 
+// GEO31A: restyled with the host dashboard's REAL design tokens
+// (`tailwind.config.js`'s `primary`/`on-surface-variant`/
+// `surface-container-high`, already used by `VetLayout.jsx`/Clinical
+// Overview) instead of ad-hoc slate/emerald utility colors, and a
+// tighter, less pill-like radius (`rounded-md`, not `rounded-full`) --
+// matches the approved reference's "compact segmented tab control,
+// dark neutral container, no huge pills" requirement. Purely visual:
+// same 3 tabs, same relative routes, same active-state logic, so My
+// Area/Analysis & Trends keep working identically -- only the chrome
+// they already share looks more like the rest of this dashboard.
 function geospatialTabClassName({ isActive }) {
   return [
-    'rounded-full border px-3 py-1 font-medium transition-colors',
-    'focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400',
-    isActive
-      ? 'border-emerald-400/30 bg-emerald-400/15 text-emerald-300'
-      : 'border-white/10 bg-slate-900/70 text-slate-300 hover:text-white',
+    'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+    isActive ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high/60 hover:text-on-surface',
   ].join(' ')
 }
 
 export default function GeospatialLayout() {
   return (
     <GeospatialProvider>
-      <nav aria-label="Geospatial Intelligence sections" className="mb-3 flex flex-wrap gap-1.5 border-b border-white/10 pb-2 text-sm">
+      <nav
+        aria-label="Geospatial Intelligence sections"
+        className="mb-2 ml-auto flex w-fit flex-wrap gap-1 rounded-lg border border-outline-variant/30 bg-surface-container-high/40 p-1"
+      >
         {GEOSPATIAL_TABS.map((tab) => (
           <NavLink key={tab.label} to={tab.to} end={tab.end} className={geospatialTabClassName}>
             {tab.label}

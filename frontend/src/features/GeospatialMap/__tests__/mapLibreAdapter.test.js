@@ -1,15 +1,25 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import {
   BEARING_DEG_EXPR,
   NEUTRAL_SINGLE_COLOR,
+  RISK_TIER,
+  RISK_TIER_COLOR,
+  RISK_TIER_LABEL,
   UNAVAILABLE_RISK_COLOR,
   buildCellsFeatureCollection,
   buildDirectionFeatureCollection,
   buildSourcesFeatureCollection,
   computeCombinedLngLatBounds,
   computeRiskColorStats,
+  computeRiskTierStats,
   directionIconLayout,
+  nationalSourceAmbientPulsePaint,
   riskCircleColorExpression,
+  riskTierColorExpression,
   sourceIconLayout,
 } from '../components/mapLibreAdapter'
 import { DIRECTION_ICON_ID, SOURCE_ICON_ID } from '../components/presentationIcons'
@@ -264,6 +274,33 @@ describe('11B1-ICON-08: direction feature count equals the count of backend cell
   })
 })
 
+describe('GEO-VISUAL-POLISH-01: the ambient outbreak-marker pulse is red, per-state, and endpoint-only', () => {
+  it('always paints the same red family as the marker itself, never a risk color', () => {
+    expect(nationalSourceAmbientPulsePaint(false)['circle-color']).toBe('#ef4444')
+    expect(nationalSourceAmbientPulsePaint(true)['circle-color']).toBe('#ef4444')
+  })
+
+  it('the expanded phase always fades opacity toward 0, regardless of selection state', () => {
+    const expr = nationalSourceAmbientPulsePaint(true)['circle-opacity']
+    // ['case', selectedCond, 0, dimmedCond, 0, 0] -- every branch is 0 when expanded
+    expect(expr.filter((v) => v === 0).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('a selected marker gets a larger expanded radius than an ordinary one, which in turn is larger than a dimmed one', () => {
+    const expr = nationalSourceAmbientPulsePaint(true)['circle-radius']
+    const [, , selectedRadius, , dimmedRadius, baseRadius] = expr
+    expect(selectedRadius).toBeGreaterThan(baseRadius)
+    expect(baseRadius).toBeGreaterThan(dimmedRadius)
+  })
+
+  it('collapses back to the SAME base radius across states when not expanded', () => {
+    const collapsed = nationalSourceAmbientPulsePaint(false)['circle-radius']
+    // Every branch's collapsed value is a small, near-identical base --
+    // never left at the previous expanded size.
+    expect(Math.max(...collapsed.filter((v) => typeof v === 'number'))).toBeLessThanOrEqual(9)
+  })
+})
+
 describe('11B-MAPLIBRE-02: style/layer generation never changes raw_c0_score', () => {
   it('riskCircleColorExpression output never contains a literal numeric raw_c0_score value from the input', () => {
     const cells = [cellFeature('C1', { score: 0.123456 }), cellFeature('C2', { score: 0.987654 })]
@@ -274,5 +311,113 @@ describe('11B-MAPLIBRE-02: style/layer generation never changes raw_c0_score', (
     expect(cells[1].properties.risk.raw_c0_score).toBe(0.987654)
     // present only as a STOP boundary in the interpolation expression, not a rewritten per-feature value
     expect(JSON.stringify(expr)).toContain('0.123456')
+  })
+})
+
+// ---------------------------------------------------------------------
+// GEO-VISUAL-POLISH-03: discrete, snapshot-relative risk tiers
+// ---------------------------------------------------------------------
+
+describe('GEO-VISUAL-POLISH-03: risk tiers are RELATIVE quantiles, never a fixed absolute medical threshold', () => {
+  it('classification (classifyTier) compares ONLY against the real per-snapshot q1/median/q3 values -- never a fixed absolute numeric cutoff like 0.70/0.40/0.15', () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'components', 'mapLibreAdapter.js'), 'utf-8')
+    const start = src.indexOf('function classifyTier(')
+    const end = src.indexOf('\n}', start)
+    const body = src.slice(start, end)
+    expect(body).not.toMatch(/>=\s*0\.\d+/) // no literal fraction ever compared against
+    expect(body).toMatch(/>=\s*q3\b/)
+    expect(body).toMatch(/>=\s*median\b/)
+    expect(body).toMatch(/>=\s*q1\b/)
+  })
+
+  it('the map paint expression (riskTierColorExpression) never bakes in a fixed absolute stop -- every stop is one of stats.q1/stats.median/stats.q3, computed from the real active snapshot', () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'components', 'mapLibreAdapter.js'), 'utf-8')
+    const start = src.indexOf('export function riskTierColorExpression(')
+    const end = src.indexOf('\n}', start)
+    const body = src.slice(start, end)
+    expect(body).not.toMatch(/0\.\d+/) // no numeric literal fraction anywhere in this function
+    expect(body).toMatch(/stats\.q1/)
+    expect(body).toMatch(/stats\.median/)
+    expect(body).toMatch(/stats\.q3/)
+  })
+
+  it('the legend wording is relative-only -- never "infection probability", "confirmed risk %", or "confidence %"', () => {
+    const allLabels = Object.values(RISK_TIER_LABEL).join(' ')
+    expect(allLabels.toLowerCase()).not.toMatch(/infection probability|confirmed risk|confidence/)
+    expect(allLabels.toLowerCase()).toContain('relative')
+  })
+
+  it('a null/unavailable score is NEVER classified into a tier -- it stays UNAVAILABLE_RISK_COLOR, never forced into the bottom (green/lower) tier', () => {
+    const cells = [cellFeature('A', { score: 0.1 }), cellFeature('B', { score: 0.5 }), cellFeature('C', { score: 0.9 }), cellFeature('D', { score: null })]
+    const stats = computeRiskTierStats(cells)
+    const expr = riskTierColorExpression(stats)
+    expect(expr[0]).toBe('case')
+    expect(expr).toContain(UNAVAILABLE_RISK_COLOR)
+    expect(UNAVAILABLE_RISK_COLOR).not.toBe(RISK_TIER_COLOR[RISK_TIER.LOWER])
+    // The null-check is the FIRST case branch, evaluated before the tier step.
+    expect(JSON.stringify(expr.slice(0, 3))).toContain('null')
+  })
+
+  it('tier counts sum to exactly the valid (non-null) cell count -- no cell double-counted, none silently dropped', () => {
+    const cells = Array.from({ length: 12 }, (_, i) => cellFeature(`C${i}`, { score: i / 11 }))
+    const stats = computeRiskTierStats(cells)
+    expect(stats.hasVariation).toBe(true)
+    const total = Object.values(stats.counts).reduce((a, b) => a + b, 0)
+    expect(total).toBe(stats.validCount)
+    expect(stats.validCount).toBe(12)
+  })
+
+  it('the top-scoring real cell in a varied snapshot is always classified into the HIGHEST tier, the bottom-scoring into LOWER', () => {
+    const cells = [
+      cellFeature('low', { score: 0.01 }),
+      cellFeature('mid1', { score: 0.3 }),
+      cellFeature('mid2', { score: 0.4 }),
+      cellFeature('mid3', { score: 0.6 }),
+      cellFeature('mid4', { score: 0.7 }),
+      cellFeature('high', { score: 0.99 }),
+    ]
+    const stats = computeRiskTierStats(cells)
+    expect(stats.hasVariation).toBe(true)
+    expect(stats.counts[RISK_TIER.HIGHEST]).toBeGreaterThanOrEqual(1)
+    expect(stats.counts[RISK_TIER.LOWER]).toBeGreaterThanOrEqual(1)
+  })
+
+  it('all-equal real scores fall back to the SAME honest neutral single color the continuous gradient already uses -- never a fabricated 4-way split', () => {
+    const cells = [cellFeature('A', { score: 0.42 }), cellFeature('B', { score: 0.42 }), cellFeature('C', { score: 0.42 })]
+    const stats = computeRiskTierStats(cells)
+    expect(stats.hasVariation).toBe(false)
+    expect(Object.values(stats.counts).every((c) => c === 0)).toBe(true)
+    const expr = riskTierColorExpression(stats)
+    expect(expr).toContain(NEUTRAL_SINGLE_COLOR)
+    expect(JSON.stringify(expr)).not.toContain('step')
+  })
+
+  it('too few valid cells for a meaningful quartile split (e.g. one or two real cells) also falls back to the honest neutral presentation, never a degenerate/crashing MapLibre step expression', () => {
+    const stats = computeRiskTierStats([cellFeature('ONLY', { score: 0.6 })])
+    expect(stats.hasVariation).toBe(false)
+    expect(riskTierColorExpression(stats)).toContain(NEUTRAL_SINGLE_COLOR)
+  })
+
+  it('all-unavailable cells resolve to the single distinct unavailable color, same as the continuous gradient', () => {
+    const stats = computeRiskTierStats([cellFeature('A', { score: null }), cellFeature('B', { score: null })])
+    expect(stats.allUnavailable).toBe(true)
+    expect(riskTierColorExpression(stats)).toBe(UNAVAILABLE_RISK_COLOR)
+  })
+
+  it('computeRiskTierStats/riskTierColorExpression never mutate the input features', () => {
+    const cells = [cellFeature('A', { score: 0.1 }), cellFeature('B', { score: 0.5 }), cellFeature('C', { score: 0.9 })]
+    const before = JSON.parse(JSON.stringify(cells))
+    const stats = computeRiskTierStats(cells)
+    riskTierColorExpression(stats)
+    expect(cells).toEqual(before)
+  })
+
+  it('the step expression stops are strictly increasing (q1 < median < q3) whenever hasVariation is true -- a real MapLibre validity requirement, not just a style choice', () => {
+    const cells = Array.from({ length: 20 }, (_, i) => cellFeature(`C${i}`, { score: Math.sin(i) * 0.5 + 0.5 }))
+    const stats = computeRiskTierStats(cells)
+    if (stats.hasVariation) {
+      expect(stats.q1).toBeLessThan(stats.median)
+      expect(stats.median).toBeLessThan(stats.q3)
+    }
   })
 })

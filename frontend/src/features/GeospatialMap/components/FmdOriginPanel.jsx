@@ -29,12 +29,19 @@ export default function FmdOriginPanel({ origins, selectedOriginId, onSelect, ri
   if (!origins || origins.length === 0) return null
 
   return (
-    <div className="pointer-events-auto w-72 rounded-lg border border-white/10 bg-slate-900/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur">
-      <div className="font-mono uppercase tracking-wide text-emerald-300">{LABEL_FMD_HISTORICAL_ORIGINS}</div>
-      <div className="mt-1 text-slate-500">{LABEL_FMD_ORIGIN_PANEL_SUBTITLE}</div>
+    // GEO-STITCH-PAGE1-14: migrated off ad-hoc slate/white/emerald-300
+    // utility colors onto the same shared design tokens this feature's
+    // other floating cards already use (`SourcePopup.jsx`/
+    // `OperationalContextPopup.jsx`/`CellPopup.jsx`, all
+    // `surface-container`/`outline-variant`/`on-surface-variant`/`primary`)
+    // -- this was the one remaining panel still on the pre-token palette,
+    // so it read as visually foreign next to every other card on the page.
+    <div className="pointer-events-auto w-72 rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs text-on-surface-variant shadow-card-subtle backdrop-blur">
+      <div className="font-mono uppercase tracking-wide text-primary">{LABEL_FMD_HISTORICAL_ORIGINS}</div>
+      <div className="mt-1 text-on-surface-variant/70">{LABEL_FMD_ORIGIN_PANEL_SUBTITLE}</div>
 
       <select
-        className="mt-2 w-full rounded-md border border-white/10 bg-slate-950 px-2 py-1.5 text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        className="mt-2 w-full rounded-md border border-outline-variant/30 bg-surface-container-high px-2 py-1.5 text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         value={selectedOriginId ?? ''}
         onChange={(e) => onSelect(e.target.value || null)}
         aria-label={LABEL_FMD_HISTORICAL_ORIGINS}
@@ -48,18 +55,18 @@ export default function FmdOriginPanel({ origins, selectedOriginId, onSelect, ri
       </select>
 
       {selectedOriginId && risk && (
-        <div className="mt-3 border-t border-white/10 pt-2">
-          <div className="font-mono uppercase tracking-wide text-emerald-300">{LABEL_RELATIVE_ORIGIN_SPATIAL_SCORE}</div>
-          {risk.status === FMD_RISK_STATUS.LOADING && <div className="mt-1 text-slate-400">{LABEL_FMD_RISK_LOADING}</div>}
+        <div className="mt-3 border-t border-outline-variant/30 pt-2">
+          <div className="font-mono uppercase tracking-wide text-primary">{LABEL_RELATIVE_ORIGIN_SPATIAL_SCORE}</div>
+          {risk.status === FMD_RISK_STATUS.LOADING && <div className="mt-1 text-on-surface-variant">{LABEL_FMD_RISK_LOADING}</div>}
           {risk.status === FMD_RISK_STATUS.READY && (
             <>
-              <div className="mt-1 text-lg font-semibold text-slate-100">{risk.data.risk_score?.toFixed(4)}</div>
-              <div className="mt-1 text-slate-500">{DISCLAIMER_RELATIVE_ORIGIN_SPATIAL_SCORE}</div>
-              <div className="mt-1 text-slate-500">Eligible sources: {risk.data.n_eligible_sources}</div>
+              <div className="mt-1 text-lg font-semibold text-on-surface">{risk.data.risk_score?.toFixed(4)}</div>
+              <div className="mt-1 text-on-surface-variant/70">{DISCLAIMER_RELATIVE_ORIGIN_SPATIAL_SCORE}</div>
+              <div className="mt-1 text-on-surface-variant/70">Eligible sources: {risk.data.n_eligible_sources}</div>
             </>
           )}
-          {risk.status === FMD_RISK_STATUS.UNAVAILABLE && <div className="mt-1 text-slate-400">{LABEL_FMD_RISK_UNAVAILABLE}</div>}
-          {risk.status === FMD_RISK_STATUS.NOT_FOUND && <div className="mt-1 text-slate-400">{LABEL_FMD_RISK_NOT_FOUND}</div>}
+          {risk.status === FMD_RISK_STATUS.UNAVAILABLE && <div className="mt-1 text-on-surface-variant">{LABEL_FMD_RISK_UNAVAILABLE}</div>}
+          {risk.status === FMD_RISK_STATUS.NOT_FOUND && <div className="mt-1 text-on-surface-variant">{LABEL_FMD_RISK_NOT_FOUND}</div>}
           {risk.status === FMD_RISK_STATUS.ERROR && <div className="mt-1 text-red-300">{LABEL_FMD_RISK_ERROR}</div>}
         </div>
       )}

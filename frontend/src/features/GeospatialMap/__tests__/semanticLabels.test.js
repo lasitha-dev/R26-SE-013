@@ -87,8 +87,8 @@ describe('LSD-UI-03: connection-status labels never claim LIVE (plan Section 9)'
     }
   })
 
-  it('the page tagline is context-honest for a historical-replay page, never claiming live operational surveillance (LSD-PAGE1-HARDENING)', () => {
-    expect(semanticLabels.PAGE_TAGLINE).toBe('Historical outbreak replay and spatial model context')
+  it('the page tagline is context-honest, never claiming live operational/forecast surveillance (LSD-PAGE1-HARDENING, updated GEO29A)', () => {
+    expect(semanticLabels.PAGE_TAGLINE).toBe('Verified-case surveillance and spatial intelligence')
     expect(semanticLabels.PAGE_TAGLINE.toUpperCase()).not.toMatch(/\bLIVE\b/)
   })
 })

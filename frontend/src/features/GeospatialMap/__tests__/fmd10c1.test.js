@@ -233,6 +233,12 @@ describe('FMD-10C1: disease switching removes stale geometry before the new dise
   it('useNationalOutbreaks.js re-fetches (and its LOADING state clears prior originsWithSources) whenever diseaseCode changes', () => {
     const src = readSource('context/useNationalOutbreaks.js')
     expect(src).toMatch(/\},\s*\[diseaseCode, country, refreshToken\]\)/)
-    expect(src).toMatch(/setState\(\{ status: NATIONAL_STATUS\.LOADING, originsWithSources: \[\], error: null \}\)/)
+    // GEO-VISUAL-POLISH-02: the object literal now also carries the real
+    // per-stage resolution counts (`...ZERO_RESOLUTION_STATS`) -- the
+    // match below is deliberately open-ended after `error: null` so it
+    // keeps proving the actual invariant this test names (LOADING clears
+    // prior originsWithSources) without over-specifying every field the
+    // object happens to carry alongside it.
+    expect(src).toMatch(/setState\(\{ status: NATIONAL_STATUS\.LOADING, originsWithSources: \[\], error: null/)
   })
 })

@@ -43,7 +43,15 @@ export default function ModeToolbar({ analysisMode, onSetMode, disease }) {
 
   return (
     <div
-      className="pointer-events-auto flex items-center gap-1 rounded-full border border-emerald-500/20 bg-slate-900/80 px-2 py-1.5 shadow-lg backdrop-blur"
+      // GEO33B Section 14: `shadow-lg` (a 10px-blur, 15%-opacity black
+      // drop shadow) read as a heavy dark smear under this pill against
+      // the dark map card -- the toolbar floats over geography, so a
+      // large soft blur muddies real coastline/labels directly beneath
+      // it. Replaced with a small `shadow-sm` plus a slightly more
+      // present border, which is what actually separates the pill from
+      // the map. Nothing about size, spacing, contrast or hit area
+      // changes.
+      className="pointer-events-auto flex items-center gap-1 rounded-full border border-outline-variant/40 bg-surface-container/90 p-1.5 shadow-sm backdrop-blur"
       role="tablist"
       aria-label="Map analysis mode"
     >
@@ -64,7 +72,7 @@ export default function ModeToolbar({ analysisMode, onSetMode, disease }) {
               aria-label={`${mode.label}: ${mode.reason}`}
               title={mode.reason}
               onClick={(e) => e.preventDefault()}
-              className="cursor-not-allowed rounded-full px-3 py-1.5 text-sm text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="cursor-not-allowed rounded-full px-3.5 py-2 text-sm text-on-surface-variant/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-outline-variant"
             >
               {mode.label}
             </button>
@@ -78,9 +86,16 @@ export default function ModeToolbar({ analysisMode, onSetMode, disease }) {
             aria-selected={active}
             onClick={() => onSetMode(mode.id)}
             className={
+              // GEO-STITCH-PAGE1-14: a genuinely STRONG active state (solid
+              // fill + the same restrained emerald glow the rest of this
+              // theme already uses for primary affordances --
+              // `shadow-glow-sm`, `tailwind.config.js`, e.g. the timeline's
+              // own play button) rather than a soft 20%-opacity tint, so
+              // the active mode reads unmistakably at a glance -- matches
+              // the Stitch reference's filled-pill active button.
               active
-                ? 'rounded-full border border-emerald-400/40 bg-emerald-400/20 px-3 py-1.5 text-sm font-medium text-emerald-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
-                : 'rounded-full px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400'
+                ? 'rounded-full bg-primary px-3.5 py-2 text-sm font-semibold text-on-primary shadow-glow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                : 'rounded-full px-3.5 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-highest/60 hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             }
           >
             {mode.label}

@@ -130,6 +130,40 @@ router = APIRouter(prefix="/api/geospatial", tags=["geospatial"])
 # reusable by the other, inside its TTL/capacity bounds.
 SNAPSHOT_STORE_10B = SnapshotStore10B()
 
+# GEO-VISUAL-POLISH-02: `SnapshotStore10B` is a GENERIC bounded LRU+TTL
+# cache (its own docstring: "knows nothing about scientific content -- key
+# is any hashable tuple the caller builds") -- reused here verbatim for a
+# SECOND, unrelated key space rather than inventing a new caching
+# primitive. This fixes a real, measured backend bottleneck: `/origins`
+# and `/origins/{id}/trigger-sources` both call `build_forecast_origin_
+# ledger`, which does a FULL `repo.list_historical_records(...)` scan --
+# and the frontend's Page-1 national-outbreak layer calls
+# `/origins/{id}/trigger-sources` ONCE PER REAL ORIGIN (e.g. 16 separate
+# requests for the real Sri Lanka FMD corpus today), each of which
+# rebuilds the ENTIRE disease ledger from scratch even though `disease`
+# (and, for `/origins`, `country`) is identical across every one of those
+# calls in a single page load. Confirmed live (2026-08-31): one such
+# request took >30s and appears to serialize with the others.
+#
+# Caching the deterministic ledger by `(disease, country_scope)` makes the
+# FIRST request in a burst pay the real scan cost once; every other
+# request for the SAME disease/country within the TTL is an in-memory
+# hit. This changes NOTHING about what data is returned -- same
+# deterministic function, same real repository, only reused across calls
+# that would otherwise recompute an identical result. Never applied to
+# `repo.get_historical_record(source_id)` (the per-source-id lookup after
+# the ledger is resolved) -- that read is already a single cheap
+# `find_one`, not the O(collection) scan this cache targets.
+ORIGIN_LEDGER_STORE_10C = SnapshotStore10B()
+
+
+def _cached_forecast_origin_ledger(repo: OutbreakRepository, *, disease: str, country_scope: str | None = None):
+    value, _cache_status = ORIGIN_LEDGER_STORE_10C.get_or_compute(
+        (disease, country_scope),
+        lambda: build_forecast_origin_ledger(repo, disease=disease, country_scope=country_scope),
+    )
+    return value
+
 
 def get_repository() -> Generator[OutbreakRepository, None, None]:
     """Opens exactly one repository per request (via the shared
@@ -309,7 +343,7 @@ def list_origins(
     origin-ledger builder verbatim; performs NO scientific analysis for
     the whole database here."""
     resolved_disease = _resolve_disease_or_http_error(disease)
-    origins = build_forecast_origin_ledger(repo, disease=resolved_disease, country_scope=country)
+    origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease, country_scope=country)
     summaries = [
         OriginSummarySchema(
             forecast_origin_id=o.forecast_origin_id, country=o.country, t0=o.t0,
@@ -364,7 +398,11 @@ def get_origin_trigger_sources(
     # `forecast_origin_id` itself already encodes the country
     # (`ORIGIN:{country}:{t0}`) -- only the ONE matching origin's own data
     # ever reaches the response, so this can never leak the global ledger.
-    origins = build_forecast_origin_ledger(repo, disease=resolved_disease)
+    # GEO-VISUAL-POLISH-02: cached by `(disease, None)` -- every real
+    # origin for this disease resolves through the SAME cache entry, so a
+    # page load's N independent per-origin requests rebuild the full
+    # ledger at most once per TTL window instead of N times.
+    origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease)
     origin = next((o for o in origins if o.forecast_origin_id == forecast_origin_id), None)
     if origin is None:
         raise HTTPException(

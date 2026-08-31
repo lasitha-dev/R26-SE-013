@@ -9,7 +9,11 @@ describe('LSD-PAGE1-HARDENING: DiseaseSelector honesty (plan Section 9/11)', () 
   it('LSD renders as a real, clickable, pressed control when selected', () => {
     const html = renderToStaticMarkup(React.createElement(DiseaseSelector, { selected: DISEASE_CODE.LSD, onSelect: () => {} }))
     expect(html).toContain('LSD')
-    expect(html).toMatch(/aria-pressed="true"[^>]*>LSD/)
+    // GEO31A: a selected disease now also shows a real `check` Material
+    // Symbol inside the same button, before the label text -- the
+    // pressed button's opening tag is still immediately followed by
+    // that icon markup, then the label, rather than the label alone.
+    expect(html).toMatch(/aria-pressed="true"[^>]*>(?:<span[^>]*>check<\/span>)?LSD/)
   })
 })
 
@@ -29,6 +33,6 @@ describe('FMD-10C: DiseaseSelector unlocks FMD once it has a real capability (hi
 
   it('FMD is aria-pressed=true once selected (a genuine successful switch)', () => {
     const html = renderToStaticMarkup(React.createElement(DiseaseSelector, { selected: DISEASE_CODE.FMD, onSelect: () => {} }))
-    expect(html).toMatch(/aria-pressed="true"[^>]*>FMD/)
+    expect(html).toMatch(/aria-pressed="true"[^>]*>(?:<span[^>]*>check<\/span>)?FMD/)
   })
 })

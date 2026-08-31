@@ -166,13 +166,51 @@ class TestCountryScopeInResponse:
         assert "country: str" not in source
 
 
-class TestNotGloballyMounted:
-    def test_main_module_never_imports_the_analysis_trends_router_factory(self):
+def _resolve_geospatial_paths(app) -> list[str]:
+    """Walks `app.routes` including nested `_IncludedRouter` wrappers
+    (FastAPI's lazy include-router representation), returning every
+    already-prefix-resolved route path -- never re-adding a router's own
+    `prefix` on top (that double-adds `/api/geospatial`)."""
+    paths: list[str] = []
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        if path:
+            paths.append(path)
+            continue
+        inner = getattr(route, "original_router", None)
+        if inner is not None:
+            for sub in inner.routes:
+                sub_path = getattr(sub, "path", None)
+                if sub_path:
+                    paths.append(sub_path)
+    return paths
+
+
+class TestAuthorizedHostMounting:
+    """GEO-MINIMAL-HOST-WIRING-22 explicitly authorized host integration to
+    mount this router into `main.py` -- superseding the old
+    `TestNotGloballyMounted` guard (which asserted the factory string never
+    appeared there). This replacement proves the now-authorized composition
+    is well-formed instead of merely absent: imported, mounted exactly once,
+    and reachable at exactly its own path -- never duplicated, never
+    double-prefixed."""
+
+    def test_main_module_imports_the_analysis_trends_router_factory(self):
         import pathlib
 
         # tests/ -> geospatial_tracking/ -> components/ -> backend/
         main_path = pathlib.Path(__file__).resolve().parents[3] / "main.py"
         assert main_path.is_file(), f"expected {main_path} to exist"
         source = main_path.read_text(encoding="utf-8")
-        assert "analysis_trends_router_factory" not in source
-        assert "create_analysis_trends_router" not in source
+        assert (
+            "from components.geospatial_tracking.api.analysis_trends_router_factory "
+            "import create_analysis_trends_router" in source
+        )
+
+    def test_main_module_mounts_analysis_trends_router_once(self):
+        import main as main_module
+
+        paths = _resolve_geospatial_paths(main_module.app)
+        matches = [p for p in paths if p == "/api/geospatial/analysis-trends"]
+        assert matches == ["/api/geospatial/analysis-trends"], matches
+        assert not any("/api/api/" in p for p in paths)

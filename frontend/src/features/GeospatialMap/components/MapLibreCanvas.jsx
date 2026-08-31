@@ -1,21 +1,38 @@
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { GEO_TIMING, logTimingSummary, markTiming } from '../adapters/loadTiming'
+import { featureBelongsToOutbreak, nationalStackIndicatorPaint } from '../adapters/nationalSourcePresentation'
 import { resolveBasemapConfig } from './basemapConfig'
+// GEO33B Section 15/16: this feature's OWN MapLibre control chrome (dark
+// zoom buttons/attribution), scoped entirely under `.geo-map-shell` below.
+// Never a shared/global stylesheet -- `src/index.css`/`src/styles/index.css`
+// are another member's read-only surface.
+import './geospatialMapChrome.css'
 import {
   buildCellsFeatureCollection,
   buildDirectionFeatureCollection,
   buildNationalSourcesFeatureCollection,
   buildSourcesFeatureCollection,
   computeCombinedLngLatBounds,
-  computeRiskColorStats,
+  computeRiskTierStats,
   directionIconLayout,
-  riskCircleColorExpression,
+  nationalSourceAmbientPulsePaint,
+  riskTierColorExpression,
   sourceIconLayout,
+  NATIONAL_SOURCES_PULSE_CYCLE_MS,
 } from './mapLibreAdapter'
 import { buildReachRingFeatureCollectionForCenters, emptyReachRingFeatureCollection } from './nominalReachRing'
 import { CLINICAL_CIRCLE_ICON_ID, CLINICAL_DIAMOND_ICON_ID, buildClinicalCircleIcon, buildClinicalDiamondIcon } from './operationalIcons'
-import { OPERATIONAL_MARKERS_LAYER_ID, OPERATIONAL_MARKERS_SOURCE_ID, operationalMarkerIconLayout } from './operationalMarkerLayer'
+import {
+  OPERATIONAL_MARKERS_HALO_LAYER_ID,
+  OPERATIONAL_MARKERS_LAYER_ID,
+  OPERATIONAL_MARKERS_PROMOTE_ID,
+  OPERATIONAL_MARKERS_SOURCE_ID,
+  operationalMarkerHaloPaint,
+  operationalMarkerIconLayout,
+  operationalMarkerPaint,
+} from './operationalMarkerLayer'
 import {
   DIRECTION_ICON_ID,
   FMD_SOURCE_ICON_ID,
@@ -30,9 +47,60 @@ const SOURCES_SOURCE_ID = 'geo-sources'
 const DIRECTIONS_SOURCE_ID = 'geo-directions'
 const NATIONAL_SOURCES_SOURCE_ID = 'geo-national-sources'
 const REACH_RING_SOURCE_ID = 'geo-reach-ring'
+// GEO30B Section 16: the vet's real district polygon (see
+// `data/ATTRIBUTION.md`) -- fill + outline, never a symbol/text layer
+// (this basemap declares no `glyphs` URL; the "MY DISTRICT · X" label
+// already exists as a real React-rendered chip in the page header).
+export const MY_DISTRICT_SOURCE_ID = 'geo-my-district'
+export const MY_DISTRICT_FILL_LAYER_ID = 'my-district-fill'
+export const MY_DISTRICT_OUTLINE_LAYER_ID = 'my-district-outline'
+// GEO33B Section 7: the "more than one distinct real observed record at
+// this exact coordinate" ring (`nationalSourcePresentation.js`). Painted
+// UNDER the national source icon, never over it.
+export const NATIONAL_SOURCES_STACK_LAYER_ID = 'national-sources-stack'
+// GEO-VISUAL-POLISH-01: the continuous ambient "live outbreak" breathing
+// ring -- always on for every national source marker, distinct from the
+// one-shot selection ripple/steady halo above.
+export const NATIONAL_SOURCES_PULSE_LAYER_ID = 'national-sources-ambient-pulse'
 
 const RIPPLE_TRANSITION_MS = 1800
 const REACH_RING_TWEEN_MS = 800
+
+// GEO33A Section 8: a flat, small padding left real geography readable
+// right up to the map's own edges, where the floating `ModeToolbar`
+// (top-4) and bottom timeline/status bar (bottom-4) actually sit -- both
+// overlays are taller than a flat 40px pad, so a fit could genuinely
+// place Sri Lanka's own coastline or a real marker underneath either one.
+// Asymmetric padding reserves real room for both without shrinking the
+// fit unnecessarily on the sides.
+const MAP_FIT_PADDING = { top: 90, bottom: 110, left: 40, right: 40 }
+
+// GEO33B Section 5: an upper bound for every camera fit on this page.
+// Without it, `fitBounds` over a small real geometry (a single origin's
+// two sources ~5km apart, or a compact district polygon) zooms to street
+// level, which is meaningless for a national disease-surveillance view and
+// loses all surrounding context. 11 is roughly "a few districts across" --
+// a presentation limit, never derived from any scientific value.
+const MAP_FIT_MAX_ZOOM = 11
+
+// GEO29A Part 11: fixed, real Sri Lanka geographic constants -- presentation
+// camera defaults only, never derived from or mistaken for scientific/model
+// output. [lng, lat] order (MapLibre convention).
+// GEO33B Section 5: recentred/retightened to the island's own real extent.
+// The previous box ([[79.4,5.7],[82.0,9.9]]) was ~0.25 degrees too wide to
+// the west and ~0.15 too far south of any Sri Lankan land, which at this
+// aspect ratio pulled a band of southern India into frame and left the
+// island reading small and off-centre. Real mainland Sri Lanka spans
+// approximately lon 79.65--81.88, lat 5.92--9.84 (Point Pedro in the north
+// to Dondra Head in the south, Kalpitiya west to Sangamankanda east); the
+// values below add only a small, uniform, documented presentation margin
+// so the coastline is never clipped by the fit itself.
+export const SRI_LANKA_CENTER = [80.77, 7.87]
+export const SRI_LANKA_INITIAL_ZOOM = 7.1
+export const SRI_LANKA_BOUNDS = [
+  [79.55, 5.85],
+  [81.95, 9.92],
+]
 
 /**
  * Checkpoint 11B Part 2/6/10/19, extended LSD-UI-03/04: a professional
@@ -89,11 +157,42 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     nationalSources = null,
     nationalMarkerShape = 'diamond',
     selectedOutbreakId = null,
+    // GEO-PAGE1-FINAL Section 24: true while `selectedOutbreakId` is a
+    // PAGE-CHOSEN default focus (the most recent real eligible origin,
+    // picked so Risk Zones has real data to show without the vet
+    // clicking a marker first -- `OutbreakMapPage.jsx`'s own auto-focus
+    // effect), never a real click. Suppresses the camera fly-to-origin
+    // and the selection halo/ripple/dim treatment ONLY -- `focus.cells`/
+    // `focus.sources`/the reach ring still render normally, since those
+    // are genuinely real data for a genuinely real origin. The instant a
+    // vet actually clicks any marker, the page flips this back to
+    // `false` and every one of those behaviors resumes exactly as
+    // before. This keeps the default Sri Lanka Overview visually calm
+    // (no unexplained glowing marker, no surprise camera jump) while
+    // still letting Risk Zones/Play work immediately.
+    autoFocusOutbreak = false,
     reachRingCenters = null,
     reachRingRadiusKm = 0,
     reduceMotion = false,
     operationalFeatures = null,
     showOperationalLayer = false,
+    // GEO31A Section 8/10: defaults to `true` so the ORIGINAL
+    // Checkpoint-11B single-snapshot debug view (`MapView.jsx`/
+    // `GeospatialMapFeature.jsx`, which pass `cellFeatures` directly and
+    // have no mode concept at all) keeps rendering cells exactly as
+    // before -- `OutbreakMapPage.jsx` is the only caller that passes this
+    // explicitly, tying it to `ANALYSIS_MODE.RISK_ZONES`.
+    showRiskLayer = true,
+    arrivalHighlightKey = null,
+    // GEO33B Section 8/11: real farm+disease keys that became visible on
+    // THIS observed-replay step (`OutbreakMapPage.jsx` derives them by
+    // diffing the previously-revealed set against the newly-revealed one).
+    // Given the same short pulse treatment as a live SSE arrival, then
+    // settled back to steady -- never a permanent animation on every
+    // historical marker.
+    newlyRevealedKeys = null,
+    selectedOperationalKey = null,
+    districtFeature = null,
     onSelectCell,
     onSelectSource,
     onSelectOperationalCase,
@@ -101,13 +200,62 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   },
   ref,
 ) {
+  // GEO-PAGE1-FINAL Section 24: the id used for every VISUAL selection
+  // effect (camera fly, halo, ripple, dim-others) below -- `null` while
+  // the current focus is only the page's own auto-picked default, so
+  // none of those fire for it. `selectedOutbreakId` itself is untouched
+  // everywhere else (it's also implicitly what `cellFeatures`/
+  // `sourceFeatures` already reflect via the page's own `focus` hook).
+  const visuallySelectedOutbreakId = autoFocusOutbreak ? null : selectedOutbreakId
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const failedRef = useRef(false)
   const loadedRef = useRef(false)
   const lastFitOutbreakIdRef = useRef(undefined)
+  // GEO33B Section 4: drives the restrained "Preparing map…" overlay below.
+  // Flipped once the style has actually loaded, so the vet never stares at
+  // an unexplained black rectangle while the remote basemap style/tiles are
+  // still in flight. Deliberately a boolean about PRESENTATION readiness --
+  // it never gates, delays, or reports anything about real data.
+  const [styleReady, setStyleReady] = useState(false)
+
+  // GEO33B Section 2: latest-value mirrors of every async-arriving prop.
+  //
+  // THE BUG THESE FIX (a real load-order race, not a hypothetical): the
+  // mount effect below is intentionally `[]`-deps, so the `map.on('load')`
+  // callback it registers closes over the props as they were on the FIRST
+  // render -- when every one of these is still empty/null. Each prop also
+  // has its own `setData` effect further down, but those all bail out
+  // early while `loadedRef.current` is false. So whenever a fetch resolved
+  // BEFORE the remote basemap style finished loading -- which is the
+  // common case in practice, since the API is local and the OpenFreeMap
+  // style + sprite + glyphs are a remote CDN round trip -- the sequence was:
+  //   1. data arrives, its effect runs, sees `!loadedRef.current`, returns;
+  //   2. style loads, `map.on('load')` seeds the source from its STALE
+  //      first-render closure (empty);
+  //   3. no further prop change occurs, so no effect ever re-runs.
+  // Net result: the source stayed permanently empty and the markers /
+  // district polygon never appeared at all, with no error anywhere. Reading
+  // through these refs inside `map.on('load')` makes the wiring genuinely
+  // order-independent: data-first and style-first both end up correct.
+  const nationalSourcesRef = useRef(nationalSources)
+  const operationalFeaturesRef = useRef(operationalFeatures)
+  const districtFeatureRef = useRef(districtFeature)
+  const cellFeaturesRef = useRef(cellFeatures)
+  const sourceFeaturesRef = useRef(sourceFeatures)
+  nationalSourcesRef.current = nationalSources
+  operationalFeaturesRef.current = operationalFeatures
+  districtFeatureRef.current = districtFeature
+  cellFeaturesRef.current = cellFeatures
+  sourceFeaturesRef.current = sourceFeatures
   const reachRingAnimRef = useRef(null)
   const currentReachRadiusKmRef = useRef(0)
+  // GEO31A Section 2: tracks the previously-selected operational farm key
+  // so its steady halo can be cleared when a DIFFERENT farm becomes
+  // selected (or none), mirroring how the national-sources selection
+  // effect iterates every feature -- this ref avoids needing the full
+  // operational feature list just to clear one stale feature-state.
+  const selectedOperationalKeyRef = useRef(null)
 
   // LSD-PAGE1-HARDENING Section 24/25: `resize()` is what MapLibre needs
   // called after its container's dimensions change from OUTSIDE React's
@@ -120,13 +268,51 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     resize() {
       mapRef.current?.resize()
     },
-    resetView() {
+    // GEO-VIVA-VISUAL-RECOVERY-03: lets a caller-driven one-time camera
+    // action (`OutbreakMapPage.jsx`'s initial auto-focus-to-district
+    // effect) wait for the real map/style load instead of calling
+    // `resetView` too early and having it silently no-op (see the
+    // `!loadedRef.current` guard on `resetView` below) -- never a
+    // guessed timeout, the real internal readiness flag this component
+    // already tracks for every other effect in this file.
+    isReady() {
+      return loadedRef.current
+    },
+    // GEO26B Section 15: `explicitBounds` (a [[minLon,minLat],[maxLon,maxLat]]
+    // pair, e.g. from `computeCombinedLngLatBounds` over the vet's own
+    // assigned-farm points) lets the Location control's "My assigned
+    // farms" option reuse this SAME single fitBounds call site -- never a
+    // second camera-fit primitive, so this remains the only user-
+    // triggered (never automatic) map movement this component performs
+    // beyond the two other pre-existing sites.
+    resetView(explicitBounds) {
       const map = mapRef.current
-      if (!map || !loadedRef.current || !nationalSources) return
-      const bounds = computeCombinedLngLatBounds([], nationalSources.features)
-      if (bounds) {
-        map.fitBounds(bounds, { padding: 40, animate: !reduceMotion })
-      }
+      if (!map || !loadedRef.current) return
+      // GEO29A Part 11: "Fit Sri Lanka" must always fit Sri Lanka, even
+      // when there is genuinely no real national source geometry yet
+      // (e.g. FMD with zero origins, or before the first fetch resolves)
+      // -- uses the real, fixed `SRI_LANKA_BOUNDS` constant rather than
+      // silently doing nothing.
+      //
+      // GEO33B Section 5: this no longer prefers the national MARKER
+      // bounds over `SRI_LANKA_BOUNDS`. Every real Sri Lanka LSD record
+      // sits in the far north (lat 8.89--9.75, lon 80.03--80.66), so
+      // fitting the marker extent moved the camera onto the Jaffna
+      // peninsula and dropped the rest of the island out of frame -- from
+      // a control the vet had just clicked because it says "Fit Sri
+      // Lanka". A named geographic scope must show that geography; the
+      // data-driven fit still happens, but only on an explicit outbreak
+      // SELECTION (the focused-origin effect below), which is where the
+      // vet actually asked to zoom in on real records.
+      const bounds = explicitBounds ?? SRI_LANKA_BOUNDS
+      // GEO-VIVA-USER-VISIBLE-RECOVERY-05: dev-only marks bracketing the
+      // REAL camera animation this control performs -- `moveend` is
+      // MapLibre's own native "the camera has actually finished moving"
+      // event, never a guessed duration, so a QA session can measure the
+      // true click-to-settled-camera time for Location changes.
+      markTiming(GEO_TIMING.CAMERA_FIT_START, { repeat: true })
+      map.once('moveend', () => markTiming(GEO_TIMING.CAMERA_FIT_END, { repeat: true }))
+      map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: !reduceMotion })
     },
   }))
 
@@ -136,15 +322,44 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     let resizeObserver
     try {
       const basemap = resolveBasemapConfig(import.meta.env.VITE_GEOSPATIAL_BASEMAP_STYLE_URL)
+      // GEO33B Section 1: dev-only marks. `STYLE_LOAD_START` is recorded
+      // immediately before construction because MapLibre begins fetching
+      // the style URL synchronously inside the constructor.
+      markTiming(GEO_TIMING.MAP_CONSTRUCT_START)
+      markTiming(GEO_TIMING.STYLE_LOAD_START)
       map = new maplibregl.Map({
         container: containerRef.current,
         style: basemap.style,
+        // GEO29A Part 11: a real browser screenshot showed the map
+        // starting at MapLibre's own default world view ([0,0], zoom 0,
+        // repeating at low zoom) -- this page is Sri Lanka disease
+        // surveillance only, so the FIRST frame (before any real
+        // national/cell/source bounds have loaded, and for a disease/
+        // filter combination that never produces any) must already be
+        // Sri Lanka, never the whole world. `SRI_LANKA_CENTER`/
+        // `SRI_LANKA_INITIAL_ZOOM` are a real, fixed geographic constant
+        // (not derived from any scientific/model data), the same
+        // approximate centering the rest of this app's map tooling
+        // already uses. The later `fitBounds` calls in this effect (once
+        // real bounds exist) still refine/override this immediately.
+        center: SRI_LANKA_CENTER,
+        zoom: SRI_LANKA_INITIAL_ZOOM,
         pitch: 0,
         maxPitch: 0,
         bearing: 0,
-        attributionControl: true,
+        // GEO33B Section 16: the DEFAULT attribution control renders
+        // bottom-right, which is exactly where this page's bottom-docked
+        // timeline and its right-hand legend/popup column sit -- at
+        // narrower viewports the timeline card overlapped it. Disabled
+        // here and re-added explicitly at 'bottom-left' below. Attribution
+        // is REPOSITIONED, never removed, never hidden and never made
+        // unreadable (the OpenFreeMap/OSM ODbL requirement, plus the
+        // district polygon's own `attribution` field, are all still
+        // aggregated and displayed by that control).
+        attributionControl: false,
       })
       mapRef.current = map
+      markTiming(GEO_TIMING.MAP_CONSTRUCT_END)
 
       // GEO-OWNED-FINAL-08 Section 15 "host-layout safety": MapLibre has
       // no ResizeObserver of its own (only the imperative `resize()` this
@@ -167,6 +382,22 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       map.dragRotate.disable()
       map.touchZoomRotate.disableRotation()
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+      // GEO33B Section 16: attribution moved off the bottom-right timeline
+      // lane. `compact: true` keeps it to a single small "i" affordance
+      // that expands on click -- the full required credit text is always
+      // one click away and is never suppressed.
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left')
+
+      // GEO33B Section 1: first actual painted frame, and the point at
+      // which the map has finished all pending work. `once`/idempotent
+      // marking means a later repaint never overwrites the FIRST timing.
+      map.on('render', () => {
+        markTiming(GEO_TIMING.FIRST_RENDER)
+      })
+      map.on('idle', () => {
+        markTiming(GEO_TIMING.MAP_IDLE)
+        logTimingSummary()
+      })
 
       map.on('error', (e) => {
         // A style/tile-load failure is a PRESENTATION problem, never a
@@ -182,11 +413,28 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
 
       map.on('load', () => {
         loadedRef.current = true
-        const cellsFC = buildCellsFeatureCollection(cellFeatures)
-        const sourcesFC = buildSourcesFeatureCollection({ type: 'FeatureCollection', features: sourceFeatures })
-        const directionsFC = buildDirectionFeatureCollection(cellFeatures)
-        const stats = computeRiskColorStats(cellFeatures)
-        const nationalFC = nationalSources ?? { type: 'FeatureCollection', features: [] }
+        markTiming(GEO_TIMING.STYLE_LOAD_END)
+        setStyleReady(true)
+        // GEO33B Section 2: read the LATEST prop values, never this
+        // mount-only effect's first-render closure -- see the
+        // `*Ref` block at the top of this component for the full
+        // explanation of the load-order race this fixes. Everything below
+        // is therefore correct whether the data or the style won.
+        const latestCellFeatures = cellFeaturesRef.current ?? []
+        const latestSourceFeatures = sourceFeaturesRef.current ?? []
+        const latestNationalSources = nationalSourcesRef.current
+        const latestDistrictFeature = districtFeatureRef.current
+        const cellsFC = buildCellsFeatureCollection(latestCellFeatures)
+        const sourcesFC = buildSourcesFeatureCollection({ type: 'FeatureCollection', features: latestSourceFeatures })
+        const directionsFC = buildDirectionFeatureCollection(latestCellFeatures)
+        // GEO-VISUAL-POLISH-03: discrete, snapshot-relative risk tiers
+        // (red/orange/yellow/green) replace the previous continuous blue
+        // -> red gradient as the ACTUAL map paint -- see
+        // `mapLibreAdapter.js`'s own module comment for why this is still
+        // scientifically honest (real quartiles of the CURRENT snapshot,
+        // never a fixed absolute threshold).
+        const tierStats = computeRiskTierStats(latestCellFeatures)
+        const nationalFC = latestNationalSources ?? { type: 'FeatureCollection', features: [] }
 
         if (!map.hasImage(SOURCE_ICON_ID)) map.addImage(SOURCE_ICON_ID, buildSourceMarkerImage())
         // FMD-10C1: registered unconditionally at mount (cheap,
@@ -198,22 +446,84 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         if (!map.hasImage(CLINICAL_DIAMOND_ICON_ID)) map.addImage(CLINICAL_DIAMOND_ICON_ID, buildClinicalDiamondIcon())
         if (!map.hasImage(CLINICAL_CIRCLE_ICON_ID)) map.addImage(CLINICAL_CIRCLE_ICON_ID, buildClinicalCircleIcon())
 
+        // GEO30B Section 16/17/26: the vet's real district polygon --
+        // added FIRST (before cells/sources/markers) so layer paint
+        // order matches Section 26's required stacking (basemap -> district
+        // fill -> district outline -> ... -> markers -> labels). Empty by
+        // default; `districtFeature` typically resolves asynchronously
+        // (a real network fetch, `useDistrictGeometry.js`) shortly after
+        // mount -- the data-update effect below calls `setData` once it
+        // does, never a second source/layer definition.
+        map.addSource(MY_DISTRICT_SOURCE_ID, {
+          type: 'geojson',
+          data: latestDistrictFeature
+            ? { type: 'FeatureCollection', features: [latestDistrictFeature] }
+            : { type: 'FeatureCollection', features: [] },
+          // ODbL 1.0 attribution requirement, `data/ATTRIBUTION.md` --
+          // aggregated by MapLibre's attribution control alongside the
+          // OSM raster basemap's own `attribution` field.
+          attribution: '© OpenStreetMap contributors',
+        })
+        map.addLayer({
+          id: MY_DISTRICT_FILL_LAYER_ID,
+          type: 'fill',
+          source: MY_DISTRICT_SOURCE_ID,
+          paint: { 'fill-color': '#4edea3', 'fill-opacity': 0.08 },
+        })
+        map.addLayer({
+          id: MY_DISTRICT_OUTLINE_LAYER_ID,
+          type: 'line',
+          source: MY_DISTRICT_SOURCE_ID,
+          paint: { 'line-color': '#4edea3', 'line-width': 1.5, 'line-opacity': 0.85 },
+        })
+
         map.addSource(CELLS_SOURCE_ID, { type: 'geojson', data: cellsFC })
         map.addSource(SOURCES_SOURCE_ID, { type: 'geojson', data: sourcesFC })
         map.addSource(DIRECTIONS_SOURCE_ID, { type: 'geojson', data: directionsFC })
         map.addSource(NATIONAL_SOURCES_SOURCE_ID, { type: 'geojson', data: nationalFC, promoteId: 'source_id' })
         map.addSource(REACH_RING_SOURCE_ID, { type: 'geojson', data: emptyReachRingFeatureCollection() })
-        map.addSource(OPERATIONAL_MARKERS_SOURCE_ID, { type: 'geojson', data: operationalFeatures ?? { type: 'FeatureCollection', features: [] } })
+        // GEO26B Section 12: `promoteId` lets `feature-state` (the
+        // transient "just arrived" highlight, set by the dedicated effect
+        // below) target one specific farm marker by its real
+        // `farmDiseaseKey`, surviving the `setData` calls the 60s
+        // operational refresh performs.
+        map.addSource(OPERATIONAL_MARKERS_SOURCE_ID, {
+          type: 'geojson',
+          data: operationalFeaturesRef.current ?? { type: 'FeatureCollection', features: [] },
+          promoteId: OPERATIONAL_MARKERS_PROMOTE_ID,
+        })
+        markTiming(GEO_TIMING.SOURCES_CREATED)
+        if (nationalFC.features.length > 0) markTiming(GEO_TIMING.FIRST_OUTBREAK_RENDER)
 
+        // GEO31A Section 8/9/10: the real backend model produces one
+        // scored POINT per spatial cell (confirmed live, 2026-08-30:
+        // `/analysis/{id}/cells` -- 88 real Point features for a real LSD
+        // origin, real varying `raw_c0_score`), never a polygon/grid
+        // footprint -- so a `circle` layer over that real geometry IS the
+        // honest "actual model geometry" rendering (Section 10's "use
+        // actual model geometry/grid/cells" -- there is no grid to fill,
+        // only real scored points). `circle-radius` grows with zoom so the
+        // real cluster of points reads as a visible cloud rather than a
+        // handful of near-invisible 5px dots at national zoom (the
+        // concrete cause of "Risk Zones not visibly working" -- the real
+        // data was always there, Section 9's trace). `-transition` entries
+        // give a real D0->D+N frame change (`cellFeatures` changing) a
+        // 300ms crossfade (Section 11) instead of an instant hard swap.
+        // Visibility is gated to Risk Zones mode only (`showRiskLayer`
+        // effect below) -- never shown in Cases mode.
         map.addLayer({
           id: 'cells-circle',
           type: 'circle',
           source: CELLS_SOURCE_ID,
+          layout: { visibility: showRiskLayer ? 'visible' : 'none' },
           paint: {
-            'circle-radius': 5,
-            'circle-color': riskCircleColorExpression(stats),
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 8, 7, 12, 11],
+            'circle-color': riskTierColorExpression(tierStats),
+            'circle-opacity': 0.85,
             'circle-stroke-width': 1,
             'circle-stroke-color': '#1e293b',
+            'circle-color-transition': { duration: reduceMotion ? 0 : 320 },
+            'circle-opacity-transition': { duration: reduceMotion ? 0 : 320 },
           },
         })
 
@@ -254,6 +564,26 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           },
         })
 
+        // GEO-VISUAL-POLISH-01: the continuous ambient breathing ring --
+        // added right after the one-shot ripple and before the steady
+        // halo, so paint order reads (bottom to top): one-shot ripple,
+        // ambient pulse, steady halo, stack ring, icon. Initial paint is
+        // the "collapsed" phase; the dedicated RAF effect below flips it
+        // every half-cycle. `-transition` is what makes each flip a smooth
+        // grow/fade rather than an instant jump -- reduced motion skips
+        // the layer's own toggle effect entirely (see below), leaving it
+        // permanently at this same collapsed/steady paint.
+        map.addLayer({
+          id: NATIONAL_SOURCES_PULSE_LAYER_ID,
+          type: 'circle',
+          source: NATIONAL_SOURCES_SOURCE_ID,
+          paint: {
+            ...nationalSourceAmbientPulsePaint(false),
+            'circle-radius-transition': { duration: reduceMotion ? 0 : NATIONAL_SOURCES_PULSE_CYCLE_MS / 2 },
+            'circle-opacity-transition': { duration: reduceMotion ? 0 : NATIONAL_SOURCES_PULSE_CYCLE_MS / 2 },
+          },
+        })
+
         // Stable selection halo -- appears quickly (~250ms) and stays
         // put, distinct from the one-shot ripple above.
         map.addLayer({
@@ -268,6 +598,21 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
             'circle-stroke-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
             'circle-stroke-opacity-transition': { duration: reduceMotion ? 0 : 250 },
           },
+        })
+
+        // GEO33B Section 7: the co-location "stack" indicator. Sits
+        // between the halo and the icon so it reads as belonging to the
+        // marker without ever covering its steady red core. Its paint is
+        // a `step` on the real `stackCount` that resolves to radius 0 /
+        // stroke-width 0 for the overwhelmingly common `stackCount === 1`
+        // case, so this layer is genuinely invisible unless two or more
+        // DISTINCT real observed records share one coordinate -- it can
+        // never decorate a single record into looking like several.
+        map.addLayer({
+          id: NATIONAL_SOURCES_STACK_LAYER_ID,
+          type: 'circle',
+          source: NATIONAL_SOURCES_SOURCE_ID,
+          paint: nationalStackIndicatorPaint(),
         })
 
         map.addLayer({
@@ -291,23 +636,39 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         // Fixed-size north-facing icon, rotated by the backend's own
         // bearing_deg via a data-driven expression -- never a scaled
         // length (Part 10: no scaling by risk/rate/confidence/clarity).
-        map.addLayer({ id: 'direction-arrows', type: 'symbol', source: DIRECTIONS_SOURCE_ID, layout: directionIconLayout() })
+        map.addLayer({
+          id: 'direction-arrows',
+          type: 'symbol',
+          source: DIRECTIONS_SOURCE_ID,
+          layout: { ...directionIconLayout(), visibility: showRiskLayer ? 'visible' : 'none' },
+        })
 
-        // GEO-INT-03 Section 9/10: Verified Clinical Context overlay --
-        // hollow neutral-mint icon only, no paint-based risk/pulse
-        // treatment of any kind. Starts hidden; the showOperationalLayer
-        // effect below sets initial + subsequent visibility (Cases mode only).
-        // Initial visibility is taken directly from this mount-only
-        // effect's closure (the value `showOperationalLayer` had on the
-        // FIRST render) -- the dedicated toggle effect below only re-runs
-        // on a LATER prop change, so without this the layer could stay
-        // hidden forever if Cases mode (the default) never actually
-        // "changes" after the map finishes its async load.
+        // GEO-INT-03 Section 9/10, REDESIGNED by GEO31A Section 2/3:
+        // Verified Clinical Context / observed-outbreak overlay -- a red
+        // steady-core icon (below) with a soft expanding halo/ring
+        // UNDERNEATH it (this circle layer, added first so it paints
+        // beneath the icon symbol layer). Starts hidden; the
+        // showOperationalLayer effect below sets initial + subsequent
+        // visibility for BOTH layers (Cases mode only). Initial visibility
+        // is taken directly from this mount-only effect's closure (the
+        // value `showOperationalLayer` had on the FIRST render) -- the
+        // dedicated toggle effect below only re-runs on a LATER prop
+        // change, so without this the layer could stay hidden forever if
+        // Cases mode (the default) never actually "changes" after the map
+        // finishes its async load.
+        map.addLayer({
+          id: OPERATIONAL_MARKERS_HALO_LAYER_ID,
+          type: 'circle',
+          source: OPERATIONAL_MARKERS_SOURCE_ID,
+          layout: { visibility: showOperationalLayer ? 'visible' : 'none' },
+          paint: operationalMarkerHaloPaint(reduceMotion),
+        })
         map.addLayer({
           id: OPERATIONAL_MARKERS_LAYER_ID,
           type: 'symbol',
           source: OPERATIONAL_MARKERS_SOURCE_ID,
           layout: { ...operationalMarkerIconLayout(), visibility: showOperationalLayer ? 'visible' : 'none' },
+          paint: operationalMarkerPaint(reduceMotion),
         })
 
         map.on('click', 'cells-circle', (e) => {
@@ -334,14 +695,26 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           })
         }
 
-        // Initial camera: national bounds when browsing (Page 1's
-        // "Sri Lanka Overview"), falling back to the original
-        // cells+sources bounds for the single-snapshot debug view.
-        const bounds = nationalSources
-          ? computeCombinedLngLatBounds([], nationalFC.features)
-          : computeCombinedLngLatBounds(cellFeatures, sourceFeatures)
+        // Initial camera.
+        //
+        // GEO33B Section 5: for Page 1's national browsing view this is
+        // now the real, fixed `SRI_LANKA_BOUNDS`, NOT the extent of
+        // whatever markers happen to have loaded. Every real Sri Lanka LSD
+        // record sits in the far north, so the previous marker-extent fit
+        // opened the page zoomed onto the Jaffna peninsula -- the vet's own
+        // district (and most of the country) was off-screen before they had
+        // touched anything. "Sri Lanka Overview" has to actually open on
+        // Sri Lanka; zooming to real records is what an explicit outbreak
+        // SELECTION does, in the focused-origin effect below.
+        //
+        // The original single-snapshot debug view (`MapView.jsx`, which
+        // passes no `nationalSources`) is untouched and still fits its own
+        // real cells+sources extent exactly as before.
+        const bounds = latestNationalSources
+          ? SRI_LANKA_BOUNDS
+          : computeCombinedLngLatBounds(latestCellFeatures, latestSourceFeatures)
         if (bounds) {
-          map.fitBounds(bounds, { padding: 40, animate: false })
+          map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: false })
         }
       })
     } catch (err) {
@@ -379,8 +752,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     map.getSource(DIRECTIONS_SOURCE_ID)?.setData(directionsFC)
 
     if (cellFeatures.length > 0) {
-      const stats = computeRiskColorStats(cellFeatures)
-      map.setPaintProperty('cells-circle', 'circle-color', riskCircleColorExpression(stats))
+      const tierStats = computeRiskTierStats(cellFeatures)
+      map.setPaintProperty('cells-circle', 'circle-color', riskTierColorExpression(tierStats))
     }
 
     // One smooth fit, only on an ACTUAL new outbreak selection (never
@@ -388,12 +761,24 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     // with a fresh array reference, and never on a timeline day change
     // -- day changes don't touch cellFeatures/sourceFeatures at all in
     // this checkpoint, see plan Section 25).
-    if (nationalSources && selectedOutbreakId && selectedOutbreakId !== lastFitOutbreakIdRef.current) {
-      lastFitOutbreakIdRef.current = selectedOutbreakId
-      const focusedSources = nationalSources.features.filter((f) => f.properties.outbreakId === selectedOutbreakId)
+    // GEO-PAGE1-FINAL Section 10/24: `visuallySelectedOutbreakId` is
+    // `null` for the page's own auto-picked default focus, so the camera
+    // never jumps away from the calm Sri Lanka Overview just because a
+    // default origin's real cells/sources happened to resolve -- only a
+    // genuine vet click (which flips `autoFocusOutbreak` off) fits here.
+    if (nationalSources && visuallySelectedOutbreakId && visuallySelectedOutbreakId !== lastFitOutbreakIdRef.current) {
+      lastFitOutbreakIdRef.current = visuallySelectedOutbreakId
+      // GEO33B Section 7: membership, not equality. After the presentation
+      // aggregation (`nationalSourcePresentation.js`) one marker can carry
+      // several real `outbreakIds`, because one physical record is
+      // genuinely eligible under several origins' 14-day windows. A plain
+      // `properties.outbreakId === selectedOutbreakId` check silently
+      // dropped such a record from its own origin's fit whenever the
+      // aggregate happened to keep a different origin's id first.
+      const focusedSources = nationalSources.features.filter((f) => featureBelongsToOutbreak(f, visuallySelectedOutbreakId))
       const bounds = computeCombinedLngLatBounds(cellFeatures, focusedSources)
       if (bounds) {
-        map.fitBounds(bounds, { padding: 60, animate: !reduceMotion, duration: reduceMotion ? 0 : 1200 })
+        map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: !reduceMotion, duration: reduceMotion ? 0 : 1200 })
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -404,6 +789,13 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     const map = mapRef.current
     if (!map || !loadedRef.current || !nationalSources) return
     map.getSource(NATIONAL_SOURCES_SOURCE_ID)?.setData(nationalSources)
+    markTiming(GEO_TIMING.FIRST_SET_DATA)
+    if (nationalSources.features.length > 0) markTiming(GEO_TIMING.FIRST_OUTBREAK_RENDER)
+    // GEO-VIVA-USER-VISIBLE-RECOVERY-05: repeats on every real update
+    // (a disease switch's progressive per-origin reveal calls this many
+    // times), unlike the once-ever marks above -- this is the actual
+    // moment MapLibre received new real marker geometry to paint.
+    markTiming(GEO_TIMING.NATIONAL_SOURCES_SET_DATA, { repeat: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nationalSources])
 
@@ -412,19 +804,36 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     const map = mapRef.current
     if (!map || !loadedRef.current || !nationalSources) return
 
+    // GEO33B Section 7: `source_id` is a SAFE promoted feature id again
+    // now that the collection is aggregated to one feature per real
+    // coordinate. Before aggregation the same `source_id` appeared on
+    // several rows (one physical record, several overlapping eligibility
+    // windows), so this loop wrote `selected: true` and then
+    // `dimmed: true` to the SAME promoted id on different iterations --
+    // whichever row happened to come last silently won.
+    // GEO-PAGE1-FINAL Section 7/10/24: `visuallySelectedOutbreakId` stays
+    // `null` while the current focus is only the page's auto-picked
+    // default -- so the default Sri Lanka Overview shows every real
+    // marker at full, equal, un-haloed visibility (no unexplained glow
+    // on one marker the vet never clicked). A genuine click still dims
+    // every other origin and halos/ripples the clicked one exactly as
+    // before.
     for (const feature of nationalSources.features) {
       const id = feature.properties.source_id
-      const isSelected = selectedOutbreakId != null && feature.properties.outbreakId === selectedOutbreakId
-      const isOtherOrigin = selectedOutbreakId != null && feature.properties.outbreakId !== selectedOutbreakId
+      const belongs = featureBelongsToOutbreak(feature, visuallySelectedOutbreakId)
+      const isSelected = visuallySelectedOutbreakId != null && belongs
+      const isOtherOrigin = visuallySelectedOutbreakId != null && !belongs
       map.setFeatureState({ source: NATIONAL_SOURCES_SOURCE_ID, id }, { selected: isSelected, dimmed: isOtherOrigin, rippleExpanded: false })
     }
 
-    if (selectedOutbreakId != null) {
+    if (visuallySelectedOutbreakId != null) {
       // Kick the ripple: start collapsed/opaque (already the default
       // above), then flip to expanded on the next frame so MapLibre's
       // paint-transition animates 8px/45%-opacity -> 22px/0%-opacity
       // once, per plan Section 27 ("one restrained selection animation").
-      const selectedIds = nationalSources.features.filter((f) => f.properties.outbreakId === selectedOutbreakId).map((f) => f.properties.source_id)
+      const selectedIds = nationalSources.features
+        .filter((f) => featureBelongsToOutbreak(f, visuallySelectedOutbreakId))
+        .map((f) => f.properties.source_id)
       requestAnimationFrame(() => {
         for (const id of selectedIds) {
           map.setFeatureState({ source: NATIONAL_SOURCES_SOURCE_ID, id }, { rippleExpanded: true })
@@ -432,7 +841,41 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOutbreakId, nationalSources])
+  }, [visuallySelectedOutbreakId, nationalSources])
+
+  // ---- GEO-VISUAL-POLISH-01: continuous ambient pulse clock for every
+  // national source marker. A single shared RAF loop toggling ONE
+  // layer-level paint property twice per cycle (never a per-feature
+  // setFeatureState loop) -- cost is independent of how many real markers
+  // exist. RAF-driven, never setInterval/setTimeout (`noAutoPolling.test.js`
+  // bans both anywhere in this feature outside the one documented
+  // operational scheduler); ticks against `performance.now()` so the
+  // actual flip cadence stays correct regardless of frame rate, matching
+  // this file's own playback-adjacent reach-ring tween. Skipped entirely
+  // under reduced motion -- the layer then simply stays at its initial
+  // collapsed/steady paint from the mount effect above. ----
+  useEffect(() => {
+    if (reduceMotion) return undefined
+    const HALF_CYCLE_MS = NATIONAL_SOURCES_PULSE_CYCLE_MS / 2
+    let expanded = false
+    let lastTick = performance.now()
+    let frame
+    const tick = (now) => {
+      const map = mapRef.current
+      if (map && loadedRef.current && map.getLayer(NATIONAL_SOURCES_PULSE_LAYER_ID) && now - lastTick >= HALF_CYCLE_MS) {
+        lastTick = now
+        expanded = !expanded
+        const paint = nationalSourceAmbientPulsePaint(expanded)
+        map.setPaintProperty(NATIONAL_SOURCES_PULSE_LAYER_ID, 'circle-radius', paint['circle-radius'])
+        map.setPaintProperty(NATIONAL_SOURCES_PULSE_LAYER_ID, 'circle-opacity', paint['circle-opacity'])
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [reduceMotion])
 
   // ---- nominal-reach ring: smooth grow/shrink between real day values ----
   useEffect(() => {
@@ -497,15 +940,148 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     const map = mapRef.current
     if (!map || !loadedRef.current) return
     map.getSource(OPERATIONAL_MARKERS_SOURCE_ID)?.setData(operationalFeatures ?? { type: 'FeatureCollection', features: [] })
+    // GEO-VIVA-USER-VISIBLE-RECOVERY-05: the real moment a Window
+    // (observation-range) change's already-in-memory filter recompute
+    // actually reaches the map -- this effect never fits/flies the
+    // camera (Section 13 above), so first/final map reaction for a
+    // Window change ARE this one instant.
+    markTiming(GEO_TIMING.OPERATIONAL_MARKERS_SET_DATA, { repeat: true })
   }, [operationalFeatures])
+
+  // ---- GEO30B Section 16: district geometry resolves asynchronously
+  // (a real network fetch) -- this NEVER fits/flies/eases the camera on
+  // its own (Section 12/18: resolving the polygon must not silently move
+  // the vet's view; only the explicit "Focus My District" action does
+  // that, via `resetView(bounds)`). ----
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    map.getSource(MY_DISTRICT_SOURCE_ID)?.setData(
+      districtFeature ? { type: 'FeatureCollection', features: [districtFeature] } : { type: 'FeatureCollection', features: [] },
+    )
+  }, [districtFeature])
+
+  // ---- GEO26B Section 12: transient "just arrived" farm-marker
+  // highlight. `arrivalHighlightKey` is the real `farmDiseaseKey`
+  // (`${farmId}::${disease}`) of the farm a genuine new verified-clinical
+  // SSE event just landed for (set briefly by `OutbreakMapPage.jsx`,
+  // never by this component itself). Uses the SAME `feature-state`
+  // mechanism already used for the national-source "dimmed" halo above --
+  // never a second, divergent selection-state technique. Clears itself
+  // via `requestAnimationFrame`, matching this file's reach-ring tween --
+  // never `setTimeout`/`setInterval` (forbidden anywhere in this feature,
+  // `noAutoPolling.test.js`). Skips the highlight entirely under reduced
+  // motion (the underlying marker/count update from `operationalFeatures`
+  // above still happens either way -- only the transient visual emphasis
+  // is skipped). ----
+  // GEO31A Section 2/3: `justArrived` (6s) still drives ONLY the marker
+  // icon's own opacity boost, unchanged. `pulseActive`+`pulseExpanded` are
+  // a SHORTER (2.4s), separate pair of feature-states driving the halo
+  // ring's "expands and fades... repeat only for a short meaningful
+  // arrival sequence, then settle to steady" behavior (Section 2): every
+  // `PULSE_CYCLE_MS`, `pulseExpanded` flips, and the halo's own paint-
+  // transition (`operationalMarkerHaloPaint`) animates the resulting
+  // small<->large/opaque<->faded change smoothly -- one visible pulse per
+  // flip. Once `PULSE_REPEAT_COUNT` cycles elapse, `pulseActive` clears
+  // and the halo falls back to fully invisible (steady marker, no ring)
+  // for the remainder of the (longer) `justArrived` window and beyond --
+  // it never stays visible indefinitely. Still RAF-only, never
+  // `setInterval`/`setTimeout` (`noAutoPolling.test.js`).
+  // GEO33B Section 8/11: the SAME one-shot pulse now also covers markers
+  // that a real Observed-Replay step just revealed (`newlyRevealedKeys`),
+  // not only live SSE arrivals. This deliberately reuses the existing
+  // feature-state machinery and the existing single RAF loop rather than
+  // adding a second, divergent animation path -- and it stays strictly
+  // per-feature and time-bounded, so historical markers are NEVER given a
+  // permanent/global animated layer (the pulse is driven by feature-state
+  // that this effect itself clears; the halo layer's fall-through case is
+  // `0` opacity, i.e. no ring at all once settled).
+  //
+  // `pulseKeySignature` is a stable primitive (sorted, joined) so a parent
+  // re-render producing an equal-but-new array can never restart a pulse
+  // that is already running.
+  const pulseKeySignature = Array.from(new Set([arrivalHighlightKey, ...(newlyRevealedKeys ?? [])].filter(Boolean)))
+    .sort()
+    .join('|')
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || !pulseKeySignature || reduceMotion) return undefined
+    const ARRIVAL_HIGHLIGHT_MS = 6000
+    const PULSE_CYCLE_MS = 800
+    const PULSE_REPEAT_COUNT = 3
+    const PULSE_SEQUENCE_MS = PULSE_CYCLE_MS * PULSE_REPEAT_COUNT
+    const targets = pulseKeySignature.split('|').map((id) => ({ source: OPERATIONAL_MARKERS_SOURCE_ID, id }))
+    const applyToAll = (state) => {
+      for (const target of targets) map.setFeatureState(target, state)
+    }
+    applyToAll({ justArrived: true, pulseActive: true, pulseExpanded: false })
+    const startTime = performance.now()
+    let lastCycleIndex = 0
+    let pulseSettled = false
+    let frame = requestAnimationFrame(function tick(now) {
+      const elapsed = now - startTime
+      if (elapsed >= ARRIVAL_HIGHLIGHT_MS) {
+        applyToAll({ justArrived: false, pulseActive: false, pulseExpanded: false })
+        return
+      }
+      if (elapsed < PULSE_SEQUENCE_MS) {
+        const cycleIndex = Math.floor(elapsed / PULSE_CYCLE_MS)
+        if (cycleIndex !== lastCycleIndex) {
+          lastCycleIndex = cycleIndex
+          applyToAll({ pulseExpanded: cycleIndex % 2 === 1 })
+        }
+      } else if (!pulseSettled) {
+        // The pulse sequence just ended -- settle the ring immediately
+        // (Section 2: "repeat only for a short meaningful arrival
+        // sequence, then settle to steady"), only once.
+        pulseSettled = true
+        applyToAll({ pulseActive: false, pulseExpanded: false })
+      }
+      frame = requestAnimationFrame(tick)
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      applyToAll({ justArrived: false, pulseActive: false, pulseExpanded: false })
+    }
+  }, [pulseKeySignature, reduceMotion])
+
+  // ---- GEO31A Section 2 "Selected outbreak: additional distinct halo" --
+  // a STEADY selection ring, independent of arrival, driven the same way
+  // as the national-sources selection halo above: set on the currently
+  // popup-open farm, cleared on every previously-selected one. ----
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return undefined
+    const previousKey = selectedOperationalKeyRef.current
+    if (previousKey && previousKey !== selectedOperationalKey) {
+      map.setFeatureState({ source: OPERATIONAL_MARKERS_SOURCE_ID, id: previousKey }, { selected: false })
+    }
+    if (selectedOperationalKey) {
+      map.setFeatureState({ source: OPERATIONAL_MARKERS_SOURCE_ID, id: selectedOperationalKey }, { selected: true })
+    }
+    selectedOperationalKeyRef.current = selectedOperationalKey
+  }, [selectedOperationalKey])
 
   // ---- GEO-INT-03 Section 10: Cases-mode-only visibility toggle ----
   useEffect(() => {
     const map = mapRef.current
     if (!map || !loadedRef.current) return
-    if (!map.getLayer(OPERATIONAL_MARKERS_LAYER_ID)) return
-    map.setLayoutProperty(OPERATIONAL_MARKERS_LAYER_ID, 'visibility', showOperationalLayer ? 'visible' : 'none')
+    const visibility = showOperationalLayer ? 'visible' : 'none'
+    if (map.getLayer(OPERATIONAL_MARKERS_LAYER_ID)) map.setLayoutProperty(OPERATIONAL_MARKERS_LAYER_ID, 'visibility', visibility)
+    if (map.getLayer(OPERATIONAL_MARKERS_HALO_LAYER_ID)) map.setLayoutProperty(OPERATIONAL_MARKERS_HALO_LAYER_ID, 'visibility', visibility)
   }, [showOperationalLayer])
+
+  // ---- GEO31A Section 8/10: Risk-Zones-mode-only visibility toggle for
+  // the real scored-cell/direction layers -- a mode switch reveals
+  // already-fetched real data instantly (no refetch, no camera move),
+  // exactly like the operational-layer toggle above. ----
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    const visibility = showRiskLayer ? 'visible' : 'none'
+    if (map.getLayer('cells-circle')) map.setLayoutProperty('cells-circle', 'visibility', visibility)
+    if (map.getLayer('direction-arrows')) map.setLayoutProperty('direction-arrows', 'visibility', visibility)
+  }, [showRiskLayer])
 
   // ---- FMD-10C1: national-source marker shape follows the selected
   // disease's `markerShape` (diamond=LSD, circle=FMD) -- color never
@@ -518,8 +1094,42 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   }, [nationalMarkerShape])
 
   return (
-    <div className="h-full w-full overflow-hidden rounded border">
+    // `geo-map-shell` is the scope root for this feature's own MapLibre
+    // control chrome (`geospatialMapChrome.css`) -- nothing outside this
+    // component's subtree is affected.
+    <div className="geo-map-shell relative h-full w-full overflow-hidden rounded border">
       <div ref={containerRef} className="h-full min-h-[650px] w-full" role="application" aria-label="Geospatial scientific map" />
+
+      {/* GEO33B Section 4: a restrained, honest "the basemap is still
+          loading" state, shown ONLY until the style actually loads.
+          Deliberately:
+           - `pointer-events-none`, so it never blocks interaction with
+             anything beneath or beside it;
+           - an overlay on the map card only -- the page header, control
+             bar, mode toolbar, legend and timeline all render and stay
+             usable underneath it, so the rest of the page is never
+             blocked on the map;
+           - worded about the BASEMAP specifically, never "loading data".
+             Real geography can and does appear before marker data has
+             arrived (the two are independent fetches), so this must not
+             imply anything about outbreak/case availability;
+           - a soft pulse on a single small dot rather than a full-card
+             shimmer sweep -- matching this page's existing restrained
+             dark chrome instead of introducing a new animation language.
+             `aria-hidden` keeps it out of the accessibility tree: the
+             map container already carries the real `role="application"`
+             label, and this is purely decorative reassurance. */}
+      {!styleReady && !failedRef.current && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-400 backdrop-blur">
+            <span className={reduceMotion ? 'h-1.5 w-1.5 rounded-full bg-slate-500' : 'h-1.5 w-1.5 animate-pulse rounded-full bg-slate-500'} />
+            Loading map…
+          </div>
+        </div>
+      )}
     </div>
   )
 })

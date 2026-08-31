@@ -12,6 +12,8 @@
  * coordinate is ever invented here.
  */
 
+import { normalizeDistrictDisplayName } from './districtGeometry'
+
 const KNOWN_DISEASES = new Set(['LSD', 'FMD'])
 
 function isFiniteNumber(value) {
@@ -20,7 +22,13 @@ function isFiniteNumber(value) {
 
 /** Section 25/26: keeps every farm record (even an invalid-location one,
  * for the honest "N farms need geolocation" count), but only a `VALID`
- * one carries usable coordinates. */
+ * one carries usable coordinates.
+ *
+ * GEO29A Phase 5/6: `personally_assigned` (default `true`, matching the
+ * backend's own default -- see `OperationalFarm.personally_assigned`)
+ * distinguishes a farm the vet directly administers from one that only
+ * qualifies through district-wide surveillance; the frontend popup uses
+ * this to decide whether a richer farm label is shown. */
 function normalizeFarm(rawFarm) {
   if (!rawFarm || typeof rawFarm.farm_id !== 'string' || !rawFarm.farm_id) return null
   const hasValidLocation =
@@ -30,7 +38,12 @@ function normalizeFarm(rawFarm) {
     latitude: hasValidLocation ? rawFarm.latitude : null,
     longitude: hasValidLocation ? rawFarm.longitude : null,
     locationStatus: hasValidLocation ? 'VALID' : 'LOCATION_REQUIRED',
-    locationDistrict: typeof rawFarm.location_district === 'string' ? rawFarm.location_district : null,
+    // GEO-MY-AREA-FINAL-PASS: same real messy raw format as
+    // `myAreaContextAdapter.js::normalizeArea` (verified from the
+    // backend's own `district_matches` docstring) -- normalized here too
+    // so a farm's dropdown/label/popup text never shows raw coordinates.
+    locationDistrict: normalizeDistrictDisplayName(rawFarm.location_district),
+    personallyAssigned: rawFarm.personally_assigned !== false,
   }
 }
 
@@ -57,6 +70,7 @@ function normalizeClinicalContext(rawContext, farmsById) {
     latitude: farm.latitude,
     longitude: farm.longitude,
     locationDistrict: farm.locationDistrict,
+    personallyAssigned: farm.personallyAssigned,
   }
 }
 
@@ -79,6 +93,21 @@ export function normalizeOperationalContext(raw) {
 
   const locationRequiredFarmCount = farms.filter((f) => f.locationStatus !== 'VALID').length
 
+  // GEO29A Phase 4/6: the additive registered-district surveillance
+  // scope -- a real, independently-populated broader set (may include
+  // the same farms as `farms` above, tagged `personallyAssigned: true`
+  // there too), parsed with the exact same defensive rules as the
+  // assigned-farm fields (unknown disease dropped, invalid location
+  // dropped, never repaired/guessed).
+  const rawSurveillanceFarms = Array.isArray(raw?.surveillance_farms) ? raw.surveillance_farms : []
+  const rawSurveillanceContexts = Array.isArray(raw?.surveillance_contexts) ? raw.surveillance_contexts : []
+  const surveillanceFarms = rawSurveillanceFarms.map(normalizeFarm).filter(Boolean)
+  const surveillanceFarmsById = new Map(surveillanceFarms.map((f) => [f.farmId, f]))
+  const surveillanceContexts = rawSurveillanceContexts
+    .map((c) => normalizeClinicalContext(c, surveillanceFarmsById))
+    .filter(Boolean)
+    .sort((a, b) => (a.caseId < b.caseId ? -1 : a.caseId > b.caseId ? 1 : 0))
+
   return {
     status,
     vetRole: typeof raw?.vet?.role === 'string' ? raw.vet.role : null,
@@ -86,5 +115,8 @@ export function normalizeOperationalContext(raw) {
     clinicalContexts,
     locationRequiredFarmCount,
     generatedAt: typeof raw?.generated_at === 'string' ? raw.generated_at : null,
+    vetDistrict: typeof raw?.vet_district === 'string' && raw.vet_district.trim() ? raw.vet_district : null,
+    surveillanceFarms,
+    surveillanceContexts,
   }
 }

@@ -35,8 +35,13 @@ describe('GEO-ANALYSIS-02-PAGE-01: no silent origin auto-selection (Section 10/4
 })
 
 describe('GEO-ANALYSIS-02-PAGE-02: explicit cross-page origin continuity (Section 11)', () => {
-  it('adopts ctx.selectedOutbreakId only after verifying ledger membership', () => {
-    expect(pageSrc).toContain('ledger.origins.some((o) => o.originId === ctx.selectedOutbreakId)')
+  it('adopts ctx.selectedOutbreakId only after verifying membership in the real Matara-filtered origin set', () => {
+    // URGENT-MATARA-REAL-FILTER: the origin selector this page offers is
+    // now restricted to `mataraOrigins` (real point-in-polygon-filtered
+    // origins), so cross-page continuity must verify membership in THAT
+    // set -- the full national ledger it used to check is no longer what
+    // the selector actually lists.
+    expect(pageSrc).toContain('mataraOrigins.some((o) => o.outbreakId === ctx.selectedOutbreakId)')
   })
 
   it('adoption happens at most once via a ref guard, never on every render', () => {
@@ -104,9 +109,17 @@ describe('GEO-ANALYSIS-02-PAGE-05: historical trend rendering (Section 18/19/20)
   })
 
   it('trend basis is read dynamically from the backend field, never hardcoded to WEEK or YEAR', () => {
-    expect(pageSrc).toContain('data.historicalTrend.periodBasis')
-    expect(pageSrc).not.toMatch(/periodBasis\s*=\s*['"]WEEK['"]/)
-    expect(pageSrc).not.toMatch(/periodBasis\s*=\s*['"]YEAR['"]/)
+    // URGENT-MATARA-REAL-FILTER: the national trend-basis display now
+    // lives in the reused `AnalysisTrendsSummaryPanel` (the page's
+    // "Analysis Coverage · National" card), fed `data.historicalTrend`
+    // as a prop -- the page itself no longer re-reads `.periodBasis`
+    // directly (that responsibility moved, it was not dropped).
+    expect(pageSrc).toContain('historicalTrend={data.historicalTrend}')
+    expect(summarySrc).toContain('historicalTrend?.periodBasis')
+    for (const src of [pageSrc, summarySrc]) {
+      expect(src).not.toMatch(/periodBasis\s*=\s*['"]WEEK['"]/)
+      expect(src).not.toMatch(/periodBasis\s*=\s*['"]YEAR['"]/)
+    }
   })
 
   it('no chart dependency was added -- pure SVG only', () => {

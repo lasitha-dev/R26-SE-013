@@ -67,12 +67,27 @@ class OperationalContextService:
 
         # Deterministic ordering (Section 20) — stable key, never insertion/host order.
         farms = sorted((normalize_assigned_farm(raw) for raw in raw_farms), key=lambda f: f.farm_id)
+        assigned_farm_ids = {farm.farm_id for farm in farms}
+
+        # GEO29A Phase 4/6: registered-district surveillance is resolved
+        # ADDITIVELY and independently of the assigned-farm scope above —
+        # a vet with ZERO assigned farms may still have a real registered
+        # district worth surveilling (Phase 4's whole point). Any failure
+        # here degrades to an empty surveillance scope, never disturbing
+        # the assigned-farm `status`/`farms`/`clinical_contexts` fields
+        # this method already computes exactly as before.
+        vet_district, surveillance_farms, surveillance_contexts = await self._resolve_surveillance(
+            vet, assigned_farm_ids
+        )
 
         if not farms:
             return OperationalGeospatialContext(
                 status=OperationalStatus.NO_ASSIGNED_FARMS.value,
                 vet=vet_summary,
                 generated_at=generated_at,
+                vet_district=vet_district,
+                surveillance_farms=surveillance_farms,
+                surveillance_contexts=surveillance_contexts,
             )
 
         farms_by_id = {farm.farm_id: farm for farm in farms}
@@ -85,6 +100,9 @@ class OperationalContextService:
                 vet=vet_summary,
                 farms=farms,
                 generated_at=generated_at,
+                vet_district=vet_district,
+                surveillance_farms=surveillance_farms,
+                surveillance_contexts=surveillance_contexts,
             )
 
         clinical_contexts = [
@@ -108,4 +126,49 @@ class OperationalContextService:
             farms=farms,
             clinical_contexts=clinical_contexts,
             generated_at=generated_at,
+            vet_district=vet_district,
+            surveillance_farms=surveillance_farms,
+            surveillance_contexts=surveillance_contexts,
         )
+
+    async def _resolve_surveillance(
+        self, vet: AuthenticatedVetContext, assigned_farm_ids: set[str]
+    ) -> tuple[str | None, list, list]:
+        """GEO29A Phase 4/6: builds the registered-district surveillance
+        scope. Returns `(vet_district, surveillance_farms,
+        surveillance_contexts)` -- all three default to
+        `(None, [], [])` on ANY failure (no district on file, port
+        exception, etc.), since surveillance is a strictly additive
+        enhancement that must never turn a working assigned-farm response
+        into an error."""
+        try:
+            vet_district = await self._port.get_vet_district(vet)
+            if not vet_district:
+                return None, [], []
+
+            raw_district_farms = await self._port.get_district_surveillance_farms(vet, vet_district)
+            surveillance_farms = sorted(
+                (
+                    normalize_assigned_farm(raw, personally_assigned=raw.farm_id in assigned_farm_ids)
+                    for raw in raw_district_farms
+                ),
+                key=lambda f: f.farm_id,
+            )
+            if not surveillance_farms:
+                return vet_district, [], []
+
+            surveillance_farms_by_id = {farm.farm_id: farm for farm in surveillance_farms}
+            district_farm_ids = list(surveillance_farms_by_id.keys())
+            raw_district_cases = await self._port.get_verified_clinical_cases_for_farm_ids(district_farm_ids)
+            surveillance_contexts = [
+                ctx
+                for ctx in (
+                    build_verified_clinical_context(case, assigned_farms_by_id=surveillance_farms_by_id)
+                    for case in raw_district_cases
+                )
+                if ctx is not None
+            ]
+            surveillance_contexts.sort(key=lambda ctx: ctx.case_id)
+            return vet_district, surveillance_farms, surveillance_contexts
+        except Exception:
+            return None, [], []

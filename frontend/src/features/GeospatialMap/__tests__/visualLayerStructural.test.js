@@ -56,12 +56,27 @@ describe('11B-STATE-01/02: the map consumes ONLY the committed snapshot, never t
 })
 
 describe('11B-POLL-01: no automatic scientific refresh timer exists anywhere in the visual layer', () => {
-  it('no source file under GeospatialMap/ (excluding tests) calls setInterval or setTimeout', () => {
+  // GEO-HYBRID-LIVE-SYNC-08 Phase 5: `setInterval` stays banned everywhere,
+  // no exception. `setTimeout` is now intentionally used as the single
+  // operational-reconciliation scheduler in `context/useOperationalContext.js`
+  // only (never a scientific refresh) -- see that file and
+  // `noAutoPolling.test.js` for its own dedicated safety assertions. Every
+  // OTHER file in the visual layer, scientific included, still has none.
+  const OPERATIONAL_SCHEDULER_FILE = join('context', 'useOperationalContext.js')
+
+  it('no source file under GeospatialMap/ (excluding tests) calls setInterval', () => {
     expect(SOURCE_FILES.length).toBeGreaterThan(0)
     for (const file of SOURCE_FILES) {
       const src = readFileSync(file, 'utf-8')
       expect(src.includes('setInterval(')).toBe(false)
-      expect(src.includes('setTimeout(')).toBe(false)
+    }
+  })
+
+  it('no source file OTHER than the operational reconciliation scheduler calls setTimeout', () => {
+    for (const file of SOURCE_FILES) {
+      if (file === join(FEATURE_ROOT, OPERATIONAL_SCHEDULER_FILE)) continue
+      const src = readFileSync(file, 'utf-8')
+      expect(src.includes('setTimeout('), `${file} unexpectedly calls setTimeout(`).toBe(false)
     }
   })
 })
@@ -170,5 +185,77 @@ describe('GEO-OWNED-FINAL-08 Section 15: host-layout safety -- map resizes with 
 
   it('the map container carries an explicit height/min-height class -- never an unbounded 0-height flex child', () => {
     expect(mapLibreCanvasSrc).toMatch(/className="[^"]*min-h-\[[0-9]+px\][^"]*"/)
+  })
+})
+
+describe('GEO-PAGE1-FINAL Section 10/24: an auto-focused default origin never triggers the camera-fly or the selection halo/ripple/dim -- only a real click does', () => {
+  const mapLibreCanvasSrc = stripComments(readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8'))
+
+  it('derives a distinct visuallySelectedOutbreakId that is null whenever autoFocusOutbreak is true', () => {
+    expect(mapLibreCanvasSrc).toMatch(/const visuallySelectedOutbreakId = autoFocusOutbreak \? null : selectedOutbreakId/)
+  })
+
+  it('the camera-fit effect gates on visuallySelectedOutbreakId, never the raw selectedOutbreakId prop', () => {
+    const start = mapLibreCanvasSrc.indexOf('const cellsFC = buildCellsFeatureCollection(cellFeatures)')
+    const end = mapLibreCanvasSrc.indexOf('}, [cellFeatures, sourceFeatures])')
+    const body = mapLibreCanvasSrc.slice(start, end)
+    expect(body).toContain('if (nationalSources && visuallySelectedOutbreakId && visuallySelectedOutbreakId !== lastFitOutbreakIdRef.current)')
+    // The raw prop is never read for this decision -- only for building
+    // the (unrelated) `cellFeatures`/`sourceFeatures` sources above it.
+    expect(body).not.toMatch(/if \([^)]*\bselectedOutbreakId\b[^)]*\)/)
+  })
+
+  it('the halo/dim/ripple effect reads visuallySelectedOutbreakId exclusively, and re-runs whenever it changes', () => {
+    const start = mapLibreCanvasSrc.indexOf('for (const feature of nationalSources.features) {')
+    const end = mapLibreCanvasSrc.indexOf('}, [visuallySelectedOutbreakId, nationalSources])') + '}, [visuallySelectedOutbreakId, nationalSources])'.length
+    const body = mapLibreCanvasSrc.slice(start, end)
+    expect(body).toContain('featureBelongsToOutbreak(feature, visuallySelectedOutbreakId)')
+    expect(body).toContain('if (visuallySelectedOutbreakId != null)')
+    expect(body).not.toMatch(/featureBelongsToOutbreak\(f(eature)?, selectedOutbreakId\)/)
+  })
+})
+
+describe('GEO-VISUAL-POLISH-01 Section 6: the ambient outbreak-marker pulse is cheap, leak-free, and motion-honest', () => {
+  const mapLibreCanvasSrc = stripComments(readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8'))
+  const pulseEffectStart = mapLibreCanvasSrc.indexOf('const HALF_CYCLE_MS = NATIONAL_SOURCES_PULSE_CYCLE_MS')
+  // The effect's own dependency array closes it -- same brace-free
+  // slicing technique already used elsewhere in this file/describe block.
+  const pulseEffectEnd = mapLibreCanvasSrc.indexOf('}, [reduceMotion])', pulseEffectStart) + '}, [reduceMotion])'.length
+  const pulseEffectBody = mapLibreCanvasSrc.slice(pulseEffectStart, pulseEffectEnd)
+
+  it('the pulse clock actually exists and is scoped to the effect this test extracts', () => {
+    expect(pulseEffectStart).toBeGreaterThan(-1)
+    expect(pulseEffectBody).toContain('requestAnimationFrame(tick)')
+  })
+
+  it('is skipped entirely under prefers-reduced-motion -- never starts the RAF loop at all', () => {
+    const windowBefore = mapLibreCanvasSrc.slice(Math.max(0, pulseEffectStart - 200), pulseEffectStart)
+    expect(windowBefore).toContain('useEffect(() => {')
+    expect(windowBefore).toContain('if (reduceMotion) return undefined')
+  })
+
+  it('drives MapLibre paint directly (setPaintProperty) -- never a React state update inside the per-frame tick, so a running pulse causes zero extra React re-renders', () => {
+    expect(pulseEffectBody).toContain('map.setPaintProperty(')
+    // Any "setXxx(" call NOT prefixed by "map." would be a React state
+    // setter in this codebase's convention (e.g. `setStyleReady`,
+    // `setSelectedCellFeature`) -- none may appear inside this effect.
+    expect(pulseEffectBody).not.toMatch(/(?<!map\.)\bset[A-Z]\w*\(/)
+  })
+
+  it('never calls setFeatureState per-feature -- the whole-layer paint-property toggle is what keeps this cost independent of real marker count', () => {
+    expect(pulseEffectBody).not.toContain('setFeatureState')
+  })
+
+  it('cancels its own animation frame on cleanup -- no leaked RAF loop across remounts/prop changes', () => {
+    const cleanupStart = pulseEffectBody.lastIndexOf('return () => {')
+    expect(cleanupStart).toBeGreaterThan(-1)
+    const cleanupBody = pulseEffectBody.slice(cleanupStart)
+    expect(cleanupBody).toContain('cancelAnimationFrame(frame)')
+  })
+
+  it('ticks against performance.now(), never setInterval/setTimeout (this feature bans both outside the one documented operational scheduler)', () => {
+    expect(pulseEffectBody).toContain('performance.now()')
+    expect(pulseEffectBody).not.toContain('setInterval(')
+    expect(pulseEffectBody).not.toContain('setTimeout(')
   })
 })

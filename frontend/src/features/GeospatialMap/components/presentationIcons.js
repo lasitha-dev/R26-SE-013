@@ -30,9 +30,18 @@ export const DIRECTION_ICON_ID = 'geo-direction-arrow-icon'
 export const SOURCE_ICON_SIZE = 16
 export const DIRECTION_ICON_SIZE = 20
 
-const SOURCE_FILL = [245, 158, 11, 255] // amber
-const SOURCE_STROKE = [30, 41, 59, 255] // slate-800
-const DIRECTION_FILL = [30, 41, 59, 255] // slate-800
+// GEO30B Section 8/12/33: RED is the ONE color reserved for a real
+// OBSERVED outbreak/trigger-source point on the national map -- never
+// reused for forecast/trajectory movement (that stays a different family
+// entirely, e.g. `nominalReachRing.js`'s teal). Two-tone red (a brighter
+// core, a slightly deeper red ring) so a single opaque marker still
+// reads as "outbreak" at national zoom without needing a second overlay
+// layer -- shape (diamond=LSD, circle=FMD) still carries disease
+// identity, per this module's existing convention; color never varies
+// by disease.
+const SOURCE_FILL = [239, 68, 68, 255] // red-500 core
+const SOURCE_STROKE = [185, 28, 28, 255] // red-700 ring
+const DIRECTION_FILL = [30, 41, 59, 255] // slate-800 -- neutral, never red (not an outbreak marker)
 
 function makeRgbaBuffer(width, height) {
   return new Uint8ClampedArray(width * height * 4)

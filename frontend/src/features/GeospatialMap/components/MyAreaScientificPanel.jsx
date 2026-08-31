@@ -27,29 +27,29 @@ export default function MyAreaScientificPanel({ selectedOriginContext, forecastF
   return (
     <div className="flex flex-col gap-3">
       {nearestHistoricalSource && (
-        <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-          <div className="font-mono uppercase tracking-wide text-emerald-300">{LABEL_HISTORICAL_SOURCE_CONTEXT}</div>
+        <div className="rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">{LABEL_HISTORICAL_SOURCE_CONTEXT}</div>
           <dl className="mt-2 space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-slate-500">Source ID</dt>
-              <dd className="truncate font-mono text-slate-300" title={nearestHistoricalSource.sourceId}>
+              <dt className="text-on-surface-variant/70">Source ID</dt>
+              <dd className="truncate font-mono text-on-surface-variant" title={nearestHistoricalSource.sourceId}>
                 {nearestHistoricalSource.sourceId}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-slate-500">Distance from selected farm</dt>
-              <dd className="text-slate-300">{nearestHistoricalSource.distanceFromAreaKm.toFixed(1)} km</dd>
+              <dt className="text-on-surface-variant/70">Distance from selected farm</dt>
+              <dd className="text-on-surface-variant">{nearestHistoricalSource.distanceFromAreaKm.toFixed(1)} km</dd>
             </div>
             {nearestHistoricalSource.availabilityQuality && (
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-slate-500">Availability</dt>
-                <dd className="text-slate-300">{nearestHistoricalSource.availabilityQuality}</dd>
+                <dt className="text-on-surface-variant/70">Availability</dt>
+                <dd className="text-on-surface-variant">{nearestHistoricalSource.availabilityQuality}</dd>
               </div>
             )}
             {nearestHistoricalSource.gpsQuality && (
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-slate-500">GPS quality</dt>
-                <dd className="text-slate-300">{nearestHistoricalSource.gpsQuality}</dd>
+                <dt className="text-on-surface-variant/70">GPS quality</dt>
+                <dd className="text-on-surface-variant">{nearestHistoricalSource.gpsQuality}</dd>
               </div>
             )}
           </dl>
@@ -57,15 +57,15 @@ export default function MyAreaScientificPanel({ selectedOriginContext, forecastF
       )}
 
       {relativeSpatialScore && (
-        <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-          <div className="font-mono uppercase tracking-wide text-emerald-300">{relativeSpatialScore.label}</div>
+        <div className="rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">{relativeSpatialScore.label}</div>
           {relativeSpatialScore.value === null ? (
             <>
-              <div className="mt-1 text-slate-300">{LABEL_RELATIVE_SPATIAL_SCORE_UNAVAILABLE}</div>
-              <div className="mt-1 text-slate-500">{DISCLAIMER_RELATIVE_SPATIAL_SCORE_UNAVAILABLE}</div>
+              <div className="mt-1 text-on-surface-variant">{LABEL_RELATIVE_SPATIAL_SCORE_UNAVAILABLE}</div>
+              <div className="mt-1 text-on-surface-variant/70">{DISCLAIMER_RELATIVE_SPATIAL_SCORE_UNAVAILABLE}</div>
             </>
           ) : (
-            <div className="mt-1 text-slate-300">{relativeSpatialScore.value}</div>
+            <div className="mt-1 text-on-surface-variant">{relativeSpatialScore.value}</div>
           )}
         </div>
       )}
@@ -76,14 +76,14 @@ export default function MyAreaScientificPanel({ selectedOriginContext, forecastF
         </div>
       ) : (
         nominalReachContext && (
-          <div className="rounded-lg border border-white/10 bg-slate-900/70 p-3 text-xs">
-            <div className="font-mono uppercase tracking-wide text-emerald-300">Nominal reach</div>
+          <div className="rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs shadow-card-subtle">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Nominal reach</div>
             {nominalReachContext.nominalReachKm === null ? (
-              <div className="mt-1 text-slate-300">Observed / origin context — no forward reach to show.</div>
+              <div className="mt-1 text-on-surface-variant">Observed / origin context — no forward reach to show.</div>
             ) : (
-              <div className="mt-1 text-slate-300">{nominalReachContext.nominalReachKm.toFixed(1)} km</div>
+              <div className="mt-1 text-on-surface-variant">{nominalReachContext.nominalReachKm.toFixed(1)} km</div>
             )}
-            <div className="mt-1 text-slate-500">{nominalReachContext.disclaimer ?? MY_AREA_NOMINAL_REACH_DISCLAIMER}</div>
+            <div className="mt-1 text-on-surface-variant/70">{nominalReachContext.disclaimer ?? MY_AREA_NOMINAL_REACH_DISCLAIMER}</div>
           </div>
         )
       )}
