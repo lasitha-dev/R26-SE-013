@@ -79,6 +79,17 @@ def load_ai_models():
 # Load models once
 load_ai_models()
 
+
+def _invalidate_forecast_cache():
+    """Safely invalidate the Risk Forecasting component's live outbreak cache."""
+    try:
+        from components.risk_forecasting.routes import get_shared_client
+        client = get_shared_client()
+        if client and hasattr(client, "invalidate_cache"):
+            client.invalidate_cache()
+    except Exception:
+        pass
+
 def get_last_conv_layer(model):
     """Forcefully extract the last convolution layer by string matching, bypassing output_shape."""
     for layer in reversed(model.layers):
@@ -881,8 +892,10 @@ async def report_diagnostic_case(
         "reported_by": reported_by,
         "reporter_email": reporter_email,
         "assigned_vet_id": assigned_vet_id,
-        "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
-        "verified_at": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
+        "created_at": now,
+        "created_at_str": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "verified_at": now if is_verified else None,
+        "verified_at_str": now.strftime("%Y-%m-%d %H:%M:%S") if is_verified else None,
         "vet_id": str(vet["_id"]) if (is_verified and vet) else None,
         "vet_name": vet.get("full_name") if (is_verified and vet) else None,
         "vet_license": vet.get("license_number") if (is_verified and vet) else None,
@@ -909,21 +922,23 @@ async def report_diagnostic_case(
         await vet_notifications_collection.insert_one(notif_doc)
 
     # If verified and cattle exists, update cattle health status
-    if is_verified and cattle:
-        disease_lower = payload.disease_name.lower()
-        is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
-        new_health_status = "Healthy" if is_healthy else "Alert"
-        await cattles_collection.update_one(
-            {"_id": cattle["_id"]},
-            {
-                "$set": {
-                    "health_status": new_health_status,
-                    "status": new_health_status,
-                    "last_diagnosis": payload.disease_name,
-                    "last_diagnosed_date": now.strftime("%Y-%m-%d")
+    if is_verified:
+        _invalidate_forecast_cache()
+        if cattle:
+            disease_lower = payload.disease_name.lower()
+            is_healthy = disease_lower in ["cattle", "cattle (healthy)", "healthy"]
+            new_health_status = "Healthy" if is_healthy else "Alert"
+            await cattles_collection.update_one(
+                {"_id": cattle["_id"]},
+                {
+                    "$set": {
+                        "health_status": new_health_status,
+                        "status": new_health_status,
+                        "last_diagnosis": payload.disease_name,
+                        "last_diagnosed_date": now.strftime("%Y-%m-%d")
+                    }
                 }
-            }
-        )
+            )
 
     return DiagnosticCaseResponse(
         id=case_id_str,
@@ -1115,11 +1130,13 @@ async def verify_diagnostic_case(
     if not case_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case not found.")
 
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now_dt = datetime.utcnow()
+    now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
     update_data = {
         "verified": True,
         "status": "Verified",
-        "verified_at": now_str,
+        "verified_at": now_dt,
+        "verified_at_str": now_str,
         "vet_id": str(vet["_id"]),
         "vet_name": vet.get("full_name"),
         "vet_license": vet.get("license_number"),
@@ -1133,6 +1150,7 @@ async def verify_diagnostic_case(
 
     await diagnostic_cases_collection.update_one({"_id": ObjectId(case_id)}, {"$set": update_data})
     updated_case = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
+    _invalidate_forecast_cache()
 
     # Also update cattle status if linked
     if updated_case.get("cattle_id") and ObjectId.is_valid(updated_case["cattle_id"]):
@@ -1652,6 +1670,14 @@ async def declare_cattle_deceased(
         
         now = datetime.utcnow()
         
+        death_dt = now
+        if payload.date_of_death:
+            try:
+                date_clean = payload.date_of_death.split("T")[0]
+                death_dt = datetime.strptime(date_clean, "%Y-%m-%d")
+            except Exception:
+                death_dt = now
+
         update_doc = {
             "status": "Deceased",
             "health_status": "Deceased",
@@ -1668,12 +1694,15 @@ async def declare_cattle_deceased(
             "farm_id": str(farm["_id"]) if farm else None,
             "district": district,
             "cause": payload.cause,
-            "date_of_death": payload.date_of_death,
+            "date_of_death": death_dt,
+            "date_of_death_str": payload.date_of_death,
             "reported_by_vet_id": vet_id or reporter_id,
             "notes": payload.notes,
-            "created_at": now.strftime("%Y-%m-%d %H:%M:%S")
+            "created_at": now,
+            "created_at_str": now.strftime("%Y-%m-%d %H:%M:%S")
         }
         await death_logs_collection.insert_one(death_log)
+        _invalidate_forecast_cache()
         
         updated_cattle = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
         updated_cattle["id"] = str(updated_cattle["_id"])
@@ -1706,6 +1735,12 @@ async def list_death_logs(
         async for log in death_logs_collection.find(query).sort("created_at", -1):
             log["id"] = str(log["_id"])
             log.pop("_id", None)
+            if "date_of_death" in log and isinstance(log["date_of_death"], datetime):
+                log["date_of_death"] = log["date_of_death"].strftime("%Y-%m-%d")
+            elif "date_of_death_str" in log:
+                log["date_of_death"] = str(log["date_of_death_str"])
+            if "created_at" in log and isinstance(log["created_at"], datetime):
+                log["created_at"] = log["created_at"].strftime("%Y-%m-%d %H:%M:%S")
             logs.append(log)
         return logs
     except Exception as e:

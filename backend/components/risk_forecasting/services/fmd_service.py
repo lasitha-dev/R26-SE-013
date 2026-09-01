@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 FMD_FEATURE_DISPLAY_LABELS = {
-    "own_outbreak_lag1": "Previous-Month Same-District Outbreak Status",
+    "own_outbreak_lag1": "Local Outbreak History (Previous Month)",
     "neighbor_outbreak_lag1": "Previous-Month Neighboring-District Outbreak Status",
     "neighbor_outbreak_count_lag1": "Previous-Month Neighboring-District Outbreak Count",
     "neighbor_outbreak_fraction_lag1": "Previous-Month Neighboring-District Outbreak Fraction",
@@ -205,29 +205,29 @@ class FMDService:
 
         model_fallback_applied = False
         model_fallback_reason = None
-        lag1_val = None
+        
+        # Target autocorrelation lag-1 observation retrieval from surveillance bridge
+        lag1_val = self._get_valid_lag1(request.district, request.year, request.month)
 
-        if use_31feat_requested:
-            lag1_val = self._get_valid_lag1(request.district, request.year, request.month)
-            if lag1_val is None:
-                model = self.models["stage1_30_model"]
-                scaler = self.models["stage1_30_scaler"]
-                feat_cols = list(self.models["stage1_30_cols"])
-                variant_name = "30_feature_baseline"
-                model_fallback_applied = True
-                model_fallback_reason = f"Requested 31_feature_autocorrelation, but previous-month surveillance data was unavailable for {request.district} ({request.year}-{request.month:02d}). Automatically executed 30_feature_baseline."
-            elif not has_31feat_artifacts:
-                model = self.models["stage1_30_model"]
-                scaler = self.models["stage1_30_scaler"]
-                feat_cols = list(self.models["stage1_30_cols"])
-                variant_name = "30_feature_baseline"
-                model_fallback_applied = True
-                model_fallback_reason = "Requested 31_feature_autocorrelation, but required 31-feature model runtime artifacts (stage1_31_model/scaler/cols) were not loaded. Automatically executed 30_feature_baseline."
-            else:
-                model = self.models["stage1_31_model"]
-                scaler = self.models["stage1_31_scaler"]
-                feat_cols = list(self.models["stage1_31_cols"])
-                variant_name = "31_feature_autocorrelation"
+        if (use_31feat_requested or (lag1_val is not None and lag1_val > 0.0)) and has_31feat_artifacts and lag1_val is not None:
+            model = self.models["stage1_31_model"]
+            scaler = self.models["stage1_31_scaler"]
+            feat_cols = list(self.models["stage1_31_cols"])
+            variant_name = "31_feature_autocorrelation"
+        elif use_31feat_requested:
+            model = self.models["stage1_30_model"]
+            scaler = self.models["stage1_30_scaler"]
+            feat_cols = list(self.models["stage1_30_cols"])
+            variant_name = "30_feature_baseline"
+            model_fallback_applied = True
+            model_fallback_reason = f"Requested 31_feature_autocorrelation, but previous-month surveillance data was unavailable for {request.district} ({request.year}-{request.month:02d}). Automatically executed 30_feature_baseline."
+        elif use_31feat_requested and not has_31feat_artifacts:
+            model = self.models["stage1_30_model"]
+            scaler = self.models["stage1_30_scaler"]
+            feat_cols = list(self.models["stage1_30_cols"])
+            variant_name = "30_feature_baseline"
+            model_fallback_applied = True
+            model_fallback_reason = "Requested 31_feature_autocorrelation, but required 31-feature model runtime artifacts (stage1_31_model/scaler/cols) were not loaded. Automatically executed 30_feature_baseline."
         else:
             model = self.models["stage1_30_model"]
             scaler = self.models["stage1_30_scaler"]
@@ -242,9 +242,9 @@ class FMDService:
             feature_cols=feat_cols
         )
 
-        # Inject lag1 for 31-feature variant if present
+        # Inject lag1 for 31-feature variant if present (override static baseline with live surveillance)
         if variant_name == "31_feature_autocorrelation" and lag1_val is not None:
-            x_raw["own_outbreak_lag1"] = lag1_val
+            x_raw["own_outbreak_lag1"] = float(lag1_val)
 
         for col in feat_cols:
             if col not in x_raw.columns:
@@ -439,18 +439,24 @@ class FMDService:
         return self._get_feature_row(district, month_num, year, feature_cols)
 
     def compute_forecast(self, target_month: int, year: int = 2024, model_variant: str = "30_feature_baseline") -> FMDDistrictForecastResponse:
-        """Computes all-district FMD risk forecast for a given month using 30_feature_baseline with data quality summary."""
+        """Computes all-district FMD risk forecast for a given month using available model variant and live surveillance data."""
         results: List[DistrictForecastItem] = []
         high_cnt, med_cnt, low_cnt = 0, 0, 0
         exact_cnt, proxy_cnt, median_cnt = 0, 0, 0
-        executed_variant = "30_feature_baseline"
+        executed_variant = model_variant or "30_feature_baseline"
 
         for district in SRI_LANKA_DISTRICTS:
+            req_variant = executed_variant
+            if "stage1_31_model" in self.models:
+                lag1_check = self._get_valid_lag1(district, year, target_month)
+                if lag1_check is not None and lag1_check > 0.0:
+                    req_variant = "31_feature_autocorrelation"
+
             req = FMDOutbreakPredictRequest(
                 district=district,
                 year=year,
                 month=target_month,
-                model_variant=executed_variant
+                model_variant=req_variant
             )
             res = self.predict(req)
 

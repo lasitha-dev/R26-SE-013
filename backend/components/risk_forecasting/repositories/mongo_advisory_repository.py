@@ -8,13 +8,12 @@ import pymongo
 
 from components.risk_forecasting.repositories.advisory_repository import AdvisoryRepository
 from components.risk_forecasting.schemas import FarmerAdvisoryRecord, PersonalizedOverride, RecipientSummary
+from core.database import MONGODB_URL, MONGODB_DB_NAME
 
 class MongoAdvisoryRepository(AdvisoryRepository):
     def __init__(self):
-        mongodb_url = os.getenv("MONGODB_URL", "mongodb://127.0.0.1:27017")
-        db_name = os.getenv("MONGODB_DB_NAME", "adrs_core")
-        self.client = pymongo.MongoClient(mongodb_url)
-        self.collection = self.client[db_name].forecast_advisories
+        self.client = pymongo.MongoClient(MONGODB_URL, serverSelectionTimeoutMS=2000, connect=False)
+        self.collection = self.client[MONGODB_DB_NAME].forecast_advisories
 
     def save(self, advisory: FarmerAdvisoryRecord) -> FarmerAdvisoryRecord:
         doc = advisory.model_dump()

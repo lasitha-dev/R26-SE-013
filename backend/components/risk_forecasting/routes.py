@@ -57,7 +57,7 @@ def setup_production_services():
     provider_mode = "shared_api"
     
     if provider_mode == "shared_api":
-        shared_client = MongoSharedForecastClient(cache_ttl_seconds=3600)
+        shared_client = MongoSharedForecastClient(cache_ttl_seconds=0)
         provider = create_forecast_data_provider(mode="shared_api", shared_client=shared_client)
         fmd_service.data_provider = provider
         lsd_service.data_provider = provider
@@ -81,7 +81,7 @@ def get_shared_client():
     global _shared_client_instance
     if _shared_client_instance is None:
         from components.risk_forecasting.integrations.mongo_shared_client import MongoSharedForecastClient
-        _shared_client_instance = MongoSharedForecastClient(cache_ttl_seconds=3600)
+        _shared_client_instance = MongoSharedForecastClient(cache_ttl_seconds=0)
     return _shared_client_instance
 
 router = APIRouter()

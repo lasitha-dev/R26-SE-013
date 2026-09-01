@@ -210,7 +210,7 @@ function validateMonth(month) {
  * @param {object} params - { district: string, year: number, month: number, use31Features?: boolean }
  * @returns {Promise<object>} Normalized combined prediction result
  */
-export async function predictDistrictDiseaseRisks({ district, year, month, use31Features = false } = {}) {
+export async function predictDistrictDiseaseRisks({ district, year, month, use31Features = true } = {}) {
   if (typeof district !== 'string' || district.trim() === '') {
     throw new TypeError('Invalid district: district must be a non-empty string');
   }

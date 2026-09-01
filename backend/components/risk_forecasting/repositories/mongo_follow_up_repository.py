@@ -6,13 +6,12 @@ from typing import List, Optional, Tuple
 import pymongo
 from components.risk_forecasting.repositories.follow_up_repository import FollowUpRepository
 from components.risk_forecasting.schemas import ForecastFollowUpRecord
+from core.database import MONGODB_URL, MONGODB_DB_NAME
 
 class MongoFollowUpRepository(FollowUpRepository):
     def __init__(self):
-        mongodb_url = os.getenv("MONGODB_URL", "mongodb://127.0.0.1:27017")
-        db_name = os.getenv("MONGODB_DB_NAME", "adrs_core")
-        self.client = pymongo.MongoClient(mongodb_url)
-        self.collection = self.client[db_name].forecast_follow_ups
+        self.client = pymongo.MongoClient(MONGODB_URL, serverSelectionTimeoutMS=2000, connect=False)
+        self.collection = self.client[MONGODB_DB_NAME].forecast_follow_ups
 
     def save(self, record: ForecastFollowUpRecord) -> ForecastFollowUpRecord:
         doc = record.model_dump()

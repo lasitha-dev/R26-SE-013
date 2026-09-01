@@ -36,6 +36,19 @@ from components.risk_forecasting.schemas import (
 logger = logging.getLogger(__name__)
 
 
+LSD_FEATURE_DISPLAY_LABELS = {
+    "own_outbreak_lag1": "Local Outbreak History (Previous Month)",
+    "rainfall_mm": "Monthly Rainfall (mm)",
+    "rain_lag1": "Previous-Month Rainfall (mm)",
+    "humidity": "Average Relative Humidity (%)",
+    "humidity_lag1": "Relative Humidity (Previous Month)",
+    "tmax": "Maximum Temperature (°C)",
+    "tmin": "Minimum Temperature (°C)",
+    "ndvi": "Vegetation Index (NDVI)",
+    "district_enc": "District Baseline Susceptibility Code",
+}
+
+
 class LSDService:
     def __init__(self, data_provider: Optional[ForecastDataProvider] = None):
         self.data_provider = data_provider or create_forecast_data_provider()
@@ -365,7 +378,7 @@ class LSDService:
             val = float(x_stage1[col].iloc[0])
             c_val = float(contributions[i])
 
-            label = col.replace("_", " ").title()
+            label = LSD_FEATURE_DISPLAY_LABELS.get(col, col.replace("_", " ").title())
 
             if c_val > 1e-6:
                 direction = "RISK_INCREASING"

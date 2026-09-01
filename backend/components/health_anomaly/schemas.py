@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Union
+from datetime import datetime
 
 class FarmRegister(BaseModel):
     owner_name: str = Field(..., min_length=1)
@@ -218,8 +219,8 @@ class DiagnosticCaseResponse(BaseModel):
     llm_reasoning: Optional[str] = None
     status: str = "Pending Verification"
     verified: bool = False
-    created_at: str
-    verified_at: Optional[str] = None
+    created_at: Union[str, datetime]
+    verified_at: Optional[Union[str, datetime]] = None
     vet_id: Optional[str] = None
     vet_name: Optional[str] = None
     vet_license: Optional[str] = None
@@ -241,7 +242,7 @@ class VetNotificationResponse(BaseModel):
     severity: Optional[str] = None
     message: str
     read: bool = False
-    created_at: str
+    created_at: Union[str, datetime]
 
 
 class CattleDeathLog(BaseModel):
@@ -249,10 +250,10 @@ class CattleDeathLog(BaseModel):
     farm_id: str = Field(..., min_length=1)
     district: str = Field(..., min_length=1)
     cause: Literal["FMD", "LSD", "Other"]
-    date_of_death: str
+    date_of_death: Union[str, datetime]
     reported_by_vet_id: Optional[str] = None
     notes: Optional[str] = None
-    created_at: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
 
 
 class CattleDeathLogResponse(BaseModel):
@@ -261,10 +262,10 @@ class CattleDeathLogResponse(BaseModel):
     farm_id: str
     district: str
     cause: Literal["FMD", "LSD", "Other"]
-    date_of_death: str
+    date_of_death: Union[str, datetime]
     reported_by_vet_id: Optional[str] = None
     notes: Optional[str] = None
-    created_at: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
 
 
 class DeclareDeceasedRequest(BaseModel):

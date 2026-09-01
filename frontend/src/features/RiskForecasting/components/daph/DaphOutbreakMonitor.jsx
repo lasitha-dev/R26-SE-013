@@ -60,12 +60,16 @@ export function DaphOutbreakMonitor({ viewerContext }) {
 
   const cacheRef = React.useRef({});
 
-  const fetchOutbreakStatuses = useCallback(async () => {
+  const fetchOutbreakStatuses = useCallback(async (forceRefresh = false) => {
     const cacheKey = `${selectedDisease}-${selectedYear}-${selectedMonth}-${scopeLevel}`;
     
-    if (cacheRef.current[cacheKey]) {
+    if (!forceRefresh && cacheRef.current[cacheKey]) {
       setDistrictStatuses(cacheRef.current[cacheKey]);
       return;
+    }
+
+    if (forceRefresh) {
+      cacheRef.current = {};
     }
 
     setLoading(true);
@@ -152,7 +156,7 @@ export function DaphOutbreakMonitor({ viewerContext }) {
             Real-time district-wise outbreak status for {selectedDisease} — {selectedMonth}/{selectedYear}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={selectedDisease}
             onChange={(e) => setSelectedDisease(e.target.value)}
@@ -182,6 +186,16 @@ export function DaphOutbreakMonitor({ viewerContext }) {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => fetchOutbreakStatuses(true)}
+            disabled={loading}
+            className="px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            title="Refresh Live Surveillance Data"
+          >
+            <span className="material-symbols-outlined text-sm">refresh</span>
+            <span className="text-sm font-medium">Refresh</span>
+          </button>
         </div>
       </div>
 
