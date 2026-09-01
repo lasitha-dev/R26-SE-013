@@ -153,6 +153,21 @@ describe('GEO-AREA-02-ADAPTER-04: verified clinical context stays separate', () 
     })
     expect(result.verifiedClinicalContexts.map((c) => c.caseId)).toEqual(['C1', 'C2'])
   })
+
+  it('keeps coordinates null when the case record does not expose them', () => {
+    const result = normalizeMyAreaContext({ status: 'OK', verified_clinical_contexts: [rawClinicalContext()] })
+    expect(result.verifiedClinicalContexts[0].latitude).toBeNull()
+    expect(result.verifiedClinicalContexts[0].longitude).toBeNull()
+  })
+
+  it('preserves only explicit valid case-level coordinates', () => {
+    const result = normalizeMyAreaContext({
+      status: 'OK',
+      verified_clinical_contexts: [rawClinicalContext({ latitude: 5.9549, longitude: 80.555 })],
+    })
+    expect(result.verifiedClinicalContexts[0].latitude).toBe(5.9549)
+    expect(result.verifiedClinicalContexts[0].longitude).toBe(80.555)
+  })
 })
 
 describe('GEO-AREA-02-ADAPTER-05: defensive against malformed/missing input', () => {

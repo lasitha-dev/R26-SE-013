@@ -1,11 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { getOutbreakAdapter } from '../adapters'
-import { computeFeatureBounds } from '../adapters/districtGeometry'
+import { computeFeatureBounds, isPointInsideDistrictFeature } from '../adapters/districtGeometry'
 import { formatDisplayDate } from '../adapters/forecastDate'
 import { GEO_TIMING, markTiming } from '../adapters/loadTiming'
 import { selectMostRecentOrigin } from '../adapters/mostRecentOrigin'
 import { aggregateNationalSourcesByLocation } from '../adapters/nationalSourcePresentation'
+import {
+  advancePage1ForecastIndex,
+  buildPage1ForecastVisualization,
+  isPage1MasterTimelineActive,
+  PAGE1_FORECAST_DATES,
+  PAGE1_PLAYBACK_INTERVAL_MS,
+} from '../adapters/page1ForecastVisualization'
 import { isWithinObservationWindow, DEFAULT_OBSERVATION_WINDOW_DAYS, OBSERVATION_WINDOW_OPTIONS } from '../adapters/observationWindow'
 import { buildObservedReplayDates, filterContextsByReplayDate } from '../adapters/observedReplay'
 import { classifyOperationalCaseChanges, verificationByCaseId } from '../adapters/operationalCaseReconciliation'
@@ -72,6 +79,20 @@ export default function OutbreakMapPage() {
   const national = useNationalOutbreaks(ctx.selectedDisease, COUNTRY, refreshToken)
   const focus = useSelectedOutbreakFrames(ctx.selectedDisease, ctx.selectedOutbreakId, refreshToken)
 
+  // GEO-PAGE1-FINAL: distinguishes the genuine FIRST load (no real
+  // national data has ever arrived yet -- the honest "Loading verified
+  // outbreaks and forecast snapshots…" message) from a LATER refresh of
+  // an already-populated page (a disease/window change, or "Check for
+  // newer snapshot" -- the quieter "Updating…" pill). Both are the exact
+  // same real `NATIONAL_STATUS.LOADING` state; only the wording differs,
+  // never the underlying fetch/behavior.
+  const hasEverLoadedNationalRef = useRef(false)
+  useEffect(() => {
+    if (national.status === NATIONAL_STATUS.READY || national.status === NATIONAL_STATUS.EMPTY) {
+      hasEverLoadedNationalRef.current = true
+    }
+  }, [national.status])
+
   // FMD-10C: FMD has real historical origins + a real scalar risk score
   // but no coordinate-bearing endpoint yet -- `showFmdOriginPanel` is
   // true for exactly that shape (has an origin ledger, no spatial-cell/
@@ -121,6 +142,12 @@ export default function OutbreakMapPage() {
   // exists in this repo, so "My assigned farms" fits the vet's own real,
   // authorized farm bounds rather than drawing a fabricated polygon.
   const [locationScope, setLocationScope] = useState(LOCATION_SCOPE.SRI_LANKA)
+  // One Page-1 presentation clock shared by every current real outbreak.
+  // It is deliberately local to this page and independent of selecting a
+  // marker, the WebSocket state, or any per-origin backend horizon.
+  const [page1ForecastActiveIndex, setPage1ForecastActiveIndex] = useState(0)
+  const [isPage1ForecastPlaying, setIsPage1ForecastPlaying] = useState(false)
+  const [isPage1ForecastUpdating, setIsPage1ForecastUpdating] = useState(false)
   // GEO-VIVA-VISUAL-RECOVERY-03: true once the camera scope has been set
   // by EITHER an explicit vet action (Fit Sri Lanka / Focus My District,
   // including via the LocationScopeSelect) OR the one-time auto-focus
@@ -413,7 +440,7 @@ export default function OutbreakMapPage() {
   // boundary drawn on the map itself. Declared BEFORE `myDistrictAvailable`
   // (which reads it) -- a `const` read before its own declaration is a
   // fatal TDZ ReferenceError that unmounts the whole tree (see GEO29A).
-  const { feature: districtFeature } = useDistrictGeometry(operational.data?.vetDistrict)
+  const { feature: districtFeature, featureCollection: sriLankaDistricts } = useDistrictGeometry(operational.data?.vetDistrict)
 
   // GEO30B Section 19: a real district polygon match alone is enough to
   // make "Focus My District" meaningful, even with zero real farm points
@@ -582,6 +609,40 @@ export default function OutbreakMapPage() {
     [mergedNationalSourcesFC],
   )
 
+  // The current real red-marker collection is the only anchor input. A
+  // district selection filters that same in-memory collection through the
+  // real district polygon; Sri Lanka Overview uses every loaded marker.
+  const page1ForecastAnchorFeatures = useMemo(() => {
+    if (locationScope !== LOCATION_SCOPE.MY_DISTRICT) return nationalSourcesFC.features
+    if (!districtFeature) return []
+    return nationalSourcesFC.features.filter((feature) => isPointInsideDistrictFeature(feature.geometry?.coordinates, districtFeature))
+  }, [nationalSourcesFC, locationScope, districtFeature])
+  const page1ForecastVisualization = useMemo(
+    () => buildPage1ForecastVisualization(page1ForecastAnchorFeatures, page1ForecastActiveIndex, sriLankaDistricts?.features ?? []),
+    [page1ForecastAnchorFeatures, page1ForecastActiveIndex, sriLankaDistricts],
+  )
+  // Readiness is intentionally independent of focus snapshots and live
+  // transport status: as soon as at least one real red marker exists in
+  // the selected scope, the fixed presentation timeline can play.
+  const page1ForecastReady = page1ForecastAnchorFeatures.length > 0
+  // BUG FIX (GPS/district focus reverting to the legacy Observed Cases
+  // timeline): `page1ForecastReady` above is SCOPE-FILTERED -- it
+  // legitimately goes to zero the instant "Focus My District" selects a
+  // real district that happens to have no currently loaded outbreak
+  // inside its polygon (a real, honest, common case: most districts have
+  // zero active outbreaks at any given time). That scoped signal is
+  // correct for deciding what to DRAW on the map, but it must never
+  // decide WHICH TIMELINE COMPONENT is mounted -- the master Sep 01-14
+  // presentation timeline is one shared, location/camera-independent
+  // clock for the whole page (spec: "location/camera state must not own
+  // time"). `nationalSourcesFC` is the full, unfiltered current DB
+  // outbreak collection -- as long as ANY real outbreak is loaded
+  // anywhere in Sri Lanka, the master timeline stays mounted regardless
+  // of `locationScope`, so switching to a district with zero local
+  // outbreaks never falls back to `ObservedTimelineControl`.
+  const page1ForecastAvailable = isPage1MasterTimelineActive(nationalSourcesFC)
+  const page1ForecastDateLabel = formatDisplayDate(PAGE1_FORECAST_DATES[page1ForecastActiveIndex])
+
   // GEO-VISUAL-POLISH-02 Section 1/2/10: the full, honest database ->
   // forecast-origin -> per-origin-geometry -> rendered-marker trace,
   // reported to `StatusDiagnosticsMenu` -- every field is a real count
@@ -691,10 +752,46 @@ export default function OutbreakMapPage() {
     return adapter.buildForecastFrame({ summary: focus.summary, sources: focus.sources, cells: focus.cells, dayIndex: ctx.selectedForecastDay })
   }, [adapter, focus.status, focus.summary, focus.sources, focus.cells, ctx.selectedForecastDay])
 
+  // GEO-TRAJECTORY-01: the real nominal-reach ring is honest, real
+  // day-varying data (`nominal_reach_by_day`) in BOTH Risk Zones and
+  // Trajectory mode -- Trajectory is the dedicated "where might this
+  // spread" view (reach ring + per-cell direction arrows, no risk-tier
+  // dots), Risk Zones is the dedicated "how risky is this cell right now"
+  // view (tier dots + the same reach ring for scale). Never shown outside
+  // either mode.
   const reachRingCenters = useMemo(() => {
-    if (ctx.analysisMode !== ANALYSIS_MODE.RISK_ZONES) return null
+    if (ctx.analysisMode !== ANALYSIS_MODE.RISK_ZONES && ctx.analysisMode !== ANALYSIS_MODE.TRAJECTORY) return null
     return focus.sources?.features?.map((f) => f.geometry.coordinates) ?? null
   }, [ctx.analysisMode, focus.sources])
+
+  // GEO-TRAJECTORY-01: whether the CURRENTLY selected real origin actually
+  // has real direction data on at least one cell -- `direction_status` is
+  // `DIRECTION_AVAILABLE` only when the frozen C0 combined direction
+  // vector didn't cancel/vanish for that cell (`c0_cell_local_tendency_8b3.py`). Confirmed
+  // live against the running backend (2026-09-01): every real LSD origin
+  // sampled had `DIRECTION_AVAILABLE` on 100% of its cells, but this is
+  // computed from the real per-origin response rather than assumed, so an
+  // origin where the combined direction vector genuinely cancels/vanishes
+  // for every cell still gets the honest "unavailable for this origin"
+  // state below instead of a silently empty arrow layer.
+  const trajectoryDirectionAvailable = useMemo(
+    () => focusCellFeatures.some((f) => f.properties?.direction?.bearing_deg !== null && f.properties?.direction?.bearing_deg !== undefined),
+    [focusCellFeatures],
+  )
+  // Whole-origin reach availability -- NOT the current single day's value
+  // (day 0/observed always has no forward reach by design, see
+  // `lsdOutbreakAdapter.js`'s `findNominalReach`, and must never itself
+  // read as "this origin has no reach model at all").
+  const trajectoryReachAvailable = (focus.summary?.nominal_reach_by_day?.length ?? 0) > 0
+  // Legend-facing, day-specific signal -- whether the ring is actually
+  // drawn on THIS snapshot (day 0/observed has no forward reach by design,
+  // so the ring legitimately draws nothing there even for an origin with a
+  // real reach table) -- mirrors `hasClinicalMarkers`'s existing "only key
+  // what's currently really on the map" pattern (`PageLegend.jsx`).
+  const reachRingCurrentlyVisible = (frame?.nominalReachKm ?? 0) > 0
+  const showTrajectoryLayer = ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY
+  const trajectoryUnavailableForOrigin =
+    showTrajectoryLayer && ctx.selectedOutbreakId && focus.status === FOCUS_STATUS.READY && !trajectoryDirectionAvailable && !trajectoryReachAvailable
 
   // GEO-VISUAL-POLISH-01 Section 9: a single shared playback-speed
   // multiplier for BOTH timelines below (0.5x/1x/2x) -- speed changes
@@ -702,6 +799,74 @@ export default function OutbreakMapPage() {
   // value is honest for both the scientific and the observed-replay
   // clock rather than needing two independent controls that could drift.
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
+
+  useEffect(() => {
+    setPage1ForecastActiveIndex(0)
+    setIsPage1ForecastPlaying(false)
+  }, [ctx.selectedDisease])
+
+  // Exactly one user-triggered clock advances the 14 presentation frames.
+  // Speeds are 2200/1100/550ms for 0.5x/1x/2x, and the final frame stops
+  // in place. RAF keeps this compatible with the feature's timer policy.
+  const page1PlaybackFrameRef = useRef(null)
+  const page1PlaybackLastTickRef = useRef(0)
+  useEffect(() => {
+    if (!isPage1ForecastPlaying || !page1ForecastAvailable) return undefined
+    page1PlaybackLastTickRef.current = performance.now()
+    const intervalMs = PAGE1_PLAYBACK_INTERVAL_MS[playbackSpeed] ?? PAGE1_PLAYBACK_INTERVAL_MS[1]
+    const tick = (now) => {
+      if (now - page1PlaybackLastTickRef.current >= intervalMs) {
+        page1PlaybackLastTickRef.current = now
+        setPage1ForecastActiveIndex((current) => {
+          const next = advancePage1ForecastIndex(current)
+          if (next.complete) setIsPage1ForecastPlaying(false)
+          return next.index
+        })
+      }
+      page1PlaybackFrameRef.current = requestAnimationFrame(tick)
+    }
+    page1PlaybackFrameRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (page1PlaybackFrameRef.current) cancelAnimationFrame(page1PlaybackFrameRef.current)
+      page1PlaybackFrameRef.current = null
+    }
+  }, [isPage1ForecastPlaying, page1ForecastAvailable, playbackSpeed])
+
+  // The small "Updating…" acknowledgement is tied to a real timeline
+  // change and removes itself after 340ms. It never reflects connection
+  // health and therefore cannot become stuck on RECONNECTING.
+  const page1UpdateFeedbackFrameRef = useRef(null)
+  const page1UpdateFeedbackMountedRef = useRef(false)
+  useEffect(() => {
+    if (!page1UpdateFeedbackMountedRef.current) {
+      page1UpdateFeedbackMountedRef.current = true
+      return undefined
+    }
+    setIsPage1ForecastUpdating(true)
+    const startedAt = performance.now()
+    const tick = (now) => {
+      if (now - startedAt >= 340) {
+        setIsPage1ForecastUpdating(false)
+        page1UpdateFeedbackFrameRef.current = null
+        return
+      }
+      page1UpdateFeedbackFrameRef.current = requestAnimationFrame(tick)
+    }
+    page1UpdateFeedbackFrameRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (page1UpdateFeedbackFrameRef.current) cancelAnimationFrame(page1UpdateFeedbackFrameRef.current)
+      page1UpdateFeedbackFrameRef.current = null
+    }
+  }, [page1ForecastActiveIndex])
+
+  function handleSelectPage1ForecastIndex(index) {
+    setIsPage1ForecastPlaying(false)
+    setPage1ForecastActiveIndex(Math.max(0, Math.min(PAGE1_FORECAST_DATES.length - 1, index)))
+  }
+
+  function handlePlayPage1Forecast() {
+    if (page1ForecastAvailable && page1ForecastActiveIndex < PAGE1_FORECAST_DATES.length - 1) setIsPage1ForecastPlaying(true)
+  }
 
   // Playback: advances one real day roughly every 1.4s (divided by the
   // real user-selected speed multiplier) while the vet has explicitly
@@ -1036,6 +1201,18 @@ export default function OutbreakMapPage() {
         </div>
       )}
 
+      {/* GEO-TRAJECTORY-01: honest per-origin unavailable state -- shown
+          only when Trajectory mode is active AND this specific real
+          origin's own data genuinely has neither a real direction vector
+          on any cell nor a real nominal-reach table, never a silently
+          blank layer (mirrors the disease-level disabled reason already
+          shown by `ModeToolbar.jsx` for a disease with no model at all). */}
+      {trajectoryUnavailableForOrigin && (
+        <div className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+          This model run does not include spread direction or nominal reach for this origin.
+        </div>
+      )}
+
       <div
         ref={mapWrapperRef}
         className="relative min-h-[480px] flex-1 overflow-hidden rounded-xl border border-white/10 bg-slate-950"
@@ -1062,6 +1239,10 @@ export default function OutbreakMapPage() {
             operationalFeatures={operationalFeatures}
             showOperationalLayer={showOperationalLayer}
             showRiskLayer={ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES}
+            showTrajectoryLayer={showTrajectoryLayer}
+            page1ForecastVisualization={page1ForecastVisualization}
+            showPage1ForecastLayer={page1ForecastReady}
+            showPage1ForecastRiskZones={page1ForecastReady && ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES}
             arrivalHighlightKey={arrivalHighlightKey}
             newlyRevealedKeys={newlyRevealedKeys}
             selectedOperationalKey={operationalPopupCase ? `${operationalPopupCase.farmId}::${operationalPopupCase.disease}` : null}
@@ -1095,7 +1276,9 @@ export default function OutbreakMapPage() {
           <div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
             <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-400 backdrop-blur">
               <span aria-hidden="true" className={reduceMotion ? 'h-1.5 w-1.5 rounded-full bg-primary' : 'h-1.5 w-1.5 animate-pulse rounded-full bg-primary'} />
-              Updating…
+              {hasEverLoadedNationalRef.current
+                ? 'Updating…'
+                : 'Loading verified outbreaks and forecast snapshots… (first load can take up to a minute)'}
             </div>
           </div>
         )}
@@ -1150,6 +1333,10 @@ export default function OutbreakMapPage() {
             hasClinicalMarkers={showOperationalLayer && operationalFeatures.features.length > 0}
             hasStackedSources={hasStackedSources}
             nationalMarkerShape={diseaseConfig.markerShape}
+            hasReachRing={reachRingCurrentlyVisible}
+            hasDirectionArrows={trajectoryDirectionAvailable}
+            hasPage1Forecast={page1ForecastReady}
+            page1ForecastDateLabel={page1ForecastDateLabel}
           />
         )}
 
@@ -1212,7 +1399,23 @@ export default function OutbreakMapPage() {
             control's own size, and stays well inside the 110px bottom
             camera padding that already reserves room for this lane. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-7 flex justify-center px-4">
-          {showOperationalLayer ? (
+          {page1ForecastAvailable ? (
+            <TimelineControl
+              presentationDates={PAGE1_FORECAST_DATES}
+              activeIndex={page1ForecastActiveIndex}
+              isPlaybackActive={isPage1ForecastPlaying}
+              onSelectDay={handleSelectPage1ForecastIndex}
+              onPlay={handlePlayPage1Forecast}
+              onPause={() => setIsPage1ForecastPlaying(false)}
+              onPrev={() => handleSelectPage1ForecastIndex(page1ForecastActiveIndex - 1)}
+              onNext={() => handleSelectPage1ForecastIndex(page1ForecastActiveIndex + 1)}
+              reduceMotion={reduceMotion}
+              playbackSpeed={playbackSpeed}
+              onChangeSpeed={setPlaybackSpeed}
+              datasetLabel={LABEL_FORECAST_RISK_TIMELINE}
+              isUpdating={isPage1ForecastUpdating}
+            />
+          ) : showOperationalLayer ? (
             <ObservedTimelineControl
               dates={observedReplayDates}
               selectedDateKey={observedReplayDateKey}
@@ -1254,12 +1457,20 @@ export default function OutbreakMapPage() {
               onChangeSpeed={setPlaybackSpeed}
               isLoadingFocus={focus.status === FOCUS_STATUS.LOADING}
               // GEO-UI-TIMELINE-01: stated explicitly at the call site, same
-              // reasoning as `ObservedTimelineControl`'s `datasetLabel`
-              // just below -- this is the ONLY mode that currently ever
-              // mounts `TimelineControl` (Clusters/Trajectory/Env stay
+              // reasoning as `ObservedTimelineControl`'s `datasetLabel` just
+              // below -- this is the same `TimelineControl` Risk Zones AND
+              // Trajectory both mount (GEO-TRAJECTORY-01: Trajectory's own
+              // real day-varying value is `nominalReachKm`, driven by the
+              // exact same `ctx.selectedForecastDay`; Clusters/Env stay
               // honestly disabled in `ModeToolbar.jsx`), so "Forecast risk"
               // is never a guess about which real dataset is being shown.
               datasetLabel={LABEL_FORECAST_RISK_TIMELINE}
+              // GEO-REACH-GRADIENT-01: the exact same real value driving the
+              // map's reach ring/gradient for the CURRENTLY selected day --
+              // read straight from `frame` (`nominal_reach_by_day[dayIndex]`
+              // verbatim, `lsdOutbreakAdapter.js`), never a second/divergent
+              // computation.
+              nominalReachKm={frame?.nominalReachKm ?? null}
             />
           )}
         </div>

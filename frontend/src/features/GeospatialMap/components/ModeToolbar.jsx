@@ -7,39 +7,60 @@ import { CAPABILITY, hasCapability } from '../disease/diseaseRegistry'
  * LSD-UI-03/04: `Cases | Clusters | Risk Zones | Trajectory | Env`
  * (plan Section 21). Functionality follows actual backend capability,
  * not the visual prototype -- Cases and Risk Zones are real and
- * clickable; Clusters/Trajectory/Env are honestly disabled because the
- * runtime API has no cluster/trajectory/environmental-layer output yet
- * (`services/stdbscan`, `services/hazard`, `services/geospatial/*` are
- * real but unwired -- see plan Section B/O), not because of a frontend
- * limitation. Mode switching never touches outbreak/day/camera state
- * (dispatched via `setMode`, which the reducer guarantees).
+ * clickable; Clusters/Env are honestly disabled because the runtime API
+ * has no cluster/environmental-layer output yet (`services/stdbscan`,
+ * `services/hazard` are real but unwired -- see plan Section B/O), not
+ * because of a frontend limitation. Trajectory's availability instead
+ * follows the selected disease's real `trajectory` capability (see
+ * below) -- unlike Clusters/Env, the runtime API DOES produce real
+ * per-cell direction (`bearing_deg`, Checkpoint 8B.3) and real
+ * `nominal_reach_by_day` today, so it is not honest to hold it
+ * permanently disabled. Mode switching never touches outbreak/day/
+ * camera state (dispatched via `setMode`, which the reducer guarantees).
  */
 const MODES = [
   { id: ANALYSIS_MODE.CASES, label: 'Cases', available: true },
   { id: ANALYSIS_MODE.CLUSTERS, label: 'Clusters', available: false, reason: 'No ST-DBSCAN cluster output is exposed by the runtime API yet.' },
   { id: ANALYSIS_MODE.RISK_ZONES, label: 'Risk Zones', available: true },
-  { id: ANALYSIS_MODE.TRAJECTORY, label: 'Trajectory', available: false, reason: 'No trajectory/corridor geometry is produced by the runtime API yet.' },
+  {
+    id: ANALYSIS_MODE.TRAJECTORY,
+    label: 'Trajectory',
+    available: false,
+    reason: 'Trajectory needs a selected disease with a real per-cell direction/reach model.',
+  },
   { id: ANALYSIS_MODE.ENV, label: 'Env', available: false, reason: 'No environmental driver layers are exposed by the runtime API yet.' },
 ]
 
 /**
  * FMD-10C: `disease` is OPTIONAL and additive -- omitted (as every
- * pre-existing caller/test still does), Risk Zones stays exactly as
- * `MODES` above declares it (real/clickable, unchanged LSD behavior).
- * Passed explicitly (`OutbreakMapPage.jsx` now does, with
- * `ctx.selectedDisease`), Risk Zones is ADDITIONALLY disabled for a
- * disease lacking the `riskZones` capability (FMD today -- no
- * nominal-reach/spatial-cell data to draw a reach ring from). The
+ * pre-existing caller/test still does), Risk Zones/Trajectory stay
+ * exactly as `MODES` above declares them (Risk Zones real/clickable,
+ * Trajectory disabled with its disease-agnostic reason). Passed
+ * explicitly (`OutbreakMapPage.jsx` now does, with `ctx.selectedDisease`):
+ * Risk Zones is ADDITIONALLY disabled for a disease lacking the
+ * `riskZones` capability (FMD today -- no nominal-reach/spatial-cell
+ * data to draw a reach ring from); Trajectory is ENABLED for a disease
+ * that has the real `trajectory` capability (LSD today -- confirmed live
+ * per-cell `bearing_deg` + `nominal_reach_by_day`, see
+ * `diseaseRegistry.js`) and stays disabled, with an accurate per-disease
+ * reason, otherwise (FMD -- no spatial-cell/direction model at all). The
  * static `MODES` export itself is never mutated -- existing tests that
- * inspect it directly keep seeing the LSD baseline.
+ * inspect it directly keep seeing the same baseline.
  */
 export default function ModeToolbar({ analysisMode, onSetMode, disease }) {
   const riskZonesAvailable = disease === undefined ? true : hasCapability(disease, CAPABILITY.RISK_ZONES)
-  const modes = MODES.map((mode) =>
-    mode.id === ANALYSIS_MODE.RISK_ZONES && !riskZonesAvailable
-      ? { ...mode, available: false, reason: 'Risk Zones needs a nominal-reach/spatial-cell model not yet frozen for this disease.' }
-      : mode,
-  )
+  const trajectoryAvailable = disease !== undefined && hasCapability(disease, CAPABILITY.TRAJECTORY)
+  const modes = MODES.map((mode) => {
+    if (mode.id === ANALYSIS_MODE.RISK_ZONES && !riskZonesAvailable) {
+      return { ...mode, available: false, reason: 'Risk Zones needs a nominal-reach/spatial-cell model not yet frozen for this disease.' }
+    }
+    if (mode.id === ANALYSIS_MODE.TRAJECTORY) {
+      return trajectoryAvailable
+        ? { ...mode, available: true, reason: undefined }
+        : { ...mode, available: false, reason: disease === undefined ? mode.reason : 'Trajectory needs a per-cell direction/reach model not yet frozen for this disease.' }
+    }
+    return mode
+  })
 
   return (
     <div

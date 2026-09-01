@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 
+import { PAGE1_RISK_COLORS, PAGE1_RISK_TIER } from '../adapters/page1ForecastVisualization'
 import { ANALYSIS_MODE } from '../context/outbreakSelectionReducer'
 import { DISCLAIMER_OPERATIONAL, DISCLAIMER_RISK, LABEL_OPERATIONAL_CONTEXT_SHORT, LABEL_RISK_SCORE } from '../semanticLabels'
 import { NEUTRAL_SINGLE_COLOR, RISK_TIER_COLOR, RISK_TIER_LABEL, RISK_TIER_ORDER, UNAVAILABLE_RISK_COLOR } from './mapLibreAdapter'
@@ -42,6 +43,15 @@ export default function PageLegend({
   hasClinicalMarkers = false,
   hasStackedSources = false,
   nationalMarkerShape = 'diamond',
+  // GEO-TRAJECTORY-01: whether the CURRENTLY selected real origin genuinely
+  // has a real nominal-reach table / a real per-cell bearing on this
+  // snapshot -- each legend row only appears while its own real layer is
+  // actually capable of being drawn, never a permanently-shown row backed
+  // by nothing (mirrors `hasClinicalMarkers`'s existing honesty pattern).
+  hasReachRing = false,
+  hasDirectionArrows = false,
+  hasPage1Forecast = false,
+  page1ForecastDateLabel,
 }) {
   const [open, setOpen] = useState(initialOpen)
 
@@ -50,12 +60,26 @@ export default function PageLegend({
       {open && (
         <div className="w-64 rounded-lg border border-outline-variant/30 bg-surface-container/95 p-3 text-xs text-on-surface-variant shadow-card-subtle backdrop-blur">
           {analysisMode === ANALYSIS_MODE.RISK_ZONES ? (
-            <RiskZonesLegendBody stats={riskTierStats} />
+            <RiskZonesLegendBody
+              stats={riskTierStats}
+              hasReachRing={hasReachRing}
+              hasPage1Forecast={hasPage1Forecast}
+              page1ForecastDateLabel={page1ForecastDateLabel}
+            />
+          ) : analysisMode === ANALYSIS_MODE.TRAJECTORY ? (
+            <TrajectoryLegendBody
+              hasReachRing={hasReachRing}
+              hasDirectionArrows={hasDirectionArrows}
+              hasPage1Forecast={hasPage1Forecast}
+              page1ForecastDateLabel={page1ForecastDateLabel}
+            />
           ) : (
             <CasesLegendBody
               hasClinicalMarkers={hasClinicalMarkers}
               hasStackedSources={hasStackedSources}
               nationalMarkerShape={nationalMarkerShape}
+              hasPage1Forecast={hasPage1Forecast}
+              page1ForecastDateLabel={page1ForecastDateLabel}
             />
           )}
         </div>
@@ -94,6 +118,13 @@ const SELECTION_HALO_COLOR = '#10b981'
 // `nationalStackIndicatorPaint`'s `circle-stroke-color`
 // (`adapters/nationalSourcePresentation.js`).
 const STACK_RING_COLOR = '#fca5a5'
+// GEO-TRAJECTORY-01: the two real colors the reach-ring/direction layers
+// paint with, copied verbatim from their own layer definitions
+// (`MapLibreCanvas.jsx`'s `reach-ring-line` paint, `presentationIcons.js`'s
+// `DIRECTION_FILL`) so this key can never drift from what is actually drawn.
+const REACH_RING_COLOR = '#14b8a6'
+const DIRECTION_ARROW_COLOR = '#1e293b'
+const PAGE1_FORECAST_COLOR = '#A855F7'
 
 /**
  * GEO33B Section 9. The three things a vet must be able to tell apart in
@@ -114,13 +145,14 @@ const STACK_RING_COLOR = '#fca5a5'
  * therefore states the shared appearance plainly instead of inventing a
  * distinguishing symbol that no layer actually paints.
  */
-function CasesLegendBody({ hasClinicalMarkers, hasStackedSources, nationalMarkerShape }) {
+function CasesLegendBody({ hasClinicalMarkers, hasStackedSources, nationalMarkerShape, hasPage1Forecast, page1ForecastDateLabel }) {
   const markerShape = nationalMarkerShape === 'circle' ? 'circle' : 'diamond'
   return (
     <div className="space-y-1.5">
       <div className="font-semibold text-on-surface">Cases</div>
 
       <LegendRow color={OBSERVED_SOURCE_COLOR} shape={markerShape} label="Observed outbreak source (national)" />
+      {hasPage1Forecast && <LegendRow color={PAGE1_FORECAST_COLOR} label={`Projected spread · ${page1ForecastDateLabel}`} />}
       <LegendRow color={OBSERVED_SOURCE_COLOR} shape={markerShape} label="Not in the selected origin" dim />
       <LegendRow color={SELECTION_HALO_COLOR} label="Selected origin (ring)" hollow />
       {hasStackedSources && <LegendRow color={STACK_RING_COLOR} label="More than one record here" hollow />}
@@ -173,36 +205,89 @@ function CasesLegendBody({ hasClinicalMarkers, hasStackedSources, nationalMarker
  * rationale (`raw_c0_score` is a relative spatial ranking, not an
  * infection probability).
  */
-function RiskZonesLegendBody({ stats }) {
+function RiskZonesLegendBody({ stats, hasReachRing = false, hasPage1Forecast = false, page1ForecastDateLabel }) {
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-on-surface">{LABEL_RISK_SCORE}</div>
-      {!stats || stats.allUnavailable ? (
-        <div>
-          All cells <span style={{ color: UNAVAILABLE_RISK_COLOR }}>unavailable</span> in this snapshot.
-        </div>
-      ) : !stats.hasVariation ? (
-        <div>
-          All valid scores equal — one neutral color (<span style={{ color: NEUTRAL_SINGLE_COLOR }}>&#9679;</span>), no tiers in this snapshot.
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {RISK_TIER_ORDER.slice()
-            .reverse()
-            .map((tier) => (
-              <div key={tier} className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5">
-                  <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: RISK_TIER_COLOR[tier] }} />
-                  {RISK_TIER_LABEL[tier]}
-                </span>
-                <span className="font-mono text-on-surface">{stats.counts[tier]}</span>
-              </div>
-            ))}
-          <div className="text-on-surface-variant/70">Tiers are real quartiles of THIS snapshot's own scores only -- not comparable across snapshots.</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-on-surface">
+        {hasPage1Forecast ? `Qualitative influence · ${page1ForecastDateLabel}` : LABEL_RISK_SCORE}
+      </div>
+      {hasPage1Forecast && (
+        <div className="space-y-1.5 border-b border-outline-variant/30 pb-2">
+          <LegendRow color={PAGE1_FORECAST_COLOR} label="Projected spread/front" />
+          <LegendRow color={PAGE1_RISK_COLORS[PAGE1_RISK_TIER.HIGHEST]} label="Highest local influence" />
+          <LegendRow color={PAGE1_RISK_COLORS[PAGE1_RISK_TIER.ELEVATED]} label="Elevated influence" />
+          <LegendRow color={PAGE1_RISK_COLORS[PAGE1_RISK_TIER.MODERATE]} label="Moderate influence" />
+          <LegendRow color={PAGE1_RISK_COLORS[PAGE1_RISK_TIER.OUTER]} label="Outer influence" />
+          <div className="text-on-surface-variant/70">Frontend presentation categories only — not probability or a medical risk score.</div>
         </div>
       )}
-      <div className="border-t border-outline-variant/30 pt-1.5 text-on-surface-variant/70">{DISCLAIMER_RISK}</div>
-      <div className="text-on-surface-variant/70">Static T0 spatial ranking context -- not a temporal forecast polygon.</div>
+      {/* GEO-TRAJECTORY-01: the same real reach ring Trajectory mode shows,
+          also drawn here for scale (`OutbreakMapPage.jsx`'s `reachRingCenters`
+          is non-null in both modes) -- only shown while the selected real
+          origin actually has a real `nominal_reach_by_day` table for the
+          active day (never a permanently-listed key backed by nothing). */}
+      {hasReachRing && <LegendRow color={REACH_RING_COLOR} label="Model-projected nominal reach" hollow />}
+      {!hasPage1Forecast &&
+        (!stats || stats.allUnavailable ? (
+          <div>
+            All cells <span style={{ color: UNAVAILABLE_RISK_COLOR }}>unavailable</span> in this snapshot.
+          </div>
+        ) : !stats.hasVariation ? (
+          <div>
+            All valid scores equal — one neutral color (<span style={{ color: NEUTRAL_SINGLE_COLOR }}>&#9679;</span>), no tiers in this snapshot.
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {RISK_TIER_ORDER.slice()
+              .reverse()
+              .map((tier) => (
+                <div key={tier} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: RISK_TIER_COLOR[tier] }} />
+                    {RISK_TIER_LABEL[tier]}
+                  </span>
+                  <span className="font-mono text-on-surface">{stats.counts[tier]}</span>
+                </div>
+              ))}
+            <div className="text-on-surface-variant/70">Tiers are real quartiles of THIS snapshot's own scores only -- not comparable across snapshots.</div>
+          </div>
+        ))}
+      {!hasPage1Forecast && (
+        <>
+          <div className="border-t border-outline-variant/30 pt-1.5 text-on-surface-variant/70">{DISCLAIMER_RISK}</div>
+          <div className="text-on-surface-variant/70">Static T0 spatial ranking context -- not a temporal forecast polygon.</div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * GEO-TRAJECTORY-01: Trajectory mode's dedicated legend -- the "where might
+ * this spread" view, distinct from Risk Zones' "how risky is this cell"
+ * tier dots (which this mode deliberately hides, `MapLibreCanvas.jsx`'s
+ * `showRiskLayer`-only `cells-circle` gate). Both rows are real, backend-
+ * derived data (`nominal_reach_by_day`, per-cell `direction.bearing_deg`,
+ * Checkpoint 8B.3) and each is shown ONLY while the selected real origin's
+ * current snapshot actually has that data -- never a permanently-listed
+ * key backed by nothing (Section 6 of this pass's own requirements).
+ */
+function TrajectoryLegendBody({ hasReachRing, hasDirectionArrows, hasPage1Forecast, page1ForecastDateLabel }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-on-surface">Trajectory</div>
+      <div className="space-y-1.5">
+        {hasPage1Forecast && <LegendRow color={PAGE1_FORECAST_COLOR} label={`Projected spread/front · ${page1ForecastDateLabel}`} />}
+        {hasReachRing && <LegendRow color={REACH_RING_COLOR} label="Model-projected nominal reach" hollow />}
+        {hasDirectionArrows && <LegendRow color={DIRECTION_ARROW_COLOR} label="Model-projected spread direction (per cell)" hollow />}
+        {!hasPage1Forecast && !hasReachRing && !hasDirectionArrows && (
+          <div className="text-on-surface-variant/70">No spread direction or nominal reach for the current selection.</div>
+        )}
+      </div>
+      <div className="border-t border-outline-variant/30 pt-1.5 text-on-surface-variant/70">
+        Reach is a real, visualization-only distance estimate -- not a hard disease boundary. Direction is a real,
+        cell-local geometric tendency derived from the frozen risk model -- not a validated spread forecast.
+      </div>
     </div>
   )
 }

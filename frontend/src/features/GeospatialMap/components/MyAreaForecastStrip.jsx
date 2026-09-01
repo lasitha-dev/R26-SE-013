@@ -1,66 +1,106 @@
 import React from 'react'
 
-import { addDaysToIsoDate, forecastDayLabel, formatDisplayDate } from '../adapters/forecastDate'
-import { LABEL_FORECAST_D0 } from '../semanticLabels'
+import './myAreaChrome.css'
+import { formatDisplayDate } from '../adapters/forecastDate'
 
-/**
- * GEO-AREA-02 Section 19: a compact local forecast-day strip --
- * deliberately NOT a reuse of `TimelineControl.jsx` (that component is
- * wired to Page 1's playback semantics -- `isPlaybackActive`/`onPlay`/
- * `onPause` -- which have no meaning here; My Area has no playback, only
- * a day picker).
- *
- * Section 19/45: D+N calendar labels use the EXISTING tested
- * `forecastDate.js::addDaysToIsoDate(t0, day)` -- never the browser's own
- * current-moment clock, and never a second date-arithmetic
- * implementation. `t0` must be the real `SelectedOriginContext.t0`; if
- * it is not yet available (no origin selected), only day numbers are
- * shown, never a guessed date.
- *
- * GEO-MY-AREA-STITCH-16: `availableDays` replaces a previously hardcoded
- * `[0..7]` -- the real per-origin horizon (`deriveAvailableForecastDays`,
- * the same adapter Page 1's `TimelineControl` uses over the origin's own
- * real `nominal_reach_by_day`) is passed in by `MyAreaPage.jsx` instead,
- * so this never offers a day the selected origin does not genuinely have
- * a real frame for. `disabled` still covers the "no origin selected yet"
- * shell state (no data implied either way); once an origin IS selected
- * but its real horizon is D0-only (or the disease has no forecast
- * capability at all -- FMD), `availableDays.length <= 1` and this renders
- * the honest static state instead of a dead multi-day control.
- */
-export default function MyAreaForecastStrip({ selectedDay, onSelectDay, t0 = null, availableDays = [0], disabled = false }) {
-  if (availableDays.length <= 1) {
-    return (
-      <div className="rounded-lg border border-outline-variant/30 bg-surface-container/90 px-3 py-2 text-xs text-on-surface-variant/70" role="status">
-        No time-varying local forecast is available for this selection.
-      </div>
-    )
-  }
+const MAJOR_LABELS = new Map([
+  [0, '01 SEP'],
+  [6, '07 SEP'],
+  [13, '14 SEP'],
+])
+
+function ControlButton({ label, icon, onClick, disabled = false, pressed }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-on-surface transition hover:border-primary/40 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{icon}</span>
+    </button>
+  )
+}
+
+/** Compact Page-2 master timeline. Dates and activeIndex are controlled
+ * entirely by MyAreaPage; this component owns no secondary clock. */
+export default function MyAreaForecastStrip({
+  dates = [],
+  activeIndex = 0,
+  onSelectIndex,
+  isPlaying,
+  onTogglePlayback,
+  playbackSpeed = 1,
+  onPlaybackSpeedChange,
+  currentRisk = null,
+  disabled = false,
+}) {
+  const finalIndex = Math.max(0, dates.length - 1)
+  const atStart = activeIndex <= 0
+  const atEnd = activeIndex >= finalIndex
+  const currentDate = dates[activeIndex]
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-outline-variant/30 bg-surface-container/90 p-1.5" role="group" aria-label="Forecast day">
-      {availableDays.map((day) => {
-        const active = day === selectedDay
-        const dateLabel = t0 ? formatDisplayDate(addDaysToIsoDate(t0, day)) : null
-        return (
-          <button
-            key={day}
-            type="button"
-            disabled={disabled}
-            aria-pressed={active}
-            title={day === 0 ? LABEL_FORECAST_D0 : dateLabel ?? undefined}
-            onClick={() => onSelectDay(day)}
-            className={
-              active
-                ? 'flex shrink-0 flex-col items-center rounded-md bg-primary/20 px-2.5 py-1 text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40'
-                : 'flex shrink-0 flex-col items-center rounded-md px-2.5 py-1 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40'
-            }
-          >
-            <span className="font-mono text-xs font-medium">{forecastDayLabel(day)}</span>
-            {dateLabel && <span className="text-[10px] text-on-surface-variant/70">{dateLabel}</span>}
-          </button>
-        )
-      })}
+    <div className="my-area-timeline flex min-w-0 flex-col gap-2 rounded-xl border border-primary/20 px-2.5 py-2 shadow-2xl" aria-label="My Area Sep 01 to Sep 14 forecast timeline">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1">
+          <ControlButton label="Previous area forecast date" icon="skip_previous" onClick={() => onSelectIndex(activeIndex - 1)} disabled={disabled || atStart} />
+          <ControlButton
+            label={isPlaying ? 'Pause area forecast playback' : atEnd ? 'Forecast complete at 14 Sep 2026' : 'Play area forecast playback'}
+            icon={isPlaying ? 'pause' : 'play_arrow'}
+            onClick={onTogglePlayback}
+            disabled={disabled || atEnd}
+            pressed={isPlaying}
+          />
+          <ControlButton label="Next area forecast date" icon="skip_next" onClick={() => onSelectIndex(activeIndex + 1)} disabled={disabled || atEnd} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2 px-1">
+            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">Future impact - {currentDate ? formatDisplayDate(currentDate) : 'Date unavailable'}</div>
+            {currentRisk && <div className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-on-surface-variant">{currentRisk} district risk</div>}
+          </div>
+          <div className="mt-1 grid gap-0.5" style={{ gridTemplateColumns: 'repeat(14, minmax(0, 1fr))' }} role="group" aria-label="Sep 01 to Sep 14 dates">
+            {dates.map((date, index) => {
+              const active = index === activeIndex
+              const majorLabel = MAJOR_LABELS.get(index)
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  disabled={disabled}
+                  aria-label={`Select ${formatDisplayDate(date)}`}
+                  aria-current={active ? 'date' : undefined}
+                  onClick={() => onSelectIndex(index)}
+                  className="group flex min-w-0 flex-col items-center gap-0.5 rounded py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+                >
+                  <span className={active ? 'grid h-4 w-4 place-items-center rounded-full border border-white bg-primary text-[8px] font-bold text-slate-950 shadow-[0_0_10px_rgba(78,222,163,0.6)]' : 'grid h-4 w-4 place-items-center rounded-full border border-white/15 bg-slate-700/80 text-[8px] font-semibold text-slate-300 transition group-hover:border-primary/60'}>
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className={active ? 'whitespace-nowrap text-[7px] font-bold text-primary' : 'whitespace-nowrap text-[7px] font-semibold text-on-surface-variant/55'}>{majorLabel ?? '\u00a0'}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="hidden shrink-0 items-center gap-0.5 sm:flex" role="group" aria-label="Area forecast playback speed">
+          {[0.5, 1, 2].map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              disabled={disabled}
+              aria-pressed={playbackSpeed === speed}
+              onClick={() => onPlaybackSpeedChange(speed)}
+              className={playbackSpeed === speed ? 'rounded-md bg-primary px-1.5 py-1 text-[9px] font-bold text-slate-950' : 'rounded-md px-1.5 py-1 text-[9px] font-semibold text-on-surface-variant hover:bg-white/[0.06] hover:text-on-surface'}
+            >
+              {speed}x
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

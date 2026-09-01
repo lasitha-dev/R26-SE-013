@@ -335,7 +335,7 @@ export const LABEL_FORECAST_D0 = 'Observed / origin context'
  * never implying a percentage/score/grade the backend does not supply.
  */
 export const ANALYSIS_TRENDS_PAGE_TITLE = 'Analysis & Trends'
-export const ANALYSIS_TRENDS_PAGE_TAGLINE = 'Sri Lanka historical and model evidence'
+export const ANALYSIS_TRENDS_PAGE_TAGLINE = 'Historical outbreak patterns and spatial intelligence'
 
 // Section 16/17: KPI wording -- "Historical source records" (never
 // "Cases today"/"Active cases"/"Current infections"), "Forecast

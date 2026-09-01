@@ -188,6 +188,19 @@ describe('GEO-OWNED-FINAL-08 Section 15: host-layout safety -- map resizes with 
   })
 })
 
+describe('GEO-PAGE1-FINAL Section 5.2/6: the map never wraps into a duplicate world copy and never pans outside a real, fixed Sri Lanka region', () => {
+  const mapLibreCanvasSrc = readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8')
+
+  it('disables wrapped world copies on the real map instance', () => {
+    expect(mapLibreCanvasSrc).toContain('renderWorldCopies: false')
+  })
+
+  it('constrains panning/zooming with a real, fixed maxBounds constant', () => {
+    expect(mapLibreCanvasSrc).toContain('maxBounds: SRI_LANKA_MAX_PAN_BOUNDS')
+    expect(mapLibreCanvasSrc).toMatch(/export const SRI_LANKA_MAX_PAN_BOUNDS = \[/)
+  })
+})
+
 describe('GEO-PAGE1-FINAL Section 10/24: an auto-focused default origin never triggers the camera-fly or the selection halo/ripple/dim -- only a real click does', () => {
   const mapLibreCanvasSrc = stripComments(readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8'))
 

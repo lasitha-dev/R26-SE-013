@@ -272,7 +272,12 @@ export function directionIconLayout() {
     'icon-rotation-alignment': 'map',
     'icon-allow-overlap': true,
     'icon-ignore-placement': true,
-    'icon-size': 1,
+    // GEO-REACH-GRADIENT-01: bumped from 1 (a flat GPU upscale of the
+    // same real icon bitmap, `presentationIcons.js`'s `DIRECTION_ICON_SIZE`
+    // -- never a new/different raster) so real per-cell direction reads
+    // clearly at a glance, matching the reach ring's own increased visual
+    // weight in this pass.
+    'icon-size': 1.35,
   }
 }
 
@@ -385,4 +390,67 @@ export function computeCombinedLngLatBounds(cellFeatures, sourceFeatures) {
     [minLon, minLat],
     [maxLon, maxLat],
   ]
+}
+
+// Page-1 presentation risk contours: every generated risk feature
+// (`page1ForecastVisualization.js::buildOutbreakRiskFeatures`) carries an
+// explicit `riskLevel` of `"green" | "yellow" | "orange" | "red"` -- never
+// a tier id a paint expression has to translate. These builders are pure
+// so they're unit-testable without a real WebGL context (this repo's
+// Vitest environment is Node-only, matching every other file here).
+export const PAGE1_RISK_FILL_COLOR = Object.freeze({ green: '#22C55E', yellow: '#FACC15', orange: '#F97316', red: '#EF4444' })
+// A slightly stronger boundary tone per level (never the same flat hex as
+// the fill) -- kept as its own map rather than derived so it can be tuned
+// independently of the fill palette.
+export const PAGE1_RISK_LINE_COLOR = Object.freeze({ green: '#16A34A', yellow: '#CA8A04', orange: '#EA580C', red: '#DC2626' })
+// BUGFIX (black risk blob): the previous paint used per-tier FILTERED
+// layers with a static color each; when that filter/property pairing
+// drifted (a `tier` property the layer's filter didn't recognize), the
+// unmatched feature still painted -- browsers rasterize an unstyled/
+// unset fill-color as black, which is exactly the reported blob. A
+// `match` expression's own explicit, transparent fallback (`'rgba(0,0,0,0)'`
+// / `0`) makes an unrecognized `riskLevel` invisible instead of black, and
+// there is now only ONE fill layer + ONE line layer for every risk
+// feature (color is entirely data-driven), so a fifth/sixth/etc. real
+// outbreak never needs a new MapLibre layer.
+export function page1RiskFillColorExpression() {
+  return ['match', ['get', 'riskLevel'], 'green', PAGE1_RISK_FILL_COLOR.green, 'yellow', PAGE1_RISK_FILL_COLOR.yellow, 'orange', PAGE1_RISK_FILL_COLOR.orange, 'red', PAGE1_RISK_FILL_COLOR.red, 'rgba(0,0,0,0)']
+}
+
+export function page1RiskLineColorExpression() {
+  return ['match', ['get', 'riskLevel'], 'green', PAGE1_RISK_LINE_COLOR.green, 'yellow', PAGE1_RISK_LINE_COLOR.yellow, 'orange', PAGE1_RISK_LINE_COLOR.orange, 'red', PAGE1_RISK_LINE_COLOR.red, 'rgba(0,0,0,0)']
+}
+
+// Soft, label-preserving opacity bands (never opaque, never black) -- two
+// values per level so the ambient-pulse RAF loop in `MapLibreCanvas.jsx`
+// can swap between them every half-cycle for a gentle 2-4% "breathing"
+// look, entirely a `setPaintProperty` swap (never a geometry rewrite --
+// the actual Sep01-14 geometry only ever changes via
+// `buildPage1ForecastVisualization`'s own `activeForecastIndex` input).
+const PAGE1_RISK_FILL_OPACITY_RANGE = Object.freeze({
+  green: [0.1, 0.14],
+  yellow: [0.14, 0.2],
+  orange: [0.18, 0.25],
+  red: [0.22, 0.31],
+})
+const PAGE1_RISK_LINE_OPACITY_RANGE = Object.freeze({
+  green: [0.32, 0.42],
+  yellow: [0.38, 0.5],
+  orange: [0.45, 0.58],
+  red: [0.52, 0.68],
+})
+
+function pulseOpacityExpression(range, expanded) {
+  const pick = (level) => range[level][expanded ? 1 : 0]
+  return ['match', ['get', 'riskLevel'], 'green', pick('green'), 'yellow', pick('yellow'), 'orange', pick('orange'), 'red', pick('red'), 0]
+}
+
+/** `expanded`: which half of the slow ambient-pulse cycle this paint frame is -- never geometry, purely a `fill-opacity` swap. */
+export function page1RiskFillOpacityExpression(expanded) {
+  return pulseOpacityExpression(PAGE1_RISK_FILL_OPACITY_RANGE, expanded)
+}
+
+/** Same ambient-pulse contract as `page1RiskFillOpacityExpression`, for the contour outline. */
+export function page1RiskLineOpacityExpression(expanded) {
+  return pulseOpacityExpression(PAGE1_RISK_LINE_OPACITY_RANGE, expanded)
 }

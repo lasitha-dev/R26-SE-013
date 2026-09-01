@@ -5,9 +5,10 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   buildCellsFeatureCollection,
   buildSourcesFeatureCollection,
-  computeCombinedLngLatBounds,
-  computeRiskColorStats,
-  riskCircleColorExpression,
+  computeRiskTierStats,
+  NATIONAL_SOURCES_PULSE_CYCLE_MS,
+  nationalSourceAmbientPulsePaint,
+  riskTierColorExpression,
   sourceIconLayout,
 } from './mapLibreAdapter'
 import { buildReachRingFeatureCollectionForCenters, emptyReachRingFeatureCollection } from './nominalReachRing'
@@ -18,6 +19,7 @@ import { buildReachRingFeatureCollectionForCenters, emptyReachRingFeatureCollect
 // polygon's own real coordinates; returns `null` for missing/unmatched
 // geometry, never a fabricated box (see its own docstring).
 import { computeFeatureBounds } from '../adapters/districtGeometry'
+import { AREA_RISK_COLORS } from '../adapters/myAreaPresentationForecast'
 import { FARM_MARKER_ICON_ID, buildFarmMarkerImage, farmMarkerIconLayout } from './myAreaIcons'
 import { resolveBasemapConfig } from './basemapConfig'
 import { SOURCE_ICON_ID, buildSourceMarkerImage } from './presentationIcons'
@@ -31,6 +33,22 @@ import { SRI_LANKA_CENTER, SRI_LANKA_INITIAL_ZOOM } from './MapLibreCanvas'
 const FARM_SOURCE_ID = 'geo-my-area-farm'
 const SOURCES_SOURCE_ID = 'geo-my-area-sources'
 const REACH_RING_SOURCE_ID = 'geo-my-area-reach-ring'
+const OBSERVED_CASES_SOURCE_ID = 'geo-my-area-observed-cases'
+const AREA_FORECAST_RISK_SOURCE_ID = 'geo-my-area-forecast-risk'
+const AREA_FORECAST_PATH_SOURCE_ID = 'geo-my-area-forecast-paths'
+const AREA_FORECAST_FRONT_SOURCE_ID = 'geo-my-area-forecast-fronts'
+const AREA_RISK_LAYER_IDS = ['green', 'yellow', 'orange', 'red'].flatMap((riskLevel) => [
+  `my-area-forecast-risk-${riskLevel}`,
+  `my-area-forecast-risk-${riskLevel}-outline`,
+])
+const AREA_PROJECTION_LAYER_IDS = [
+  'my-area-forecast-path-glow',
+  'my-area-forecast-path',
+  'my-area-forecast-front-glow',
+  'my-area-forecast-front',
+  'my-area-forecast-selected-risk-outline',
+  'my-area-forecast-selected-path',
+]
 // GEO-MY-AREA-STITCH-16: this farm's own real district polygon (same
 // geoBoundaries ADM2 dataset/attribution Page 1 already draws,
 // `useDistrictGeometry`), for local geographic context only -- never a
@@ -41,12 +59,13 @@ const DISTRICT_SOURCE_ID = 'geo-my-area-district'
 // GEO-MY-AREA-STITCH-16 Section 10: the SAME real per-cell C0 spatial-rank
 // output Page 1's Risk Zones mode already fetches for this exact origin
 // (`useSelectedOutbreakFrames`, LSD only -- `focus.cells`), painted with
-// the SAME `riskCircleColorExpression`/`computeRiskColorStats` from
-// `mapLibreAdapter.js` Page 1 itself uses, so this can never show a color
-// the real map doesn't. FMD has no spatial-cell capability at all
+// the existing tested snapshot-relative tier expression from
+// `mapLibreAdapter.js`, so this page introduces no new threshold. FMD has
+// no spatial-cell capability at all
 // (`diseaseRegistry.js`), so `cellFeatures` is always `[]` for FMD --
 // this layer is then genuinely empty, never a fabricated surface.
 const CELLS_SOURCE_ID = 'geo-my-area-cells'
+const ACTIVE_CELLS_SOURCE_ID = 'geo-my-area-active-cells'
 
 /**
  * GEO-AREA-02 Section 14/15: a small, Page-2-specific MapLibre component
@@ -57,8 +76,8 @@ const CELLS_SOURCE_ID = 'geo-my-area-cells'
  * benefit, since Page 2's content -- one farm + one selected origin's
  * real sources + a reach ring -- barely overlaps Page 1's national/
  * cells/direction layers). Reuses everything reusable instead:
- * `resolveBasemapConfig`, `buildSourcesFeatureCollection`,
- * `computeCombinedLngLatBounds`, `buildReachRingFeatureCollectionForCenters`
+ * `resolveBasemapConfig`, `buildSourcesFeatureCollection`, and
+ * `buildReachRingFeatureCollectionForCenters`
  * (Section 15C: "preserve its existing honest source-centered visual
  * strategy" -- unchanged, same function, same rings-around-every-source
  * approach), and the EXISTING amber source icon (`presentationIcons.js`)
@@ -71,16 +90,10 @@ const CELLS_SOURCE_ID = 'geo-my-area-cells'
  * unscored farm risked visually implying a relevance the response
  * explicitly does not establish).
  *
- * Section 18: one map instance for the page's lifetime -- no remount on
- * selection. Camera fits ONLY on an actual farm change or an actual
- * origin change (tracked via refs, mirroring `MapLibreCanvas.jsx`'s
- * `lastFitOutbreakIdRef` pattern exactly) -- never on a forecast-day
- * change, a My Area refetch, or an operational-context refresh. Exactly
- * two camera calls exist in this file (one `easeTo`, one `fitBounds`,
- * `myAreaPageWiring.test.js` asserts the exact count) -- district/risk
- * additions below reuse those SAME two call sites (new `padding`
- * arguments, real district/cell `setData()` calls) rather than adding a
- * third.
+ * One map instance exists for the page's lifetime. The camera fits once
+ * per real farm+district scope after ADM2 geometry is ready. Origin,
+ * timeline, risk, reach, and clinical updates only call source.setData;
+ * they never move the district-scoped camera.
  */
 // GEO-MY-AREA-STITCH-16: reserves real screen room for this page's own
 // floating chrome (the bottom-docked forecast strip) so a camera fit
@@ -88,18 +101,15 @@ const CELLS_SOURCE_ID = 'geo-my-area-cells'
 // area (above that strip) reads as off-center -- same asymmetric-padding
 // technique as Page 1's `MAP_FIT_PADDING` (`MapLibreCanvas.jsx`), sized
 // for this page's own (shorter) chrome rather than copied verbatim.
-const MY_AREA_MAP_PADDING = { top: 40, bottom: 100, left: 40, right: 40 }
+export function getMyAreaMapPadding(containerWidth) {
+  if (containerWidth < 480) return { top: 22, bottom: 116, left: 18, right: 18 }
+  if (containerWidth < 900) return { top: 30, bottom: 120, left: 28, right: 28 }
+  return { top: 38, bottom: 124, left: 42, right: 42 }
+}
 
-// GEO-MY-AREA-FINAL-PASS: the ONE real MapLibre bounds-fit call site for
-// this whole file -- both the district-focus fit (farm effect) and the
-// origin-focus fit (origin effect) below call THIS function rather than
-// each owning their own separate real invocation, so
-// `myAreaPageWiring.test.js`'s "exactly the two intentional camera calls
-// exist (farm easeTo, origin bounds-fit)" structural count still holds
-// exactly -- consolidating two real fits behind one real API call site is
-// the same guarantee that test enforces, not a workaround for it.
-function fitMapToBounds(map, bounds, { reduceMotion, durationMs }) {
-  map.fitBounds(bounds, { padding: MY_AREA_MAP_PADDING, animate: !reduceMotion, duration: reduceMotion ? 0 : durationMs })
+// The one real MapLibre bounds-fit call site for this file.
+function fitMapToBounds(map, bounds, { reduceMotion, durationMs, padding }) {
+  map.fitBounds(bounds, { padding, animate: !reduceMotion, duration: reduceMotion ? 0 : durationMs })
 }
 
 const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
@@ -107,6 +117,12 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
     area = null,
     sourceFeatures = [],
     cellFeatures = [],
+    activeCellFeatures = [],
+    riskColorReferenceFeatures = cellFeatures,
+    observedCaseFeatures = [],
+    areaForecastVisualization = null,
+    showAreaImpact = true,
+    focusedCaseId = null,
     districtFeature = null,
     reachRingCenters = null,
     reachRingRadiusKm = 0,
@@ -120,16 +136,9 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
   const mapRef = useRef(null)
   const failedRef = useRef(false)
   const loadedRef = useRef(false)
-  const lastFitFarmIdRef = useRef(undefined)
-  const lastFitOriginIdRef = useRef(undefined)
-  // GEO-MY-AREA-FINAL-PASS: whether the CURRENT `lastFitFarmIdRef` farm's
-  // fit already used the tight real district-polygon bounds (`true`) or
-  // only the honest point+zoom fallback because the district polygon
-  // hadn't resolved yet (`false`) -- lets the farm effect apply exactly
-  // ONE later "upgrade" fit to district bounds once that geometry
-  // arrives, without ever re-fitting again afterward for the same farm.
-  const districtBoundsAppliedRef = useRef(false)
+  const lastFitAreaScopeRef = useRef(undefined)
   const reachRingAnimRef = useRef(null)
+  const observedPulseAnimRef = useRef(null)
   const currentReachRadiusKmRef = useRef(0)
   // GEO-MY-AREA-STITCH-16 Section 2 (mirrors `MapLibreCanvas.jsx`'s own
   // documented fix for the same real race): `map.on('load')` closes over
@@ -138,8 +147,18 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
   // basemap style does. Reading through refs inside `load` makes initial
   // seeding correct regardless of which one wins.
   const cellFeaturesRef = useRef(cellFeatures)
+  const riskColorReferenceFeaturesRef = useRef(riskColorReferenceFeatures)
+  const activeCellFeaturesRef = useRef(activeCellFeatures)
+  const observedCaseFeaturesRef = useRef(observedCaseFeatures)
+  const areaForecastVisualizationRef = useRef(areaForecastVisualization)
+  const showAreaImpactRef = useRef(showAreaImpact)
   const districtFeatureRef = useRef(districtFeature)
   cellFeaturesRef.current = cellFeatures
+  riskColorReferenceFeaturesRef.current = riskColorReferenceFeatures
+  activeCellFeaturesRef.current = activeCellFeatures
+  observedCaseFeaturesRef.current = observedCaseFeatures
+  areaForecastVisualizationRef.current = areaForecastVisualization
+  showAreaImpactRef.current = showAreaImpact
   districtFeatureRef.current = districtFeature
   // GEO-MY-AREA-VISUAL-QA-FIX: real state (not a ref) so the farm-camera
   // and origin-camera effects below -- which key off `loadedRef.current`
@@ -154,8 +173,8 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
   // re-triggered it once `load` actually fired (that handler never reads
   // the farm prop at all), leaving the farm source empty and the camera on
   // its initial view forever. Adding this as a dependency below makes the
-  // SAME existing single easeTo/fitBounds call sites re-evaluate the
-  // instant the map becomes ready, regardless of which of the two (style
+  // same district-fit effect re-evaluates the instant the map becomes
+  // ready, regardless of which of the two (style
   // vs. data) won the race.
   const [mapLoaded, setMapLoaded] = useState(false)
 
@@ -228,7 +247,7 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
         // `loadedRef.current` but are otherwise only re-triggered by their
         // own dependency changes, get one guaranteed re-run the instant the
         // map becomes ready -- closing the load/data ordering race without
-        // adding a second easeTo/fitBounds call site.
+        // adding another camera call site.
         setMapLoaded(true)
 
         if (!map.hasImage(FARM_MARKER_ICON_ID)) map.addImage(FARM_MARKER_ICON_ID, buildFarmMarkerImage())
@@ -236,8 +255,13 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
 
         const initialDistrictFeature = districtFeatureRef.current
         const initialCellFeatures = cellFeaturesRef.current ?? []
+        const initialActiveCellFeatures = activeCellFeaturesRef.current ?? []
+        const initialObservedCaseFeatures = observedCaseFeaturesRef.current ?? []
+        const initialAreaForecast = areaForecastVisualizationRef.current
+        const initialAreaImpactVisibility = showAreaImpactRef.current ? 'visible' : 'none'
         const initialCellsFC = buildCellsFeatureCollection(initialCellFeatures)
-        const initialRiskStats = computeRiskColorStats(initialCellFeatures)
+        const initialActiveCellsFC = buildCellsFeatureCollection(initialActiveCellFeatures)
+        const initialRiskStats = computeRiskTierStats(riskColorReferenceFeaturesRef.current ?? [])
 
         // GEO-MY-AREA-STITCH-16 Section 16/26 stacking order: basemap ->
         // district boundary -> real risk surface -> reach ring -> sources
@@ -249,8 +273,84 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
           data: initialDistrictFeature ? { type: 'FeatureCollection', features: [initialDistrictFeature] } : { type: 'FeatureCollection', features: [] },
           attribution: '© OpenStreetMap contributors',
         })
+        map.addSource(AREA_FORECAST_RISK_SOURCE_ID, { type: 'geojson', data: initialAreaForecast?.riskZones ?? { type: 'FeatureCollection', features: [] } })
+        map.addSource(AREA_FORECAST_PATH_SOURCE_ID, { type: 'geojson', data: initialAreaForecast?.paths ?? { type: 'FeatureCollection', features: [] } })
+        map.addSource(AREA_FORECAST_FRONT_SOURCE_ID, { type: 'geojson', data: initialAreaForecast?.fronts ?? { type: 'FeatureCollection', features: [] } })
         map.addLayer({ id: 'my-area-district-fill', type: 'fill', source: DISTRICT_SOURCE_ID, paint: { 'fill-color': '#4edea3', 'fill-opacity': 0.08 } })
+        for (const riskLevel of ['green', 'yellow', 'orange', 'red']) {
+          const color = AREA_RISK_COLORS[riskLevel]
+          map.addLayer({
+            id: `my-area-forecast-risk-${riskLevel}`,
+            type: 'fill',
+            source: AREA_FORECAST_RISK_SOURCE_ID,
+            filter: ['==', ['get', 'riskLevel'], riskLevel],
+            layout: { visibility: initialAreaImpactVisibility },
+            paint: {
+              'fill-color': color,
+              'fill-opacity': ['coalesce', ['get', 'fillOpacity'], 0],
+              'fill-opacity-transition': { duration: reduceMotion ? 0 : 420 },
+            },
+          })
+          map.addLayer({
+            id: `my-area-forecast-risk-${riskLevel}-outline`,
+            type: 'line',
+            source: AREA_FORECAST_RISK_SOURCE_ID,
+            filter: ['==', ['get', 'riskLevel'], riskLevel],
+            layout: { visibility: initialAreaImpactVisibility },
+            paint: {
+              'line-color': color,
+              'line-width': riskLevel === 'red' ? 1.6 : 1.15,
+              'line-opacity': ['coalesce', ['get', 'lineOpacity'], 0],
+              'line-blur': 0.35,
+              'line-opacity-transition': { duration: reduceMotion ? 0 : 420 },
+            },
+          })
+        }
         map.addLayer({ id: 'my-area-district-outline', type: 'line', source: DISTRICT_SOURCE_ID, paint: { 'line-color': '#4edea3', 'line-width': 1.5, 'line-opacity': 0.85 } })
+        map.addLayer({
+          id: 'my-area-forecast-path-glow',
+          type: 'line',
+          source: AREA_FORECAST_PATH_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round', visibility: initialAreaImpactVisibility },
+          paint: { 'line-color': AREA_RISK_COLORS.purple, 'line-width': 8, 'line-blur': 4, 'line-opacity': 0.18 },
+        })
+        map.addLayer({
+          id: 'my-area-forecast-path',
+          type: 'line',
+          source: AREA_FORECAST_PATH_SOURCE_ID,
+          layout: { 'line-cap': 'round', 'line-join': 'round', visibility: initialAreaImpactVisibility },
+          paint: { 'line-color': AREA_RISK_COLORS.purpleAccent, 'line-width': 3.1, 'line-opacity': 0.95 },
+        })
+        map.addLayer({
+          id: 'my-area-forecast-front-glow',
+          type: 'circle',
+          source: AREA_FORECAST_FRONT_SOURCE_ID,
+          layout: { visibility: initialAreaImpactVisibility },
+          paint: { 'circle-radius': 10, 'circle-color': AREA_RISK_COLORS.purple, 'circle-blur': 0.8, 'circle-opacity': 0.3 },
+        })
+        map.addLayer({
+          id: 'my-area-forecast-front',
+          type: 'circle',
+          source: AREA_FORECAST_FRONT_SOURCE_ID,
+          layout: { visibility: initialAreaImpactVisibility },
+          paint: { 'circle-radius': 5.5, 'circle-color': AREA_RISK_COLORS.purpleAccent, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2, 'circle-opacity': 0.98 },
+        })
+        map.addLayer({
+          id: 'my-area-forecast-selected-risk-outline',
+          type: 'line',
+          source: AREA_FORECAST_RISK_SOURCE_ID,
+          filter: ['==', ['get', 'anchorId'], '__none__'],
+          layout: { visibility: initialAreaImpactVisibility },
+          paint: { 'line-color': '#f5d0fe', 'line-width': 2.8, 'line-opacity': 0.8, 'line-blur': 0.3 },
+        })
+        map.addLayer({
+          id: 'my-area-forecast-selected-path',
+          type: 'line',
+          source: AREA_FORECAST_PATH_SOURCE_ID,
+          filter: ['==', ['get', 'anchorId'], '__none__'],
+          layout: { 'line-cap': 'round', 'line-join': 'round', visibility: initialAreaImpactVisibility },
+          paint: { 'line-color': '#f5d0fe', 'line-width': 5.5, 'line-opacity': 1 },
+        })
 
         map.addSource(CELLS_SOURCE_ID, { type: 'geojson', data: initialCellsFC })
         map.addLayer({
@@ -259,10 +359,30 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
           source: CELLS_SOURCE_ID,
           paint: {
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 5, 11, 8, 14, 12],
-            'circle-color': riskCircleColorExpression(initialRiskStats),
-            'circle-opacity': 0.75,
+            'circle-color': riskTierColorExpression(initialRiskStats),
+            'circle-opacity': 0.32,
             'circle-stroke-width': 1,
-            'circle-stroke-color': '#1e293b',
+            'circle-stroke-color': '#0e1511',
+            'circle-color-transition': { duration: reduceMotion ? 0 : 320 },
+            'circle-opacity-transition': { duration: reduceMotion ? 0 : 320 },
+          },
+        })
+
+        // The static risk score/color never changes with day. This second
+        // source only emphasizes cells falling inside the current genuine
+        // nominal-reach visualization; it never recolors or rescales them.
+        map.addSource(ACTIVE_CELLS_SOURCE_ID, { type: 'geojson', data: initialActiveCellsFC })
+        map.addLayer({
+          id: 'my-area-active-cells-circle',
+          type: 'circle',
+          source: ACTIVE_CELLS_SOURCE_ID,
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 6, 11, 9, 14, 13],
+            'circle-color': riskTierColorExpression(initialRiskStats),
+            'circle-opacity': 0.88,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#f8fafc',
+            'circle-stroke-opacity': 0.45,
             'circle-color-transition': { duration: reduceMotion ? 0 : 320 },
             'circle-opacity-transition': { duration: reduceMotion ? 0 : 320 },
           },
@@ -271,6 +391,10 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
         map.addSource(FARM_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
         map.addSource(SOURCES_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
         map.addSource(REACH_RING_SOURCE_ID, { type: 'geojson', data: emptyReachRingFeatureCollection() })
+        map.addSource(OBSERVED_CASES_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: initialObservedCaseFeatures },
+        })
 
         // Nominal-reach ring first (under the markers), same teal
         // treatment as Page 1's ring -- never a risk color.
@@ -285,6 +409,79 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
 
         map.addLayer({ id: 'my-area-sources-symbol', type: 'symbol', source: SOURCES_SOURCE_ID, layout: sourceIconLayout() })
         map.addLayer({ id: 'my-area-farm-symbol', type: 'symbol', source: FARM_SOURCE_ID, layout: farmMarkerIconLayout() })
+        map.addLayer({
+          id: 'my-area-observed-cases-pulse',
+          type: 'circle',
+          source: OBSERVED_CASES_SOURCE_ID,
+          paint: {
+            ...nationalSourceAmbientPulsePaint(false),
+            'circle-radius-transition': { duration: reduceMotion ? 0 : NATIONAL_SOURCES_PULSE_CYCLE_MS / 2 },
+            'circle-opacity-transition': { duration: reduceMotion ? 0 : NATIONAL_SOURCES_PULSE_CYCLE_MS / 2 },
+          },
+        })
+        map.addLayer({
+          id: 'my-area-observed-cases-core',
+          type: 'circle',
+          source: OBSERVED_CASES_SOURCE_ID,
+          paint: {
+            'circle-radius': 6,
+            'circle-color': '#EF4444',
+            'circle-stroke-color': '#fff1f2',
+            'circle-stroke-width': 1.5,
+            'circle-opacity': 0.98,
+          },
+        })
+        map.addLayer({
+          id: 'my-area-observed-cases-selected',
+          type: 'circle',
+          source: OBSERVED_CASES_SOURCE_ID,
+          filter: ['==', ['get', 'anchorId'], '__none__'],
+          paint: {
+            'circle-radius': 11,
+            'circle-color': 'rgba(0,0,0,0)',
+            'circle-stroke-color': '#4edea3',
+            'circle-stroke-width': 2.5,
+            'circle-stroke-opacity': 0.95,
+          },
+        })
+
+        map.on('click', 'my-area-observed-cases-core', (event) => {
+          const properties = event.features?.[0]?.properties ?? {}
+          const root = document.createElement('div')
+          root.className = 'space-y-1 text-xs'
+          for (const [label, value] of [
+            ['Verified case', properties.caseId],
+            ['Disease', properties.disease],
+            ['Verified', properties.verificationTime],
+          ]) {
+            if (!value) continue
+            const row = document.createElement('div')
+            row.textContent = `${label}: ${value}`
+            root.appendChild(row)
+          }
+          new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+            .setLngLat(event.features[0].geometry.coordinates)
+            .setDOMContent(root)
+            .addTo(map)
+        })
+        map.on('mouseenter', 'my-area-observed-cases-core', () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', 'my-area-observed-cases-core', () => { map.getCanvas().style.cursor = '' })
+
+        if (!reduceMotion) {
+          let expanded = false
+          let lastToggle = performance.now()
+          const pulse = (now) => {
+            if (now - lastToggle >= NATIONAL_SOURCES_PULSE_CYCLE_MS / 2) {
+              expanded = !expanded
+              lastToggle = now
+              const paint = nationalSourceAmbientPulsePaint(expanded)
+              map.setPaintProperty('my-area-observed-cases-pulse', 'circle-radius', paint['circle-radius'])
+              map.setPaintProperty('my-area-observed-cases-pulse', 'circle-opacity', paint['circle-opacity'])
+            }
+            observedPulseAnimRef.current = requestAnimationFrame(pulse)
+          }
+          observedPulseAnimRef.current = requestAnimationFrame(pulse)
+        }
       })
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -297,6 +494,7 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
 
     return () => {
       if (reachRingAnimRef.current) cancelAnimationFrame(reachRingAnimRef.current)
+      if (observedPulseAnimRef.current) cancelAnimationFrame(observedPulseAnimRef.current)
       resizeObserver?.disconnect()
       map?.remove()
       mapRef.current = null
@@ -304,7 +502,7 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ---- farm data + camera: one fit per ACTUAL farm change ----
+  // ---- farm + district: one camera fit per real area scope ----
   useEffect(() => {
     const map = mapRef.current
     if (!map || !loadedRef.current) return
@@ -314,54 +512,26 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
       ? { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [area.longitude, area.latitude] }, properties: { farmId: area.farmId } }] }
       : { type: 'FeatureCollection', features: [] }
     map.getSource(FARM_SOURCE_ID)?.setData(farmFC)
-    // GEO-MY-AREA-STITCH-16 Section 16: the farm's real district polygon --
-    // drawn for local geographic orientation only (never a risk zone,
-    // never a fabricated shape -- `useDistrictGeometry` resolves `null`
-    // on any unmatched/failed fetch, and this just mirrors that verbatim).
     map.getSource(DISTRICT_SOURCE_ID)?.setData(districtFeature ? { type: 'FeatureCollection', features: [districtFeature] } : { type: 'FeatureCollection', features: [] })
 
-    // GEO-MY-AREA-FINAL-PASS: "My Area" is framed as the vet's authorized
-    // DISTRICT, not just a point -- prefer fitting the camera to the real
-    // district polygon's own bounds (tight; the district fills most of
-    // the viewport, mirroring Page 1's own "Focus My District" camera)
-    // over a fixed zoom-11 point. The polygon fetch
-    // (`useDistrictGeometry`) is a separate, independently-timed request
-    // from the farm fetch, so it commonly isn't ready yet the FIRST time
-    // this effect runs for a new farm -- that case still gets the honest
-    // point+zoom fallback immediately (never a blank/frozen camera while
-    // waiting), then this effect's own `districtFeature` dependency
-    // re-runs it once the polygon arrives, applying exactly ONE upgrade
-    // fit to the tighter district bounds for that SAME farm (never a
-    // second, third, ad infinitum re-fit -- `districtBoundsAppliedRef`
-    // latches true the moment a district-bounds fit actually happens).
+    // Wait for the real ADM2 polygon and fit it exactly once. Origin,
+    // timeline, clinical refresh, risk, and reach updates never enter the
+    // area-scope key and therefore can never move this camera.
     const districtBounds = districtFeature ? computeFeatureBounds(districtFeature) : null
-    const isNewFarm = hasFarmPoint && area.farmId !== lastFitFarmIdRef.current
-
-    if (isNewFarm) {
-      lastFitFarmIdRef.current = area.farmId
-      lastFitOriginIdRef.current = undefined // a farm change invalidates any prior origin fit
-      districtBoundsAppliedRef.current = false
-      if (districtBounds) {
-        fitMapToBounds(map, districtBounds, { reduceMotion, durationMs: 900 })
-        districtBoundsAppliedRef.current = true
-      } else {
-        // GEO-MY-AREA-STITCH-16 Section 5: `padding` reserves real screen
-        // room for this page's own bottom-docked forecast strip so the
-        // farm marker reads as centered in the VISIBLE map area, not just
-        // the raw canvas. Same real farm coordinate, same zoom -- camera
-        // framing only, per this checkpoint's explicit "do not move the
-        // real farm coordinate" rule.
-        map.easeTo({ center: [area.longitude, area.latitude], zoom: 11, padding: MY_AREA_MAP_PADDING, duration: reduceMotion ? 0 : 900 })
-      }
-    } else if (hasFarmPoint && !districtBoundsAppliedRef.current && districtBounds) {
-      // Same farm as before; the district polygon just resolved late.
-      districtBoundsAppliedRef.current = true
-      fitMapToBounds(map, districtBounds, { reduceMotion, durationMs: 900 })
+    const districtIdentity = districtFeature?.properties?.shapeName ?? districtFeature?.properties?.shapeID ?? null
+    const areaScopeKey = districtBounds && districtIdentity ? `${area?.farmId ?? 'district'}::${districtIdentity}` : null
+    if (areaScopeKey && areaScopeKey !== lastFitAreaScopeRef.current) {
+      lastFitAreaScopeRef.current = areaScopeKey
+      fitMapToBounds(map, districtBounds, {
+        reduceMotion,
+        durationMs: 900,
+        padding: getMyAreaMapPadding(containerRef.current?.clientWidth ?? 0),
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area?.farmId, area?.latitude, area?.longitude, area?.locationStatus, districtFeature, mapLoaded])
 
-  // ---- selected-origin sources: one fit per ACTUAL origin change ----
+  // ---- selected-origin sources/risk: data-only, camera stays fixed ----
   useEffect(() => {
     const map = mapRef.current
     if (!map || !loadedRef.current) return
@@ -375,27 +545,61 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
     // sources since both come from the exact same `useSelectedOutbreakFrames`
     // fetch for this origin; never a separate/second scientific request.
     const cellsFC = buildCellsFeatureCollection(cellFeatures)
+    const activeCellsFC = buildCellsFeatureCollection(activeCellFeatures)
     map.getSource(CELLS_SOURCE_ID)?.setData(cellsFC)
-    if (cellFeatures.length > 0) {
-      map.setPaintProperty('my-area-cells-circle', 'circle-color', riskCircleColorExpression(computeRiskColorStats(cellFeatures)))
-    }
-
-    if (selectedOriginId && selectedOriginId !== lastFitOriginIdRef.current) {
-      lastFitOriginIdRef.current = selectedOriginId
-      const hasFarmPoint = area && area.locationStatus === 'VALID' && typeof area.latitude === 'number' && typeof area.longitude === 'number'
-      const farmPointFeature = hasFarmPoint
-        ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: [area.longitude, area.latitude] } }]
-        : []
-      const bounds = computeCombinedLngLatBounds(farmPointFeature, sourcesFC.features)
-      if (bounds) {
-        // GEO-MY-AREA-STITCH-16 Section 5: same asymmetric padding as the
-        // farm-only fit above, so an origin selection never re-centers the
-        // farm behind the bottom forecast strip either.
-        fitMapToBounds(map, bounds, { reduceMotion, durationMs: 1000 })
-      }
+    map.getSource(ACTIVE_CELLS_SOURCE_ID)?.setData(activeCellsFC)
+    if (riskColorReferenceFeatures.length > 0) {
+      const color = riskTierColorExpression(computeRiskTierStats(riskColorReferenceFeatures))
+      map.setPaintProperty('my-area-cells-circle', 'circle-color', color)
+      map.setPaintProperty('my-area-active-cells-circle', 'circle-color', color)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceFeatures, cellFeatures, selectedOriginId, mapLoaded])
+  }, [sourceFeatures, cellFeatures, activeCellFeatures, riskColorReferenceFeatures, selectedOriginId, mapLoaded])
+
+  // Verified observations never depend on forecast day, reach, risk, or
+  // origin. Their source updates only when genuine case data changes.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    map.getSource(OBSERVED_CASES_SOURCE_ID)?.setData({ type: 'FeatureCollection', features: observedCaseFeatures })
+  }, [observedCaseFeatures, mapLoaded])
+
+  // The one Page-2 forecast snapshot updates three persistent GeoJSON
+  // sources. Timeline ticks never recreate MapLibre and never fetch data.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    const empty = { type: 'FeatureCollection', features: [] }
+    map.getSource(AREA_FORECAST_RISK_SOURCE_ID)?.setData(areaForecastVisualization?.riskZones ?? empty)
+    map.getSource(AREA_FORECAST_PATH_SOURCE_ID)?.setData(areaForecastVisualization?.paths ?? empty)
+    map.getSource(AREA_FORECAST_FRONT_SOURCE_ID)?.setData(areaForecastVisualization?.fronts ?? empty)
+
+    const visibility = showAreaImpact ? 'visible' : 'none'
+    for (const layerId of [...AREA_RISK_LAYER_IDS, ...AREA_PROJECTION_LAYER_IDS]) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility)
+    }
+  }, [areaForecastVisualization, showAreaImpact, mapLoaded])
+
+  // View on Map changes only camera emphasis/filter state. The parent
+  // master activeIndex is intentionally absent from this effect.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    const selectedIdentity = focusedCaseId ?? '__none__'
+    for (const layerId of ['my-area-forecast-selected-path', 'my-area-forecast-selected-risk-outline', 'my-area-observed-cases-selected']) {
+      if (map.getLayer(layerId)) map.setFilter(layerId, ['==', ['get', 'anchorId'], selectedIdentity])
+    }
+    if (!focusedCaseId) return
+    const selectedFeature = observedCaseFeatures.find((feature) => feature?.properties?.anchorId === focusedCaseId)
+    const coordinate = selectedFeature?.geometry?.coordinates
+    if (!Array.isArray(coordinate) || !coordinate.every(Number.isFinite)) return
+    map.easeTo({
+      center: coordinate,
+      zoom: Math.max(map.getZoom(), 11.25),
+      duration: reduceMotion ? 0 : 650,
+      essential: true,
+    })
+  }, [focusedCaseId, observedCaseFeatures, reduceMotion, mapLoaded])
 
   // ---- nominal-reach ring: same tween as Page 1, source-centered ----
   useEffect(() => {
@@ -443,19 +647,10 @@ const MyAreaMapCanvas = React.forwardRef(function MyAreaMapCanvas(
   }, [reachRingCenters, reachRingRadiusKm, reduceMotion])
 
   return (
-    <div className="h-full w-full overflow-hidden rounded border">
-      {/* GEO-MY-AREA-LAYOUT-BALANCE: `MyAreaPage.jsx` now wraps this
-          component in a fixed `h-[450px]` card viewport (the requested
-          ~430-470px desktop band) -- `min-h-[430px]` here is only a
-          defensive floor for that band, never a competing height. The
-          previous `min-h-[520px]` predated that fixed wrapper and was
-          silently winning over `h-full` (min-height always wins over
-          height when larger), forcing this container -- and therefore the
-          MapLibre canvas the ResizeObserver above sizes to match it -- to
-          render ~70px taller than the visible card, clipped by the parent's
-          `overflow-hidden`. Section: "container dimensions and MapLibre
-          canvas dimensions must match after layout settles." */}
-      <div ref={containerRef} className="h-full min-h-[430px] w-full" role="application" aria-label="My Area map" />
+    <div className="h-full w-full overflow-hidden">
+      {/* Parent owns the responsive viewport height; no competing minimum
+          height is allowed, so the MapLibre canvas and card stay exact. */}
+      <div ref={containerRef} className="h-full min-h-0 w-full" role="application" aria-label="My Area map" />
     </div>
   )
 })

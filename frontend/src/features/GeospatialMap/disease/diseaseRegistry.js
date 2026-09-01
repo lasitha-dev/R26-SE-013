@@ -78,7 +78,15 @@ export const DISEASE_REGISTRY = {
       [CAPABILITY.ANALYSIS_HISTORICAL]: true,
       [CAPABILITY.SPATIAL_CELLS]: true,
       [CAPABILITY.RISK_ZONES]: true,
-      [CAPABILITY.TRAJECTORY]: false,
+      // GEO-TRAJECTORY-01: confirmed live against the running backend
+      // (2026-09-01, `GET /analysis/{id}/cells?disease=lsd`) -- every real
+      // LSD origin's cells carry a real per-cell `direction.bearing_deg`
+      // (Checkpoint 8B.3, `DIRECTION_AVAILABLE`), and `nominal_reach_by_day`
+      // is real and non-zero for every day 1-7. This capability was
+      // previously left `false` even though `DIRECTION`/`NOMINAL_REACH`
+      // below were already `true` -- a stale gate, not a real backend
+      // limitation (see `ModeToolbar.jsx`).
+      [CAPABILITY.TRAJECTORY]: true,
       [CAPABILITY.DIRECTION]: true,
       [CAPABILITY.APPARENT_RATE]: true,
       [CAPABILITY.NOMINAL_REACH]: true,

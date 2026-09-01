@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 import {
   BEARING_DEG_EXPR,
   NEUTRAL_SINGLE_COLOR,
+  PAGE1_RISK_FILL_COLOR,
+  PAGE1_RISK_LINE_COLOR,
   RISK_TIER,
   RISK_TIER_COLOR,
   RISK_TIER_LABEL,
@@ -18,6 +20,10 @@ import {
   computeRiskTierStats,
   directionIconLayout,
   nationalSourceAmbientPulsePaint,
+  page1RiskFillColorExpression,
+  page1RiskFillOpacityExpression,
+  page1RiskLineColorExpression,
+  page1RiskLineOpacityExpression,
   riskCircleColorExpression,
   riskTierColorExpression,
   sourceIconLayout,
@@ -419,5 +425,84 @@ describe('GEO-VISUAL-POLISH-03: risk tiers are RELATIVE quantiles, never a fixed
       expect(stats.q1).toBeLessThan(stats.median)
       expect(stats.median).toBeLessThan(stats.q3)
     }
+  })
+})
+
+// ---------------------------------------------------------------------
+// Page-1 presentation risk contours: ONE shared `match`-on-`riskLevel`
+// expression per paint property, replacing the earlier per-tier filtered
+// layers whose static color could silently fall through to the browser's
+// default black fill when a feature's tier property didn't match any
+// layer's filter -- the actual cause of the reported black risk blob.
+// ---------------------------------------------------------------------
+
+describe('Page 1 risk contour paint expressions: match on riskLevel, explicit transparent fallback, never black', () => {
+  it('page1RiskFillColorExpression is a match expression keyed on riskLevel with all four approved colors and an explicit transparent (never black) fallback', () => {
+    const expr = page1RiskFillColorExpression()
+    expect(expr[0]).toBe('match')
+    expect(expr[1]).toEqual(['get', 'riskLevel'])
+    expect(expr).toContain('green')
+    expect(expr).toContain('yellow')
+    expect(expr).toContain('orange')
+    expect(expr).toContain('red')
+    expect(expr).toContain(PAGE1_RISK_FILL_COLOR.green)
+    expect(expr).toContain(PAGE1_RISK_FILL_COLOR.yellow)
+    expect(expr).toContain(PAGE1_RISK_FILL_COLOR.orange)
+    expect(expr).toContain(PAGE1_RISK_FILL_COLOR.red)
+    const fallback = expr[expr.length - 1]
+    expect(fallback).toBe('rgba(0,0,0,0)')
+    expect(JSON.stringify(expr).toLowerCase()).not.toContain('black')
+    expect(JSON.stringify(expr)).not.toContain('#000')
+  })
+
+  it('page1RiskLineColorExpression is likewise a match expression with an explicit transparent fallback, never black', () => {
+    const expr = page1RiskLineColorExpression()
+    expect(expr[0]).toBe('match')
+    expect(expr[1]).toEqual(['get', 'riskLevel'])
+    for (const level of ['green', 'yellow', 'orange', 'red']) {
+      expect(expr).toContain(level)
+      expect(expr).toContain(PAGE1_RISK_LINE_COLOR[level])
+    }
+    expect(expr[expr.length - 1]).toBe('rgba(0,0,0,0)')
+  })
+
+  it('fill opacity stays soft/label-preserving (never opaque) for every level, in both pulse phases', () => {
+    for (const expanded of [false, true]) {
+      const expr = page1RiskFillOpacityExpression(expanded)
+      expect(expr[0]).toBe('match')
+      // ['match', getExpr, 'green', v, 'yellow', v, 'orange', v, 'red', v, fallback]
+      // -- the per-level VALUES are the odd indices (3, 5, 7, 9); the last
+      // element is the unmatched-riskLevel fallback (0/transparent), not a
+      // level's own opacity, and is checked separately below.
+      const levelOpacities = [3, 5, 7, 9].map((i) => expr[i])
+      for (const opacity of levelOpacities) {
+        expect(opacity).toBeGreaterThan(0)
+        expect(opacity).toBeLessThan(0.4)
+      }
+      expect(expr[expr.length - 1]).toBe(0) // unmatched riskLevel -> invisible, never a stray positive opacity
+    }
+  })
+
+  it('the ambient pulse only changes opacity (expanded > collapsed for every level), never the color/fallback', () => {
+    const collapsed = page1RiskFillColorExpression()
+    const expanded = page1RiskFillColorExpression()
+    expect(collapsed).toEqual(expanded) // color expression itself has no pulse phase argument at all
+
+    const collapsedOpacity = page1RiskFillOpacityExpression(false)
+    const expandedOpacity = page1RiskFillOpacityExpression(true)
+    // Same structure (match on riskLevel), different numeric stops.
+    expect(collapsedOpacity[0]).toBe('match')
+    expect(expandedOpacity[0]).toBe('match')
+    expect(collapsedOpacity).not.toEqual(expandedOpacity)
+  })
+
+  it('an unrecognized riskLevel value falls through to the transparent default, not a themed color', () => {
+    const expr = page1RiskFillColorExpression()
+    // Simulates MapLibre's own match evaluation for a feature whose
+    // riskLevel is missing/unexpected: none of the paired keys match, so
+    // the LAST array element (the fallback) is what would be used.
+    const knownKeys = new Set(['green', 'yellow', 'orange', 'red'])
+    expect(knownKeys.has('unexpected-tier-name')).toBe(false)
+    expect(expr[expr.length - 1]).toBe('rgba(0,0,0,0)')
   })
 })

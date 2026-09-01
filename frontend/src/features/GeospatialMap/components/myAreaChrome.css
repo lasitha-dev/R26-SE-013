@@ -41,3 +41,25 @@
 .my-area-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.55);
 }
+
+.my-area-timeline {
+  background: linear-gradient(145deg, rgba(14, 21, 17, 0.94), rgba(25, 34, 29, 0.88));
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+.my-area-timeline-track {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.my-area-timeline-track::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .my-area-timeline {
+    gap: 0.375rem;
+    padding-inline: 0.375rem;
+  }
+}

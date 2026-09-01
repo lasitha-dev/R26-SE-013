@@ -1,96 +1,88 @@
 import React from 'react'
 
-import { addDaysToIsoDate, forecastDayLabel, formatDisplayDate } from '../adapters/forecastDate'
-import { LABEL_FORECAST_D0, MY_AREA_NOMINAL_REACH_DISCLAIMER } from '../semanticLabels'
+import { AREA_RISK_COLORS } from '../adapters/myAreaPresentationForecast'
+import { formatDisplayDate } from '../adapters/forecastDate'
 
-/**
- * GEO-MY-AREA-VISUAL-QA-REBUILD: the "Future Risk Outlook" card from the
- * reference composition, rebuilt on the real backend contract instead of
- * the screenshot's mock day-over-day risk bars.
- *
- * Traced (`lsdOutbreakAdapter.js::buildForecastFrame`): the only field
- * that genuinely varies by day in the current runtime is nominal reach
- * (`nominal_reach_by_day`) -- `riskSurface`/`cells` are the SAME
- * FeatureCollection reused across every day frame for an origin ("the
- * backend has no day-varying risk surface yet"). Turning that into a
- * day-by-day RISK chart would fabricate a value the backend does not
- * produce, so this renders the real, honestly-named concept instead:
- * nominal reach in real km per real forecast day, using the exact values
- * `nominal_reach_by_day` already supplies -- never a derived risk tier.
- *
- * GEO-MY-AREA-LAYOUT-BALANCE: the empty/no-selection state is a compact
- * ~112px body (the requested ~100-130px band, not a large standalone
- * block) -- it only grows to the requested ~180-240px band once a real
- * per-day chart actually has data to show. Never scrolls internally
- * (Section 13 of the rebalance).
- */
-export default function MyAreaTemporalOutlook({
-  areaLabel,
-  selectedDay,
-  onSelectDay,
-  t0 = null,
-  availableDays = [0],
-  nominalReachByDay = [],
-  disabled = false,
-}) {
-  const reachByDay = new Map(nominalReachByDay.map((entry) => [entry.day, entry.nominal_reach_km]))
-  const maxReachKm = Math.max(0, ...nominalReachByDay.map((entry) => entry.nominal_reach_km ?? 0))
-  const hasForecast = availableDays.length > 1
+const RISK_HEIGHT = { low: 31, moderate: 46, elevated: 60, high: 72 }
+const RISK_FILL_COLOR = {
+  low: AREA_RISK_COLORS.green,
+  moderate: AREA_RISK_COLORS.yellow,
+  elevated: AREA_RISK_COLORS.orange,
+  high: AREA_RISK_COLORS.red,
+}
+const UNREVEALED_HEIGHT_PERCENT = 6
+const UNREVEALED_FILL_COLOR = 'rgba(148, 163, 184, 0.16)'
+const LABELLED_INDEXES = new Set([0, 2, 4, 6, 8, 10, 13])
 
+function compactDate(date) {
+  const [, month, day] = date.split('-')
+  return `${day} ${month === '09' ? 'SEP' : month}`
+}
+
+/** Qualitative presentation outlook driven by the same activeIndex and
+ * risk sequence as the map. A Sep date's color and risk label only reveal
+ * once the timeline reaches it -- future frames render as a dark neutral
+ * placeholder so the chart never exposes risk information ahead of
+ * playback, and seeking backward re-hides any later frame. The bar for a
+ * newly revealed frame softly grows/fills via a CSS transition on its own
+ * height value; already-revealed bars never change again, so nothing
+ * re-animates on later ticks. */
+export default function MyAreaTemporalOutlook({ areaLabel = 'Matara', activeIndex, onSelectIndex, frames = [], disabled = false }) {
   return (
-    <div className="rounded-xl border border-outline-variant/30 bg-surface-container/70 p-3 shadow-card-subtle">
+    <section className="rounded-xl border border-outline-variant/30 bg-surface-container/70 p-3 shadow-card-subtle" aria-labelledby="future-risk-outlook-title">
       <div className="flex items-center justify-between gap-2">
-        <div className="truncate text-sm font-semibold text-on-surface" title={`Nominal Reach Outlook${areaLabel ? ` — ${areaLabel}` : ''}`}>
-          Nominal Reach Outlook{areaLabel ? ` — ${areaLabel}` : ''}
+        <div id="future-risk-outlook-title" className="truncate text-sm font-semibold text-on-surface" title={`Future Risk Outlook — ${areaLabel}`}>
+          Future Risk Outlook — {areaLabel}
         </div>
-        {hasForecast && <div className="shrink-0 text-[10px] font-mono uppercase tracking-wide text-on-surface-variant/50">D0 – D+{Math.max(...availableDays)}</div>}
+        <div className="shrink-0 text-[10px] font-mono uppercase tracking-wide text-on-surface-variant/50">14 Sep-date frames</div>
       </div>
 
-      {!hasForecast ? (
-        <div className="mt-2 flex h-[112px] items-center justify-center rounded-lg border border-outline-variant/20 bg-surface-container-lowest/40 px-3 text-center text-xs text-on-surface-variant/70" role="status">
-          {disabled ? 'Select a relevant origin to see its real nominal-reach horizon.' : 'No time-varying forecast frames are available for this selection.'}
-        </div>
-      ) : (
-        <div className="mt-2 flex items-end gap-1.5" role="group" aria-label="Nominal reach by forecast day">
-          {availableDays.map((day) => {
-            const active = day === selectedDay
-            const reachKm = reachByDay.get(day) ?? null
-            const heightPct = day === 0 || reachKm === null || maxReachKm === 0 ? 0 : Math.max(8, (reachKm / maxReachKm) * 100)
-            const dateLabel = t0 ? formatDisplayDate(addDaysToIsoDate(t0, day)) : null
-            return (
-              <button
-                key={day}
-                type="button"
-                disabled={disabled}
-                aria-pressed={active}
-                title={day === 0 ? LABEL_FORECAST_D0 : dateLabel ?? undefined}
-                onClick={() => onSelectDay(day)}
-                className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-md p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
-              >
-                <div className="text-[9.5px] font-mono text-on-surface-variant/70">{day === 0 ? '—' : `${reachKm != null ? reachKm.toFixed(1) : '—'}km`}</div>
-                <div className="flex h-14 w-full items-end overflow-hidden rounded bg-surface-container-lowest/50">
-                  {day === 0 ? (
-                    <div className="h-1 w-full bg-on-surface-variant/30" />
-                  ) : (
-                    <div
-                      className={active ? 'w-full rounded-t bg-primary' : 'w-full rounded-t bg-teal-500/50'}
-                      style={{ height: `${heightPct}%` }}
-                    />
-                  )}
-                </div>
-                <div className={active ? 'rounded-md bg-primary/20 px-1.5 py-0.5 text-[10.5px] font-medium text-primary' : 'px-1.5 py-0.5 text-[10.5px] font-medium text-on-surface-variant'}>
-                  {forecastDayLabel(day)}
-                </div>
-                {dateLabel && <div className="text-[9px] text-on-surface-variant/50">{dateLabel}</div>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="mt-2 truncate text-[10px] text-on-surface-variant/50" title={MY_AREA_NOMINAL_REACH_DISCLAIMER}>
-        {MY_AREA_NOMINAL_REACH_DISCLAIMER}
+      <div className="mt-3 grid h-[154px] items-end gap-1" style={{ gridTemplateColumns: `repeat(${frames.length || 1}, minmax(0, 1fr))` }} role="group" aria-label="Matara qualitative risk by Sep date">
+        {frames.map((frame, index) => {
+          const active = index === activeIndex
+          const revealed = index <= activeIndex
+          const label = compactDate(frame.date)
+          const riskLabel = frame.riskLevel.toUpperCase()
+          const ariaLabel = revealed
+            ? `${formatDisplayDate(frame.date)} - ${riskLabel} district risk`
+            : `${formatDisplayDate(frame.date)} - not yet revealed`
+          return (
+            <button
+              key={frame.date}
+              type="button"
+              disabled={disabled}
+              aria-label={ariaLabel}
+              aria-current={active ? 'date' : undefined}
+              onClick={() => onSelectIndex(index)}
+              className={active ? 'group flex h-full min-w-0 flex-col items-center justify-end gap-1 rounded-md border border-primary/70 bg-primary/[0.06] px-0.5 pb-1 shadow-[0_0_12px_rgba(78,222,163,0.16)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary' : 'group flex h-full min-w-0 flex-col items-center justify-end gap-1 rounded-md border border-transparent px-0.5 pb-1 hover:bg-white/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'}
+            >
+              <span className={active ? 'text-[8px] font-bold text-primary' : 'text-[8px] font-semibold text-on-surface-variant/55'}>{revealed ? riskLabel : ' '}</span>
+              <span className="flex h-[96px] w-full items-end overflow-hidden rounded-sm bg-surface-container-lowest/55">
+                <span
+                  className="block w-full rounded-t-sm transition-[height,background-color,filter] duration-[350ms] ease-out group-hover:brightness-110"
+                  style={{
+                    height: `${revealed ? RISK_HEIGHT[frame.riskLevel] : UNREVEALED_HEIGHT_PERCENT}%`,
+                    backgroundColor: revealed ? RISK_FILL_COLOR[frame.riskLevel] : UNREVEALED_FILL_COLOR,
+                  }}
+                />
+              </span>
+              <span className={active ? 'min-h-[18px] text-center text-[8px] font-bold leading-tight text-primary' : 'min-h-[18px] text-center text-[8px] font-semibold leading-tight text-on-surface-variant/55'}>
+                {LABELLED_INDEXES.has(index) ? label : ' '}
+              </span>
+            </button>
+          )
+        })}
       </div>
-    </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9.5px] text-on-surface-variant/65">
+        {[
+          ['Low', AREA_RISK_COLORS.green],
+          ['Moderate', AREA_RISK_COLORS.yellow],
+          ['Elevated', AREA_RISK_COLORS.orange],
+          ['High', AREA_RISK_COLORS.red],
+        ].map(([label, color]) => <span key={label} className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: color }} />{label}</span>)}
+        <span className="ml-auto">Qualitative presentation outlook - no probability</span>
+      </div>
+    </section>
   )
 }
