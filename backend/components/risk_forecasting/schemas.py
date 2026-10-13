@@ -339,9 +339,9 @@ class ForecastDecisionRecord(BaseModel):
         default="GENERATED",
         description="Forecast decision record lifecycle status."
     )
-    trigger_type: Literal["MANUAL", "SCHEDULED"] = Field(
+    trigger_type: Literal["MANUAL", "SCHEDULED", "BACKFILL"] = Field(
         default="MANUAL",
-        description="Trigger type for record generation."
+        description="Trigger type for record generation. BACKFILL marks a forecast issued after its target month began to be over (retrospective, not a prospective forecast)."
     )
     generated_by: Optional[str] = Field(default=None, description="Optional actor/user reference ID.")
     disclaimer: str = Field(..., description="Mandatory scientific disclaimer for model prediction.")
@@ -352,8 +352,10 @@ class ForecastDecisionRecord(BaseModel):
     # v2 forecast provenance (absent on v1 records)
     model_version: Optional[str] = Field(default=None, description="Versioned model artifact, e.g. 'fmd_v2.0'.")
     forecaster: Optional[str] = Field(default=None, description="Deployed forecaster: model variant ('A', 'S') or 'climatology'.")
-    deployment_status: Optional[str] = Field(default=None, description="'validated', 'exploratory' or 'baseline' (see model card).")
-    issue_date: Optional[str] = Field(default=None, description="Nominal issue date (day 5 of the target month).")
+    deployment_status: Optional[str] = Field(default=None, description="'back_tested' (beat the baseline in rolling back-testing, not yet confirmed on future data), 'exploratory' or 'baseline' (see model card).")
+    issue_date: Optional[str] = Field(default=None, description="Actual UTC date this record was generated (YYYY-MM-DD).")
+    data_cutoff: Optional[str] = Field(default=None, description="Last day of the most recent month whose observations were used (YYYY-MM-DD).")
+    retrospective: Optional[bool] = Field(default=None, description="True when generated after the target month ended; such a record is not a prospective forecast.")
     baseline_probability: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="District-month climatological outbreak probability.")
     relative_risk: Optional[float] = Field(default=None, ge=0.0, description="probability / baseline_probability.")
     input_quality: Optional[str] = Field(default=None, description="'COMPLETE' or 'DEGRADED' (missing climate inputs).")

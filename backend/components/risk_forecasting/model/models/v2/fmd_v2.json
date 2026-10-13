@@ -332,7 +332,7 @@
     "surveillance_known": {
       "forecaster": "A",
       "C": 0.01,
-      "status": "validated"
+      "status": "back_tested"
     },
     "surveillance_unknown": {
       "forecaster": "climatology",

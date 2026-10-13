@@ -244,12 +244,12 @@ def decide(ev):
     it is not worse than persistence on average.
 
     Surveillance known:
-      1. Pre-specified primary variant A passes  -> deploy A, status "validated".
+      1. Pre-specified primary variant A passes  -> deploy A, status "back_tested".
       2. Else the prequential A/S forecaster passes -> deploy its final configuration,
          status "exploratory" (variant S was added after the first evaluation run, so it
          needs prospective confirmation).
       3. Else climatology, status "baseline".
-    Surveillance unknown: variant B if it passes ("validated"), else climatology.
+    Surveillance unknown: variant B if it passes ("back_tested"), else climatology.
     """
     def ok(name):
         clim = ev["bootstrap_pr_auc"][f"model_{name}_minus_climatology"]
@@ -264,12 +264,12 @@ def decide(ev):
     final = ev["final_configuration"]
     baseline = {"forecaster": "climatology", "C": None, "status": "baseline"}
     if ok("A"):
-        known = config(final["primary_A"], "validated")
+        known = config(final["primary_A"], "back_tested")
     elif ok("known"):
         known = config(final["surveillance_known"], "exploratory")
     else:
         known = baseline
-    unknown = config(final["surveillance_unknown"], "validated") if ok("unknown") else baseline
+    unknown = config(final["surveillance_unknown"], "back_tested") if ok("unknown") else baseline
     return {"surveillance_known": known, "surveillance_unknown": unknown}
 
 

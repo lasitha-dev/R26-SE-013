@@ -53,9 +53,17 @@ a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400
 
 ## Reading a forecast record
 
-- `forecaster` / `deployment_status`: which model produced it and how far it is validated.
+- `forecaster` / `deployment_status`: which model produced it and its evidence level (`back_tested` = beat the baseline in rolling back-testing but not yet confirmed on future data; `exploratory`; `baseline`).
   `climatology` + `baseline` means surveillance for the district or its neighbours was unknown, so the
   district's historical rate is shown — it is never a disguised model output.
+- `issue_date` is the real UTC date the record was generated; `data_cutoff` is the last day of the
+  newest month of observations used. The "day 5" in this guide is only the intended schedule.
+- `trigger_type: BACKFILL` / `retrospective: true` mean the record was generated after its target
+  month had ended. It is kept for completeness but is **not a prospective forecast**; `GET /v2/performance`
+  reports such records separately (`retrospective_scored`) and they must not be quoted as live skill.
+- A `climatology` record is the district's usual rate for the month, so its `relative_risk` is 1.0 and its
+  stored `risk_level` is always LOW by construction. The UI shows it as **BASELINE** ("no elevated signal
+  assessed"), never as an assessed LOW RISK, and it is not counted in the LOW tier summary.
 - `relative_risk` = probability ÷ `baseline_probability` (usual rate for that district and month).
   LOW < 2×, MEDIUM ≥ 2×, HIGH ≥ 4× (or probability ≥ 50%).
 - `previous_month_observation`: verified cases, deaths and observed severity (cases + 10 × deaths;

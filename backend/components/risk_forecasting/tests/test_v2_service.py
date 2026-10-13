@@ -4,7 +4,7 @@ Deliberately does NOT import routes/core.database (endpoint tests live in test_v
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from bson import ObjectId
@@ -189,10 +189,10 @@ def no_dependents(_forecast_id):
     return {"advisories": 0, "follow_ups": 0}
 
 
-def make_service(repo, dependency_counter=no_dependents):
+def make_service(repo, dependency_counter=no_dependents, clock=None):
     counter = iter(range(10_000))
     return ForecastV2Service(repository_getter=lambda: repo, app_db_factory=fake_app_db,
-                             sources_builder=fake_sources_builder,
+                             sources_builder=fake_sources_builder, clock=clock,
                              id_generator=lambda: f"fdr_test{next(counter):05d}",
                              dependency_counter=dependency_counter)
 
@@ -220,6 +220,49 @@ def test_forecast_period_builds_one_record_per_district_with_provenance():
     assert r.idempotency_key == "v2|FMD|Anuradhapura|2026-10|fmd_v2.0"
     assert r.input_quality == "COMPLETE"
     assert r.predicted_severity is None
+
+
+def test_record_carries_the_real_issue_date_and_data_cutoff():
+    clock = lambda: datetime(2026, 10, 17, 9, 30, tzinfo=timezone.utc)  # noqa: E731
+    records = make_service(InMemoryForecastRecordRepository(), clock=clock).forecast_period(2026, 10, ["FMD"])
+    assert {r.issue_date for r in records} == {"2026-10-17"}  # not the nominal day 5
+    assert {r.data_cutoff for r in records} == {"2026-09-30"}
+    assert {r.retrospective for r in records} == {False}
+    assert {r.trigger_type for r in records} == {"MANUAL"}
+
+
+def test_cutoff_crosses_year_and_leap_boundaries():
+    clock = lambda: datetime(2024, 3, 6, tzinfo=timezone.utc)  # noqa: E731
+    svc = make_service(InMemoryForecastRecordRepository(), clock=clock)
+    assert svc.forecast_period(2024, 3, ["LSD"])[0].data_cutoff == "2024-02-29"
+    clock_jan = lambda: datetime(2025, 1, 6, tzinfo=timezone.utc)  # noqa: E731
+    svc = make_service(InMemoryForecastRecordRepository(), clock=clock_jan)
+    assert svc.forecast_period(2025, 1, ["LSD"])[0].data_cutoff == "2024-12-31"
+
+
+def test_late_runs_are_labelled_backfill_and_retrospective():
+    clock = lambda: datetime(2026, 10, 13, tzinfo=timezone.utc)  # noqa: E731
+    repo = InMemoryForecastRecordRepository()
+    service = make_service(repo, clock=clock)
+    late = service.forecast_period(2026, 9, ["FMD"], trigger_type="SCHEDULED")
+    assert {r.trigger_type for r in late} == {"BACKFILL"}  # overrides the requested trigger
+    assert {r.retrospective for r in late} == {True}
+    assert {r.issue_date for r in late} == {"2026-10-13"}
+    # A run during the target month, or in advance of it, is not retrospective.
+    assert {r.retrospective for r in service.forecast_period(2026, 10, ["FMD"])} == {False}
+    assert {r.retrospective for r in service.forecast_period(2026, 11, ["FMD"])} == {False}
+
+
+def test_performance_separates_retrospective_from_prospective_scores():
+    clock_prospective = lambda: datetime(2026, 9, 10, tzinfo=timezone.utc)  # noqa: E731
+    repo = InMemoryForecastRecordRepository()
+    make_service(repo, clock=clock_prospective).generate_period(2026, 9, ["FMD"])
+    fmd = make_service(repo).performance(as_of=datetime(2026, 11, 13))["diseases"]["FMD"]
+    assert fmd["scored"] > 0 and fmd["retrospective_scored"] == 0
+    backfill_repo = InMemoryForecastRecordRepository()
+    make_service(backfill_repo, clock=lambda: datetime(2026, 10, 13, tzinfo=timezone.utc)).generate_period(2026, 9, ["FMD"])
+    fmd = make_service(backfill_repo).performance(as_of=datetime(2026, 11, 13))["diseases"]["FMD"]
+    assert fmd["retrospective_scored"] == fmd["scored"] > 0
 
 
 def test_lsd_january_2025_uses_surveillance_model_from_curated_labels():

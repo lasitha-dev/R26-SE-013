@@ -15,6 +15,7 @@ saved. Records are never deleted.
 
 from __future__ import annotations
 
+import calendar
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -93,8 +94,15 @@ class ForecastV2Service:
     def forecast_period(self, year: int, month: int, diseases: Iterable[str] = ("FMD", "LSD"),
                         generated_by: Optional[str] = None, trigger_type: str = "MANUAL") -> List[ForecastDecisionRecord]:
         """Compute (not persist) v2 forecasts for every district for the target month."""
-        now = self.clock().isoformat()
+        issued_at = self.clock()
+        now = issued_at.isoformat()
         prev = shift((year, month), -1)
+        # A forecast issued after its target month has ended is retrospective: it is labelled
+        # BACKFILL and never presented (or scored) as a prospective forecast.
+        retrospective = (issued_at.year, issued_at.month) > (year, month)
+        if retrospective:
+            trigger_type = "BACKFILL"
+        data_cutoff = f"{prev[0]:04d}-{prev[1]:02d}-{calendar.monthrange(prev[0], prev[1])[1]:02d}"
         records: List[ForecastDecisionRecord] = []
         for disease in diseases:
             disease = disease.upper()
@@ -139,7 +147,9 @@ class ForecastV2Service:
                     model_version=prediction.model_version,
                     forecaster=prediction.forecaster,
                     deployment_status=prediction.deployment_status,
-                    issue_date=f"{year:04d}-{month:02d}-05",
+                    issue_date=issued_at.date().isoformat(),
+                    data_cutoff=data_cutoff,
+                    retrospective=retrospective,
                     baseline_probability=round(prediction.baseline_probability, 6),
                     relative_risk=round(prediction.relative_risk, 3),
                     input_quality="DEGRADED" if climate_missing else "COMPLETE",
@@ -176,7 +186,7 @@ class ForecastV2Service:
             provider = providers.setdefault(record.disease, self._surveillance(record.disease))
             observation = provider.month(record.target_year, record.target_month)[record.district]
             stats = summary["diseases"].setdefault(record.disease, {
-                "scored": 0, "outbreaks": 0, "alerts": 0, "hits": 0, "missed_outbreaks": 0,
+                "scored": 0, "retrospective_scored": 0, "outbreaks": 0, "alerts": 0, "hits": 0, "missed_outbreaks": 0,
                 "false_alarms": 0, "brier_sum": 0.0, "unscored_by_status": {}, "scored_by_forecaster": {},
             })
             outcome = observation.outbreak
@@ -185,6 +195,7 @@ class ForecastV2Service:
                 continue
             alert = record.risk_level in ("MEDIUM", "HIGH")
             stats["scored"] += 1
+            stats["retrospective_scored"] += int(bool(record.retrospective))  # backfilled: not a prospective test
             stats["outbreaks"] += outcome
             stats["alerts"] += int(alert)
             stats["hits"] += int(alert and outcome == 1)

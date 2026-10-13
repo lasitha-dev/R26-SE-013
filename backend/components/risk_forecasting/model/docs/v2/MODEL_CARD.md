@@ -99,7 +99,7 @@ Per year (prequential forecaster): 2023 0.312, **2024 0.021** (only 5 outbreak m
 
 | Disease | Surveillance status known | Surveillance status unknown |
 |---|---|---|
-| FMD | Variant **A**, C = 0.01 — **validated** | Climatology — baseline |
+| FMD | Variant **A**, C = 0.01 — **back-tested candidate** | Climatology — baseline |
 | LSD | Variant **S**, C = 0.01 — **exploratory** | Climatology — baseline |
 
 "Surveillance known" means the outbreak status of the district **and all its neighbours** for t-1
@@ -115,7 +115,7 @@ registered farms; elsewhere status is unknown and the climatology forecast is sh
 3. **Run 3:** replaced single-year selection with **prequential** selection (each month uses only
    earlier months) to reduce selection noise.
 4. **Run 4 (final):** fixed the deployment protocol: the pre-specified primary A is preferred when it
-   passes ("validated"); otherwise the prequential A/S forecaster may be deployed as "exploratory".
+   passes ("back_tested"); otherwise the prequential A/S forecaster may be deployed as "exploratory".
    Because S was introduced after evaluation results were seen, LSD's deployed model is exploratory
    and needs prospective confirmation.
 
