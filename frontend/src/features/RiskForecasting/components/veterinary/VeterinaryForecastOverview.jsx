@@ -87,6 +87,12 @@ function formatIsoDate(isoStr) {
   }
 }
 
+function formatDataAgeMonths(months) {
+  if (months === undefined || months === null) return 'Not available';
+  const unit = months === 1 ? 'month' : 'months';
+  return `${months} ${unit}`;
+}
+
 /**
  * Veterinary Forecast Overview Component.
  *
@@ -188,7 +194,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     setExplanationData(null);
 
     try {
-      // Live API call to the actual prediction endpoint for SHAP explainability
+      // Live API call to the prediction endpoint for its linear log-odds feature contributions
       const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
       const endpoint = `${API_BASE}/api/v1/risk-forecasting/predict/${diseaseCode.toLowerCase()}`;
       
@@ -211,7 +217,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       const data = await res.json();
       setExplanationData(data);
     } catch (err) {
-      setExplanationError(err.message || 'Unable to generate SHAP breakdown at this moment.');
+      setExplanationError(err.message || 'Unable to generate the feature contribution breakdown at this moment.');
     } finally {
       setExplainingDisease(null);
     }
@@ -293,7 +299,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 Predicted Severity
               </span>
               <span className="text-sm font-semibold text-on-surface mt-1 block">
-                {record.predicted_severity || 'Not available'}
+                {record.predicted_severity || 'Not evaluated'}
               </span>
             </div>
           </div>
@@ -320,12 +326,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               </dd>
             </div>
             <div>
-              <dt className="text-on-surface-variant">Proxy Data Age:</dt>
-              <dd className="text-on-surface">
-                {record.proxy_data_age_days !== undefined && record.proxy_data_age_days !== null
-                  ? `${record.proxy_data_age_days} days`
-                  : 'Not available'}
-              </dd>
+              <dt className="text-on-surface-variant">Input Data Age:</dt>
+              <dd className="text-on-surface">{formatDataAgeMonths(record.data_age_months)}</dd>
             </div>
           </dl>
 
@@ -445,7 +447,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </section>
       )}
 
-      {/* SHAP Explanation Block */}
+      {/* Feature Contribution Explanation Block */}
       {explanationError && (
         <div role="alert" className="p-4 bg-error-container/20 border border-error/30 rounded-xl text-error text-sm flex items-center gap-3">
           <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
@@ -460,8 +462,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
           <div className="flex items-center gap-3">
              <span className="material-symbols-outlined text-primary text-3xl" aria-hidden="true">psychology</span>
              <div>
-               <h3 className="text-lg font-bold text-on-surface">SHAP Explainability Breakdown — {explanationData.disease}</h3>
-               <p className="text-xs text-on-surface-variant font-medium">Live model feature contributions ({explanationData.explanation_info.method || 'Log-Odds Decomposition'})</p>
+               <h3 className="text-lg font-bold text-on-surface">Feature Contribution Breakdown — {explanationData.disease}</h3>
+               <p className="text-xs text-on-surface-variant font-medium">
+                 Linear log-odds contributions recomputed by the live model ({explanationData.explanation_info.method || 'Log-Odds Decomposition'}). Not SHAP values; may differ from the stored record if inputs have changed since it was generated.
+               </p>
              </div>
           </div>
           <p className="text-xs text-on-surface-variant max-w-3xl">

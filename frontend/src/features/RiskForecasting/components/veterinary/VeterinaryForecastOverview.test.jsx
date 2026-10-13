@@ -66,7 +66,7 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
       fallback_applied: true,
       source_year: 2024,
       source_month: 12,
-      proxy_data_age_days: 14,
+      data_age_months: 12,
     };
 
     const lsdRecordFixture = {
@@ -85,7 +85,7 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
       fallback_applied: false,
       source_year: 2025,
       source_month: 1,
-      proxy_data_age_days: null,
+      data_age_months: 0,
     };
 
     workflowApi.listForecastRecords.mockImplementation(({ disease }) => {
@@ -103,6 +103,12 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(screen.getByText(/HIGH RISK/i)).toBeInTheDocument();
     expect(screen.getByText(/LOW RISK/i)).toBeInTheDocument();
     expect(screen.getByText(/Forecast decision records are immutable statistical early-warning estimates/i)).toBeInTheDocument();
+
+    // Input age comes from the persisted data_age_months field; un-evaluated severity is labelled honestly
+    expect(screen.getByText('12 months')).toBeInTheDocument();
+    expect(screen.getByText('0 months')).toBeInTheDocument();
+    expect(screen.getByText('Not evaluated')).toBeInTheDocument();
+    expect(screen.queryByText(/SHAP/)).not.toBeInTheDocument();
   });
 
   it('renders the overview disclaimer section with health_and_safety and no biomedical identifier', async () => {
