@@ -5,6 +5,7 @@ import {
   validateViewerContext,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
+import { describeProvenance, isV2Record } from '../forecastPresentation';
 import {
   listForecastRecords,
   listAdvisories,
@@ -28,7 +29,9 @@ const DATA_QUALITY_LABELS = {
   'EXACT_REQUESTED_PERIOD': 'Exact Period Match',
   'HISTORICAL_SAME_MONTH_PROXY': 'Historical Proxy',
   'DISTRICT_HISTORICAL_MEDIAN': 'District Median',
-  'NATIONAL_HISTORICAL_MEDIAN': 'National Baseline'
+  'NATIONAL_HISTORICAL_MEDIAN': 'National Baseline',
+  'V2_MODEL': 'v2 Model Inputs',
+  'V2_BASELINE': 'Historical Baseline'
 };
 
 function getDataQualityColor(quality) {
@@ -723,7 +726,9 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                   <div className="flex flex-wrap items-center justify-between text-slate-400 gap-2 text-[11px]">
                     <span>Model: <strong className="text-slate-300">{MODEL_VARIANT_LABELS[selectedForecastRecord.model_variant] || selectedForecastRecord.model_variant}</strong></span>
                     <span>Data Quality: <strong className={getDataQualityColor(selectedForecastRecord.data_quality)}>{DATA_QUALITY_LABELS[selectedForecastRecord.data_quality] || selectedForecastRecord.data_quality}</strong></span>
-                    <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>
+                    {isV2Record(selectedForecastRecord)
+                      ? <span>Source: <strong className="text-slate-300">{describeProvenance(selectedForecastRecord)}</strong></span>
+                      : <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>}
                   </div>
 
                   <div className="p-2.5 bg-slate-950/80 rounded border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">

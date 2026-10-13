@@ -2,7 +2,7 @@
  * Shared, honest presentation of forecast records (v2 and legacy v1).
  *
  * v2 records carry `model_version`, `forecaster` ('A' | 'S' | 'B' | 'climatology') and
- * `deployment_status` ('validated' | 'exploratory' | 'baseline'); see the v2 model card.
+ * `deployment_status` ('back_tested' | 'exploratory' | 'baseline'); see the v2 model card.
  */
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -38,14 +38,34 @@ export function describeForecastSource(record) {
       };
     }
     return {
-      label: 'Validated model',
-      tone: 'validated',
-      title: 'Model beat historical baseline and persistence in back-testing (see model card).',
+      label: 'Back-tested candidate',
+      tone: 'backtested',
+      title: 'Model beat the historical baseline in rolling back-testing. It has not yet been confirmed on future data (see model card).',
     };
   }
   return record.fallback_applied
     ? { label: 'v1 · proxy inputs', tone: 'legacy', title: `Legacy v1 record using historical proxy inputs (${record.data_quality || 'unknown'}).` }
     : { label: 'v1 · exact inputs', tone: 'legacy', title: `Legacy v1 record (${record.data_quality || 'unknown'}).` };
+}
+
+/**
+ * A climatology record is the district's usual rate, not a model output: its relative risk is 1.0 by
+ * construction, so a "LOW RISK" label would wrongly read as an assessment that risk is low.
+ */
+export function isBaselineRecord(record) {
+  return isV2Record(record) && record.forecaster === 'climatology';
+}
+
+export const BASELINE_BADGE = Object.freeze({
+  label: 'BASELINE',
+  class: 'bg-slate-800 text-slate-300 border-slate-600/40',
+  title: 'Seasonal baseline for this district and month. No elevated signal was assessed; this is not a model forecast.',
+});
+
+/** Provenance text for lists and detail panels: honest for v2 records, unchanged wording for v1. */
+export function describeProvenance(record) {
+  if (isV2Record(record)) return describeForecastSource(record).label;
+  return record?.fallback_applied ? 'Fallback Proxy Applied' : 'Exact Period';
 }
 
 export function formatRelativeRisk(relativeRisk) {

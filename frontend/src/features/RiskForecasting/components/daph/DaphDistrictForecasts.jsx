@@ -9,7 +9,7 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { describePreviousMonth, formatRelativeRisk, isActiveRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -24,7 +24,8 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-function getRiskBadge(riskLevel) {
+function getRiskBadge(riskLevel, record) {
+  if (isBaselineRecord(record)) return BASELINE_BADGE;
   const norm = (riskLevel || '').toUpperCase();
   switch (norm) {
     case 'HIGH':
@@ -322,7 +323,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
         !loading && !error && displayRecords.length > 0 && (
           <div className="grid grid-cols-1 gap-4">
             {displayRecords.map(r => {
-              const badge = getRiskBadge(r.risk_level);
+              const badge = getRiskBadge(r.risk_level, r);
               return (
                 <div key={r.district + r.disease} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow flex flex-col md:flex-row gap-6">
                   <div className="flex-1 space-y-3">

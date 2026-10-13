@@ -19,7 +19,7 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { describePreviousMonth, formatRelativeRisk, isActiveRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
@@ -455,11 +455,13 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     let highRisk = 0;
     let mediumRisk = 0;
     let lowRisk = 0;
+    let baselineOnly = 0;
     const fallbackAppliedCount = dbRecords.filter((r) => r.fallback_applied).length;
 
     dbRecords.forEach((r) => {
       if (r.risk_level === 'HIGH') highRisk++;
       else if (r.risk_level === 'MEDIUM') mediumRisk++;
+      else if (isBaselineRecord(r)) baselineOnly++; // seasonal baseline, not an assessed LOW tier
       else if (r.risk_level === 'LOW') lowRisk++;
     });
 
@@ -490,6 +492,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       highRisk,
       mediumRisk,
       lowRisk,
+      baselineOnly,
       fallbackAppliedCount,
       missingCount,
       missingLabel,
@@ -885,6 +888,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           <span className="text-xs text-emerald-300 font-medium block">LOW Risk Districts</span>
           <span className="text-2xl font-bold text-emerald-400 mt-1 block">{summaryMetrics.lowRisk}</span>
           <span className="text-[10px] text-emerald-500">Routine surveillance</span>
+          {summaryMetrics.baselineOnly > 0 && (
+            <span className="block text-[10px] text-slate-400 mt-0.5">
+              {summaryMetrics.baselineOnly} more show the seasonal baseline only (no elevated signal assessed)
+            </span>
+          )}
         </div>
 
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
@@ -956,7 +964,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   const globalRank = offset + idx + 1;
                   const isHigh = row.risk_level === 'HIGH';
                   const isMedium = row.risk_level === 'MEDIUM';
-                  const isLow = row.risk_level === 'LOW';
+                  const isBaseline = Boolean(row.record) && isBaselineRecord(row.record);
+                  const isLow = row.risk_level === 'LOW' && !isBaseline;
                   const isMissing = row.isMissingRecord;
 
                   return (
@@ -982,7 +991,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-bold">
                         {row.probability != null ? (
-                          <span className={isHigh ? 'text-rose-400' : isMedium ? 'text-amber-400' : 'text-emerald-400'}>
+                          <span className={isHigh ? 'text-rose-400' : isMedium ? 'text-amber-400' : isBaseline ? 'text-slate-300' : 'text-emerald-400'}>
                             {(row.probability * 100).toFixed(1)}%
                             {formatRelativeRisk(row.record?.relative_risk) && (
                               <span className="block text-[10px] font-medium text-slate-400">{formatRelativeRisk(row.record.relative_risk)}</span>
@@ -993,7 +1002,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        {isHigh ? (
+                        {isBaseline ? (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${BASELINE_BADGE.class}`} title={BASELINE_BADGE.title}>
+                            {BASELINE_BADGE.label}
+                          </span>
+                        ) : isHigh ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
                             HIGH
                           </span>
@@ -1179,7 +1192,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                       </div>
                       <div>
                         <span className="text-slate-500 block">Authoritative Risk Tier</span>
-                        <span className="font-semibold text-white">{selectedDetailRow.record.risk_level}</span>
+                        <span className="font-semibold text-white">
+                          {isBaselineRecord(selectedDetailRow.record) ? 'Baseline (no elevated signal assessed)' : selectedDetailRow.record.risk_level}
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-500 block">Predicted Severity</span>
@@ -1199,7 +1214,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                       </div>
                       {selectedDetailRow.record.fallback_applied && (
                         <div className="col-span-2">
-                          <span className="text-slate-400 italic">Historical proxy data used</span>
+                          <span className="text-slate-400 italic">
+                            {isV2Record(selectedDetailRow.record) ? 'Historical baseline (no model features applied)' : 'Historical proxy data used'}
+                          </span>
                         </div>
                       )}
                       {selectedDetailRow.record.source_year && (

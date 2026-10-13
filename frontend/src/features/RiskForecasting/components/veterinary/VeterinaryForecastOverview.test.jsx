@@ -193,7 +193,7 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
       forecast_id: 'fdr_v2_fmd', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
       risk_level: 'MEDIUM', probability: 0.31, probability_pct: 31.0, predicted_severity: null, status: 'GENERATED',
       generated_at: '2026-10-13T00:00:00Z', model_variant: 'fmd_v2.0:A', model_version: 'fmd_v2.0', forecaster: 'A',
-      deployment_status: 'validated', relative_risk: 2.4, data_quality: 'V2_MODEL', fallback_applied: false,
+      deployment_status: 'back_tested', relative_risk: 2.4, data_quality: 'V2_MODEL', fallback_applied: false,
       source_year: 2024, source_month: 12, data_age_months: 1,
       previous_month_observation: { period: '2024-12', status: 'CONFIRMED_OUTBREAK', verified_cases: 4, deaths: 0, observed_severity: 'LOW' },
       contributions: [
@@ -211,7 +211,8 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     await waitFor(() => expect(screen.getByText('31.0%')).toBeInTheDocument());
     expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
     expect(screen.getByText('Dec 2024: 4 verified cases, 0 deaths · LOW')).toBeInTheDocument();
-    expect(screen.getByText('Validated model')).toBeInTheDocument();
+    expect(screen.getByText('Back-tested candidate')).toBeInTheDocument();
+    expect(screen.queryByText('Validated model')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole('button', { name: /EXPLAIN FORECAST/i })[0]);
 
@@ -221,5 +222,25 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     });
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it('shows a climatology record as a seasonal baseline, never as an assessed LOW RISK tier', async () => {
+    const baseline = {
+      forecast_id: 'fdr_v2_base', disease: 'FMD', district: 'Kandy', target_year: 2025, target_month: 1,
+      risk_level: 'LOW', probability: 0.12, probability_pct: 12.0, predicted_severity: null, status: 'GENERATED',
+      generated_at: '2026-10-13T00:00:00Z', model_variant: 'fmd_v2.0:climatology', model_version: 'fmd_v2.0',
+      forecaster: 'climatology', deployment_status: 'baseline', relative_risk: 1.0, data_quality: 'V2_BASELINE',
+      fallback_applied: true, source_year: 2024, source_month: 12, data_age_months: 1,
+    };
+    workflowApi.listForecastRecords.mockImplementation(({ disease }) => Promise.resolve({
+      total_count: disease === 'FMD' ? 1 : 0, limit: 50, offset: 0, records: disease === 'FMD' ? [baseline] : [],
+    }));
+
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+    await waitFor(() => expect(screen.getByText('12.0%')).toBeInTheDocument());
+    expect(screen.getByText('BASELINE')).toBeInTheDocument();
+    expect(screen.queryByText(/^LOW$/)).not.toBeInTheDocument();
+    expect(screen.getByText('Historical baseline')).toBeInTheDocument();
   });
 });

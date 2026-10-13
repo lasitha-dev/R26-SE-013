@@ -6,6 +6,7 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
+import { isV2Record } from '../forecastPresentation';
 import {
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
@@ -389,7 +390,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
         {record.fallback_applied && (
           <div className="text-xs text-on-surface-variant italic mt-2">
-            Historical proxy data used
+            {isV2Record(record) ? 'Historical baseline (no model features applied)' : 'Historical proxy data used'}
           </div>
         )}
       </div>

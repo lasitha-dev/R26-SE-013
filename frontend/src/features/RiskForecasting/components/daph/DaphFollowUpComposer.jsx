@@ -5,6 +5,7 @@ import {
   validateViewerContext,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
+import { describeProvenance } from '../forecastPresentation';
 import {
   listEligibleFollowUpVets,
   issueFollowUp,
@@ -391,7 +392,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
               <div>
                 <span className="text-slate-500 block">Provenance</span>
                 <span className="font-medium text-slate-300">
-                  {fallbackApplied ? 'Fallback Proxy Applied' : 'Exact Period'}
+                  {describeProvenance(forecastRecord)}
                 </span>
               </div>
             </div>

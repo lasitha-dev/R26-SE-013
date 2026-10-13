@@ -10,9 +10,11 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import {
+  BASELINE_BADGE,
   describePreviousMonth,
   formatRelativeRisk,
   isActiveRecord,
+  isBaselineRecord,
   isV2Record,
   storedExplanation,
 } from '../forecastPresentation';
@@ -61,7 +63,8 @@ const FEATURE_LABELS = {
   'Cattle Density': 'District Cattle Density'
 };
 
-function getRiskBadge(riskLevel) {
+function getRiskBadge(riskLevel, record) {
+  if (isBaselineRecord(record)) return BASELINE_BADGE;
   const norm = (riskLevel || '').toUpperCase();
   switch (norm) {
     case 'HIGH':
@@ -265,7 +268,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       );
     }
 
-    const badge = getRiskBadge(record.risk_level);
+    const badge = getRiskBadge(record.risk_level, record);
     const targetMonthName = record.target_month ? MONTH_NAMES[record.target_month - 1] : 'Unknown';
 
 
@@ -295,7 +298,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold tracking-wide shrink-0 ${badge.class}`}
               aria-label={`Risk Level: ${badge.label}`}
             >
-              {badge.label} RISK
+              {badge.label}{isBaselineRecord(record) ? '' : ' RISK'}
             </span>
           </div>
 
