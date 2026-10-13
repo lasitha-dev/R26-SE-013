@@ -8,6 +8,14 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
+import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import {
+  describePreviousMonth,
+  formatRelativeRisk,
+  isActiveRecord,
+  isV2Record,
+  storedExplanation,
+} from '../forecastPresentation';
 import {
   listForecastRecords,
 } from '../../services/riskForecastingWorkflowApi.js';
@@ -146,12 +154,12 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
       if (fmdRes.status === 'fulfilled') {
         const records = fmdRes.value?.records || fmdRes.value || [];
-        foundFmd = records.find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
+        foundFmd = records.filter(isActiveRecord).find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
       }
 
       if (lsdRes.status === 'fulfilled') {
         const records = lsdRes.value?.records || lsdRes.value || [];
-        foundLsd = records.find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
+        foundLsd = records.filter(isActiveRecord).find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
       }
 
       setFmdRecord(foundFmd);
@@ -190,6 +198,12 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
   const handleExplainForecast = async (diseaseCode, record) => {
     if (!record) return;
+    if (isV2Record(record)) {
+      // v2 records store the exact contributions used; no live recomputation needed.
+      setExplanationError(null);
+      setExplanationData(storedExplanation(record));
+      return;
+    }
     setExplainingDisease(diseaseCode);
     setExplanationError(null);
     setExplanationData(null);
@@ -294,13 +308,20 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               <span className="text-2xl font-extrabold text-on-surface">
                 {formatProbability(record.probability_pct ?? record.predicted_probability)}
               </span>
+              {formatRelativeRisk(record.relative_risk) && (
+                <span className="block text-xs font-semibold text-on-surface-variant">
+                  {formatRelativeRisk(record.relative_risk)} for this district and month
+                </span>
+              )}
             </div>
             <div>
               <span className="text-[11px] font-medium text-on-surface-variant block uppercase tracking-wider">
-                Predicted Severity
+                {isV2Record(record) ? 'Previous Month (Observed)' : 'Predicted Severity'}
               </span>
               <span className="text-sm font-semibold text-on-surface mt-1 block">
-                {record.predicted_severity || 'Not evaluated'}
+                {isV2Record(record)
+                  ? describePreviousMonth(record.previous_month_observation) || 'Not available'
+                  : record.predicted_severity || 'Not evaluated'}
               </span>
             </div>
           </div>
@@ -313,6 +334,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
             <div>
               <dt className="text-on-surface-variant">Model Variant:</dt>
               <dd className="text-on-surface">{record.model_variant || 'Standard'}</dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">Forecast Source:</dt>
+              <dd className="mt-0.5"><ForecastSourceBadge record={record} /></dd>
             </div>
             <div>
               <dt className="text-on-surface-variant">Generated At:</dt>
@@ -465,7 +490,9 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
              <div>
                <h3 className="text-lg font-bold text-on-surface">Feature Contribution Breakdown — {explanationData.disease}</h3>
                <p className="text-xs text-on-surface-variant font-medium">
-                 Linear log-odds contributions recomputed by the live model ({explanationData.explanation_info.method || 'Log-Odds Decomposition'}). Not SHAP values; may differ from the stored record if inputs have changed since it was generated.
+                 Linear log-odds contributions ({explanationData.explanation_info.method || 'Log-Odds Decomposition'}). Not SHAP values.
+                 {!String(explanationData.explanation_info.method || '').includes('stored') &&
+                   ' Recomputed by the live model, so values may differ from the stored record if inputs have changed.'}
                </p>
              </div>
           </div>

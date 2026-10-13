@@ -187,4 +187,39 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(screen.queryByText(/Advisory Centre/i)).toBeNull();
     expect(screen.queryByText(/History/i)).toBeNull();
   });
+
+  it('shows v2 relative risk, observed previous month and stored contributions without a live call', async () => {
+    const v2Fmd = {
+      forecast_id: 'fdr_v2_fmd', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+      risk_level: 'MEDIUM', probability: 0.31, probability_pct: 31.0, predicted_severity: null, status: 'GENERATED',
+      generated_at: '2026-10-13T00:00:00Z', model_variant: 'fmd_v2.0:A', model_version: 'fmd_v2.0', forecaster: 'A',
+      deployment_status: 'validated', relative_risk: 2.4, data_quality: 'V2_MODEL', fallback_applied: false,
+      source_year: 2024, source_month: 12, data_age_months: 1,
+      previous_month_observation: { period: '2024-12', status: 'CONFIRMED_OUTBREAK', verified_cases: 4, deaths: 0, observed_severity: 'LOW' },
+      contributions: [
+        { feature: 'own_t1', value: 1, contribution_log_odds: 0.62 },
+        { feature: 'rain_t1', value: 80, contribution_log_odds: -0.21 },
+      ],
+    };
+    workflowApi.listForecastRecords.mockImplementation(({ disease }) => Promise.resolve({
+      total_count: disease === 'FMD' ? 1 : 0, limit: 50, offset: 0, records: disease === 'FMD' ? [v2Fmd] : [],
+    }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+    await waitFor(() => expect(screen.getByText('31.0%')).toBeInTheDocument());
+    expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
+    expect(screen.getByText('Dec 2024: 4 verified cases, 0 deaths · LOW')).toBeInTheDocument();
+    expect(screen.getByText('Validated model')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /EXPLAIN FORECAST/i })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Outbreak in this district last month')).toBeInTheDocument();
+      expect(screen.getByText('Rainfall last month')).toBeInTheDocument();
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
 });

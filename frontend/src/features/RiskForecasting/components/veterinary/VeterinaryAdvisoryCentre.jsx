@@ -19,6 +19,7 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
 import { getReferencePeriod, shiftPeriod, isSamePeriod } from '../../config/forecastPeriod';
+import { isActiveRecord } from '../forecastPresentation';
 
 const TIMEFRAME_LABELS = Object.freeze({
   PREVIOUS: 'previous months',
@@ -115,7 +116,8 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         );
 
         const recordSets = await Promise.all(fetchPromises);
-        const allRecords = recordSets.flat();
+        // Superseded records stay in history; advisories are drafted from current forecasts only.
+        const allRecords = recordSets.flat().filter(isActiveRecord);
 
         // Deterministic newest-first ordering: target_year desc, target_month desc, generated_at desc
         const sorted = allRecords.sort((a, b) => {

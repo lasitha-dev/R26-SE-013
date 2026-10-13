@@ -8,6 +8,8 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
+import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import { describePreviousMonth, formatRelativeRisk, isActiveRecord, isV2Record } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -101,7 +103,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
       if (recordsRes.status === 'fulfilled') {
         const rawRecords = recordsRes.value?.records || [];
         fetchedRecords = rawRecords.filter(
-          r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)
+          r => isActiveRecord(r) && (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)
         );
       }
 
@@ -339,8 +341,15 @@ export function DaphDistrictForecasts({ viewerContext }) {
 
                   <div className="flex-1 grid grid-cols-2 gap-4 text-sm">
                     <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Predicted Severity</span>
-                      <span className="text-on-surface font-medium">{r.predicted_severity ?? 'N/A'}</span>
+                      <span className="text-xs font-medium text-on-surface-variant block">
+                        {isV2Record(r) ? 'Previous Month (Observed)' : 'Predicted Severity'}
+                      </span>
+                      <span className="text-on-surface font-medium">
+                        {isV2Record(r) ? describePreviousMonth(r.previous_month_observation) || 'Not available' : r.predicted_severity ?? 'N/A'}
+                      </span>
+                      {formatRelativeRisk(r.relative_risk) && (
+                        <span className="block text-xs text-on-surface-variant">{formatRelativeRisk(r.relative_risk)}</span>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-on-surface-variant block">Record Status</span>
@@ -354,7 +363,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
                     </div>
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-on-surface-variant block">Data Provenance</span>
-                      <span className="text-on-surface font-medium">{r.fallback_applied ? 'Proxy Data (Fallback)' : 'Exact Period'}</span>
+                      <span className="block"><ForecastSourceBadge record={r} /></span>
                     </div>
                   </div>
                 </div>

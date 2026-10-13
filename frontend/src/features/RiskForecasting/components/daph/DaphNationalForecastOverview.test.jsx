@@ -11,6 +11,8 @@ vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listForecastRecords: vi.fn(),
   listAdvisories: vi.fn(),
   listNotificationBatches: vi.fn(),
+  generateV2Forecasts: vi.fn(),
+  getActiveSurveillance: vi.fn(),
 }));
 
 describe('DaphNationalForecastOverview Component', () => {
@@ -141,6 +143,8 @@ describe('DaphNationalForecastOverview Component', () => {
     api.listForecastRecords.mockReset().mockResolvedValue(mockRecordsData);
     api.listAdvisories.mockReset().mockResolvedValue(mockAdvisoriesData);
     api.listNotificationBatches.mockReset().mockResolvedValue(mockBatchesData);
+    api.getActiveSurveillance.mockReset().mockResolvedValue({ disease: 'FMD', period: '2026-10', districts: {} });
+    api.generateV2Forecasts.mockReset();
   });
 
   // 1. Authorization & Gating Tests
@@ -232,11 +236,11 @@ describe('DaphNationalForecastOverview Component', () => {
 
   // 3. Provenance & Fallback Proxy Assertions (Amendment 1)
   describe('Data Provenance & Fallback (Amendment 1)', () => {
-    it('correctly identifies fallback_applied = true as Fallback Proxy in UI', async () => {
+    it('labels legacy v1 records that used proxy inputs', async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Fallback Proxy/i)).toBeInTheDocument();
+        expect(screen.getByText('v1 · proxy inputs')).toBeInTheDocument();
       }, { timeout: 4000 });
     });
 
@@ -250,7 +254,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
       await waitFor(() => {
         const row = screen.getByText('Polonnaruwa').closest('tr');
-        expect(within(row).getByText('Fallback Proxy')).toBeInTheDocument();
+        expect(within(row).getByText('v1 · proxy inputs')).toBeInTheDocument();
         expect(within(row).getByRole('button', { name: 'Follow-up' })).toBeInTheDocument();
       });
     });
@@ -443,7 +447,8 @@ describe('DaphNationalForecastOverview Component', () => {
 
       expect(screen.queryByRole('button', { name: /Approve/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Dispatch/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Generate/i })).not.toBeInTheDocument();
+      // Forecast generation exists only as an explicit DAPH action; rendering never triggers it.
+      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
   });
 
@@ -479,7 +484,8 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(screen.getByText(/No official forecast records found for selected criteria/i)).toBeInTheDocument();
       });
 
-      expect(screen.queryByRole('button', { name: /Generate/i })).not.toBeInTheDocument();
+      // An empty period never triggers automatic generation.
+      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
   });
 
@@ -670,6 +676,81 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(missingLabel.nextSibling.textContent).toBe('25');
         expect(screen.getByText(/Showing 25 of 25 matching matrix entries/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('v2 forecasts, generation and active signals', () => {
+    const v2Record = {
+      forecast_id: 'fdr_v2_001',
+      disease: 'LSD',
+      district: 'Jaffna',
+      target_year: 2025,
+      target_month: 1,
+      probability: 0.24,
+      probability_pct: 24.0,
+      risk_level: 'MEDIUM',
+      predicted_severity: null,
+      status: 'GENERATED',
+      model_variant: 'lsd_v2.0:S',
+      fallback_applied: false,
+      data_quality: 'V2_MODEL',
+      model_version: 'lsd_v2.0',
+      forecaster: 'S',
+      deployment_status: 'exploratory',
+      relative_risk: 2.6,
+      previous_month_observation: { period: '2024-12', status: 'CONFIRMED_OUTBREAK', verified_cases: 3, deaths: 1, observed_severity: 'MODERATE' },
+      disclaimer: 'v2',
+      created_at: '2026-10-13T00:00:00Z',
+    };
+    const supersededRecord = { ...v2Record, forecast_id: 'fdr_v1_old', model_version: undefined, status: 'SUPERSEDED', probability: 0.9, probability_pct: 90 };
+
+    it('shows v2 provenance, relative risk and observed severity, and hides superseded records', async () => {
+      api.listForecastRecords.mockResolvedValueOnce({ total: 2, records: [v2Record, supersededRecord] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        const row = screen.getAllByText('Jaffna').map((cell) => cell.closest('tr')).find((tr) => within(tr).queryByText('LSD'));
+        expect(within(row).getByText('Exploratory model')).toBeInTheDocument();
+        expect(within(row).getByText('2.6× usual')).toBeInTheDocument();
+        expect(within(row).getByText('Prev. month: MODERATE')).toBeInTheDocument();
+        expect(within(row).queryByText('90.0%')).not.toBeInTheDocument();
+      });
+    });
+
+    it('generates v2 forecasts for the selected period on explicit request', async () => {
+      api.generateV2Forecasts.mockResolvedValue({ summary: { records: 50, target_period: '2025-01', superseded: 50 } });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts \(January 2025\)/i }));
+
+      await waitFor(() => {
+        expect(api.generateV2Forecasts).toHaveBeenCalledWith({ year: 2025, month: 1 });
+        expect(screen.getByText(/Stored 50 v2 forecast records for 2025-01; 50 older records marked superseded/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows a clear message when generation is forbidden', async () => {
+      api.generateV2Forecasts.mockRejectedValue(Object.assign(new Error('API Error 403'), { status: 403 }));
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts/i }));
+      await waitFor(() => expect(screen.getByText('Only DAPH officials can generate forecasts.')).toBeInTheDocument());
+    });
+
+    it('lists active verified outbreak signals separately from forecasts', async () => {
+      api.getActiveSurveillance.mockImplementation(({ disease }) => Promise.resolve({
+        disease,
+        period: '2026-10',
+        districts: disease === 'FMD'
+          ? { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', verified_cases: 2, deaths: 1 }, Colombo: { status: 'NO_REPORTED_CASES', verified_cases: 0, deaths: 0 } }
+          : {},
+      }));
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      const panel = await screen.findByLabelText('Active outbreak signals');
+      expect(within(panel).getByText(/Anuradhapura — FMD: 2 verified cases, 1 death/)).toBeInTheDocument();
+      expect(within(panel).queryByText(/Colombo/)).not.toBeInTheDocument();
     });
   });
 });

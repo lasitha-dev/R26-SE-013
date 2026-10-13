@@ -14,8 +14,12 @@ import {
   listForecastRecords,
   listAdvisories,
   listNotificationBatches,
+  generateV2Forecasts,
+  getActiveSurveillance,
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
+import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import { describePreviousMonth, formatRelativeRisk, isActiveRecord, isV2Record } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
@@ -23,6 +27,16 @@ const RISK_TIER_RANK = Object.freeze({
   LOW: 1,
   NO_RECORD: 0,
 });
+
+function severityDisplay(row) {
+  // v2 forecasts do not predict severity; they report the severity observed last month.
+  if (!row.record || !isV2Record(row.record)) return { text: row.predicted_severity, title: undefined };
+  const observation = row.record.previous_month_observation;
+  return {
+    text: observation?.observed_severity ? `Prev. month: ${observation.observed_severity}` : '—',
+    title: describePreviousMonth(observation) || undefined,
+  };
+}
 
 function getMonthNameFallback(monthNum) {
   const months = [
@@ -83,6 +97,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [error, setError] = useState(null);
   const [operationalWarning, setOperationalWarning] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [generationMessage, setGenerationMessage] = useState(null);
+  const [activeAlerts, setActiveAlerts] = useState([]);
 
   // Active AbortController ref for race-condition safeguarding
   const abortControllerRef = useRef(null);
@@ -129,7 +146,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           { signal: controller.signal }
         );
         if (controller.signal.aborted) return;
-        fetchedRecords = recordsRes?.records || [];
+        fetchedRecords = (recordsRes?.records || []).filter(isActiveRecord);
       } catch (recErr) {
         if (controller.signal.aborted) return;
         fetchedRecords = [];
@@ -138,6 +155,32 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       // Only persisted forecast records are displayed. Periods without stored records
       // are shown as "No Record"; no client-side substitute predictions are generated.
       setAllRecords(fetchedRecords);
+
+      // Real-time signal, separate from the forecast: verified cases/deaths recorded this month.
+      try {
+        const now = new Date();
+        const results = await Promise.allSettled(
+          ['FMD', 'LSD'].map((disease) =>
+            getActiveSurveillance(
+              { disease, year: now.getFullYear(), month: now.getMonth() + 1 },
+              { signal: controller.signal }
+            )
+          )
+        );
+        if (controller.signal.aborted) return;
+        const alerts = [];
+        results.forEach((res) => {
+          if (res.status !== 'fulfilled' || !res.value?.districts) return;
+          Object.entries(res.value.districts).forEach(([district, observation]) => {
+            if (observation.status === 'CONFIRMED_OUTBREAK') {
+              alerts.push({ disease: res.value.disease, district, period: res.value.period, ...observation });
+            }
+          });
+        });
+        setActiveAlerts(alerts);
+      } catch (_) {
+        setActiveAlerts([]); // the alert panel is optional; the forecast table still loads
+      }
 
       // Extract authorized forecast IDs for client-side relationship containment
       const forecastIds = fetchedRecords.map((r) => r.forecast_id).filter(Boolean);
@@ -462,6 +505,27 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     setOffset(0);
   };
 
+  const handleGenerateForecasts = async () => {
+    setGenerating(true);
+    setGenerationMessage(null);
+    try {
+      const res = await generateV2Forecasts({ year: selectedYear, month: selectedMonth });
+      const summary = res?.summary || {};
+      setGenerationMessage({
+        tone: 'success',
+        text: `Stored ${summary.records ?? 0} v2 forecast records for ${summary.target_period}; ${summary.superseded ?? 0} older records marked superseded.`,
+      });
+      await fetchData();
+    } catch (err) {
+      setGenerationMessage({
+        tone: 'error',
+        text: err?.status === 403 ? 'Only DAPH officials can generate forecasts.' : 'Forecast generation failed. Please try again.',
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   // Fail-Closed Access Early Return (Amendment 7)
   if (!validation.valid || !isDaphOfficial || !isNationalScope) {
     return (
@@ -506,6 +570,16 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span>
             Refresh Data
           </button>
+          <button
+            type="button"
+            onClick={handleGenerateForecasts}
+            disabled={loading || generating}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold border border-emerald-500/50 transition disabled:opacity-50"
+            title="Compute and store v2 forecasts for the selected month from public climate data and recorded surveillance"
+          >
+            <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>{generating ? 'sync' : 'model_training'}</span>
+            {generating ? 'Generating…' : `Generate v2 forecasts (${getMonthNameFallback(selectedMonth)} ${selectedYear})`}
+          </button>
         </div>
       </div>
 
@@ -514,7 +588,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         <span className="material-symbols-outlined text-amber-400 text-lg shrink-0 mt-0.5">shield</span>
         <div>
           <strong className="text-slate-100 block mb-0.5">Read-Only National Oversight Protection</strong>
-          This workspace displays official, immutable persisted forecast records, linked veterinary advisories, and aggregate simulated notification outbox statuses. No PII is exposed, auto-generation of predictions is disabled, and mutation controls are strictly prohibited.
+          This workspace displays official, immutable persisted forecast records, linked veterinary advisories, and aggregate simulated notification outbox statuses. No PII is exposed. Forecasts are generated only on explicit request (button above) or by the monthly job, and stored records are never edited.
         </div>
       </div>
 
@@ -526,6 +600,29 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             <strong className="block mb-0.5">Partial Operational Coverage Warning</strong>
             {operationalWarning}
           </div>
+        </div>
+      )}
+
+      {generationMessage && (
+        <div
+          role="status"
+          className={`rounded-lg p-3 text-xs border ${generationMessage.tone === 'success' ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200' : 'bg-rose-950/50 border-rose-500/40 text-rose-200'}`}
+        >
+          {generationMessage.text}
+        </div>
+      )}
+
+      {activeAlerts.length > 0 && (
+        <div className="bg-rose-950/40 border border-rose-500/40 rounded-lg p-4 text-xs text-rose-200" aria-label="Active outbreak signals">
+          <strong className="block mb-1 text-rose-100">Active outbreak signals this month (verified app records)</strong>
+          <ul className="space-y-0.5">
+            {activeAlerts.map((alert) => (
+              <li key={`${alert.disease}-${alert.district}`}>
+                {alert.district} — {alert.disease}: {alert.verified_cases} verified case{alert.verified_cases === 1 ? '' : 's'}, {alert.deaths} death{alert.deaths === 1 ? '' : 's'}
+              </li>
+            ))}
+          </ul>
+          <span className="block mt-1 text-rose-300/70">Observed facts, shown separately from the forecasts below.</span>
         </div>
       )}
 
@@ -782,6 +879,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         {row.probability != null ? (
                           <span className={isHigh ? 'text-rose-400' : isMedium ? 'text-amber-400' : 'text-emerald-400'}>
                             {(row.probability * 100).toFixed(1)}%
+                            {formatRelativeRisk(row.record?.relative_risk) && (
+                              <span className="block text-[10px] font-medium text-slate-400">{formatRelativeRisk(row.record.relative_risk)}</span>
+                            )}
                           </span>
                         ) : (
                           <span className="text-slate-500">N/A</span>
@@ -806,7 +906,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono text-slate-300">{row.predicted_severity}</td>
+                      <td className="py-3 px-3 text-center font-mono text-slate-300" title={severityDisplay(row).title}>{severityDisplay(row).text}</td>
 
                       {/* Advisory Coverage */}
                       <td className="py-3 px-3 text-center">
@@ -859,14 +959,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                       <td className="py-3 px-3 text-center">
                         {isMissing ? (
                           <span className="text-slate-600">—</span>
-                        ) : row.fallback_applied ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950/80 text-amber-300 border border-amber-600/40" title={`Data quality: ${row.data_quality}`}>
-                            Fallback Proxy
-                          </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400" title={`Data quality: ${row.data_quality}`}>
-                            Exact Period
-                          </span>
+                          <ForecastSourceBadge record={row.record} />
                         )}
                       </td>
 

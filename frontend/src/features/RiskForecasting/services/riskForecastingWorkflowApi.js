@@ -1052,3 +1052,49 @@ export async function forwardToAssignedFarmers(advisoryId, options = {}) {
     headers,
   });
 }
+
+// ─── v2 FORECASTING METHODS ────────────────────────────────────────────────
+
+/**
+ * Generates and stores v2 forecasts for a target month (DAPH JWT required).
+ * POST /api/v1/risk-forecasting/v2/forecasts/generate
+ */
+export async function generateV2Forecasts({ year, month, diseases, dryRun = false } = {}, options = {}) {
+  const body = { dry_run: Boolean(dryRun) };
+  if (year !== undefined && year !== null) body.year = Number(year);
+  if (month !== undefined && month !== null) body.month = Number(month);
+  if (Array.isArray(diseases) && diseases.length > 0) body.diseases = diseases;
+  return requestWorkflowApi('/api/v1/risk-forecasting/v2/forecasts/generate', {
+    method: 'POST',
+    body,
+    signal: options.signal,
+  });
+}
+
+/**
+ * Deployed v2 forecaster per disease with validation status and evaluation summary.
+ * GET /api/v1/risk-forecasting/v2/model-card
+ */
+export async function getV2ModelCard(options = {}) {
+  return requestWorkflowApi('/api/v1/risk-forecasting/v2/model-card', { method: 'GET', signal: options.signal });
+}
+
+/**
+ * Verified cases and disease deaths recorded in the app per district for a month.
+ * GET /api/v1/risk-forecasting/v2/surveillance/active
+ */
+export async function getActiveSurveillance({ disease, year, month } = {}, options = {}) {
+  const queryString = buildQueryString({ disease, year, month });
+  return requestWorkflowApi(`/api/v1/risk-forecasting/v2/surveillance/active${queryString}`, {
+    method: 'GET',
+    signal: options.signal,
+  });
+}
+
+/**
+ * Prospective scoring of stored v2 forecasts against observed outcomes.
+ * GET /api/v1/risk-forecasting/v2/performance
+ */
+export async function getV2Performance(options = {}) {
+  return requestWorkflowApi('/api/v1/risk-forecasting/v2/performance', { method: 'GET', signal: options.signal });
+}
