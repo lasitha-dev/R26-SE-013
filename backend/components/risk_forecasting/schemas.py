@@ -3,7 +3,7 @@ Pydantic Request and Response Schemas for the Risk Forecasting Component API.
 Provides validation and documentation for FMD and LSD prediction and forecast endpoints.
 """
 
-from typing import List, Optional, Literal
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 from components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
@@ -348,6 +348,21 @@ class ForecastDecisionRecord(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, description="Idempotency key associated with this record.")
     created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
     updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC last update timestamp.")
+
+    # v2 forecast provenance (absent on v1 records)
+    model_version: Optional[str] = Field(default=None, description="Versioned model artifact, e.g. 'fmd_v2.0'.")
+    forecaster: Optional[str] = Field(default=None, description="Deployed forecaster: model variant ('A', 'S') or 'climatology'.")
+    deployment_status: Optional[str] = Field(default=None, description="'validated', 'exploratory' or 'baseline' (see model card).")
+    issue_date: Optional[str] = Field(default=None, description="Nominal issue date (day 5 of the target month).")
+    baseline_probability: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="District-month climatological outbreak probability.")
+    relative_risk: Optional[float] = Field(default=None, ge=0.0, description="probability / baseline_probability.")
+    input_quality: Optional[str] = Field(default=None, description="'COMPLETE' or 'DEGRADED' (missing climate inputs).")
+    missing_inputs: Optional[List[str]] = Field(default=None, description="Feature names whose inputs were unavailable.")
+    surveillance_status: Optional[str] = Field(default=None, description="Previous-month surveillance status used for the forecast.")
+    surveillance_source: Optional[str] = Field(default=None, description="Where outbreak history came from (curated dataset or app records).")
+    feature_snapshot: Optional[Dict[str, Optional[float]]] = Field(default=None, description="Exact feature values used.")
+    contributions: Optional[List[Dict[str, Any]]] = Field(default=None, description="Top linear log-odds contributions.")
+    previous_month_observation: Optional[Dict[str, Any]] = Field(default=None, description="Observed verified cases/deaths in month t-1 and observed severity.")
 
 
 class ForecastRecordListResponse(BaseModel):

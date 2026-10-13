@@ -228,7 +228,7 @@ class MongoSharedForecastClient(SharedForecastDataClient):
                 formatted_district = "Nuwara Eliya"
 
             if formatted_district not in SRI_LANKA_DISTRICTS:
-                return (0.0, True)
+                return None  # unknown district: no surveillance status, never "verified 0"
 
             start_dt = datetime(target_year, target_month, 1, 0, 0, 0)
             if target_month == 12:
@@ -346,8 +346,9 @@ class MongoSharedForecastClient(SharedForecastDataClient):
         cached = self._status_cache.get(cache_key)
         if cached and self._is_cache_valid(cached[3]):
             return (cached[0], True)
-        # Safe default if entirely uncached and synchronous query is not possible
-        return (0.0, True)
+        # The database could not be queried: the status is unknown. Returning a "verified 0"
+        # here would silently tell the model there was no outbreak.
+        return None
 
     async def fetch_valid_lag1_async(
         self, disease: str, district: str, month: int, year: int
