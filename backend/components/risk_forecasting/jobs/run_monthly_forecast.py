@@ -6,7 +6,11 @@ previous month are published), from backend/:
 
     python -m components.risk_forecasting.jobs.run_monthly_forecast            # current month
     python -m components.risk_forecasting.jobs.run_monthly_forecast --year 2025 --month 1
-    python -m components.risk_forecasting.jobs.run_monthly_forecast --dry-run
+    python -m components.risk_forecasting.jobs.run_monthly_forecast --dry-run  # preview, no writes
+
+Older records for the same period are NEVER superseded unless you pass --supersede-count N, where
+N is the number a --dry-run preview reported as "would_supersede". If the count has changed since
+the preview the run stops without writing. Records with advisories/follow-ups are always protected.
 
 Windows Task Scheduler (daily trigger is fine; the job is idempotent per period/model):
     Program:   python
@@ -14,7 +18,8 @@ Windows Task Scheduler (daily trigger is fine; the job is idempotent per period/
     Start in:  <repo>\\backend
 Linux cron:  0 6 5 * *  cd <repo>/backend && python -m components.risk_forecasting.jobs.run_monthly_forecast --trigger SCHEDULED
 
-Exit codes: 0 success, 1 storage unavailable, 2 bad arguments.
+Exit codes: 0 success, 1 storage unavailable, 2 bad arguments, 3 supersede confirmation missing or
+stale (nothing written), 4 partial failure (re-running is safe).
 Each run appends a JSON line to model/data/cache/runs/forecast_runs.jsonl.
 """
 
@@ -23,6 +28,8 @@ import json
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
+
+from components.risk_forecasting.services.forecast_v2_service import StalePreview, SupersedeConfirmationRequired
 
 RUN_LOG = Path(__file__).resolve().parents[1] / "model" / "data" / "cache" / "runs" / "forecast_runs.jsonl"
 
@@ -33,7 +40,9 @@ def parse_args(argv=None):
     parser.add_argument("--year", type=int, default=today.year)
     parser.add_argument("--month", type=int, default=today.month)
     parser.add_argument("--diseases", nargs="+", default=["FMD", "LSD"], choices=["FMD", "LSD"])
-    parser.add_argument("--dry-run", action="store_true", help="Compute without writing to the database.")
+    parser.add_argument("--dry-run", action="store_true", help="Preview only: compute and report, write nothing.")
+    parser.add_argument("--supersede-count", type=int, default=None,
+                        help="Allow superseding older records; must equal the previewed would_supersede count.")
     parser.add_argument("--trigger", default="MANUAL", choices=["MANUAL", "SCHEDULED"])
     args = parser.parse_args(argv)
     if not (2017 <= args.year <= 2030 and 1 <= args.month <= 12):
@@ -44,17 +53,20 @@ def parse_args(argv=None):
 def main(argv=None, service=None):
     args = parse_args(argv)
     if service is None:
-        from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
-        from components.risk_forecasting.routes import get_app_db
-        from components.risk_forecasting.services.forecast_v2_service import ForecastV2Service
-        repository = MongoForecastRecordRepository()
-        service = ForecastV2Service(repository_getter=lambda: repository, app_db_factory=get_app_db)
+        # Production path only; tests always pass a service. Loads Atlas repositories lazily.
+        from components.risk_forecasting.jobs.production_wiring import build_default_service
+        service = build_default_service()
 
     started = datetime.now(timezone.utc).isoformat()
     try:
-        result = service.generate_period(args.year, args.month, args.diseases, generated_by="monthly_job",
-                                         trigger_type=args.trigger, dry_run=args.dry_run)
-        outcome, code = {"status": "ok", "summary": result["summary"]}, 0
+        result = service.generate_period(
+            args.year, args.month, args.diseases, generated_by="monthly_job", trigger_type=args.trigger,
+            dry_run=args.dry_run, supersede=args.supersede_count is not None,
+            expected_supersede_count=args.supersede_count)
+        summary = result["summary"]
+        outcome, code = {"status": summary["status"].lower(), "summary": summary}, (4 if summary["status"] == "PARTIAL" else 0)
+    except (SupersedeConfirmationRequired, StalePreview) as exc:
+        outcome, code = {"status": "supersede_not_confirmed", "error": str(exc)}, 3
     except RuntimeError as exc:
         outcome, code = {"status": "storage_unavailable", "error": str(exc)}, 1
 

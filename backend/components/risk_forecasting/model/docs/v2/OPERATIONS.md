@@ -9,8 +9,11 @@ How the v2 system runs day to day. Validation results and limitations: [MODEL_CA
    (curated labels for historical periods, verified app cases/deaths afterwards).
 2. It applies the deployed forecaster per disease and district (see "Deployment" in the model card)
    and stores **50 immutable records** (25 districts × FMD/LSD) in `forecast_records`.
-3. Older records for the same disease/district/month (e.g. v1 proxy-based ones) are marked
-   `SUPERSEDED`, never deleted. UIs show only non-superseded records.
+3. Older records for the same disease/district/month (e.g. v1 proxy-based ones) can be marked
+   `SUPERSEDED` (never deleted), under strict guards: records that have **advisories, follow-ups or
+   workflow status (AVAILABLE/REFERENCED) are always protected**, and if the dependency check is
+   unavailable nothing is superseded. A real run that would supersede records must pass the count
+   from a preview; a mismatch stops the run before any write. UIs show only non-superseded records.
 4. After the target month plus one grace month, `GET /v2/performance` scores the forecasts
    against what was observed.
 
@@ -19,27 +22,31 @@ How the v2 system runs day to day. Validation results and limitations: [MODEL_CA
 From `backend/` (the Atlas connection comes from `backend/.env`; nothing else is configured):
 
 ```
-python -m components.risk_forecasting.jobs.run_monthly_forecast --dry-run            # compute only
-python -m components.risk_forecasting.jobs.run_monthly_forecast                      # current month, stores records
+python -m components.risk_forecasting.jobs.run_monthly_forecast --dry-run            # preview: nothing written
+python -m components.risk_forecasting.jobs.run_monthly_forecast                      # current month, stores records, supersedes nothing
 python -m components.risk_forecasting.jobs.run_monthly_forecast --year 2026 --month 11
+python -m components.risk_forecasting.jobs.run_monthly_forecast --supersede-count N   # N = "would_supersede" from the preview
 ```
 
 Re-running is safe: record identity is `v2|DISEASE|district|YYYY-MM|model_version`.
 Each run appends a JSON line to `model/data/cache/runs/forecast_runs.jsonl`.
-Exit codes: 0 ok, 1 storage unavailable, 2 bad arguments.
+Exit codes: 0 ok, 1 storage unavailable, 2 bad arguments, 3 supersede count missing/stale (nothing written),
+4 partial failure (some records failed; nothing superseded; re-running is safe).
 
 **Scheduling (Windows Task Scheduler):** program `python`, arguments
 `-m components.risk_forecasting.jobs.run_monthly_forecast --trigger SCHEDULED`, start in `<repo>\backend`,
 monthly on day 5 (a daily trigger also works).
 
-DAPH officials can also use **Generate v2 forecasts** on the National Overview page
-(`POST /api/v1/risk-forecasting/v2/forecasts/generate`, JWT role DAPH_OFFICIAL only).
+DAPH officials can also use **Generate v2 forecasts** on the National Overview page. It first runs a
+preview (`dry_run`), shows what will be stored, superseded and protected, and only stores after the
+official confirms (`POST /api/v1/risk-forecasting/v2/forecasts/generate`, JWT role DAPH_OFFICIAL only;
+a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400/409 and nothing is written).
 
 ## Endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /v2/forecasts/generate` | Generate and store forecasts for a month (DAPH only; `dry_run` supported) |
+| `POST /v2/forecasts/generate` | Preview (`dry_run`) or store forecasts for a month (DAPH only). Real runs that would supersede records need `expected_supersede_count` (400 if missing, 409 if stale) |
 | `GET /v2/model-card` | Deployed forecaster, validation status, evaluation summary |
 | `GET /v2/surveillance/active` | Verified cases/deaths per district for a month — observed facts, separate from forecasts |
 | `GET /v2/performance` | Hits, missed outbreaks, false alarms, Brier score for past forecasts |

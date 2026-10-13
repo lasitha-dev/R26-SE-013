@@ -4,8 +4,13 @@ coverage-aware surveillance, applies the deployed v2 forecaster, and persists on
 immutable ForecastDecisionRecord per district and disease.
 
 Idempotency: key "v2|<disease>|<district>|<YYYY-MM>|<model_version>" (unique index in
-Mongo), so re-running a period never duplicates records. Earlier records for the same
-disease/district/period (e.g. v1 proxy-based records) are marked SUPERSEDED, not deleted.
+Mongo), so re-running a period never duplicates records.
+
+Superseding older records (e.g. v1 proxy-based ones) is guarded (see pipeline/supersede_policy.py):
+records with advisories, follow-ups or workflow status are protected and never superseded; an
+unavailable dependency check protects everything; a real run must confirm the exact number of
+records a preview said it would supersede; superseding happens only after every new record is
+saved. Records are never deleted.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from components.risk_forecasting.pipeline.geography import DISTRICT_NAMES
 from components.risk_forecasting.pipeline.labels import load_labels
 from components.risk_forecasting.pipeline.live_sources import build_live_sources
 from components.risk_forecasting.pipeline.predictor import V2Predictor
+from components.risk_forecasting.pipeline.supersede_policy import SupersedePlan, plan_supersede
 from components.risk_forecasting.pipeline.surveillance import SurveillanceProvider
 from components.risk_forecasting.config import FMD_DATASET_FILE, LSD_DATASET_FILE
 from components.risk_forecasting.schemas import ForecastDecisionRecord
@@ -40,6 +46,23 @@ FORECASTER_LABELS = {
 }
 
 
+class SupersedeConfirmationRequired(Exception):
+    """A real run would supersede records but no confirmation count was supplied."""
+
+    def __init__(self, would_supersede: int):
+        super().__init__(f"{would_supersede} records would be superseded; preview and confirm the count first.")
+        self.would_supersede = would_supersede
+
+
+class StalePreview(Exception):
+    """The confirmed supersede count no longer matches what a run would do."""
+
+    def __init__(self, expected: int, actual: int):
+        super().__init__(f"Preview is stale: confirmed {expected} but {actual} records would be superseded. Preview again.")
+        self.expected = expected
+        self.actual = actual
+
+
 class ForecastV2Service:
     def __init__(
         self,
@@ -49,7 +72,11 @@ class ForecastV2Service:
         sources_builder: Callable = build_live_sources,
         clock: Optional[Callable[[], datetime]] = None,
         id_generator: Optional[Callable[[], str]] = None,
+        dependency_counter: Optional[Callable[[str], Dict[str, int]]] = None,
     ):
+        # dependency_counter(forecast_id) -> {"advisories": n, "follow_ups": n}. Without it nothing
+        # can be superseded (fail closed).
+        self.dependency_counter = dependency_counter
         self.repository_getter = repository_getter
         self.app_db_factory = app_db_factory
         self.predictor_loader = predictor_loader
@@ -173,18 +200,65 @@ class ForecastV2Service:
             stats["precision"] = round(stats["hits"] / stats["alerts"], 3) if stats["alerts"] else None
         return summary
 
+    def _existing_records(self, repository, disease: str, year: int, month: int) -> List[ForecastDecisionRecord]:
+        """All stored records for a disease and target month, read page by page."""
+        records, offset = [], 0
+        while True:
+            page, total = repository.list(disease=disease, target_year=year, target_month=month, limit=200, offset=offset)
+            records.extend(page)
+            offset += len(page)
+            if not page or offset >= total:
+                return records
+
+    def _dependents(self, forecast_id: str) -> Optional[Dict[str, int]]:
+        if self.dependency_counter is None:
+            return None
+        try:
+            return self.dependency_counter(forecast_id)
+        except Exception as exc:  # unknown dependencies protect the record
+            logger.error("Dependency check failed for %s: %s", forecast_id, type(exc).__name__)
+            return None
+
+    def plan_period(self, records: List[ForecastDecisionRecord], year: int, month: int) -> SupersedePlan:
+        repository = self.repository_getter()
+        plan = SupersedePlan()
+        for disease in sorted({r.disease for r in records}):
+            existing = self._existing_records(repository, disease, year, month)
+            keys = [r.idempotency_key for r in records if r.disease == disease]
+            dependents = {r.forecast_id: self._dependents(r.forecast_id)
+                          for r in existing if r.status != "SUPERSEDED" and r.idempotency_key not in keys}
+            part = plan_supersede(existing, keys, dependents)
+            plan.to_supersede += part.to_supersede
+            plan.protected += part.protected
+            plan.kept += part.kept
+        return plan
+
     def generate_period(self, year: int, month: int, diseases: Iterable[str] = ("FMD", "LSD"),
                         generated_by: Optional[str] = None, trigger_type: str = "MANUAL",
-                        dry_run: bool = False) -> dict:
-        """Compute and (unless dry_run) persist v2 forecasts; supersede older records for the period."""
+                        dry_run: bool = False, supersede: bool = True,
+                        expected_supersede_count: Optional[int] = None) -> dict:
+        """Compute forecasts and (unless dry_run) store them.
+
+        dry_run=True is a read-only preview that also reports what a real run would supersede
+        or protect. A real run with supersede=True and records to supersede must pass the
+        previewed count as `expected_supersede_count`; otherwise nothing is written.
+        """
         records = self.forecast_period(year, month, diseases, generated_by, trigger_type)
+        plan = self.plan_period(records, year, month)
         summary = {
             "target_period": f"{year:04d}-{month:02d}",
             "dry_run": dry_run,
+            "status": "PREVIEW" if dry_run else "OK",
             "records": len(records),
             "by_forecaster": {},
             "by_risk_level": {},
+            "supersede_enabled": supersede,
+            **plan.summary(),
+            "protected_details": plan.protected,
+            "saved": 0,
+            "failed": [],
             "superseded": 0,
+            "supersede_failed": [],
         }
         for r in records:
             key = f"{r.disease}:{r.forecaster}"
@@ -193,13 +267,33 @@ class ForecastV2Service:
         if dry_run:
             return {"summary": summary, "records": records}
 
+        if supersede and plan.to_supersede:
+            if expected_supersede_count is None:
+                raise SupersedeConfirmationRequired(len(plan.to_supersede))
+            if expected_supersede_count != len(plan.to_supersede):
+                raise StalePreview(expected_supersede_count, len(plan.to_supersede))
+
         repository = self.repository_getter()
-        saved = [repository.save(r) for r in records]
-        saved_ids = {r.forecast_id for r in saved}
-        for disease in {r.disease for r in saved}:
-            existing, _ = repository.list(disease=disease, target_year=year, target_month=month, limit=200, offset=0)
-            for old in existing:
-                if old.forecast_id not in saved_ids and old.status != "SUPERSEDED":
-                    repository.update_status(old.forecast_id, "SUPERSEDED")
+        saved: List[ForecastDecisionRecord] = []
+        for record in records:
+            try:
+                saved.append(repository.save(record))
+            except RuntimeError as exc:
+                if not saved and not summary["failed"]:
+                    raise  # storage unavailable from the very first write: nothing was stored
+                summary["failed"].append({"forecast_id": record.forecast_id, "error": type(exc).__name__})
+        summary["saved"] = len(saved)
+        if summary["failed"]:
+            summary["status"] = "PARTIAL"  # re-running is safe (idempotent); nothing was superseded
+            return {"summary": summary, "records": saved}
+
+        if supersede:
+            for forecast_id in plan.to_supersede:
+                try:
+                    repository.update_status(forecast_id, "SUPERSEDED")
                     summary["superseded"] += 1
+                except RuntimeError as exc:
+                    summary["supersede_failed"].append({"forecast_id": forecast_id, "error": type(exc).__name__})
+            if summary["supersede_failed"]:
+                summary["status"] = "PARTIAL"
         return {"summary": summary, "records": saved}

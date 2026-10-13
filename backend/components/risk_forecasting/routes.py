@@ -1351,7 +1351,10 @@ class GenerateV2ForecastsRequest(_BaseModel):
     year: Optional[int] = _Field(default=None, ge=2017, le=2030, description="Target year (default: current month).")
     month: Optional[int] = _Field(default=None, ge=1, le=12, description="Target month (default: current month).")
     diseases: List[Literal["FMD", "LSD"]] = _Field(default_factory=lambda: ["FMD", "LSD"])
-    dry_run: bool = _Field(default=False, description="Compute without persisting.")
+    dry_run: bool = _Field(default=False, description="Preview only: compute and report what would be stored, superseded and protected; writes nothing.")
+    expected_supersede_count: Optional[int] = _Field(
+        default=None, ge=0,
+        description="Number of older records the preview said would be superseded. Required for a real run when that number is above zero; a mismatch rejects the run before any write.")
 
 
 _v2_service = None
@@ -1368,6 +1371,14 @@ def get_app_db():
     return _app_db_client[MONGODB_DB_NAME]
 
 
+def _forecast_dependency_counter(forecast_id: str):
+    """How many advisories and follow-ups reference a forecast (used to protect them from supersede)."""
+    return {
+        "advisories": advisory_service.advisory_repo.list(forecast_id=forecast_id, limit=1, offset=0)[1],
+        "follow_ups": forecast_follow_up_service.follow_up_repo.list(forecast_id=forecast_id, limit=1, offset=0)[1],
+    }
+
+
 def get_forecast_v2_service():
     global _v2_service
     if _v2_service is None:
@@ -1375,6 +1386,7 @@ def get_forecast_v2_service():
         _v2_service = ForecastV2Service(
             repository_getter=lambda: forecast_record_service.repository,
             app_db_factory=get_app_db,
+            dependency_counter=_forecast_dependency_counter,
         )
     return _v2_service
 
@@ -1394,13 +1406,20 @@ def generate_v2_forecasts(
     """Builds features from CHIRPS, NASA POWER, NOAA and coverage-aware surveillance, applies the
     deployed v2 forecaster and stores one record per district and disease. Idempotent per period
     and model version; earlier records for the period are marked SUPERSEDED."""
+    from components.risk_forecasting.services.forecast_v2_service import StalePreview, SupersedeConfirmationRequired
+
     _require_daph(viewer)
     today = _date.today()
     year = request.year or today.year
     month = request.month or today.month
     try:
         result = service.generate_period(year, month, request.diseases, generated_by=viewer.userId,
-                                         trigger_type="MANUAL", dry_run=request.dry_run)
+                                         trigger_type="MANUAL", dry_run=request.dry_run,
+                                         expected_supersede_count=request.expected_supersede_count)
+    except SupersedeConfirmationRequired as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except StalePreview as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except RuntimeError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                             detail="Forecast record storage is temporarily unavailable.")

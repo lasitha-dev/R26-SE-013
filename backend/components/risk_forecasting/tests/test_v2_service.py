@@ -1,5 +1,6 @@
-"""Tests for v2 prediction, coverage-aware surveillance, the v2 service and endpoints.
-No network or real database: public data and Mongo collections are faked."""
+"""Tests for v2 prediction, coverage-aware surveillance, the v2 service, scoring and the monthly job.
+No network or real database: public data and Mongo collections are faked.
+Deliberately does NOT import routes/core.database (endpoint tests live in test_v2_endpoints.py)."""
 
 import json
 import re
@@ -7,8 +8,6 @@ from datetime import datetime
 
 import pytest
 from bson import ObjectId
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from components.risk_forecasting.pipeline.features import ALL_FEATURES, FeatureSources
 from components.risk_forecasting.pipeline.geography import DISTRICT_NAMES, DISTRICTS
@@ -17,7 +16,10 @@ from components.risk_forecasting.pipeline.surveillance import (
     SurveillanceProvider, app_month_observations, observed_severity,
 )
 from components.risk_forecasting.repositories.forecast_record_repository import InMemoryForecastRecordRepository
-from components.risk_forecasting.services.forecast_v2_service import ForecastV2Service
+from components.risk_forecasting.schemas import ForecastDecisionRecord
+from components.risk_forecasting.services.forecast_v2_service import (
+    ForecastV2Service, StalePreview, SupersedeConfirmationRequired,
+)
 
 
 # ─── fakes ─────────────────────────────────────────────────────────────────
@@ -183,11 +185,24 @@ def fake_sources_builder(targets, surveillance):
     return sources, {"rainfall": "fake", "weather": "fake", "enso": "fake"}
 
 
-def make_service(repo):
+def no_dependents(_forecast_id):
+    return {"advisories": 0, "follow_ups": 0}
+
+
+def make_service(repo, dependency_counter=no_dependents):
     counter = iter(range(10_000))
     return ForecastV2Service(repository_getter=lambda: repo, app_db_factory=fake_app_db,
                              sources_builder=fake_sources_builder,
-                             id_generator=lambda: f"fdr_test{next(counter):05d}")
+                             id_generator=lambda: f"fdr_test{next(counter):05d}",
+                             dependency_counter=dependency_counter)
+
+
+def old_record(fid, status="GENERATED", district="Kandy", disease="FMD", year=2026, month=10):
+    return ForecastDecisionRecord(
+        forecast_id=fid, disease=disease, district=district, target_year=year, target_month=month,
+        generated_at="2026-08-01T00:00:00+00:00", probability=0.4, probability_pct=40.0, risk_level="MEDIUM",
+        model_variant="30_feature_baseline", fallback_applied=True, data_quality="HISTORICAL_SAME_MONTH_PROXY",
+        status=status, disclaimer="v1", created_at="2026-08-01T00:00:00+00:00", updated_at="2026-08-01T00:00:00+00:00")
 
 
 def test_forecast_period_builds_one_record_per_district_with_provenance():
@@ -215,26 +230,144 @@ def test_lsd_january_2025_uses_surveillance_model_from_curated_labels():
     assert {r.forecaster for r in fmd} == {"climatology"}  # December 2024 FMD labels unverified
 
 
-def test_generate_period_is_idempotent_and_supersedes_older_records(monkeypatch):
+def test_real_run_requires_confirmation_before_superseding():
     repo = InMemoryForecastRecordRepository()
+    repo.save(old_record("fdr_v1_old"))
     service = make_service(repo)
-    from components.risk_forecasting.schemas import ForecastDecisionRecord
-    old = ForecastDecisionRecord(
-        forecast_id="fdr_v1_old", disease="FMD", district="Kandy", target_year=2026, target_month=10,
-        generated_at="2026-08-01T00:00:00+00:00", probability=0.4, probability_pct=40.0, risk_level="MEDIUM",
-        model_variant="30_feature_baseline", fallback_applied=True, data_quality="HISTORICAL_SAME_MONTH_PROXY",
-        disclaimer="v1", created_at="2026-08-01T00:00:00+00:00", updated_at="2026-08-01T00:00:00+00:00")
-    repo.save(old)
 
-    first = service.generate_period(2026, 10, ["FMD"])
-    assert first["summary"]["records"] == 25
-    assert first["summary"]["superseded"] == 1
+    preview = service.generate_period(2026, 10, ["FMD"], dry_run=True)["summary"]
+    assert preview["status"] == "PREVIEW" and preview["would_supersede"] == 1 and preview["protected"] == 0
+    assert repo.list(limit=200)[1] == 1  # nothing written by the preview
+
+    try:
+        service.generate_period(2026, 10, ["FMD"])
+        raise AssertionError("expected SupersedeConfirmationRequired")
+    except SupersedeConfirmationRequired as exc:
+        assert exc.would_supersede == 1
+    assert repo.list(limit=200)[1] == 1  # still nothing written
+
+    try:
+        service.generate_period(2026, 10, ["FMD"], expected_supersede_count=3)
+        raise AssertionError("expected StalePreview")
+    except StalePreview as exc:
+        assert (exc.expected, exc.actual) == (3, 1)
+    assert repo.list(limit=200)[1] == 1 and repo.get_by_id("fdr_v1_old").status == "GENERATED"
+
+
+def test_confirmed_run_is_idempotent_and_supersedes_only_unused_records():
+    repo = InMemoryForecastRecordRepository()
+    repo.save(old_record("fdr_v1_old"))
+    service = make_service(repo)
+
+    first = service.generate_period(2026, 10, ["FMD"], expected_supersede_count=1)["summary"]
+    assert first["status"] == "OK" and first["saved"] == 25 and first["superseded"] == 1
     assert repo.get_by_id("fdr_v1_old").status == "SUPERSEDED"
 
-    second = service.generate_period(2026, 10, ["FMD"])
-    assert second["summary"]["superseded"] == 0
-    stored, total = repo.list(disease="FMD", target_year=2026, target_month=10, limit=200)
-    assert total == 26  # 25 v2 records + the superseded v1 record; no duplicates
+    second = service.generate_period(2026, 10, ["FMD"])["summary"]  # nothing left to supersede: no confirmation needed
+    assert second["superseded"] == 0 and second["reused"] == 25
+    assert repo.list(disease="FMD", target_year=2026, target_month=10, limit=200)[1] == 26  # no duplicates
+
+
+def test_records_with_advisories_follow_ups_or_workflow_status_are_never_superseded():
+    repo = InMemoryForecastRecordRepository()
+    for fid, status in [("fdr_adv", "GENERATED"), ("fdr_fu", "GENERATED"), ("fdr_used", "AVAILABLE"), ("fdr_free", "GENERATED")]:
+        repo.save(old_record(fid, status))
+    dependents = {"fdr_adv": {"advisories": 1, "follow_ups": 0}, "fdr_fu": {"advisories": 0, "follow_ups": 2},
+                  "fdr_used": {"advisories": 0, "follow_ups": 0}, "fdr_free": {"advisories": 0, "follow_ups": 0}}
+    service = make_service(repo, dependency_counter=lambda fid: dependents[fid])
+
+    preview = service.generate_period(2026, 10, ["FMD"], dry_run=True)["summary"]
+    assert preview["would_supersede"] == 1 and preview["protected"] == 3
+    assert preview["protected_reasons"] == {"HAS_ADVISORY": 1, "HAS_FOLLOW_UP": 1, "WORKFLOW_STATUS": 1}
+
+    service.generate_period(2026, 10, ["FMD"], expected_supersede_count=1)
+    assert {fid: repo.get_by_id(fid).status for fid in dependents} == {
+        "fdr_adv": "GENERATED", "fdr_fu": "GENERATED", "fdr_used": "AVAILABLE", "fdr_free": "SUPERSEDED"}
+
+
+def test_without_a_dependency_check_nothing_is_superseded():
+    repo = InMemoryForecastRecordRepository()
+    repo.save(old_record("fdr_v1_old"))
+    service = make_service(repo, dependency_counter=None)
+    summary = service.generate_period(2026, 10, ["FMD"])["summary"]  # no confirmation needed: nothing to supersede
+    assert summary["would_supersede"] == 0 and summary["protected_reasons"] == {"DEPENDENCY_CHECK_UNAVAILABLE": 1}
+    assert repo.get_by_id("fdr_v1_old").status == "GENERATED"
+
+    def failing(_fid):
+        raise RuntimeError("database down")
+
+    failing_service = make_service(InMemoryForecastRecordRepository(), dependency_counter=failing)
+    failing_service.repository_getter().save(old_record("fdr_other"))
+    assert failing_service.generate_period(2026, 10, ["FMD"], dry_run=True)["summary"]["protected"] == 1
+
+
+def test_supersede_can_be_disabled_entirely():
+    repo = InMemoryForecastRecordRepository()
+    repo.save(old_record("fdr_v1_old"))
+    summary = make_service(repo).generate_period(2026, 10, ["FMD"], supersede=False)["summary"]
+    assert summary["saved"] == 25 and summary["superseded"] == 0
+    assert repo.get_by_id("fdr_v1_old").status == "GENERATED"
+
+
+def test_all_existing_records_are_considered_beyond_a_single_page():
+    repo = InMemoryForecastRecordRepository()
+    for i in range(230):  # more than the 200-record page size
+        repo.save(old_record(f"fdr_bulk_{i:03d}", district="Kandy"))
+    preview = make_service(repo).generate_period(2026, 10, ["FMD"], dry_run=True)["summary"]
+    assert preview["would_supersede"] == 230
+
+
+class FlakyRepo(InMemoryForecastRecordRepository):
+    """Fails the Nth save, and optionally fails status updates."""
+
+    def __init__(self, fail_save_at=None, fail_updates=False):
+        super().__init__()
+        self.fail_save_at, self.fail_updates, self.saves = fail_save_at, fail_updates, 0
+
+    def save(self, record):
+        self.saves += 1
+        if self.fail_save_at and self.saves == self.fail_save_at:
+            raise RuntimeError("Forecast record storage is temporarily unavailable.")
+        return super().save(record)
+
+    def update_status(self, forecast_id, new_status):
+        if self.fail_updates:
+            raise RuntimeError("Forecast record storage is temporarily unavailable.")
+        return super().update_status(forecast_id, new_status)
+
+
+def test_partial_save_failure_supersedes_nothing_and_a_rerun_completes():
+    repo = FlakyRepo(fail_save_at=10)
+    repo.fail_save_at = 10
+    InMemoryForecastRecordRepository.save(repo, old_record("fdr_v1_old"))
+    service = make_service(repo)
+
+    first = service.generate_period(2026, 10, ["FMD"], expected_supersede_count=1)["summary"]
+    assert first["status"] == "PARTIAL" and first["saved"] == 24 and len(first["failed"]) == 1
+    assert first["superseded"] == 0 and repo.get_by_id("fdr_v1_old").status == "GENERATED"
+
+    repo.fail_save_at = None
+    second = service.generate_period(2026, 10, ["FMD"], expected_supersede_count=1)["summary"]
+    assert second["status"] == "OK" and second["saved"] == 25 and second["superseded"] == 1
+    assert repo.list(disease="FMD", target_year=2026, target_month=10, limit=200)[1] == 26
+
+
+def test_storage_down_from_the_first_write_raises_and_writes_nothing():
+    repo = FlakyRepo(fail_save_at=1)
+    try:
+        make_service(repo).generate_period(2026, 10, ["FMD"])
+        raise AssertionError("expected RuntimeError")
+    except RuntimeError:
+        pass
+    assert repo.list(limit=200)[1] == 0
+
+
+def test_supersede_update_failure_is_reported_as_partial():
+    repo = FlakyRepo(fail_updates=True)
+    InMemoryForecastRecordRepository.save(repo, old_record("fdr_v1_old"))
+    summary = make_service(repo).generate_period(2026, 10, ["FMD"], expected_supersede_count=1)["summary"]
+    assert summary["status"] == "PARTIAL" and summary["saved"] == 25 and summary["superseded"] == 0
+    assert summary["supersede_failed"] == [{"forecast_id": "fdr_v1_old", "error": "RuntimeError"}]
 
 
 def test_dry_run_does_not_persist():
@@ -242,48 +375,6 @@ def test_dry_run_does_not_persist():
     result = make_service(repo).generate_period(2026, 10, ["LSD"], dry_run=True)
     assert result["summary"]["dry_run"] is True
     assert repo.list(limit=200)[1] == 0
-
-
-# ─── endpoints ─────────────────────────────────────────────────────────────
-
-def _app(role):
-    from components.risk_forecasting import routes
-    from components.risk_forecasting.integration.auth_adapter import (
-        ViewerContextAuthorization, ViewerContextPermissions, ViewerContextResponse, get_viewer_context,
-    )
-    app = FastAPI()
-    app.include_router(routes.router, prefix="/api/v1/risk-forecasting")
-    viewer = ViewerContextResponse(
-        userId="u1", role=role,
-        authorization=ViewerContextAuthorization(scopeLevel="NATIONAL", authorizedDistricts=["Colombo"], assignedFarmIds=[]),
-        permissions=ViewerContextPermissions(viewDataQuality=True, viewModelTransparency=True, manageAlerts=False,
-                                             recordResponse=False, viewReports=False))
-    app.dependency_overrides[get_viewer_context] = lambda: viewer
-    app.dependency_overrides[routes.get_forecast_v2_service] = lambda: make_service(InMemoryForecastRecordRepository())
-    return TestClient(app)
-
-
-def test_generate_endpoint_requires_daph():
-    response = _app("VETERINARY_OFFICER").post("/api/v1/risk-forecasting/v2/forecasts/generate",
-                                               json={"year": 2026, "month": 10, "dry_run": True})
-    assert response.status_code == 403
-
-
-def test_generate_endpoint_dry_run_for_daph():
-    response = _app("DAPH_OFFICIAL").post("/api/v1/risk-forecasting/v2/forecasts/generate",
-                                          json={"year": 2026, "month": 10, "diseases": ["LSD"], "dry_run": True})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["summary"]["records"] == 25 and body["summary"]["dry_run"] is True
-    assert body["records"][0]["generated_by"] == "u1"
-
-
-def test_model_card_endpoint():
-    response = _app("DAPH_OFFICIAL").get("/api/v1/risk-forecasting/v2/model-card")
-    assert response.status_code == 200
-    card = response.json()
-    assert card["FMD"]["deployment"]["surveillance_known"]["status"] == "validated"
-    assert card["LSD"]["deployment"]["surveillance_known"]["status"] == "exploratory"
 
 
 # ─── monitoring and monthly job ────────────────────────────────────────────
@@ -316,7 +407,7 @@ def test_monthly_job_runs_and_logs(tmp_path, monkeypatch, capsys):
                     service=make_service(InMemoryForecastRecordRepository()))
     assert code == 0
     entry = json.loads((tmp_path / "runs.jsonl").read_text().strip())
-    assert entry["status"] == "ok" and entry["summary"]["records"] == 25 and entry["dry_run"] is True
+    assert entry["status"] == "preview" and entry["summary"]["records"] == 25 and entry["dry_run"] is True
 
 
 def test_monthly_job_reports_storage_failure(tmp_path, monkeypatch):
@@ -329,3 +420,27 @@ def test_monthly_job_reports_storage_failure(tmp_path, monkeypatch):
 
     assert job.main(["--year", "2026", "--month", "10", "--diseases", "FMD"],
                     service=make_service(BrokenRepo())) == 1
+
+
+def test_monthly_job_supersede_requires_the_previewed_count(tmp_path, monkeypatch):
+    from components.risk_forecasting.jobs import run_monthly_forecast as job
+    monkeypatch.setattr(job, "RUN_LOG", tmp_path / "runs.jsonl")
+    repo = InMemoryForecastRecordRepository()
+    repo.save(old_record("fdr_v1_old"))
+
+    service = make_service(repo)  # one instance: the fake id counter must not restart between runs
+    args = ["--year", "2026", "--month", "10", "--diseases", "FMD"]
+    assert job.main(args + ["--supersede-count", "5"], service=service) == 3  # stale count
+    assert repo.list(limit=200)[1] == 1 and repo.get_by_id("fdr_v1_old").status == "GENERATED"
+
+    assert job.main(args, service=service) == 0  # default: stores, never supersedes
+    assert repo.get_by_id("fdr_v1_old").status == "GENERATED"
+    assert job.main(args + ["--supersede-count", "1"], service=service) == 0
+    assert repo.get_by_id("fdr_v1_old").status == "SUPERSEDED"
+
+
+def test_monthly_job_exit_code_for_partial_failure(tmp_path, monkeypatch):
+    from components.risk_forecasting.jobs import run_monthly_forecast as job
+    monkeypatch.setattr(job, "RUN_LOG", tmp_path / "runs.jsonl")
+    assert job.main(["--year", "2026", "--month", "10", "--diseases", "FMD"],
+                    service=make_service(FlakyRepo(fail_save_at=7))) == 4
