@@ -142,3 +142,12 @@ def test_build_features_never_turns_unknown_into_zero():
     assert feats["neighbour_fraction_t1"] is None and feats["neighbour_count_t1"] is None
     assert {"own_t2", "neighbour_fraction_t1", "neighbour_count_t1", "neighbour_fraction_t2"} <= set(missing)
     assert json.dumps(feats)  # serialisable for the feature snapshot
+
+
+def test_district_names_do_not_match_inside_other_names():
+    from components.risk_forecasting.pipeline.geography import DISTRICT_NAMES, normalize_district
+    assert all(normalize_district(name) == name for name in DISTRICT_NAMES)       # incl. Kegalle (contains "galle")
+    assert normalize_district("7.25, 80.34 (Kegalle District)") == "Kegalle"
+    assert normalize_district("Kegalla") == "Kegalle"
+    assert normalize_district("Galle District") == "Galle"
+    assert normalize_district("Galle and Kegalle") is None                          # ambiguous stays unknown
