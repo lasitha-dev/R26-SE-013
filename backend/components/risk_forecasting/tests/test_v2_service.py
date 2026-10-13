@@ -132,6 +132,10 @@ def test_app_observations_are_coverage_aware():
     assert obs["Colombo"].outbreak == 0
     assert obs["Jaffna"].status == "NO_SURVEILLANCE_COVERAGE"       # no farms
     assert obs["Jaffna"].outbreak is None
+    # Where the app has no coverage, counts and severity are unknown, not zero.
+    assert obs["Jaffna"].cases is None and obs["Jaffna"].deaths is None
+    assert obs["Jaffna"].as_dict()["observed_severity"] is None
+    assert obs["Colombo"].cases == 0 and obs["Colombo"].as_dict()["observed_severity"] == "NONE"
     lsd = app_month_observations(fake_app_db(), "LSD", 2026, 9)
     assert lsd["Colombo"].status == "CONFIRMED_OUTBREAK"
 

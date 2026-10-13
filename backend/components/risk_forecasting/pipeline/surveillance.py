@@ -141,7 +141,13 @@ def app_month_observations(db, disease: str, year: int, month: int) -> Dict[str,
             status = "NO_REPORTED_CASES"
         else:
             status = "NO_SURVEILLANCE_COVERAGE"
-        result[district] = DistrictObservation(status, APP_SOURCE, cases[district], deaths[district])
+        # Counts are only meaningful where the app can see the district; elsewhere they are unknown.
+        observed = status != "NO_SURVEILLANCE_COVERAGE"
+        result[district] = DistrictObservation(
+            status, APP_SOURCE,
+            cases[district] if observed else None,
+            deaths[district] if observed else None,
+        )
     return result
 
 
