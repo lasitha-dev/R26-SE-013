@@ -28,6 +28,13 @@ const RISK_TIER_RANK = Object.freeze({
   NO_RECORD: 0,
 });
 
+const SUPERSEDE_PROTECTION_TEXT = Object.freeze({
+  HAS_ADVISORY: 'has advisories',
+  HAS_FOLLOW_UP: 'has follow-ups',
+  WORKFLOW_STATUS: 'already used in a workflow',
+  DEPENDENCY_CHECK_UNAVAILABLE: 'dependency check unavailable',
+});
+
 function severityDisplay(row) {
   // v2 forecasts do not predict severity; they report the severity observed last month.
   if (!row.record || !isV2Record(row.record)) return { text: row.predicted_severity, title: undefined };
@@ -98,6 +105,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [operationalWarning, setOperationalWarning] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [generationPreview, setGenerationPreview] = useState(null);
+  const generationInFlight = useRef(false);
   const [generationMessage, setGenerationMessage] = useState(null);
   const [activeAlerts, setActiveAlerts] = useState([]);
 
@@ -505,25 +515,67 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     setOffset(0);
   };
 
-  const handleGenerateForecasts = async () => {
-    setGenerating(true);
+  // Step 1: read-only preview. Nothing is written until the official confirms the dialog.
+  const handlePreviewGeneration = async () => {
+    if (generationInFlight.current) return;
+    generationInFlight.current = true;
+    setPreviewing(true);
     setGenerationMessage(null);
     try {
-      const res = await generateV2Forecasts({ year: selectedYear, month: selectedMonth });
-      const summary = res?.summary || {};
-      setGenerationMessage({
-        tone: 'success',
-        text: `Stored ${summary.records ?? 0} v2 forecast records for ${summary.target_period}; ${summary.superseded ?? 0} older records marked superseded.`,
-      });
-      await fetchData();
+      const res = await generateV2Forecasts({ year: selectedYear, month: selectedMonth, dryRun: true });
+      setGenerationPreview(res?.summary || {});
     } catch (err) {
       setGenerationMessage({
         tone: 'error',
-        text: err?.status === 403 ? 'Only DAPH officials can generate forecasts.' : 'Forecast generation failed. Please try again.',
+        text: err?.status === 403 ? 'Only DAPH officials can generate forecasts.' : 'Could not prepare the forecast preview. Please try again.',
       });
     } finally {
-      setGenerating(false);
+      generationInFlight.current = false;
+      setPreviewing(false);
     }
+  };
+
+  // Step 2: one controlled write, bound to the count the official saw in the preview.
+  const handleConfirmGeneration = async () => {
+    if (generationInFlight.current || !generationPreview) return;
+    generationInFlight.current = true;
+    setGenerating(true);
+    const confirmedCount = generationPreview.would_supersede ?? 0;
+    try {
+      const res = await generateV2Forecasts({
+        year: selectedYear,
+        month: selectedMonth,
+        expectedSupersedeCount: confirmedCount,
+      });
+      const summary = res?.summary || {};
+      if (summary.status === 'PARTIAL') {
+        const failed = (summary.failed || []).length + (summary.supersede_failed || []).length;
+        setGenerationMessage({
+          tone: 'error',
+          text: `Partly stored: ${summary.saved ?? 0} of ${summary.records ?? 0} records saved, ${failed} step(s) failed and no older records were superseded. Running it again is safe and will complete the rest.`,
+        });
+      } else {
+        setGenerationMessage({
+          tone: 'success',
+          text: `Stored ${summary.records ?? 0} v2 forecast records for ${summary.target_period}; ${summary.superseded ?? 0} older records marked superseded; ${summary.protected ?? 0} protected records left unchanged.`,
+        });
+      }
+      await fetchData();
+    } catch (err) {
+      let text = 'Forecast generation failed. Nothing was changed unless stated above. Please try again.';
+      if (err?.status === 403) text = 'Only DAPH officials can generate forecasts.';
+      else if (err?.status === 409) text = 'The records changed since the preview, so nothing was stored. Please preview again.';
+      else if (err?.status === 400) text = 'A fresh preview is required before storing. Please preview again.';
+      setGenerationMessage({ tone: 'error', text });
+    } finally {
+      generationInFlight.current = false;
+      setGenerating(false);
+      setGenerationPreview(null);
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (!generating) setGenerationPreview(null);
   };
 
   // Fail-Closed Access Early Return (Amendment 7)
@@ -572,13 +624,13 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           </button>
           <button
             type="button"
-            onClick={handleGenerateForecasts}
-            disabled={loading || generating}
+            onClick={handlePreviewGeneration}
+            disabled={loading || generating || previewing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold border border-emerald-500/50 transition disabled:opacity-50"
             title="Compute and store v2 forecasts for the selected month from public climate data and recorded surveillance"
           >
-            <span className={`material-symbols-outlined text-sm ${generating ? 'animate-spin' : ''}`}>{generating ? 'sync' : 'model_training'}</span>
-            {generating ? 'Generating…' : `Generate v2 forecasts (${getMonthNameFallback(selectedMonth)} ${selectedYear})`}
+            <span className={`material-symbols-outlined text-sm ${generating || previewing ? 'animate-spin' : ''}`}>{generating || previewing ? 'sync' : 'model_training'}</span>
+            {previewing ? 'Preparing preview…' : generating ? 'Storing…' : `Generate v2 forecasts (${getMonthNameFallback(selectedMonth)} ${selectedYear})`}
           </button>
         </div>
       </div>
@@ -599,6 +651,59 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           <div>
             <strong className="block mb-0.5">Partial Operational Coverage Warning</strong>
             {operationalWarning}
+          </div>
+        </div>
+      )}
+
+      {generationPreview && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="generation-confirm-title">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4 text-sm text-slate-200">
+            <h2 id="generation-confirm-title" className="text-lg font-bold text-white">
+              Store v2 forecasts for {getMonthNameFallback(selectedMonth)} {selectedYear}?
+            </h2>
+            <ul className="space-y-1.5 text-xs">
+              <li>
+                <strong className="text-white">{generationPreview.records ?? 0}</strong> new forecast records will be stored
+                {generationPreview.reused ? ` (${generationPreview.reused} already stored and reused)` : ''}.
+              </li>
+              <li>
+                <strong className="text-white">{generationPreview.would_supersede ?? 0}</strong> older records will be marked
+                superseded (never deleted).
+              </li>
+              <li>
+                <strong className="text-white">{generationPreview.protected ?? 0}</strong> older records stay unchanged
+                {Object.keys(generationPreview.protected_reasons || {}).length > 0 && (
+                  <>
+                    {' '}because they are protected:{' '}
+                    {Object.entries(generationPreview.protected_reasons).map(([reason, count]) => (
+                      <span key={reason} className="mr-2">{count} {SUPERSEDE_PROTECTION_TEXT[reason] || reason}</span>
+                    ))}
+                  </>
+                )}
+                .
+              </li>
+            </ul>
+            <p className="text-[11px] text-slate-400">
+              Nothing has been written yet. Records with advisories, follow-ups or workflow activity are never superseded.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleCancelGeneration}
+                disabled={generating}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmGeneration}
+                disabled={generating}
+                className="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold border border-emerald-500/50 disabled:opacity-50"
+              >
+                {generating ? 'Storing…' : 'Confirm and store'}
+              </button>
+            </div>
           </div>
         </div>
       )}

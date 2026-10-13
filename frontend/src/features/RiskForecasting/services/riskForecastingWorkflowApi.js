@@ -1059,8 +1059,11 @@ export async function forwardToAssignedFarmers(advisoryId, options = {}) {
  * Generates and stores v2 forecasts for a target month (DAPH JWT required).
  * POST /api/v1/risk-forecasting/v2/forecasts/generate
  */
-export async function generateV2Forecasts({ year, month, diseases, dryRun = false } = {}, options = {}) {
+export async function generateV2Forecasts({ year, month, diseases, dryRun = false, expectedSupersedeCount } = {}, options = {}) {
   const body = { dry_run: Boolean(dryRun) };
+  if (expectedSupersedeCount !== undefined && expectedSupersedeCount !== null) {
+    body.expected_supersede_count = Number(expectedSupersedeCount);
+  }
   if (year !== undefined && year !== null) body.year = Number(year);
   if (month !== undefined && month !== null) body.month = Number(month);
   if (Array.isArray(diseases) && diseases.length > 0) body.diseases = diseases;

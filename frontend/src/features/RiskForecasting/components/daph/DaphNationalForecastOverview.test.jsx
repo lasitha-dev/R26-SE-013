@@ -717,26 +717,121 @@ describe('DaphNationalForecastOverview Component', () => {
       });
     });
 
-    it('generates v2 forecasts for the selected period on explicit request', async () => {
-      api.generateV2Forecasts.mockResolvedValue({ summary: { records: 50, target_period: '2025-01', superseded: 50 } });
+    const previewSummary = {
+      status: 'PREVIEW', dry_run: true, target_period: '2025-01', records: 50, reused: 0,
+      would_supersede: 49, protected: 1, protected_reasons: { HAS_FOLLOW_UP: 1 },
+      protected_details: [{ forecast_id: 'fdr_x', reasons: ['HAS_FOLLOW_UP'] }],
+    };
+    const openPreview = async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
-      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
-
       fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts \(January 2025\)/i }));
+      return screen.findByRole('dialog');
+    };
 
-      await waitFor(() => {
-        expect(api.generateV2Forecasts).toHaveBeenCalledWith({ year: 2025, month: 1 });
-        expect(screen.getByText(/Stored 50 v2 forecast records for 2025-01; 50 older records marked superseded/)).toBeInTheDocument();
-      });
+    it('mount, period changes and filter changes never call generation', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText(/Risk Tier/i), { target: { value: 'HIGH' } });
+      fireEvent.change(screen.getByLabelText(/Target Month|Month/i), { target: { value: '2' } });
+      await waitFor(() => expect(api.listForecastRecords).toHaveBeenCalled());
+      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
 
-    it('shows a clear message when generation is forbidden', async () => {
+    it('clicking Generate only requests a read-only preview and shows what would change', async () => {
+      api.generateV2Forecasts.mockResolvedValue({ summary: previewSummary });
+      const dialog = await openPreview();
+
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(1);
+      expect(api.generateV2Forecasts).toHaveBeenCalledWith({ year: 2025, month: 1, dryRun: true });
+      expect(within(dialog).getByText('50')).toBeInTheDocument();
+      expect(within(dialog).getByText('49')).toBeInTheDocument();
+      expect(within(dialog).getByText(/1 has follow-ups/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Nothing has been written yet/)).toBeInTheDocument();
+    });
+
+    it('cancel after the preview causes zero writes', async () => {
+      api.generateV2Forecasts.mockResolvedValue({ summary: previewSummary });
+      const dialog = await openPreview();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(1); // only the preview
+    });
+
+    it('confirm performs one controlled write bound to the previewed supersede count', async () => {
+      api.generateV2Forecasts
+        .mockResolvedValueOnce({ summary: previewSummary })
+        .mockResolvedValueOnce({ summary: { status: 'OK', target_period: '2025-01', records: 50, saved: 50, superseded: 49, protected: 1 } });
+      const dialog = await openPreview();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and store' }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Stored 50 v2 forecast records for 2025-01; 49 older records marked superseded; 1 protected records left unchanged/)).toBeInTheDocument();
+      });
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(2);
+      expect(api.generateV2Forecasts).toHaveBeenLastCalledWith({ year: 2025, month: 1, expectedSupersedeCount: 49 });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('repeat clicks while the preview or the write is pending do not duplicate calls', async () => {
+      let releaseWrite;
+      api.generateV2Forecasts
+        .mockResolvedValueOnce({ summary: previewSummary })
+        .mockImplementationOnce(() => new Promise((resolve) => { releaseWrite = resolve; }));
+      const generate = (await (async () => {
+        render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+        await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+        return screen.getByRole('button', { name: /Generate v2 forecasts \(January 2025\)/i });
+      })());
+      fireEvent.click(generate);
+      fireEvent.click(generate);
+      const dialog = await screen.findByRole('dialog');
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(1); // double click -> one preview
+
+      const confirm = within(dialog).getByRole('button', { name: 'Confirm and store' });
+      fireEvent.click(confirm);
+      fireEvent.click(confirm);
+      await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' })).toBeDisabled());
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(2); // double confirm -> one write
+      releaseWrite({ summary: { status: 'OK', target_period: '2025-01', records: 50, saved: 50, superseded: 49, protected: 1 } });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('a stale preview (409) stores nothing and asks for a new preview', async () => {
+      api.generateV2Forecasts
+        .mockResolvedValueOnce({ summary: previewSummary })
+        .mockRejectedValueOnce(Object.assign(new Error('API Error 409'), { status: 409 }));
+      const dialog = await openPreview();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and store' }));
+      await waitFor(() => expect(screen.getByText(/records changed since the preview, so nothing was stored/)).toBeInTheDocument());
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(2); // no automatic retry
+    });
+
+    it('a partial failure is surfaced and described as recoverable', async () => {
+      api.generateV2Forecasts
+        .mockResolvedValueOnce({ summary: previewSummary })
+        .mockResolvedValueOnce({ summary: { status: 'PARTIAL', records: 50, saved: 44, failed: [{}, {}], supersede_failed: [], superseded: 0 } });
+      const dialog = await openPreview();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and store' }));
+      await waitFor(() => expect(screen.getByText(/Partly stored: 44 of 50 records saved, 2 step\(s\) failed and no older records were superseded. Running it again is safe/)).toBeInTheDocument());
+    });
+
+    it('shows a clear message when generation is forbidden and writes nothing', async () => {
       api.generateV2Forecasts.mockRejectedValue(Object.assign(new Error('API Error 403'), { status: 403 }));
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts/i }));
       await waitFor(() => expect(screen.getByText('Only DAPH officials can generate forecasts.')).toBeInTheDocument());
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(api.generateV2Forecasts).toHaveBeenCalledTimes(1);
+    });
+
+    it('non-DAPH viewers get no generate control at all', () => {
+      const vetContext = { ...validDaphContext, role: ROLES.VETERINARY_OFFICER };
+      render(<DaphNationalForecastOverview viewerContext={vetContext} />);
+      expect(screen.queryByRole('button', { name: /Generate v2 forecasts/i })).not.toBeInTheDocument();
+      expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
 
     it('lists active verified outbreak signals separately from forecasts', async () => {
