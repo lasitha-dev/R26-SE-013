@@ -310,6 +310,38 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(screen.getAllByText('No record').length).toBeGreaterThan(0);
     });
 
+    it('never fabricates forecast values for periods without persisted records', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      api.listForecastRecords.mockResolvedValueOnce({ total: 0, records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+        expect(screen.getAllByText('No Record').length).toBe(50);
+      });
+
+      const table = screen.getByRole('table');
+      expect(within(table).queryByText(/\d+\.\d%/)).not.toBeInTheDocument();
+      expect(within(table).queryByText(/Model Predicted/i)).not.toBeInTheDocument();
+      expect(within(table).queryByText(/^(HIGH|MEDIUM|LOW)$/)).not.toBeInTheDocument();
+      expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('demo-forecasting'))).toBe(false);
+      fetchSpy.mockRestore();
+    });
+
+    it('"No Record Only" risk filter lists only slots without persisted records', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/Risk Tier/i), { target: { value: 'NO_RECORD' } });
+
+      await waitFor(() => {
+        expect(screen.getAllByText('No Record').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'View' })).not.toBeInTheDocument();
+      });
+    });
+
     it('real rows retain Rank and View, matrix behaves correctly', async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => {

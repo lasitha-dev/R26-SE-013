@@ -8,7 +8,6 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
-import { fetchAuthorizedDiseaseForecasts } from '../../services/demoForecastingApi.js';
 
 const CANONICAL_DISTRICTS = [
   'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
@@ -105,54 +104,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
         );
       }
 
-      // Fall back to live forecast evaluation using the trained model pipeline for any month/year if no saved DB records exist
-      if (fetchedRecords.length === 0) {
-        try {
-          const liveRes = await fetchAuthorizedDiseaseForecasts({ year: selectedYear, targetMonth: selectedMonth, signal: controller.signal });
-          if (controller.signal.aborted) return;
-          const liveRecords = [];
-          if (liveRes?.fmd?.status === 'success' && liveRes.fmd.data?.districts) {
-            liveRes.fmd.data.districts.forEach(d => {
-              liveRecords.push({
-                forecast_id: `live_fmd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'FMD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false
-              });
-            });
-          }
-          if (liveRes?.lsd?.status === 'success' && liveRes.lsd.data?.districts) {
-            liveRes.lsd.data.districts.forEach(d => {
-              liveRecords.push({
-                forecast_id: `live_lsd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'LSD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false
-              });
-            });
-          }
-          if (liveRecords.length > 0) {
-            fetchedRecords = liveRecords;
-          }
-        } catch (_) {
-          // If live request fails, fallback stays empty
-        }
-      }
-
+      // Only persisted forecast records are displayed; an empty period shows the empty state.
       const authRecords = isNational
         ? fetchedRecords
         : fetchedRecords.filter(r => authorizedDistricts.includes(r.district));

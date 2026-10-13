@@ -14,7 +14,6 @@ import {
   listAdvisories,
   listNotificationBatches,
 } from '../../services/riskForecastingWorkflowApi';
-import { fetchAuthorizedDiseaseForecasts } from '../../services/demoForecastingApi.js';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 
 const RISK_TIER_RANK = Object.freeze({
@@ -135,64 +134,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         fetchedRecords = [];
       }
 
-      // Live inference fallback for all 25 districts when DB records for requested target period are missing
-      const hasRecordsForSelectedPeriod = fetchedRecords.some(
-        (r) =>
-          (r.target_year ?? r.targetYear) === Number(selectedYear) &&
-          (r.target_month ?? r.targetMonth) === Number(selectedMonth)
-      );
-
-      if (!hasRecordsForSelectedPeriod) {
-        try {
-          const liveRes = await fetchAuthorizedDiseaseForecasts({
-            year: selectedYear,
-            targetMonth: selectedMonth,
-            signal: controller.signal,
-          });
-          if (controller.signal.aborted) return;
-          const liveRecords = [];
-          if (liveRes.fmd?.status === 'success' && liveRes.fmd.data?.districts) {
-            liveRes.fmd.data.districts.forEach((d) => {
-              liveRecords.push({
-                forecast_id: `live_fmd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'FMD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false,
-              });
-            });
-          }
-          if (liveRes.lsd?.status === 'success' && liveRes.lsd.data?.districts) {
-            liveRes.lsd.data.districts.forEach((d) => {
-              liveRecords.push({
-                forecast_id: `live_lsd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'LSD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false,
-              });
-            });
-          }
-          if (liveRecords.length > 0) {
-            fetchedRecords = [...fetchedRecords, ...liveRecords];
-          }
-        } catch (_) {
-          // If live fallback fails, proceed with fetched records
-        }
-      }
-
+      // Only persisted forecast records are displayed. Periods without stored records
+      // are shown as "No Record"; no client-side substitute predictions are generated.
       setAllRecords(fetchedRecords);
 
       // Extract authorized forecast IDs for client-side relationship containment
@@ -323,7 +266,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           const linkedAdv = advisoriesByForecastId.get(record.forecast_id) || [];
           const hasApprovedAdv = linkedAdv.some((a) => a.status === 'APPROVED');
           const isHighOrMed = record.risk_level === 'HIGH' || record.risk_level === 'MEDIUM';
-          const isOfficialStored = !record.fallback_applied && record.data_quality !== 'MODEL_PREDICTED' && !String(record.forecast_id || '').startsWith('live_');
+          const isOfficialStored = !record.fallback_applied;
           const requiresFollowUp = isOfficialStored && isHighOrMed && !hasApprovedAdv;
 
           let advisoryStatusSummary = 'No Advisory';
@@ -374,49 +317,27 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             advisoryStatusSummary,
             requiresFollowUp,
             batchSummary,
-            isMissingRecord: String(record.forecast_id || '').startsWith('live_') || String(record.forecast_id || '').startsWith('predicted_'),
+            isMissingRecord: false,
           });
         } else {
-          // Model prediction fallback for target period slots without stored DB records
-          let hash = 0;
-          const str = `${dist}_${dis}_${selectedYear}_${selectedMonth}`;
-          for (let i = 0; i < str.length; i++) {
-            hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash |= 0;
-          }
-          const absHash = Math.abs(hash);
-          const probPct = parseFloat(((absHash % 700) / 10 + 15).toFixed(1));
-          const riskLevel = probPct >= 40.0 ? 'HIGH' : (probPct >= 25.0 ? 'MEDIUM' : 'LOW');
-          const severity = probPct >= 55.0 ? 'HIGH' : (probPct >= 30.0 ? 'MEDIUM' : 'LOW');
-
+          // No persisted forecast record exists for this district/disease/period slot.
           rows.push({
-            id: `predicted_${dist}_${dis}_${selectedYear}_${selectedMonth}`,
+            id: `missing_${dist}_${dis}_${selectedYear}_${selectedMonth}`,
             district: dist,
             disease: dis,
             target_year: Number(selectedYear),
             target_month: Number(selectedMonth),
-            probability: probPct / 100,
-            probability_pct: probPct,
-            risk_level: riskLevel,
-            predicted_severity: severity,
-            status: 'GENERATED',
-            data_quality: 'MODEL_PREDICTED',
-            fallback_applied: true,
-            source_year: Number(selectedYear),
-            source_month: Number(selectedMonth),
-            data_age_months: 0,
-            record: {
-              forecast_id: `predicted_${dist}_${dis}_${selectedYear}_${selectedMonth}`,
-              district: dist,
-              disease: dis,
-              target_year: Number(selectedYear),
-              target_month: Number(selectedMonth),
-              probability_pct: probPct,
-              risk_level: riskLevel,
-              predicted_severity: severity,
-              status: 'GENERATED',
-              fallback_applied: true,
-            },
+            probability: null,
+            probability_pct: null,
+            risk_level: null,
+            predicted_severity: '—',
+            status: null,
+            data_quality: null,
+            fallback_applied: false,
+            source_year: null,
+            source_month: null,
+            data_age_months: null,
+            record: null,
             linkedAdvisories: [],
             advisoryStatusSummary: 'No Advisory',
             requiresFollowUp: false,
@@ -429,7 +350,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
     // Filtering table rows
     let filtered = rows;
-    if (riskFilter !== 'ALL') {
+    if (riskFilter === 'NO_RECORD') {
+      filtered = filtered.filter((r) => r.isMissingRecord);
+    } else if (riskFilter !== 'ALL') {
       filtered = filtered.filter((r) => r.risk_level === riskFilter && !r.fallback_applied);
     }
     if (advisoryFilter !== 'ALL') {
@@ -472,14 +395,12 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
   // 7. Complete-Collection Filtering & National Summary Metrics
   const summaryMetrics = useMemo(() => {
-    const dbRecords = periodFilteredRecords.filter(
-      (r) => !String(r.forecast_id || '').startsWith('live_') && !String(r.forecast_id || '').startsWith('predicted_') && r.data_quality !== 'MODEL_PREDICTED'
-    );
+    const dbRecords = periodFilteredRecords;
     const totalRecords = dbRecords.length;
     let highRisk = 0;
     let mediumRisk = 0;
     let lowRisk = 0;
-    let fallbackAppliedCount = periodFilteredRecords.length - dbRecords.length;
+    const fallbackAppliedCount = dbRecords.filter((r) => r.fallback_applied).length;
 
     dbRecords.forEach((r) => {
       if (r.risk_level === 'HIGH') highRisk++;
@@ -933,10 +854,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
                       {/* Data Provenance (Amendment 1: fallback_applied) */}
                       <td className="py-3 px-3 text-center">
-                        {row.data_quality === 'MODEL_PREDICTED' || String(row.id || '').startsWith('predicted_') || String(row.id || '').startsWith('live_') ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950/80 text-indigo-300 border border-indigo-600/40" title="Model Inferred Prediction">
-                            Model Predicted
-                          </span>
+                        {isMissing ? (
+                          <span className="text-slate-600">—</span>
                         ) : row.fallback_applied ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950/80 text-amber-300 border border-amber-600/40" title={`Data quality: ${row.data_quality}`}>
                             Fallback Proxy
@@ -961,7 +880,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                             >
                               View
                             </button>
-                            {Boolean(row.id) && !row.fallback_applied && row.data_quality !== 'MODEL_PREDICTED' && !String(row.id).startsWith('live_') && (
+                            {Boolean(row.id) && !row.fallback_applied && (
                               <button
                                 type="button"
                                 onClick={() => setComposingForecastRecord(row)}

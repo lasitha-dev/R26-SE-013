@@ -10,7 +10,6 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import {
   listForecastRecords,
 } from '../../services/riskForecastingWorkflowApi.js';
-import { fetchAuthorizedDiseaseForecasts } from '../../services/demoForecastingApi.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
