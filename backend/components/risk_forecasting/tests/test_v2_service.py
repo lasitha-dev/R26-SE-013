@@ -116,8 +116,19 @@ def test_deployed_forecasters_and_fallbacks(disease):
         assert unknown.relative_risk == pytest.approx(1.0)
 
 
+def test_deployment_decisions_follow_the_current_evidence():
+    """Pins the decisions produced by the leave-one-year-out evaluation (docs/v2/MODEL_CARD.md).
+    Re-training may legitimately change these; update the model card together with this test."""
+    fmd = V2Predictor.load("FMD").artifact["deployment"]
+    assert fmd["surveillance_known"] == {"forecaster": "climatology", "C": None, "status": "baseline"}
+    assert fmd["surveillance_unknown"]["forecaster"] == "climatology"
+    lsd = V2Predictor.load("LSD").artifact["deployment"]
+    assert lsd["surveillance_known"]["forecaster"] == "A" and lsd["surveillance_known"]["status"] == "back_tested"
+    assert lsd["surveillance_unknown"]["forecaster"] == "climatology"
+
+
 def test_missing_climate_input_falls_back_to_climatology_for_climate_model():
-    predictor = V2Predictor.load("FMD")
+    predictor = V2Predictor.load("LSD")  # deployed known-surveillance forecaster uses climate features
     assert predictor.artifact["deployment"]["surveillance_known"]["forecaster"] == "A"
     features = {**_complete_features(), "rain_t1": None}
     assert predictor.predict("Kandy", 3, features).forecaster == "climatology"
@@ -267,7 +278,8 @@ def test_performance_separates_retrospective_from_prospective_scores():
 
 def test_lsd_january_2025_uses_surveillance_model_from_curated_labels():
     records = make_service(InMemoryForecastRecordRepository()).forecast_period(2025, 1, ["LSD"])
-    assert {r.forecaster for r in records} == {"S"}
+    deployed = V2Predictor.load("LSD").artifact["deployment"]["surveillance_known"]["forecaster"]
+    assert {r.forecaster for r in records} == {deployed}
     assert all(r.surveillance_source == "CURATED_DAPH_DATASET" for r in records)
     fmd = make_service(InMemoryForecastRecordRepository()).forecast_period(2025, 1, ["FMD"])
     assert {r.forecaster for r in fmd} == {"climatology"}  # December 2024 FMD labels unverified

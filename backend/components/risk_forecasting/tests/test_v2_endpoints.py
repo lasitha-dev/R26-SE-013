@@ -65,5 +65,5 @@ def test_model_card_endpoint():
     response = _app("DAPH_OFFICIAL").get("/api/v1/risk-forecasting/v2/model-card")
     assert response.status_code == 200
     card = response.json()
-    assert card["FMD"]["deployment"]["surveillance_known"]["status"] == "back_tested"
-    assert card["LSD"]["deployment"]["surveillance_known"]["status"] == "exploratory"
+    assert card["FMD"]["deployment"]["surveillance_known"]["status"] == "baseline"
+    assert card["LSD"]["deployment"]["surveillance_known"]["status"] == "back_tested"

@@ -75,6 +75,9 @@ a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400
 
 ## Known operational limits
 
+- Current deployment (model card section 6): **FMD uses the climatology baseline everywhere** because no
+  model beat it with a confidence interval above zero; LSD uses variant A (back-tested candidate) where
+  surveillance of the district and its neighbours is known, otherwise climatology.
 - Surveillance coverage: the app currently has few registered farms, so most districts have
   unknown surveillance and receive the climatology baseline. Forecast skill rises as coverage grows
   or if DAPH monthly reports are imported.

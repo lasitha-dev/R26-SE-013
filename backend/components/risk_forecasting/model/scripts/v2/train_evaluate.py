@@ -18,10 +18,15 @@ Design (sparse-event forecasting practice):
   best PR-AUC on all earlier backtest months only, as a running system would.
   The first backtest year is a warm-up; metrics come from the later years.
 - Onset skill is reported separately (months with no outbreak in t-1).
-- Month-block bootstrap CIs for PR-AUC differences.
+- The climatology prior used as a model input is computed leave-one-year-out on the
+  training rows (a row never sees its own year's labels inside its prior); at prediction
+  time the prior comes from all earlier data, exactly as in operation.
+- Moving-block bootstrap CIs (6 consecutive months) for PR-AUC differences, which respects
+  month-to-month dependence; the i.i.d. month bootstrap is reported alongside as a sensitivity.
 Artifacts are written as JSON (no pickles): model/models/v2/<disease>_v2.json.
 """
 
+import hashlib
 import json
 import math
 import sys
@@ -49,7 +54,8 @@ C_GRID = [0.01, 0.03, 0.1, 0.3, 1.0]
 PRIOR_STRENGTH = 3.0          # pseudo-years pulling a district-month rate toward the national rate
 RELATIVE_RISK_ALERT = 2.0     # "elevated" when probability >= 2x the climatological baseline
 BOOTSTRAP = 2000
-RNG = np.random.default_rng(42)
+BOOTSTRAP_BLOCK_MONTHS = 6    # decision CI uses 6-month moving blocks (outbreaks cluster in time)
+BOOTSTRAP_SEED = 42
 # name -> (features, use climatology prior)
 VARIANTS = {
     "A": (BASE_FEATURES + SURVEILLANCE_FEATURES, True),
@@ -82,19 +88,38 @@ def prior_for(table, district, month):
         f"{district}|{month}", table["national_month"].get(month, table["overall"]))
 
 
-def design_matrix(rows, features, mean, std, table, use_prior):
+def loyo_prior(train):
+    """Climatology prior for each training row computed WITHOUT that row's calendar year, so the
+    model is fitted on out-of-sample priors like the ones it receives at prediction time.
+    (An in-sample prior contains the row's own label and makes the model over-trust it.)"""
+    prior = np.empty(len(train))
+    for year in train.year.unique():
+        mask = (train.year == year).to_numpy()
+        rest = train[~mask]
+        if rest.empty:
+            prior[mask] = train.outbreak.mean()
+            continue
+        table = climatology_table(rest)
+        prior[mask] = [prior_for(table, d, m) for d, m in zip(train.district[mask], train.month[mask])]
+    return prior
+
+
+def design_matrix(rows, features, mean, std, table, use_prior, prior=None):
     x = (rows[features].to_numpy(float) - mean) / std
     if not use_prior:
         return x
-    prior = np.array([prior_for(table, d, m) for d, m in zip(rows.district, rows.month)])
+    if prior is None:
+        prior = np.array([prior_for(table, d, m) for d, m in zip(rows.district, rows.month)])
     return np.column_stack([x, logit(prior)])
 
 
-def fit_lr(train, features, c, table, use_prior):
+def fit_lr(train, features, c, table, use_prior, train_prior=None):
     x = train[features].to_numpy(float)
     mean, std = x.mean(axis=0), x.std(axis=0)
     std[std == 0] = 1.0
-    design = design_matrix(train, features, mean, std, table, use_prior)
+    if use_prior and train_prior is None:
+        train_prior = loyo_prior(train)
+    design = design_matrix(train, features, mean, std, table, use_prior, prior=train_prior)
     model = LogisticRegression(C=c, max_iter=5000)
     model.fit(design, train.outbreak.to_numpy(int))
     return {"mean": mean, "std": std, "coef": model.coef_[0], "intercept": float(model.intercept_[0])}
@@ -119,8 +144,9 @@ def backtest(data, disease):
         for name, (features, use_prior) in VARIANTS.items():
             tr = train.dropna(subset=features)
             ok = test[features].notna().all(axis=1)
+            tr_prior = loyo_prior(tr) if use_prior else None
             for c in C_GRID:
-                params = fit_lr(tr, features, c, table, use_prior)
+                params = fit_lr(tr, features, c, table, use_prior, train_prior=tr_prior)
                 col = f"{name}_C{c}"
                 out[col] = np.nan
                 out.loc[ok, col] = predict_lr(params, test[ok], features, table, use_prior)
@@ -146,18 +172,35 @@ def metrics(y, p, base):
     return res
 
 
-def block_bootstrap_diff(frame, col_a, col_b):
-    """Month-block bootstrap of PR-AUC(col_a) - PR-AUC(col_b)."""
-    months = frame.groupby(["year", "month"]).indices
+def _bootstrap_diff(frame, col_a, col_b, block):
+    """Moving-block bootstrap over chronologically ordered months: resample blocks of `block`
+    consecutive months (block=1 is the i.i.d. month bootstrap) until the original length is reached."""
+    rng = np.random.default_rng(BOOTSTRAP_SEED)
+    months = frame.groupby(["year", "month"]).indices   # keys iterate in chronological order
     keys = list(months)
+    n = len(keys)
+    block = max(1, min(block, n))
     diffs = []
     for _ in range(BOOTSTRAP):
-        idx = np.concatenate([months[keys[i]] for i in RNG.integers(0, len(keys), len(keys))])
+        picked = []
+        while len(picked) < n:
+            start = int(rng.integers(0, n - block + 1))
+            picked.extend(range(start, start + block))
+        idx = np.concatenate([months[keys[i]] for i in picked[:n]])
         s = frame.iloc[idx]
         if 0 < s.outbreak.sum() < len(s):
             diffs.append(average_precision_score(s.outbreak, s[col_a]) - average_precision_score(s.outbreak, s[col_b]))
     lo, hi = np.percentile(diffs, [2.5, 97.5])
     return {"mean": float(np.mean(diffs)), "ci95": [float(lo), float(hi)], "p_le_0": float(np.mean(np.array(diffs) <= 0))}
+
+
+def block_bootstrap_diff(frame, col_a, col_b):
+    """PR-AUC(col_a) - PR-AUC(col_b). `ci95` (used for deployment) is the 6-month moving-block
+    interval; `iid_month_ci95` is the narrower i.i.d. month interval, kept as a sensitivity."""
+    result = _bootstrap_diff(frame, col_a, col_b, BOOTSTRAP_BLOCK_MONTHS)
+    result["block_months"] = BOOTSTRAP_BLOCK_MONTHS
+    result["iid_month_ci95"] = _bootstrap_diff(frame, col_a, col_b, 1)["ci95"]
+    return result
 
 
 def candidate_columns(variants):
@@ -294,6 +337,15 @@ def export(data, disease, ev, decision):
             "known_minus_climatology_ci95": ev["bootstrap_pr_auc"]["model_known_minus_climatology"]["ci95"],
             "known_minus_persistence_ci95": ev["bootstrap_pr_auc"]["model_known_minus_persistence"]["ci95"],
         },
+        "training_procedure": {
+            "prior_for_training_rows": "leave-one-year-out climatology",
+            "prior_for_prediction": "climatology from all training data",
+            "bootstrap": {"block_months": BOOTSTRAP_BLOCK_MONTHS, "resamples": BOOTSTRAP, "seed": BOOTSTRAP_SEED},
+            "c_grid": C_GRID, "prior_strength": PRIOR_STRENGTH, "backtest_years": list(BACKTEST[disease]),
+            "dataset_file": f"v2_{disease}_dataset.csv",
+            "dataset_sha256": sha256_of(CACHE / f"v2_{disease}_dataset.csv"),
+            "dataset_rows": int(len(data)),
+        },
         "library_versions": {"scikit-learn": sklearn.__version__, "numpy": np.__version__, "pandas": pd.__version__},
         "data_sources": {
             "rainfall": "CHIRPS via WFP/HDX lka-rainfall-subnat-full.csv (adm2)",
@@ -305,7 +357,7 @@ def export(data, disease, ev, decision):
     for v, c in chosen_c.items():
         features, use_prior = VARIANTS[v]
         train = data.dropna(subset=features)
-        params = fit_lr(train, features, c, table, use_prior)
+        params = fit_lr(train, features, c, table, use_prior)  # leave-one-year-out prior inside fit_lr
         artifact["variants"][v] = {
             "features": features,
             "uses_climatology_prior": use_prior,
@@ -320,6 +372,24 @@ def export(data, disease, ev, decision):
     path = ARTIFACTS / f"{disease.lower()}_v2.json"
     path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
     return path
+
+
+def sha256_of(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def write_data_manifest():
+    """Fingerprint of every cached input file (name, size, sha256) so a result can be tied to the
+    exact data it was computed from. Run logs, live caches and generated predictions are excluded."""
+    skip = {"runs", "live"}
+    files = {}
+    for path in sorted(CACHE.rglob("*")):
+        rel = path.relative_to(CACHE)
+        if path.is_file() and not (set(rel.parts[:-1]) & skip) and "backtest_predictions" not in path.name:
+            files[rel.as_posix()] = {"bytes": path.stat().st_size, "sha256": sha256_of(path)}
+    manifest = {"generated_at": datetime.now(timezone.utc).isoformat(), "cache_dir": "model/data/cache", "files": files}
+    (REPORTS / "data_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return len(files)
 
 
 def fmt(value, digits=3):
@@ -347,7 +417,7 @@ def main():
             print(f"  {k:34s} mean {v['mean']:+.3f}  95% CI [{v['ci95'][0]:+.3f}, {v['ci95'][1]:+.3f}]")
         print("  deployment decision:", decision, "->", path.name)
     (REPORTS / "v2_evaluation.json").write_text(json.dumps(full, indent=2), encoding="utf-8")
-    print("\nreport ->", REPORTS / "v2_evaluation.json")
+    print("\nreport ->", REPORTS / "v2_evaluation.json", "| data manifest files:", write_data_manifest())
 
 
 if __name__ == "__main__":

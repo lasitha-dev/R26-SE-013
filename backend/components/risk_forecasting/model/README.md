@@ -1,7 +1,7 @@
 # FMD Outbreak Prediction Model — Sri Lanka (2017–2024)
 
 > [!NOTE]
-> **v2 (current operational forecaster):** one-month-ahead forecasts built only from data available at issue time, validated with a rolling-origin backtest against baselines. See [`docs/v2/MODEL_CARD.md`](docs/v2/MODEL_CARD.md) and [`docs/v2/OPERATIONS.md`](docs/v2/OPERATIONS.md). Everything below describes the original v1 research pipeline, whose FMD 2024 test labels could not be verified.
+> **v2 (current operational forecaster):** one-month-ahead forecasts built only from data available at issue time, evaluated with a leakage-aware rolling-origin backtest against baselines (FMD currently deploys the climatology baseline; see the model card). See [`docs/v2/MODEL_CARD.md`](docs/v2/MODEL_CARD.md) and [`docs/v2/OPERATIONS.md`](docs/v2/OPERATIONS.md). Everything below describes the original v1 research pipeline, whose FMD 2024 test labels could not be verified.
 
 > [!IMPORTANT]
 > **The performance metrics cited in this README (ROC-AUC 0.843, 21-feature model) reflect an early project stage and have been superseded by the full 9-phase audited pipeline.** For current, audited results with bootstrap significance testing and Bonferroni corrections, see:

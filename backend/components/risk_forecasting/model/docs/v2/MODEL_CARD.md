@@ -2,7 +2,8 @@
 
 Models: `models/v2/fmd_v2.json`, `models/v2/lsd_v2.json` (plain JSON coefficients — no pickles).
 Reproduce: from `backend/`, run `scripts/v2/build_dataset.py` then `scripts/v2/train_evaluate.py`.
-Full numbers: `docs/v2/v2_evaluation.json`.
+Full numbers: `docs/v2/v2_evaluation.json`. Input fingerprints (name, size, SHA-256 of every cached
+source file) are in `docs/v2/data_manifest.json`; each model JSON records the dataset hash, seed and settings.
 
 ## 1. What the models predict
 
@@ -51,6 +52,10 @@ HadISST DMI file is ~5 months behind real time, so it is not available at issue 
 
 - **Baselines:** always-zero; persistence (= last month's status); climatology (district × calendar
   month outbreak rate, shrunk toward the national month rate with 3 pseudo-years).
+- **Prior without leakage:** the climatology prior is a *model input* in variants A and B. For the
+  training rows it is computed **leave-one-year-out** (a row's prior never contains its own year's
+  labels); for the forecast month it comes from all earlier data, as in operation. (An earlier run used
+  the in-sample prior, which let each row's own label leak into its input — see section 7.)
 - **Variants (L2 logistic regression, standardised):**
   - **A** — season + climate + host + surveillance + logit(climatology) *(pre-specified primary)*
   - **S** — surveillance features only
@@ -61,11 +66,13 @@ HadISST DMI file is ~5 months behind real time, so it is not available at issue 
   warm-up; metrics are on the following years (FMD 2022–2023, LSD 2023–2024; 600 district-months each).
 - **Metrics:** PR-AUC (primary, outbreaks are rare), ROC-AUC, Brier skill vs climatology,
   recall/precision at relative risk ≥ 2, onset PR-AUC (months with no outbreak in t-1),
-  month-block bootstrap 95% CIs (2,000 resamples).
+  bootstrap 95% CIs of PR-AUC differences (2,000 resamples, fixed seed). The decision CI resamples
+  **6-month moving blocks** because outbreaks cluster in time; the narrower i.i.d. month bootstrap is
+  stored next to it (`iid_month_ci95`) as a sensitivity only.
 - **Deployment rule:** a forecaster is deployed only if its PR-AUC gain over climatology has a 95%
   CI above 0, its Brier skill is positive, and it is not worse than persistence on average.
 
-## 5. Results (evaluation years)
+## 5. Results (evaluation years; leave-one-year-out prior, 6-month block CIs)
 
 ### FMD (2022–2023, 48 outbreak months)
 
@@ -73,13 +80,16 @@ HadISST DMI file is ~5 months behind real time, so it is not available at issue 
 |---|---|---|---|---|
 | Always zero | 0.080 | 0.500 | −0.042 | 0.053 |
 | Persistence | 0.180 | 0.663 | −0.455 | — |
-| Climatology | 0.196 | 0.671 | 0 | 0.111 |
-| **A (deployed)** | **0.309** | **0.731** | **+0.102** | 0.140 |
+| **Climatology (deployed)** | **0.196** | 0.671 | 0 | 0.111 |
+| A (primary, not deployed) | 0.294 | 0.740 | +0.131 | 0.144 |
 | S | 0.312 | 0.760 | +0.160 | 0.168 |
-| B | 0.204 | 0.677 | +0.008 | 0.112 |
+| B | 0.208 | 0.702 | +0.060 | 0.109 |
 
-A − climatology: **+0.116 [+0.006, +0.220]**; A − persistence: **+0.128 [+0.021, +0.227]**.
-Per year (deployed forecaster): 2022 0.323, 2023 0.253.
+A − climatology: +0.051, **95% CI [−0.022, +0.123]** (i.i.d. month bootstrap [−0.025, +0.297]) — the
+interval includes zero, so A **does not pass** the deployment rule. A − persistence: +0.093 [+0.004, +0.190].
+S − climatology: +0.067 [−0.029, +0.156]. Per year (A/S prequential): 2022 0.308, 2023 0.359.
+The models are ahead of climatology on point estimates, but with 48 outbreak months in two years that
+advantage cannot be distinguished from chance. FMD therefore deploys the climatology baseline.
 
 ### LSD (2023–2024, 70 outbreak months)
 
@@ -88,23 +98,30 @@ Per year (deployed forecaster): 2022 0.323, 2023 0.253.
 | Always zero | 0.117 | 0.500 | +0.022 | 0.079 |
 | Persistence | 0.228 | 0.659 | −0.187 | — |
 | Climatology | 0.094 | 0.299 | 0 | 0.065 |
-| A | 0.210 | 0.550 | +0.130 | 0.066 |
-| **S (deployed, exploratory)** | **0.307** | **0.723** | **+0.206** | **0.152** |
-| B | 0.108 | 0.378 | −0.042 | 0.074 |
+| **A (deployed)** | **0.249** | 0.644 | +0.168 | 0.093 |
+| S | 0.307 | 0.723 | +0.206 | 0.152 |
+| B | 0.113 | 0.405 | +0.050 | 0.081 |
 
-S − climatology: **+0.214 [+0.097, +0.347]**; S − persistence: **+0.091 [+0.036, +0.167]**.
-Per year (prequential forecaster): 2023 0.312, **2024 0.021** (only 5 outbreak months).
+A − climatology: +0.151, **95% CI [+0.010, +0.227]** (i.i.d. [+0.046, +0.312]); A − persistence: +0.027
+[−0.017, +0.078]. S − climatology: +0.188 [−0.022, +0.257]; S − persistence: +0.064 [+0.014, +0.106].
+Per year (prequential A/S): 2023 0.340, **2024 0.021** (only 5 outbreak months).
+A passes the pre-specified rule, but the lower confidence bound (+0.010) is barely above zero and the
+skill comes almost entirely from the 2023 wave. Treat it as weak evidence that needs prospective
+confirmation. (Climatology's ROC of 0.30 means the LSD seasonal pattern *reversed* between years.)
 
 ## 6. Deployment
 
 | Disease | Surveillance status known | Surveillance status unknown |
 |---|---|---|
-| FMD | Variant **A**, C = 0.01 — **back-tested candidate** | Climatology — baseline |
-| LSD | Variant **S**, C = 0.01 — **exploratory** | Climatology — baseline |
+| FMD | Climatology — **baseline** (no model passed) | Climatology — baseline |
+| LSD | Variant **A**, C = 0.01 — **back-tested candidate** | Climatology — baseline |
 
-"Surveillance known" means the outbreak status of the district **and all its neighbours** for t-1
-and t-2 is known. In operations this comes from verified app cases/deaths in districts with
-registered farms; elsewhere status is unknown and the climatology forecast is shown, labelled as such.
+"Back-tested candidate" means the forecaster beat climatology in rolling back-testing; it has **not**
+been confirmed on future data. "Surveillance known" means the outbreak status of the district **and all
+its neighbours** for t-1 and t-2 is known. In operations this comes from verified app cases/deaths in
+districts with registered farms; elsewhere status is unknown and the climatology forecast is shown,
+labelled as such. A climatology record's relative risk is 1.0 by construction, so it is displayed as a
+seasonal baseline, never as an assessed LOW risk.
 
 ## 7. Protocol history (all evaluation runs, for transparency)
 
@@ -116,19 +133,31 @@ registered farms; elsewhere status is unknown and the climatology forecast is sh
    earlier months) to reduce selection noise.
 4. **Run 4 (final):** fixed the deployment protocol: the pre-specified primary A is preferred when it
    passes ("back_tested"); otherwise the prequential A/S forecaster may be deployed as "exploratory".
-   Because S was introduced after evaluation results were seen, LSD's deployed model is exploratory
-   and needs prospective confirmation.
+   Because S was introduced after evaluation results were seen, LSD's deployed model was exploratory.
+5. **Run 5 (current, "Patch C"):** removed a leak and made the intervals more honest.
+   (a) Training rows now use a leave-one-year-out climatology prior instead of one that contained their
+   own label. (b) The decision CI uses 6-month moving blocks instead of independent months.
+   (c) Fixed seed per comparison, dataset hashes and a data manifest were added.
+   Effect: FMD variant A's PR-AUC gain over climatology shrank from +0.116 [+0.006, +0.220] to
+   +0.051 [−0.022, +0.123], so FMD no longer qualifies and falls back to the baseline. For LSD the
+   pre-specified primary A now passes (A − climatology +0.151 [+0.010, +0.227]) and is deployed as a
+   back-tested candidate in place of the exploratory S. No decision rule or threshold was changed after
+   seeing these results; the earlier runs' numbers are superseded by this run.
 
 ## 8. Limitations
 
 - Small samples (FMD 228, LSD 115 outbreak months); CIs are wide. LSD skill comes almost entirely from
-  the 2023 wave; 2024 (5 outbreaks) shows almost no skill.
+  the 2023 wave; 2024 (5 outbreaks) shows almost no skill. FMD has too few outbreak months in two
+  evaluation years to show a significant gain over the seasonal baseline.
+- Five evaluation runs were made on the same data (section 7). The fixes in run 5 correct a method
+  flaw, but model selection across runs is still a source of optimism; only prospective results
+  (`GET /v2/performance` on non-backfilled records) can confirm skill.
 - Label semantics are undocumented; FMD 2024 labels are excluded.
 - Operational surveillance (app verified cases/deaths from registered farms) is a different signal from
   the curated labels used in training and currently covers few districts.
 - The relative-risk alert threshold (2×) is a design choice, not tuned on outcomes.
-- Coefficients are associations, not causal effects. The largest FMD weights are the climatology prior
-  and last month's outbreak status; climate terms contribute little.
+- Coefficients are associations, not causal effects; climate terms contribute little compared with the
+  climatology prior and last month's outbreak status.
 - Host density values are GLW-derived yearly interpolations whose method is undocumented.
 
 ## 9. What this replaces (v1)
