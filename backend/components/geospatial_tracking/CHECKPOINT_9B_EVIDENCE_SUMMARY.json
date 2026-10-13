@@ -1,0 +1,48 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "9B",
+  "parent_historical_9a_protocol_hash": "326427b08f5c43b9708409ae112460e8f0804db0c972a007caaae8ffca3b58ac",
+  "nine_a1_exposure_classification": "PRE_9B_S0_NUMERIC_ESTIMATOR_EXPOSURE_IN_9A_DIAGNOSTIC_DISCLOSED",
+  "s0_bootstrap_protocol_hash_9b": "969161e318508edfa2465d2f4598dbca17fcf29ef01bba2df42bec8093835d28",
+  "input_csv_sha256": "71e7d82f974d1dd01911c45fbbfd7121ef07e915212c3f7004fef6120399b183",
+  "canonical_dataset_identity_hash": "ebbd08e30c14f91e17110dfe42a20b7239812a4f307f3edc2137cde98ca6202f",
+  "bootstrap_implementation_source_sha256": "c218b891351fa96a379495c3658c6cab782556bf37e7c424fe40ad25f5b73b55",
+  "pre_bootstrap_manifest_file_sha256": "622562e544b3d92541321239251efaf08edcb624ceb763cc530ed96f2431569b",
+  "n_target_events": 371,
+  "zero_count_distinction": {
+    "n_zero_distance_origin_target_observations": 12,
+    "n_zero_target_level_median_rates": 4
+  },
+  "point_estimate_km_day": 3.946421443154751,
+  "bootstrap_interval_km_day": {
+    "lower": 3.5491046170907765,
+    "upper": 4.343077329563724
+  },
+  "bootstrap_interval_type": "TARGET_EVENT_LEVEL_PERCENTILE_BOOTSTRAP_INTERVAL",
+  "seed": 42,
+  "n_resamples": 1000,
+  "result_artifact_sha256": {
+    "rate_input_dataset_identity_9b.json": "c5e4203a9a8413ce90f07721dfb4569653413b1c98c13b874ad031b23344b575",
+    "s0_bootstrap_draws_9b.csv": "4a9fb7774ade86a0870621624e7a824cff28eaff845bceb4c72f0ac07c6764b9",
+    "s0_bootstrap_uncertainty_9b.json": "e75f9a545d07b800185005207b90d38a6bcbc01ec18a7d7fd7d89a13265fe6f2",
+    "frozen_s0_apparent_rate_spec_9b.json": "ce9e8cda58e73adea5cd68afa4416846837fd51506ae5ef37b1039c78b0f9329",
+    "bootstrap_execution_record_9b.json": "96d7d8b6c28d59f17cf959c620e52400230df700451323579779d30dc7977248"
+  },
+  "scientific_limitations": "See frozen_s0_apparent_rate_spec_9b.json.result_interpretation_limitations (A-I) and RATE_MODEL_PROTOCOL.md",
+  "held_out_rate_status": "NOT_EVALUATED_IN_9B",
+  "sri_lanka_rate_status": "NOT_EVALUATED_IN_9B",
+  "s1_status": "NOT_SELECTED",
+  "nominal_reach_status": "NOT_COMPUTED_IN_9B",
+  "final_classification": "FROZEN_DEVELOPMENT_DERIVED_S0_ESTIMATED_APPARENT_LOCAL_SPREAD_FRONT_RATE_WITH_PRE_9B_NUMERIC_EXPOSURE_DISCLOSED_AND_TARGET_EVENT_BOOTSTRAP_UNCERTAINTY",
+  "local_artifact_root": "local_data/model_development/9b_rate",
+  "local_artifact_sha256": {
+    "pre_bootstrap_freeze_manifest_9b.json": "622562e544b3d92541321239251efaf08edcb624ceb763cc530ed96f2431569b",
+    "pre_bootstrap_freeze_manifest_9b.sha256": "e8c36cd8d59b935994fb7719455cb857187b42a39c30bd8054dd57723c74dade",
+    "rate_input_dataset_identity_9b.json": "c5e4203a9a8413ce90f07721dfb4569653413b1c98c13b874ad031b23344b575",
+    "s0_bootstrap_draws_9b.csv": "4a9fb7774ade86a0870621624e7a824cff28eaff845bceb4c72f0ac07c6764b9",
+    "s0_bootstrap_uncertainty_9b.json": "e75f9a545d07b800185005207b90d38a6bcbc01ec18a7d7fd7d89a13265fe6f2",
+    "frozen_s0_apparent_rate_spec_9b.json": "ce9e8cda58e73adea5cd68afa4416846837fd51506ae5ef37b1039c78b0f9329",
+    "bootstrap_execution_record_9b.json": "96d7d8b6c28d59f17cf959c620e52400230df700451323579779d30dc7977248",
+    "checkpoint_9b_audit.json": "e287817da56a6ec2210fb253bacbf73d04a733665e3fefc709537de60711bca1"
+  }
+}

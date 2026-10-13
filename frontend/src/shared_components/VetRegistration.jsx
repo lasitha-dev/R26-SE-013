@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const SRI_LANKAN_DISTRICTS = [
@@ -33,6 +33,12 @@ export default function VetRegistration() {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [role, setRole] = useState("vet")
+
+  // Clear errorMessage when switching roles to avoid confusion
+  useEffect(() => {
+    setErrorMessage("")
+  }, [role])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -87,6 +93,8 @@ export default function VetRegistration() {
       return
     }
 
+    const role = formData.get("role") || "vet"
+
     const payload = {
       full_name: fullName,
       email: email,
@@ -94,7 +102,7 @@ export default function VetRegistration() {
       license_number: licenseNumber,
       phone: phone,
       district: district,
-      role: "vet",
+      role: role,
       assigned_farms: []
     }
 
@@ -153,7 +161,7 @@ export default function VetRegistration() {
               <div className="h-1 w-12 bg-primary mx-auto mt-2 rounded-full"></div>
             </div>
             <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-mono font-bold uppercase tracking-widest mb-4">
-              Veterinarian Practitioner Portal
+              Professional Practitioner Portal
             </span>
             <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-white mb-4">
               Clinical Diagnostic Authority
@@ -187,9 +195,9 @@ export default function VetRegistration() {
               <span className="text-primary font-bold text-xs tracking-[0.2em] uppercase block mb-2">
                 Professional Onboarding
               </span>
-              <h3 className="text-3xl font-bold text-white mb-2">Register as Veterinarian</h3>
+              <h3 className="text-3xl font-bold text-white mb-2">Register Professional Account</h3>
               <p className="text-on-surface-variant text-sm">
-                Authorize your clinical credentials to access smart diagnostics and assigned livestock registries.
+                Authorize your clinical or official credentials to access smart diagnostics, forecasting, and assigned livestock registries.
               </p>
             </header>
 
@@ -201,6 +209,22 @@ export default function VetRegistration() {
             )}
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
+                  Account Type
+                </label>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="role" value="vet" checked={role === "vet"} onChange={(e) => setRole(e.target.value)} className="accent-primary" />
+                    <span className="text-sm text-on-surface">Veterinary Officer</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="role" value="daph" checked={role === "daph"} onChange={(e) => setRole(e.target.value)} className="accent-primary" />
+                    <span className="text-sm text-on-surface">DAPH Official</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
@@ -257,23 +281,34 @@ export default function VetRegistration() {
 
               <div className="space-y-2">
                 <label className="block text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-on-surface-variant">
-                  Primary Veterinary District Jurisdiction
+                  {role === "daph" ? "National Jurisdiction Scope" : "Primary Veterinary District Jurisdiction"}
                 </label>
-                <select
-                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
-                  name="district"
-                  required
-                  defaultValue=""
-                >
-                  <option value="" disabled className="bg-surface-container-high text-slate-500">
-                    Select District Jurisdiction...
-                  </option>
-                  {SRI_LANKAN_DISTRICTS.map((dist) => (
-                    <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
-                      {dist} District
+                {role === "daph" ? (
+                  <>
+                    <input type="hidden" name="district" value="ALL_DISTRICTS" />
+                    <input
+                      className="w-full bg-surface-container border-none text-on-surface text-sm p-3 rounded-lg opacity-80 cursor-not-allowed"
+                      value="National scope — All districts"
+                      readOnly
+                    />
+                  </>
+                ) : (
+                  <select
+                    className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-lg p-3 text-on-surface text-sm transition-all duration-300"
+                    name="district"
+                    required
+                    defaultValue=""
+                  >
+                    <option value="" disabled className="bg-surface-container-high text-slate-500">
+                      Select District Jurisdiction...
                     </option>
-                  ))}
-                </select>
+                    {SRI_LANKAN_DISTRICTS.map((dist) => (
+                      <option key={dist} value={dist} className="bg-surface-container-high text-on-surface">
+                        {dist} District
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -318,7 +353,7 @@ export default function VetRegistration() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? "Registering Clinical Practitioner..." : "Register Veterinarian"}
+                {loading ? "Registering Clinical Practitioner..." : "Register Account"}
               </button>
             </form>
 

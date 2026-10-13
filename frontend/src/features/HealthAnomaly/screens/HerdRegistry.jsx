@@ -457,16 +457,34 @@ export default function HerdRegistry() {
                       </span>
                     </td>
                     <td className="px-8 py-5 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-2">
+                        {r.status.label === 'Deceased' ? (
+                          <span
+                            className="p-2 text-slate-600 cursor-not-allowed"
+                            title="Diagnostics locked for deceased cattle"
+                          >
+                            <span className="material-symbols-outlined text-xl">lock</span>
+                          </span>
+                        ) : (
+                          <Link
+                            to={`/health/diagnostics?cattle_id=${r.id}`}
+                            className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-all"
+                            title="Run AI Smart Diagnosis"
+                          >
+                            <span className="material-symbols-outlined text-xl">psychology</span>
+                          </Link>
+                        )}
                         <Link
                           to={`/health/animal-profile/${r.id}`}
                           className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"
+                          title="View Profile"
                         >
                           <span className="material-symbols-outlined text-xl">visibility</span>
                         </Link>
                         <Link
                           to={`/health/animal-profile/${r.id}`}
                           className="p-2 text-slate-400 hover:text-secondary transition-colors hover:bg-secondary/5 rounded-lg"
+                          title="Edit Animal"
                         >
                           <span className="material-symbols-outlined text-xl">edit</span>
                         </Link>
@@ -474,6 +492,7 @@ export default function HerdRegistry() {
                           onClick={() => handleDeleteCattle(r.id)}
                           className="p-2 text-slate-400 hover:text-error transition-colors hover:bg-error/5 rounded-lg"
                           type="button"
+                          title="Delete Record"
                         >
                           <span className="material-symbols-outlined text-xl">delete</span>
                         </button>

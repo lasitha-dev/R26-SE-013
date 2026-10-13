@@ -1,0 +1,104 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "8B",
+  "direction_method_protocol_hash_8b": "9d111741d303d1dcf73c2a624b99c3fa7c3aaa2020d52d3254d5d744e963f32d",
+  "parent_direction_readiness_protocol_hash_8a1": "8aa69a68f27980134caa3cb1c5c96f5b66ab1e41274bc9def38a9aa5a627869e",
+  "historical_checkpoint_8a_initial_readiness_hash": "c896048f4bc11264d17385240898ba6566b843a3f5a56f7fc8c21ae802187160",
+  "frozen_c0_selected_candidate_id": "C7C:C0_FROZEN_B0_ISOTROPIC:830bf1e62664bcc8",
+  "frozen_7c_spec_hash": "ef3511d3527da6d85598846c0d828509ed07f134ac8d987c3d5702b507505a6d",
+  "directional_weight_identity": "FROZEN_C0_PER_SOURCE_SCALAR_CONTRIBUTION",
+  "structural_audit_summary": {
+    "n_fit_development_origins_total": 579,
+    "n_origins_processed": 579,
+    "n_cells_processed": 560853,
+    "direction_status_counts": {
+      "DIRECTION_AVAILABLE": 560853
+    },
+    "coverage_status_counts": {
+      "COMPLETE_DIRECTIONAL_MASS_COVERAGE": 560853
+    },
+    "directional_clarity_median": 0.7091066761041402,
+    "directional_input_coverage_median": 1.0,
+    "n_exact_zero_distance_cases": 0,
+    "n_invariant_failures": 0
+  },
+  "not_predictive_spread_direction": true,
+  "not_direction_performance_evaluation": true,
+  "direction_evaluation_truth_status": "DIRECTION_EVALUATION_TRUTH_NOT_YET_FROZEN",
+  "final_classification": "C0_DERIVED_LOCAL_GEOMETRIC_RISK_TENDENCY_FIELD_READY_NOT_PREDICTIVE_SPREAD_DIRECTION",
+  "local_artifact_sha256": {
+    "direction_protocol_8b.json": "c90d76488814a256d649ea07bc4984257f414f5f0858e13b39f03b84a07e855c",
+    "direction_structural_audit_8b.json": "2cced458d70f5d193489b4beec68b6c2e1dc9d342b3fb74836a7f3157064cde4",
+    "direction_example_source_terms_8b.json": "dd8b532b5884f31bc52576623c9c93c368527178aaaed2085a69ac8c1d1a00d5",
+    "direction_origin_summary_8b.csv": "2f48179ff84d9d60daf98ce9801bc0fc72eb7b8b2dc93721b35dca3b64ce6f9c",
+    "direction_analytic_semantics_audit_8b2.json": "3c353948b805ff66d1d7b9e7f4a8931f8df60dc3ff10e79792ffef36695074d8"
+  },
+  "local_artifact_root": "local_data/model_development/8b_direction",
+  "provenance_correction_8b1": {
+    "status": "CHECKPOINT_8B1_ARTIFACT_PATH_REPAIR",
+    "note": "These four artifacts were originally written under an accidental component-nested path (backend/components/geospatial_tracking/local_data/model_development/8b_direction) due to a path-resolution bug in the 8B runner script. Checkpoint 8B.1 relocated them byte-for-byte (verified SHA256-identical before and after) to the canonical repository-root local_data location recorded in local_artifact_root above. No stored hash in local_artifact_sha256 was changed -- all four are the exact same bytes as originally produced by the real 579-origin structural audit."
+  },
+  "analytical_semantics_hardening_8b2": {
+    "historical_8b_protocol_hash": "9d111741d303d1dcf73c2a624b99c3fa7c3aaa2020d52d3254d5d744e963f32d",
+    "new_8b2_protocol_hash": "d8dd12da100f3446f29967dcd221d25112669703ab3d201333a17a07ad89f906",
+    "historical_output_semantics": "C0_DERIVED_LOCAL_GEOMETRIC_RELATIVE_RISK_TENDENCY",
+    "active_output_semantics": "C0_DERIVED_LOCAL_NEGATIVE_GRADIENT_GEOMETRIC_TENDENCY",
+    "negative_gradient_identity": "V(x) = -lambda * grad(C0(x)), proven synthetically (never over the real corpus) via single-source cardinal cases and multi-source metric finite-difference cross-checks on real WGS84 geodesics",
+    "gradient_sign_statement": "V points down the C0 gradient (away from sources, toward decreasing C0); positive grad(C0) points toward sources (increasing C0); the two are exactly 180 degrees apart whenever the gradient magnitude is materially nonzero; V is never described as direction of increasing risk or predicted/validated spread direction",
+    "method_version_chronology": {
+      "8B.1_production_code": "historical METHOD_VERSION_8B string, set before the later Checkpoint 8B.1 artifact-path/provenance repair -- an unrelated naming coincidence, not caused by that repair",
+      "checkpoint_8B.1_role": "ARTIFACT_PATH_AND_PROVENANCE_REPAIR only, never a method-semantics change",
+      "8B.2_active_version": "METHOD_VERSION_8B2 = 8B.2, the new unambiguous version for the hardened active semantics"
+    },
+    "no_real_structural_audit_rerun": true,
+    "no_numerical_direction_result_changed": true
+  },
+  "cell_local_correction_8b3": {
+    "status": "CHECKPOINT_8B3_CELL_LOCAL_TANGENT_FRAME_CORRECTION",
+    "checkpoint_8b2_status_correction": "CHECKPOINT_8B2_ANALYTICAL_IDENTITY_OVERSTATED_DUE_TO_SOURCE_FRAME_VS_CELL_FRAME_MISMATCH",
+    "historical_8b_field_description": "SOURCE_DEPARTURE_FRAME_GEOMETRIC_RESULTANT",
+    "historical_8b_protocol_hash": "9d111741d303d1dcf73c2a624b99c3fa7c3aaa2020d52d3254d5d744e963f32d",
+    "historical_8b2_protocol_hash": "d8dd12da100f3446f29967dcd221d25112669703ab3d201333a17a07ad89f906",
+    "new_8b3_protocol_hash": "dc3b245aa8ea6748c8abf8bcf0c56db75aca34a6118b02776b9c5490fa6c0282",
+    "method_id_8b3": "C0_CELL_LOCAL_NEGATIVE_GRADIENT_TENDENCY",
+    "method_version_8b3": "8B.3",
+    "active_output_semantics_8b3": "C0_DERIVED_CELL_LOCAL_NEGATIVE_GRADIENT_GEOMETRIC_TENDENCY",
+    "active_coordinate_frame_8b3": "CELL_LOCAL_EAST_NORTH_TANGENT_FRAME",
+    "arrival_bearing_formula": "(az21 + 180) mod 360, where az21 is pyproj.Geod.inv's back azimuth (measured at the cell, pointing back toward the source)",
+    "real_structural_audit_8b3": {
+      "n_fit_development_origins_total": 579,
+      "n_origins_processed": 579,
+      "n_cells_processed": 560853,
+      "direction_status_counts": {"DIRECTION_AVAILABLE": 560853},
+      "coverage_status_counts": {"COMPLETE_DIRECTIONAL_MASS_COVERAGE": 560853},
+      "directional_clarity_median": 0.709082530806226,
+      "n_exact_zero_distance_cases": 0,
+      "n_invariant_failures": 0,
+      "runtime_seconds": 420.79457770008594
+    },
+    "historical_8b_vs_active_8b3_diff_audit": {
+      "n_cells_compared": 560853,
+      "n_matched_cells_both_bearing_defined": 560853,
+      "bearing_delta_deg_median": 0.04529209383352395,
+      "bearing_delta_deg_p95": 0.27214674798681254,
+      "bearing_delta_deg_max": 25.414388597675554,
+      "resultant_component_delta_median": 0.0007473668049983064,
+      "resultant_component_delta_max": 0.01822467591475018,
+      "clarity_absolute_delta_median": 0.000215550988570401,
+      "clarity_absolute_delta_max": 0.007326965655440165,
+      "large_bearing_delta_explanation": "The bearing-delta maximum (25.4 degrees) occurs exclusively in near-cancellation (low-clarity, near-zero-magnitude) cells, where bearing is inherently ill-conditioned under any small perturbation -- confirmed by the resultant-component delta staying small throughout (max 0.018) and by a synthetic reproduction (a ~0.0006-magnitude perturbation applied to a ~0.0011-magnitude near-cancellation vector reproduces an ~19-degree bearing swing). This is expected angular-statistics behavior near a magnitude singularity, not a geometric defect in either method."
+    },
+    "finite_difference_convergence": "error shrinks ~100x per 10x step reduction (O(step^2) central-difference truncation) from step=0.1km to step=0.001km, converging to <1e-5 relative error -- proving the corrected identity holds to convergent numerical precision, unlike the historical field's persistent ~2e-4 to 7e-4 relative plateau that never shrank with step size",
+    "local_artifact_root_8b3": "local_data/model_development/8b3_direction",
+    "local_artifact_sha256_8b3": {
+      "direction_protocol_8b3.json": "d65b93db31b96a93c44cd754d71208c187346f513c43220a6b494475041d2c26",
+      "direction_structural_audit_8b3.json": "f1bd68a7d4ebb22a2f7baa9dcc42611321f022dbbcec6bcc283516dbdbea4788",
+      "historical_8b_vs_active_8b3_diff_audit.json": "42056ab6365a0e59cb6817d535abceedd241160dd89e29b9993324c922b9732e"
+    },
+    "historical_8b_artifacts_reverified_unchanged": true,
+    "no_target_outcomes_used": true,
+    "no_held_out_or_sri_lanka_direction_evaluation": true,
+    "direction_evaluation_truth_status": "DIRECTION_EVALUATION_TRUTH_NOT_YET_FROZEN",
+    "final_classification": "C0_DERIVED_CELL_LOCAL_NEGATIVE_GRADIENT_GEOMETRIC_TENDENCY_FIELD_READY_AS_DESCRIPTIVE_NOT_PREDICTIVE_SPREAD_DIRECTION"
+  }
+}

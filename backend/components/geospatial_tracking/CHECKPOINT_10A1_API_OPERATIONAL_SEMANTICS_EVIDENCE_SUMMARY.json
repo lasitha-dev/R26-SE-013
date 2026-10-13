@@ -1,0 +1,48 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "10A.1",
+  "purpose": "HISTORICAL_REPLAY_LIVE_OPERATIONAL_SEMANTIC_SEPARATION_ACTIVE_SOURCE_WINDOW_PROVENANCE_HARDENING_API_PROTOCOL_IDENTITY_CORRECTION",
+  "historical_10a_api_protocol_hash": "8485968af638e34bbfcc7c4c7d8bae30cc297235edb2c9fa8b2f5fa2fca27716",
+  "historical_10a_hash_unchanged": true,
+  "historical_api_identity_classification": "HISTORICAL_API_IDENTITY_WITH_RUNTIME_INPUT_SEMANTICS_NOT_YET_BOUND",
+  "active_10a1_api_protocol_hash": "e44761319870e9196768599ad88fde237d709c2b17b03f17662ab144bd5634b8",
+  "parent_integration_protocol_hash_9c": "cec826a26c860c752d1fa32d94edcdfba2e0186950cdccfc96067fef2ce51a90",
+  "parent_rate_scope_conditioning_protocol_hash_9c1": "26168ca784b5f8cb5393db872baa1e7e7f1d74f782b16df17c97354b9bf52b8f",
+  "active_source_window_days": 14,
+  "active_source_window_original_provenance": "UNFROZEN_DEVELOPMENT_PARAMETER",
+  "active_source_window_runtime_status": "FIXED_HISTORICAL_DEVELOPMENT_PROTOCOL_VALUE_NOT_SCIENTIFICALLY_VALIDATED",
+  "active_source_window_historical_inheritance_audit": {
+    "canonical_source": "config.ACTIVE_SOURCE_WINDOW_DAYS_DEV_DEFAULT",
+    "canonical_value": 14,
+    "7c_evaluation_protocol_7c.ACTIVE_SOURCE_WINDOW_DAYS_7C": "imports canonical_source directly",
+    "7d_heldout_protocol_7d.ACTIVE_SOURCE_WINDOW_DAYS_7D": "imports canonical_source directly",
+    "7e_sri_lanka_protocol_7e.ACTIVE_SOURCE_WINDOW_DAYS_7E": "aliased import of ACTIVE_SOURCE_WINDOW_DAYS_7D",
+    "9a_rate_protocol_9a": "imports ACTIVE_SOURCE_WINDOW_DAYS_7C directly, documents reused_from explicitly",
+    "10a_10a1_frozen_geospatial_analysis_10a.ACTIVE_SOURCE_WINDOW_DAYS_10A": "imports canonical_source directly",
+    "7b_development_run_7b": "no local constant -- active_window_days is always an explicit caller-supplied parameter, never a default; the real 7B run's exact invocation script is not present in the current tree to re-inspect, so its literal value is not independently re-verifiable from source alone",
+    "method": "CODE_PROTOCOL_PROVENANCE_AUDIT_ONLY_NO_MODEL_RERUN_NO_ALTERNATIVE_RESULT_CALCULATED"
+  },
+  "runtime_data_mode": "HISTORICAL_RETROSPECTIVE_REPLAY",
+  "availability_mode": "RETROSPECTIVE_PROXY",
+  "record_domain_scope": "HISTORICAL_ONLY",
+  "live_operational_analysis_status": "NOT_IMPLEMENTED_NO_ACTUAL_OPERATIONAL_AVAILABILITY_PIPELINE",
+  "realtime_transport_status": "NOT_IMPLEMENTED",
+  "runtime_snapshot_reuse_status": "NOT_IMPLEMENTED_IN_10A1",
+  "test_infrastructure_dependency_note": {
+    "warning_classification": "TEST_INFRASTRUCTURE_DEPRECATION_WARNING_PRESENT",
+    "warning_type": "StarletteDeprecationWarning",
+    "warning_message": "Using httpx with starlette.testclient is deprecated; install httpx2 instead",
+    "installed_versions": {
+      "python": "3.14.4",
+      "fastapi": "0.141.1",
+      "starlette": "1.6.0",
+      "pydantic": "2.13.4",
+      "httpx": "0.28.1"
+    },
+    "declared_requirements_entries": ["fastapi", "uvicorn", "pydantic", "httpx>=0.28,<1"],
+    "action_taken": "NONE -- httpx2 was NOT installed; no safe compatibility fix identified within this checkpoint's scope; documented for final dependency-freeze cleanup, per explicit instruction not to destabilize runtime dependencies here"
+  },
+  "held_out_rate_status": "NOT_EVALUATED",
+  "sri_lanka_rate_status": "NOT_EVALUATED",
+  "final_classification": "FROZEN_GEOSPATIAL_HISTORICAL_REPLAY_API_WITH_EXPLICIT_RETROSPECTIVE_AND_SOURCE_WINDOW_PROVENANCE_READY_FOR_REALTIME_TRANSPORT_ENGINEERING"
+}

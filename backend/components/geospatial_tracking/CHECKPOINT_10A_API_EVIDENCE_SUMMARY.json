@@ -1,0 +1,74 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "10A",
+  "parent_integration_protocol_hash_9c": "cec826a26c860c752d1fa32d94edcdfba2e0186950cdccfc96067fef2ce51a90",
+  "parent_rate_scope_conditioning_protocol_hash_9c1": "26168ca784b5f8cb5393db872baa1e7e7f1d74f782b16df17c97354b9bf52b8f",
+  "api_protocol_hash_10a": "8485968af638e34bbfcc7c4c7d8bae30cc297235edb2c9fa8b2f5fa2fca27716",
+  "api_version": "10A",
+  "routes": [
+    "GET /api/geospatial/protocol",
+    "GET /api/geospatial/origins",
+    "GET /api/geospatial/analysis/{forecast_origin_id}/summary",
+    "GET /api/geospatial/analysis/{forecast_origin_id}/cells",
+    "GET /api/geospatial/analysis/{forecast_origin_id}/sources"
+  ],
+  "geojson_crs": "EPSG:4326",
+  "coordinate_order": "[longitude, latitude]",
+  "risk_score_semantics": "RELATIVE_SPATIAL_SCORE_NOT_INFECTION_PROBABILITY",
+  "risk_surface_temporal_semantics": "STATIC_T0_FROZEN_C0_SPATIAL_RANK_CONTEXT",
+  "direction_semantics": "C0_DERIVED_CELL_LOCAL_NEGATIVE_GRADIENT_GEOMETRIC_TENDENCY",
+  "direction_evaluation_truth_status": "DIRECTION_EVALUATION_TRUTH_NOT_YET_FROZEN",
+  "rate_status": "FROZEN_DEVELOPMENT_HISTORICAL_APPARENT_RATE",
+  "apparent_rate_km_day": 3.946421443154751,
+  "rate_interval_km_day": {
+    "lower": 3.5491046170907765,
+    "upper": 4.343077329563724
+  },
+  "rate_scope_conditioning_label": "RATE_SCOPE_CONDITIONING",
+  "nominal_reach_semantics": "VISUALIZATION_ONLY_NOT_HARD_DISEASE_BOUNDARY",
+  "operational_evaluation_envelope_km": 25.0,
+  "nominal_reach_by_day_km": {
+    "day_1": 3.946421443154751,
+    "day_2": 7.892842886309502,
+    "day_3": 11.839264329464253,
+    "day_4": 15.785685772619004,
+    "day_5": 19.732107215773755,
+    "day_6": 23.678528658928506,
+    "day_7": 27.624950102083258
+  },
+  "day_7_exceeds_operational_envelope": true,
+  "error_status_taxonomy": {
+    "ORIGIN_NOT_FOUND": 404,
+    "ANALYSIS_UNAVAILABLE_NO_ELIGIBLE_SOURCE": 409,
+    "ANALYSIS_UNAVAILABLE_SCIENTIFIC_DOMAIN": 409,
+    "ANALYSIS_UNAVAILABLE_GRID": 409,
+    "ANALYSIS_INTERNAL_ERROR": 500
+  },
+  "smoke_test": {
+    "origin_id": "ORIGIN:Afghanistan:2022-05-29",
+    "selection_method": "FIRST_ANALYZABLE_ORIGIN_IN_LEDGER_ORDER_BEFORE_INSPECTING_OUTPUT_VALUES",
+    "n_sources": 1,
+    "n_cells": 88,
+    "runtime_seconds": 0.18038629996590316,
+    "response_size_bytes": 68621,
+    "http_status": 200,
+    "all_coordinates_finite_and_in_wgs84_range": true,
+    "purpose": "STRUCTURAL_SMOKE_CHECK_NOT_ACCURACY_OR_PERFORMANCE_VALIDATION"
+  },
+  "held_out_rate_status": "NOT_EVALUATED",
+  "sri_lanka_rate_status": "NOT_EVALUATED",
+  "websocket_status": "NOT_IMPLEMENTED_IN_10A",
+  "frontend_status": "NOT_STARTED",
+  "final_test_count": {
+    "baseline_before_10a": 1489,
+    "10a_route_unit_structural_tests": 41,
+    "10a_evidence_summary_consistency_tests": 1,
+    "total_after_10a": 1531,
+    "failed": 0,
+    "skipped": 0,
+    "warning_count": 1,
+    "warning_type": "StarletteDeprecationWarning",
+    "correction_note": "Checkpoint 10A.1 Part 9: the original 'new: 41, total: 1530' figures recorded here omitted the 1 evidence-summary consistency test added after the route/unit/structural tests, and did not record the 1 StarletteDeprecationWarning already present in the suite. Corrected transparently; this file is the current checkpoint's own evidence record, not a frozen 7B-9C.1 historical scientific artifact."
+  },
+  "final_classification": "FROZEN_GEOSPATIAL_SCIENTIFIC_RUNTIME_AND_READ_ONLY_API_READY_FOR_REALTIME_LAYER"
+}

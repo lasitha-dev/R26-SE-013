@@ -26,12 +26,20 @@ describe('VetRegistration Component', () => {
       </BrowserRouter>
     )
 
-    expect(screen.getByText(/Register as Veterinarian/i)).toBeInTheDocument()
+    expect(screen.getByText(/Register Professional Account/i)).toBeInTheDocument()
     expect(screen.getByText(/Full Name & Title/i)).toBeInTheDocument()
     expect(screen.getByText(/Veterinary License \/ Reg No\./i)).toBeInTheDocument()
     expect(screen.getByText(/Contact Phone Number/i)).toBeInTheDocument()
     expect(screen.getByText(/Primary Veterinary District Jurisdiction/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Register Veterinarian/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Register Account/i })).toBeInTheDocument()
+    
+    // Check role selector
+    const vetRadio = screen.getByLabelText(/Veterinary Officer/i)
+    const daphRadio = screen.getByLabelText(/DAPH Official/i)
+    expect(vetRadio).toBeInTheDocument()
+    expect(daphRadio).toBeInTheDocument()
+    expect(vetRadio).toBeChecked()
+    expect(daphRadio).not.toBeChecked()
   })
 
   it('validates password mismatch on client side', async () => {
@@ -47,7 +55,7 @@ describe('VetRegistration Component', () => {
     const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
     const districtSelect = screen.getByRole('combobox')
     const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
-    const submitBtn = screen.getByRole('button', { name: /Register Veterinarian/i })
+    const submitBtn = screen.getByRole('button', { name: /Register Account/i })
 
     fireEvent.change(nameInput, { target: { value: 'Dr. Samantha Perera' } })
     fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
@@ -83,7 +91,7 @@ describe('VetRegistration Component', () => {
     const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
     const districtSelect = screen.getByRole('combobox')
     const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
-    const submitBtn = screen.getByRole('button', { name: /Register Veterinarian/i })
+    const submitBtn = screen.getByRole('button', { name: /Register Account/i })
 
     fireEvent.change(nameInput, { target: { value: 'Dr. Samantha Perera' } })
     fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
@@ -103,7 +111,67 @@ describe('VetRegistration Component', () => {
           body: expect.stringContaining('"district":"Kandy"')
         })
       )
+      // Check that role "vet" is sent by default
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:8000/api/vet/register',
+        expect.objectContaining({
+          body: expect.stringContaining('"role":"vet"')
+        })
+      )
       expect(mockNavigate).toHaveBeenCalledWith('/health/vet-registration-success')
+    })
+  })
+
+  it('submits valid registration as DAPH Official', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: 'DAPH Official registered successfully.' })
+    })
+
+    render(
+      <BrowserRouter>
+        <VetRegistration />
+      </BrowserRouter>
+    )
+
+    const nameInput = screen.getByPlaceholderText(/Dr\. Samantha Perera/i)
+    const emailInput = screen.getByPlaceholderText(/samantha@vet-council\.org/i)
+    const licInput = screen.getByPlaceholderText(/VET-LK-88902/i)
+    const phoneInput = screen.getByPlaceholderText(/\+94 77 123 4567/i)
+    const passwordInputs = screen.getAllByPlaceholderText(/••••••••/i)
+    const daphRadio = screen.getByLabelText(/DAPH Official/i)
+    const submitBtn = screen.getByRole('button', { name: /Register Account/i })
+
+    // Select DAPH Official first so district changes
+    fireEvent.click(daphRadio)
+
+    fireEvent.change(nameInput, { target: { value: 'Dr. Samantha Perera' } })
+    fireEvent.change(emailInput, { target: { value: 'samantha@vet-council.org' } })
+    fireEvent.change(licInput, { target: { value: 'VET-LK-88902' } })
+    fireEvent.change(phoneInput, { target: { value: '+94771234567' } })
+    fireEvent.change(passwordInputs[0], { target: { value: 'password123' } })
+    fireEvent.change(passwordInputs[1], { target: { value: 'password123' } })
+    
+    // Ensure combobox is gone and read-only input is there
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue(/National scope — All districts/i)).toBeInTheDocument()
+
+    fireEvent.click(submitBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:8000/api/vet/register',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"role":"daph"')
+        })
+      )
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:8000/api/vet/register',
+        expect.objectContaining({
+          body: expect.stringContaining('"district":"ALL_DISTRICTS"')
+        })
+      )
     })
   })
 })

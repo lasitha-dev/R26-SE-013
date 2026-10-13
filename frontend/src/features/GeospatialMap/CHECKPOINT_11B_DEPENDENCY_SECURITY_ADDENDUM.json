@@ -1,0 +1,25 @@
+{
+  "label": "CHECKPOINT_11B_DEPENDENCY_SECURITY_ADDENDUM",
+  "new_production_dependency": { "name": "maplibre-gl", "version_range": "^4.7.1", "reason": "open-source, no proprietary token, GeoJSON source/layer support, pan/zoom/fitBounds -- sufficient for the current point-cell/source payload; Deck.gl/Mapbox GL/a state-management package/a UI framework were all deliberately NOT added" },
+  "npm_audit_omit_dev_after_install": {
+    "high": 0,
+    "critical": 0,
+    "moderate": 0,
+    "low": 0,
+    "total": 0,
+    "prod_dependency_count": 45,
+    "conclusion": "maplibre-gl and its 39 added transitive production dependencies introduced ZERO new findings of any severity."
+  },
+  "npm_audit_full_after_install": {
+    "high": 1,
+    "critical": 1,
+    "moderate": 2,
+    "low": 0,
+    "total": 4,
+    "conclusion": "Unchanged from CHECKPOINT_11A1_DEPENDENCY_SECURITY_AUDIT.json -- the same 4 dev-toolchain-only findings (vitest/vite/esbuild/vite-node), none expanded into production runtime.",
+    "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD"
+  },
+  "decision_gate_result": "NO_HIGH_OR_CRITICAL_RUNTIME_VULNERABILITY -- NOT A FRONTEND_RUNTIME_MAPPING_DEPENDENCY_SECURITY_BLOCKER",
+  "force_fix_attempted": false,
+  "unrelated_dependencies_upgraded": false
+}

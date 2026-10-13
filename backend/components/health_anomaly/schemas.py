@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Literal, Union
+from datetime import datetime
 
 class FarmRegister(BaseModel):
     owner_name: str = Field(..., min_length=1)
@@ -31,7 +32,7 @@ class VetRegister(BaseModel):
     license_number: str = Field(..., min_length=1)
     phone: str = Field(..., min_length=7)
     district: Optional[str] = None
-    role: str = "vet"
+    role: Literal["vet", "daph"] = "vet"
     assigned_farms: List[str] = []
     assigned_farm_ids: List[str] = []
 
@@ -44,7 +45,7 @@ class VetTokenResponse(BaseModel):
     token_type: str
     full_name: str
     email: str
-    role: str = "vet"
+    role: Literal["vet", "daph"] = "vet"
     license_number: Optional[str] = None
     phone: Optional[str] = None
     district: Optional[str] = None
@@ -96,6 +97,8 @@ class CattleCreate(BaseModel):
     health_status: str = "Healthy"
     bcs_score: Optional[float] = None
     last_scored_date: Optional[str] = None
+    death_date: Optional[str] = None
+    death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
 class CattleResponse(BaseModel):
     id: str
@@ -110,6 +113,8 @@ class CattleResponse(BaseModel):
     health_status: str = "Healthy"
     bcs_score: Optional[float] = None
     last_scored_date: Optional[str] = None
+    death_date: Optional[str] = None
+    death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
 
 
@@ -182,6 +187,9 @@ class DiagnosticCaseCreate(BaseModel):
     clinical_notes: Optional[str] = None
     llm_reasoning: Optional[str] = None
     verified: bool = False
+    reported_by: Optional[str] = None
+    reporter_email: Optional[str] = None
+    assigned_vet_id: Optional[str] = None
 
 
 class DiagnosticCaseVerifyRequest(BaseModel):
@@ -211,11 +219,69 @@ class DiagnosticCaseResponse(BaseModel):
     llm_reasoning: Optional[str] = None
     status: str = "Pending Verification"
     verified: bool = False
-    created_at: str
-    verified_at: Optional[str] = None
+    created_at: Union[str, datetime]
+    verified_at: Optional[Union[str, datetime]] = None
     vet_id: Optional[str] = None
     vet_name: Optional[str] = None
     vet_license: Optional[str] = None
+    reported_by: Optional[str] = "vet"
+    reporter_email: Optional[str] = None
+    assigned_vet_id: Optional[str] = None
+
+
+class VetNotificationResponse(BaseModel):
+    id: str
+    vet_id: Optional[str] = None
+    vet_email: Optional[str] = None
+    type: str
+    case_id: Optional[str] = None
+    case_number: Optional[str] = None
+    farm_name: Optional[str] = None
+    animal_identifier: Optional[str] = None
+    disease_name: Optional[str] = None
+    severity: Optional[str] = None
+    message: str
+    read: bool = False
+    created_at: Union[str, datetime]
+
+
+class CattleDeathLog(BaseModel):
+    cattle_id: str = Field(..., min_length=1)
+    farm_id: str = Field(..., min_length=1)
+    district: str = Field(..., min_length=1)
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: Union[str, datetime]
+    reported_by_vet_id: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
+
+
+class CattleDeathLogResponse(BaseModel):
+    id: str
+    cattle_id: str
+    farm_id: str
+    district: str
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: Union[str, datetime]
+    reported_by_vet_id: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
+
+
+class DeclareDeceasedRequest(BaseModel):
+    cause: Literal["FMD", "LSD", "Other"]
+    date_of_death: str
+    notes: Optional[str] = None
+
+
+class OutbreakStatusResponse(BaseModel):
+    district: str
+    disease: str
+    year: int
+    month: int
+    outbreak_status: float
+    cases_count: int
+    deaths_count: int
 
 
 

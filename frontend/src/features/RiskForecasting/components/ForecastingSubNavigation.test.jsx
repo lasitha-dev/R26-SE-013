@@ -1,0 +1,143 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { ForecastingSubNavigation } from './ForecastingSubNavigation';
+
+describe('ForecastingSubNavigation Component', () => {
+  const mockItems = [
+    { id: 'disease-risk', label: 'Disease Risk', icon: 'health_and_safety' },
+    { id: 'alerts-guidance', label: 'Alerts & Guidance', icon: 'notifications_active' },
+    { id: 'model-transparency', label: 'Model Transparency', icon: 'model_training' },
+  ];
+
+  it('renders nothing when items array is empty or undefined', () => {
+    const { container } = render(<ForecastingSubNavigation items={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders semantic nav with custom or default aria-label', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const nav = screen.getByRole('navigation', { name: 'Risk Forecasting sub-navigation' });
+    expect(nav).toBeInTheDocument();
+  });
+
+  it('renders all supplied items as buttons with type="button"', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(3);
+    buttons.forEach((btn) => {
+      expect(btn).toHaveAttribute('type', 'button');
+    });
+  });
+
+  it('marks active item with aria-current="page"', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const activeBtn = screen.getByRole('button', { name: /disease risk/i });
+    const inactiveBtn = screen.getByRole('button', { name: /alerts & guidance/i });
+
+    expect(activeBtn).toHaveAttribute('aria-current', 'page');
+    expect(inactiveBtn).not.toHaveAttribute('aria-current');
+  });
+
+  it('triggers onSelect callback with item ID on click', () => {
+    const onSelect = vi.fn();
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" onSelect={onSelect} />);
+
+    const inactiveBtn = screen.getByRole('button', { name: /alerts & guidance/i });
+    fireEvent.click(inactiveBtn);
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith('alerts-guidance');
+  });
+
+  it('scrolls the active pill into view when activeItem changes using smooth nearest alignment', async () => {
+    const scrollIntoViewSpy = vi.fn();
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewSpy,
+    });
+
+    try {
+      const { rerender } = render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+      scrollIntoViewSpy.mockClear();
+
+      rerender(<ForecastingSubNavigation items={mockItems} activeItem="alerts-guidance" />);
+
+      await waitFor(() => {
+        expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+      });
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        inline: 'nearest',
+        block: 'nearest',
+      });
+    } finally {
+      if (originalScrollIntoView === undefined) {
+        delete HTMLElement.prototype.scrollIntoView;
+      } else {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          configurable: true,
+          value: originalScrollIntoView,
+        });
+      }
+    }
+  });
+
+  it('does not crash when scrollIntoView is unavailable', () => {
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      expect(() => {
+        render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+      }).not.toThrow();
+    } finally {
+      if (originalScrollIntoView === undefined) {
+        delete HTMLElement.prototype.scrollIntoView;
+      } else {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          configurable: true,
+          value: originalScrollIntoView,
+        });
+      }
+    }
+  });
+
+  it('hides Material Symbols icons from screen readers using aria-hidden="true"', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const icon = screen.getByText('health_and_safety');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('provides a min-h-[44px] touch target on all navigation buttons', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const buttons = screen.getAllByRole('button');
+    buttons.forEach((btn) => {
+      expect(btn.className).toContain('min-h-[44px]');
+    });
+  });
+
+  it('includes focus ring styling contract on all navigation buttons', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const buttons = screen.getAllByRole('button');
+    buttons.forEach((btn) => {
+      expect(btn.className).toMatch(/focus:ring-2|focus-visible:ring-2/);
+    });
+  });
+
+  it('uses flex-wrap instead of overflow-x-auto for responsive wrapping', () => {
+    const { container } = render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    const scrollContainer = container.querySelector('.flex-wrap');
+    expect(scrollContainer).not.toBeNull();
+    expect(scrollContainer.className).not.toContain('overflow-x-auto');
+  });
+
+  it('renders Model Transparency completely', () => {
+    render(<ForecastingSubNavigation items={mockItems} activeItem="disease-risk" />);
+    expect(screen.getByText('Model Transparency')).toBeInTheDocument();
+  });
+});

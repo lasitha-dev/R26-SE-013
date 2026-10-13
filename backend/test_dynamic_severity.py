@@ -30,6 +30,10 @@ def test_clinical_fallback_severity_generation():
                 "vit_predicted_class": "lumpy_skin",
                 "vit_predicted_display": "Lumpy Skin Disease",
                 "vit_confidence_pct": 94.5,
+                "top2_margin": 90.0,
+                "attention_coverage_pct": 75.0,
+                "attention_cluster_count": 8,
+                "bbox_area_pct": 60.0,
                 "lesion_coverage_pct": 14.5,
                 "cluster_count": 8,
             }
@@ -41,8 +45,10 @@ def test_clinical_fallback_severity_generation():
     assert sev.stage == "Acute Eruptive / Advanced"
     assert sev.prognosis == "Guarded"
     assert "Lumpy Skin Disease" in sev.description
-    assert sev.lesion_coverage_pct == 14.5
-    assert sev.cluster_count == 8
+    assert sev.composite_score is not None
+    assert sev.composite_score >= 0.65
+    assert sev.confidence_level == "High"
+    assert sev.needs_review is False
     print(f"Clinical fallback severity verified: {sev.grade} - {sev.description}")
 
 
@@ -53,6 +59,9 @@ def test_healthy_baseline_severity():
                 "vit_predicted_class": "cattle",
                 "vit_predicted_display": "Cattle (Healthy)",
                 "vit_confidence_pct": 98.2,
+                "top2_margin": 95.0,
+                "attention_coverage_pct": 0.0,
+                "attention_cluster_count": 0,
                 "lesion_coverage_pct": 0.0,
                 "cluster_count": 0,
             }
@@ -61,7 +70,8 @@ def test_healthy_baseline_severity():
     sev = create_clinical_fallback_severity(vision_results)
     assert sev.grade == "Healthy Baseline"
     assert sev.prognosis == "Excellent"
-    assert sev.lesion_coverage_pct == 0.0
+    assert sev.confidence_level == "High"
+    assert sev.needs_review is False
     print("Healthy baseline severity verified.")
 
 

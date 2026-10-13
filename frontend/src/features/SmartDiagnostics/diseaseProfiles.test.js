@@ -14,7 +14,6 @@ const REQUIRED_DISEASES = [
 const REQUIRED_FIELDS = [
   'severity',
   'severityColor',
-  'stage',
   'prognosis',
   'prognosisColor',
   'rationale',
@@ -62,7 +61,6 @@ describe('diseaseProfiles', () => {
 
   it('getDiseaseProfile returns fallback for unknown disease', () => {
     const profile = getDiseaseProfile('Unknown Disease XYZ');
-    expect(profile.stage).toBe('Unknown');
     expect(profile.prognosis).toBe('Requires Manual Assessment');
     expect(profile.evidenceItems.length).toBe(3);
     expect(profile.rationale).toContain('Unknown Disease XYZ');

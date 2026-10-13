@@ -1,0 +1,99 @@
+{
+  "label": "CHECKPOINT_11A1_DEPENDENCY_SECURITY_AUDIT",
+  "audit_commands": ["npm audit --json", "npm audit --omit=dev --json", "npm outdated --json"],
+  "npm_audit_omit_dev": {
+    "high": 0,
+    "critical": 0,
+    "moderate": 0,
+    "low": 0,
+    "total": 0,
+    "prod_dependency_count": 6,
+    "conclusion": "All production/runtime dependencies are free of HIGH/CRITICAL (and any severity) findings."
+  },
+  "npm_audit_full": {
+    "high": 1,
+    "critical": 1,
+    "moderate": 2,
+    "low": 0,
+    "total": 4
+  },
+  "decision_gate": "NO_HIGH_OR_CRITICAL_RUNTIME_VULNERABILITY -- 11A.1 PASSES ON THIS CRITERION",
+  "development_toolchain_findings": [
+    {
+      "package": "vitest",
+      "severity": "critical",
+      "direct_or_transitive": "direct (devDependency)",
+      "runtime_scope": "dev-only, never shipped in the production build (`npm run build` output does not include vitest)",
+      "dependency_path": "frontend -> vitest (direct devDependency)",
+      "advisory_title": "When Vitest UI server is listening, arbitrary file can be read and executed",
+      "advisory_url": "https://github.com/advisories/GHSA-5xrq-8626-4rwp",
+      "cvss_score": 9.8,
+      "installed_version": "1.6.1",
+      "vulnerable_range": "<=3.2.5",
+      "patched_version": "3.2.6+ (fixAvailable resolves to 4.1.11)",
+      "fix_available": { "name": "vitest", "version": "4.1.11", "is_semver_major": true },
+      "proposed_fix_is_breaking": true,
+      "exploit_precondition_in_this_repo": "The Vitest UI server (`vitest --ui`) is never started -- only `vitest run` (`npm test`) is used -- so this advisory's precondition does not apply to this project's actual test invocation.",
+      "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD"
+    },
+    {
+      "package": "vite",
+      "severity": "high",
+      "direct_or_transitive": "direct (devDependency, used only by the Vite dev/build tooling)",
+      "runtime_scope": "dev-only build/dev-server tool, not bundled into `dist/`",
+      "dependency_path": "frontend -> vite (direct devDependency); also frontend -> vitest -> vite-node -> vite (transitive)",
+      "advisory_title": "vite: server.fs.deny bypass on Windows alternate paths",
+      "advisory_url": "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+      "cvss_score": 7.5,
+      "installed_version": "5.4.21",
+      "vulnerable_range": "<=6.4.2",
+      "patched_version": "6.4.3+ (fixAvailable resolves to 8.2.2)",
+      "fix_available": { "name": "vite", "version": "8.2.2", "is_semver_major": true },
+      "proposed_fix_is_breaking": true,
+      "exploit_precondition_in_this_repo": "Affects the Vite DEV server's static-file-serving path traversal guard on Windows; this project's dev server is only ever run locally against the developer's own machine (never exposed to untrusted network clients), and the vulnerability has no effect on `npm run build` output.",
+      "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD"
+    },
+    {
+      "package": "esbuild",
+      "severity": "moderate",
+      "direct_or_transitive": "transitive (via vite)",
+      "runtime_scope": "dev-only, bundled only into the Vite dev-server toolchain",
+      "dependency_path": "frontend -> vite -> esbuild (transitive)",
+      "advisory_title": "esbuild enables any website to send any requests to the development server and read the response",
+      "advisory_url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+      "cvss_score": 5.3,
+      "installed_version": "0.21.5",
+      "vulnerable_range": "<=0.24.2",
+      "patched_version": "0.25.0+ (fixAvailable resolves via the same vite 8.2.2 major bump)",
+      "fix_available": { "name": "vite", "version": "8.2.2", "is_semver_major": true },
+      "proposed_fix_is_breaking": true,
+      "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD"
+    },
+    {
+      "package": "vite-node",
+      "severity": "moderate",
+      "direct_or_transitive": "transitive (via vitest -> vite-node -> vite)",
+      "runtime_scope": "dev-only, used only internally by vitest",
+      "dependency_path": "frontend -> vitest -> vite-node -> vite",
+      "advisory_title": "Inherited from the vite advisory above (no independent CVE)",
+      "advisory_url": null,
+      "installed_version": "1.6.1",
+      "vulnerable_range": "<=2.2.0-beta.2",
+      "fix_available": { "name": "vitest", "version": "4.1.11", "is_semver_major": true },
+      "proposed_fix_is_breaking": true,
+      "classification": "DEVELOPMENT_TOOLCHAIN_SECURITY_RISK_CARRIED_FORWARD"
+    }
+  ],
+  "force_fix_attempted": false,
+  "dependency_versions_changed_this_checkpoint": false,
+  "note": "A non-breaking safe upgrade path was not available for any of these four findings -- the only fix npm reports for all of them is a semver-major jump (vite 5.x -> 8.x, vitest 1.x -> 4.x). Per Checkpoint 11A.1 instructions, no dependency version was changed merely to zero out this count; a proposed non-breaking-where-possible upgrade should be scoped and evaluated as its own separate change, not folded into this contract-hardening checkpoint.",
+  "npm_outdated_summary": {
+    "vite": { "current": "5.4.21", "wanted": "5.4.21", "latest": "8.2.2" },
+    "vitest": { "current": "1.6.1", "wanted": "1.6.1", "latest": "4.1.11" },
+    "@vitejs/plugin-react": { "current": "4.7.0", "wanted": "4.7.0", "latest": "6.1.0" },
+    "react": { "current": "18.3.1", "wanted": "18.3.1", "latest": "19.2.8" },
+    "react-dom": { "current": "18.3.1", "wanted": "18.3.1", "latest": "19.2.8" },
+    "tailwindcss": { "current": "3.4.19", "wanted": "3.4.19", "latest": "4.3.3" }
+  },
+  "final_status": "FRONTEND_CONTRACT_STATE_MACHINE_HARDENED_READY_FOR_VISUAL_LAYER_HARDENING"
+}

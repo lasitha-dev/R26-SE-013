@@ -113,19 +113,17 @@ const SmartDiagnostics = () => {
     return () => timers.forEach(clearTimeout);
   }, [isSuccess]);
 
-  // Dynamic clinical severity & profile resolution
+  // Authoritative clinical severity & profile resolution from vision & LLM reasoning pipeline
   const disease = result?.disease;
   const staticProfile = getDiseaseProfile(disease?.name);
 
-  // Prioritize LLM-synthesized severity assessment over initial vision telemetry
   const effectiveSeverity = severityAssessment || result?.severity;
   const dynamicSeverity = effectiveSeverity;
-  const dynamicStage = severityAssessment?.stage || result?.stage;
-  const dynamicSpatialCorrelation = severityAssessment?.spatial_correlation || result?.spatial_correlation;
+  const dynamicSpatialCorrelation = result?.spatial_correlation || effectiveSeverity?.spatial_correlation;
 
   const severityGrade = effectiveSeverity?.grade || (staticProfile.severity.split('/')[1] || '').trim() || 'Moderate';
   const severityDescription = effectiveSeverity?.description || staticProfile.rationale;
-  const severityFormatted = effectiveSeverity?.formatted || (effectiveSeverity?.grade ? `${effectiveSeverity.grade} (${dynamicStage || 'Active'})` : staticProfile.severity);
+  const severityFormatted = effectiveSeverity?.formatted || effectiveSeverity?.grade || staticProfile.severity;
 
   const gradeLower = (severityGrade || '').toLowerCase();
   const severityColor = gradeLower.includes('severe') || gradeLower.includes('high')
@@ -136,9 +134,14 @@ const SmartDiagnostics = () => {
     ? 'text-teal-400'
     : 'text-primary';
 
-  const stage = dynamicStage || staticProfile.stage;
   const spatialCorrelation = dynamicSpatialCorrelation || staticProfile.spatialCorrelation;
-  const rationale = severityAssessment?.diagnostic_rationale || effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
+  const rationale = effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
+
+  const confidenceLevel = effectiveSeverity?.confidence_level || 'High';
+  const needsReview = Boolean(effectiveSeverity?.needs_review);
+  const attentionCoverage = effectiveSeverity?.attention_coverage_pct ?? 0;
+  const attentionClusters = effectiveSeverity?.attention_cluster_count ?? 0;
+  const compositeScore = effectiveSeverity?.composite_score;
   
   const rawPrognosis = effectiveSeverity?.prognosis || staticProfile.prognosis;
   const prognosis = rawPrognosis;
@@ -188,13 +191,12 @@ const SmartDiagnostics = () => {
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
         severity: severityGrade,
-        stage: stage,
         prognosis: prognosis,
         rationale: rationale,
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Pathological assessment: ${severityDescription}`,
+        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
         llm_reasoning: reasoning,
         verified: true,
       };
@@ -208,6 +210,7 @@ const SmartDiagnostics = () => {
       setIsReporting(false);
     }
   };
+
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -353,9 +356,35 @@ const SmartDiagnostics = () => {
       )}
 
       <div className="min-h-[400px] md:min-h-[500px]">
-        {/* ========= IDLE / LOADING VIEW ========= */}
-        {(isIdle || isLoading) && (
-          <UploadDropzone isLoading={isLoading} onFile={handleFile} />
+        {/* ========= DECEASED LOCK VIEW ========= */}
+        {cattleInfo && (cattleInfo.status === 'Deceased' || cattleInfo.health_status === 'Deceased') ? (
+          <div className="p-6 bg-error-container text-on-error-container border border-error rounded-2xl space-y-4 max-w-xl mx-auto text-center" data-testid="diagnostics-locked-banner">
+            <div className="flex items-center justify-center gap-2 font-bold text-lg">
+              <span className="material-symbols-outlined text-2xl">block</span>
+              <span>Diagnostics Locked</span>
+            </div>
+            <p className="text-sm">Diagnostics locked for deceased cattle. Disease reporting is locked for deceased subjects.</p>
+            {farmId && (
+              <Link
+                to={`/components/health_anomaly`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/vet/farm/${farmId}`);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-error text-on-error hover:brightness-110 rounded-xl text-xs font-bold uppercase tracking-wider transition-all select-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Return to Herd View</span>
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* ========= IDLE / LOADING VIEW ========= */}
+            {(isIdle || isLoading) && (
+              <UploadDropzone isLoading={isLoading} onFile={handleFile} />
+            )}
+          </>
         )}
 
         {/* ========= SUCCESS VIEW ========= */}
@@ -662,79 +691,70 @@ const SmartDiagnostics = () => {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-y-3.5 gap-x-3">
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
-                          Predicted Condition
-                        </p>
-                        <p className="text-xs md:text-sm font-extrabold text-on-surface truncate" data-testid="predicted-condition">
-                          {disease?.name || 'Unknown'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs text-primary">psychology</span>
-                          Clinical Severity
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {reasoningStatus === 'loading' ? (
-                            <div className="flex items-center gap-1.5 text-primary text-xs font-mono font-bold animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                              <span>Synthesizing...</span>
-                            </div>
-                          ) : (
-                            <>
-                              <p className={`text-xs md:text-sm font-extrabold ${severityColor}`} data-testid="severity-grade">
-                                {severityGrade}
-                              </p>
-                              {dynamicSeverity && dynamicSeverity.lesion_coverage_pct > 0 && (
-                                <span className="inline-block px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 text-[10px] font-mono border border-rose-500/20">
-                                  {dynamicSeverity.lesion_coverage_pct}% area
-                                </span>
-                              )}
-                              {dynamicSeverity && dynamicSeverity.cluster_count > 0 && (
-                                <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">
-                                  {dynamicSeverity.cluster_count} clusters
-                                </span>
-                              )}
-                            </>
-                          )}
+                    <div className="space-y-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
+                            Predicted Condition
+                          </p>
+                          <p className="text-sm md:text-base font-extrabold text-on-surface truncate" data-testid="predicted-condition">
+                            {disease?.name || 'Unknown'}
+                          </p>
                         </div>
-                      </div>
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
-                          Disease Stage
-                        </p>
-                        <p className="text-xs font-semibold text-on-surface truncate">{stage}</p>
-                      </div>
-                      <div>
-                        <p className="text-3xs text-outline uppercase font-bold tracking-wider mb-0.5">
-                          Prognosis
-                        </p>
-                        <p className={`text-xs font-semibold ${prognosisColor} truncate`}>
-                          {prognosis}
-                        </p>
+                        {confidence && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-2xs font-mono font-bold border border-primary/20 shrink-0">
+                            <span className="material-symbols-outlined text-xs">verified</span>
+                            {confidence}% Conf.
+                          </span>
+                        )}
                       </div>
 
-                      {/* Dynamic Pathological Severity Narrative from LLM */}
-                      {severityDescription && (
-                        <div className="col-span-2 pt-2.5 mt-0.5 border-t border-outline-variant/15">
-                          <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1 flex items-center justify-between">
-                            <span className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
-                              Pathological Severity Assessment
-                            </span>
-                            <span className="text-[9px] font-mono text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10">
-                              {severityAssessment ? 'LLM REASONED' : 'VISION TELEMETRY'}
-                            </span>
-                          </p>
-                          <p className="text-2xs text-on-surface-variant leading-relaxed" data-testid="severity-narrative">
-                            {severityDescription}
-                          </p>
+                      {/* Needs Review Alert Banner */}
+                      {needsReview && (
+                        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
+                          <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
+                          <span className="font-medium">Uncertainty Flag: Severity score near decision threshold. In-person clinical validation recommended.</span>
                         </div>
                       )}
+
+                      {/* Dynamic Pathological Severity Narrative from LLM with Lazy Loading */}
+                      <div className="pt-2.5 mt-0.5 border-t border-outline-variant/15" data-testid="pathological-severity-container">
+                        <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1.5 flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
+                            Pathological Severity Assessment
+                          </span>
+                          {reasoningStatus === 'loading' ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 animate-pulse" data-testid="synthesising-badge">
+                              <span className="material-symbols-outlined text-[11px] animate-spin">progress_activity</span>
+                              Synthesising
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-mono text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10">
+                              {severityAssessment ? 'AI CLINICAL REASONING' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
+                            </span>
+                          )}
+                        </p>
+
+                        {reasoningStatus === 'loading' ? (
+                          <div className="space-y-1.5 py-1.5 animate-pulse" data-testid="synthesising-placeholder">
+                            <div className="flex items-center gap-1.5 text-2xs text-amber-300/90 font-medium">
+                              <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                              <span>Synthesising clinical telemetry &amp; pathological evidence...</span>
+                            </div>
+                            <div className="h-2 bg-surface-variant/40 rounded w-5/6" />
+                            <div className="h-2 bg-surface-variant/20 rounded w-4/6" />
+                          </div>
+                        ) : (
+                          <p className="text-2xs text-on-surface-variant leading-relaxed" data-testid="severity-narrative">
+                            {severityDescription || 'Pathological telemetry evaluated.'}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+
 
                   {/* Vet Action & Verification Area */}
                   <div className={`mt-5 md:mt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
@@ -834,7 +854,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {severityAssessment?.diagnostic_rationale ? 'LLM REASONED' : 'VISION INFERENCE'}
+                        {effectiveSeverity?.diagnostic_rationale ? 'COMPOSITE SCORER' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="diagnostic-rationale">
@@ -850,7 +870,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {severityAssessment?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
+                        {effectiveSeverity?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="spatial-correlation">
@@ -896,7 +916,7 @@ const SmartDiagnostics = () => {
               reasoning={reasoning}
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
-              severityAssessment={severityAssessment}
+              severityAssessment={effectiveSeverity}
             />
           </div>
         )}

@@ -1,7 +1,7 @@
 /**
  * Disease profile data for the Smart Diagnosis system.
  * Maps each backend-predicted class name to UI display metadata
- * including severity, stage, prognosis, rationale text, and evidence items.
+ * including severity, prognosis, rationale text, and evidence items.
  *
  * Used by the results view to populate the AI Logic Trace and
  * Model Reasoning & Evidence sections dynamically.
@@ -11,13 +11,12 @@ const DISEASE_PROFILES = {
   'Lumpy Skin Disease': {
     severity: '8.2 / High',
     severityColor: 'text-error',
-    stage: 'Secondary',
     prognosis: 'Recoverable',
     prognosisColor: 'text-primary',
     rationale:
       'Pattern recognition identifies circular nodular distribution characteristic of Lumpy Skin Disease. The AI has segmented distinct cutaneous nodules across the thoracic and cervical regions.',
     spatialCorrelation:
-      'High-density eruptive clusters correlate with secondary stage progression. Automated volumetric analysis suggests a 15% increase in lesion surface area compared to standard baseline profiles.',
+      'High-density eruptive clusters correlate with active pathology progression. Automated volumetric analysis suggests an increase in lesion surface area compared to standard baseline profiles.',
     evidenceItems: [
       'Dermal texture analysis matches viral infection parameters.',
       'Automated body condition scoring (BCS) adjusted for visible swelling.',
@@ -27,7 +26,6 @@ const DISEASE_PROFILES = {
   'Foot and Mouth Disease': {
     severity: '7.8 / High',
     severityColor: 'text-error',
-    stage: 'Acute Vesicular',
     prognosis: 'Guarded',
     prognosisColor: 'text-error',
     rationale:
@@ -43,7 +41,6 @@ const DISEASE_PROFILES = {
   Healthy: {
     severity: '0.0 / None',
     severityColor: 'text-primary',
-    stage: 'N/A',
     prognosis: 'Excellent',
     prognosisColor: 'text-primary',
     rationale:
@@ -59,13 +56,12 @@ const DISEASE_PROFILES = {
   Mastitis: {
     severity: '6.5 / Moderate',
     severityColor: 'text-[#f59e0b]',
-    stage: 'Clinical',
     prognosis: 'Treatable',
     prognosisColor: 'text-primary',
     rationale:
       'Mammary gland imaging reveals asymmetric swelling and tissue inflammation patterns consistent with clinical mastitis. Udder quarter analysis identifies localized congestion.',
     spatialCorrelation:
-      'Inflammatory hotspots concentrated in the affected quarter. Tissue density analysis suggests early-stage parenchymal involvement with recoverable tissue integrity.',
+      'Inflammatory hotspots concentrated in the affected quarter. Tissue density analysis suggests parenchymal involvement with recoverable tissue integrity.',
     evidenceItems: [
       'Swelling pattern matches bacterial mastitis morphological profiles.',
       'Tissue temperature differential exceeds clinical threshold.',
@@ -75,7 +71,6 @@ const DISEASE_PROFILES = {
   Dermatophilosis: {
     severity: '5.4 / Moderate',
     severityColor: 'text-[#f59e0b]',
-    stage: 'Active Crusting',
     prognosis: 'Recoverable',
     prognosisColor: 'text-primary',
     rationale:
@@ -91,7 +86,6 @@ const DISEASE_PROFILES = {
   Pediculosis: {
     severity: '3.8 / Low',
     severityColor: 'text-tertiary',
-    stage: 'Active Infestation',
     prognosis: 'Easily Treatable',
     prognosisColor: 'text-primary',
     rationale:
@@ -107,7 +101,6 @@ const DISEASE_PROFILES = {
   Ringworm: {
     severity: '4.2 / Moderate',
     severityColor: 'text-[#f59e0b]',
-    stage: 'Expanding Lesions',
     prognosis: 'Self-Limiting / Treatable',
     prognosisColor: 'text-primary',
     rationale:
@@ -147,7 +140,6 @@ export const getDiseaseProfile = (diseaseName) => {
   return {
     severity: 'N/A',
     severityColor: 'text-on-surface-variant',
-    stage: 'Unknown',
     prognosis: 'Requires Manual Assessment',
     prognosisColor: 'text-on-surface-variant',
     rationale: `Automated analysis detected features associated with "${diseaseName}". Manual veterinary assessment is recommended for definitive diagnosis.`,
@@ -162,3 +154,4 @@ export const getDiseaseProfile = (diseaseName) => {
 };
 
 export default DISEASE_PROFILES;
+

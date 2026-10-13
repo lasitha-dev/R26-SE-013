@@ -1,0 +1,95 @@
+{
+  "label": "TRACKED_AGGREGATE_RESEARCH_EVIDENCE_SUMMARY",
+  "checkpoint": "9A",
+  "rate_readiness_protocol_hash_9a": "326427b08f5c43b9708409ae112460e8f0804db0c972a007caaae8ffca3b58ac",
+  "frozen_c0_selected_candidate_id": "C7C:C0_FROZEN_B0_ISOTROPIC:830bf1e62664bcc8",
+  "frozen_7c_spec_hash": "ef3511d3527da6d85598846c0d828509ed07f134ac8d987c3d5702b507505a6d",
+  "readiness_audit_summary": {
+    "n_fit_development_origins_inspected": 579,
+    "n_origins_with_eligible_sources": 579,
+    "n_raw_future_d1_d7_target_rows": 3947,
+    "n_deduplicated_origin_target_observations": 3947,
+    "n_within_primary_local_scope": 1387,
+    "n_outside_local_scope": 2560,
+    "n_valid_v_obs_observations": 1387,
+    "n_unique_target_event_id": 371,
+    "zero_distance_observation_count": 12,
+    "sample_size_readiness_status": "SAMPLE_SIZE_NOMINALLY_SUFFICIENT_FOR_MEDIAN_ESTIMATION"
+  },
+  "diagnostic_distributions": {
+    "label": "DEVELOPMENT_RATE_DATASET_DIAGNOSTIC",
+    "episode_target_v_obs_km_day_distribution": {
+      "min": 0.0,
+      "p25": 2.1677088425943776,
+      "median": 3.6759670991102107,
+      "p75": 6.789910079843121,
+      "p95": 19.241213635828853,
+      "max": 24.840058772417425,
+      "n": 1387
+    },
+    "target_level_median_v_km_day_distribution": {
+      "min": 0.0,
+      "p25": 2.2487219124511104,
+      "median": 3.946421443154751,
+      "p75": 6.094453884349155,
+      "p95": 16.906917714232584,
+      "max": 24.25611838013351,
+      "n": 371
+    },
+    "note": "These are diagnostic distributions of the FIT_DEVELOPMENT-only readiness dataset. Neither distribution's median is the final system rate (S0) -- Checkpoint 9B computes and freezes S0."
+  },
+  "s0_status": "FORMULA_FROZEN_VALUE_NOT_YET_COMPUTED",
+  "nominal_reach_status": "NOT_YET_COMPUTED",
+  "s1_status": "NOT_SELECTED_IN_CHECKPOINT_9A",
+  "not_final_system_rate": true,
+  "not_direction_or_wind_derived": true,
+  "held_out_and_sri_lanka_excluded": true,
+  "final_classification": "APPARENT_LOCAL_SPREAD_FRONT_RATE_S0_DEVELOPMENT_DATASET_READY_FOR_9B_ESTIMATION",
+  "local_artifact_root": "local_data/model_development/9a_rate",
+  "local_artifact_sha256": {
+    "rate_protocol_9a.json": "b19b0399cb94567bb279fdde27770127f08790fc5ec3d8eae796a16a4c7de6b0",
+    "rate_readiness_audit_9a.json": "ea297c4d6454e4c8bbf7b874a1729c04e9fe511a6b3f3b9c0f2bdf0f7dda1851",
+    "rate_quality_audit_9a.json": "9ea86669e3bad4e6ab245e94633124083da579d4508749cf3fd95c6e9330fb74",
+    "rate_diagnostic_distributions_9a.json": "a7b2921dc5ea6ea750e583fc71db39ce50b2b933e3cf014baeb038f15ec06721",
+    "rate_origin_target_observations_9a.csv": "d67f02709a2ddac8b5f02cb4ebacafe42242229deafea153c600fb2bbd714a2d",
+    "rate_target_level_readiness_9a.csv": "71e7d82f974d1dd01911c45fbbfd7121ef07e915212c3f7004fef6120399b183",
+    "s0_pre_9b_exposure_audit_9a1.json": "5abbf5f5b3d6485a7e41a90926db171fd09a639f120979bc674a5d7016db4731"
+  },
+  "s0_numeric_exposure_correction_9a1": {
+    "checkpoint": "9A.1",
+    "classification": "PRE_9B_S0_NUMERIC_ESTIMATOR_EXPOSURE_IN_9A_DIAGNOSTIC_DISCLOSED",
+    "historical_9a_protocol_hash": "326427b08f5c43b9708409ae112460e8f0804db0c972a007caaae8ffca3b58ac",
+    "historical_9a_protocol_hash_unchanged": true,
+    "exact_persisted_exposed_estimator_value_km_day": 3.946421443154751,
+    "source_artifact": "rate_diagnostic_distributions_9a.json",
+    "source_field": "target_level_median_v_km_day_distribution.median",
+    "n_unique_target_event_id": 371,
+    "target_level_csv_consistency_status": "EXACT_MACHINE_PRECISION_MATCH",
+    "post_exposure_rate_method_retuning_status": "NO_POST_EXPOSURE_RATE_METHOD_RETUNING_DETECTED_IN_RECORDED_SESSION",
+    "arbitrary_sample_threshold_correction": {
+      "removed_from": "smoke_tests/run_rate_readiness_9a.py",
+      "prior_status_logic": "n_unique_targets < 10 cutoff, no predeclared justification",
+      "new_status": "SAMPLE_SIZE_REPORTED_WITHOUT_ARBITRARY_SUFFICIENCY_THRESHOLD"
+    },
+    "temporal_wording_correction": {
+      "corrected_in": "RATE_MODEL_PROTOCOL.md §9",
+      "new_phrase": "recorded historical event-date / target-occurrence proxy used by the frozen forecast-target protocol",
+      "no_dates_or_lead_days_changed": true
+    },
+    "quality_denominator_semantics_documented": true,
+    "zero_distance_audit_summary": {
+      "n_zero_distance": 12,
+      "n_unique_target_event_id_represented": 4,
+      "preserved_no_epsilon_no_drop_no_winsorize": true
+    },
+    "revised_9b_purpose": "FORMAL_FREEZE_OF_PREDECLARED_S0_ESTIMATOR_WITH_PRE_9B_NUMERIC_VALUE_EXPOSURE_DISCLOSED_AND_BOOTSTRAP_UNCERTAINTY",
+    "bootstrap_plan_unchanged": true,
+    "no_geometry_recomputed": true,
+    "no_v_obs_recomputed": true,
+    "no_model_retuning": true,
+    "no_heldout_rate_inspected": true,
+    "no_sri_lanka_rate_inspected": true,
+    "detail_artifact": "local_data/model_development/9a_rate/s0_pre_9b_exposure_audit_9a1.json",
+    "detail_documentation": "RATE_MODEL_PROTOCOL.md §20"
+  }
+}

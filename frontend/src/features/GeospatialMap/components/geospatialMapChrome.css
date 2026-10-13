@@ -1,0 +1,84 @@
+/*
+ * GEO33B Section 15/16: Geospatial-owned MapLibre control chrome.
+ *
+ * FEATURE-SCOPED ON PURPOSE. This file is imported only by
+ * `MapLibreCanvas.jsx` (this feature's own component) and every rule is
+ * nested under `.geo-map-shell`, the wrapper that component renders. It
+ * therefore cannot leak into `src/index.css`, `src/styles/index.css`,
+ * `VetLayout.jsx`, or any other member's surface -- those are read-only
+ * for this checkpoint and are deliberately not touched.
+ *
+ * The problem being fixed: MapLibre's stylesheet
+ * (`maplibre-gl/dist/maplibre-gl.css`, imported by `MapLibreCanvas.jsx`)
+ * ships browser-default light chrome -- a white `.maplibregl-ctrl-group`
+ * with near-black `+`/`-` glyphs. Against this page's dark ADRS map card
+ * (`bg-slate-950`) that renders as two bright white blocks in the corner,
+ * the single highest-contrast element on the whole map, competing with the
+ * actual red outbreak markers for attention.
+ *
+ * Everything below is COLOR/BORDER ONLY. No `pointer-events`, no
+ * `display`, no `visibility`, no `position`, no `width`/`height` override
+ * -- MapLibre's own hit targets, sizing and layout are left exactly as the
+ * library ships them, so click/keyboard behaviour is provably unchanged.
+ */
+
+.geo-map-shell .maplibregl-ctrl-group {
+  background-color: rgba(15, 23, 42, 0.88); /* slate-900, matches this page's floating chrome */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+/* MapLibre draws a hairline between stacked buttons using a border on the
+   button itself -- recolor it rather than removing it, so the zoom-in /
+   zoom-out affordance stays visually separated. */
+.geo-map-shell .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.geo-map-shell .maplibregl-ctrl-group button {
+  background-color: transparent;
+  color: rgb(203, 213, 225); /* slate-300 */
+}
+
+.geo-map-shell .maplibregl-ctrl-group button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.geo-map-shell .maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid rgb(52, 211, 153); /* emerald-400, matches this page's focus ring */
+  outline-offset: -2px;
+}
+
+.geo-map-shell .maplibregl-ctrl-group button:disabled {
+  opacity: 0.35;
+}
+
+/* MapLibre's +/- and compass icons are inline SVG painted via a CSS
+   background-image, so `color` alone cannot lighten them -- invert the
+   dark default artwork instead. Scoped to the icon span only. */
+.geo-map-shell .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.6);
+}
+
+/*
+ * Section 16: the attribution control. `MapLibreCanvas.jsx` moves it to
+ * bottom-LEFT so it can never sit underneath the bottom-centre timeline
+ * control. It is never hidden, never shrunk to unreadability, and its
+ * links stay clickable -- only its colors are brought in line with the
+ * dark card so it reads as chrome rather than as a bright white bar.
+ */
+.geo-map-shell .maplibregl-ctrl-attrib {
+  background-color: rgba(15, 23, 42, 0.75);
+  color: rgb(148, 163, 184); /* slate-400 */
+  border-radius: 4px 4px 0 0;
+}
+
+.geo-map-shell .maplibregl-ctrl-attrib a {
+  color: rgb(148, 163, 184);
+}
+
+.geo-map-shell .maplibregl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.6);
+}
