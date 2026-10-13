@@ -125,6 +125,54 @@ class ForecastV2Service:
                 ))
         return records
 
+    def _all_v2_records(self) -> List[ForecastDecisionRecord]:
+        repository = self.repository_getter()
+        records, offset = [], 0
+        while True:
+            page, total = repository.list(limit=200, offset=offset)
+            records.extend(r for r in page if r.model_version and r.status != "SUPERSEDED")
+            offset += len(page)
+            if not page or offset >= total:
+                return records
+
+    def performance(self, as_of: Optional[datetime] = None, grace_months: int = 1) -> dict:
+        """Score stored v2 forecasts against observed outcomes, computed on read (records stay
+        immutable). A target month is scored once `grace_months` full months have passed.
+        Outcomes with unknown surveillance are reported separately and never counted as 0."""
+        today = (as_of or self.clock())
+        latest = shift((today.year, today.month), -(grace_months + 1))
+        providers: Dict[str, SurveillanceProvider] = {}
+        summary = {"scored_through": f"{latest[0]:04d}-{latest[1]:02d}", "diseases": {}}
+        for record in self._all_v2_records():
+            if (record.target_year, record.target_month) > latest:
+                continue
+            provider = providers.setdefault(record.disease, self._surveillance(record.disease))
+            observation = provider.month(record.target_year, record.target_month)[record.district]
+            stats = summary["diseases"].setdefault(record.disease, {
+                "scored": 0, "outbreaks": 0, "alerts": 0, "hits": 0, "missed_outbreaks": 0,
+                "false_alarms": 0, "brier_sum": 0.0, "unscored_by_status": {}, "scored_by_forecaster": {},
+            })
+            outcome = observation.outbreak
+            if outcome is None:
+                stats["unscored_by_status"][observation.status] = stats["unscored_by_status"].get(observation.status, 0) + 1
+                continue
+            alert = record.risk_level in ("MEDIUM", "HIGH")
+            stats["scored"] += 1
+            stats["outbreaks"] += outcome
+            stats["alerts"] += int(alert)
+            stats["hits"] += int(alert and outcome == 1)
+            stats["missed_outbreaks"] += int(not alert and outcome == 1)
+            stats["false_alarms"] += int(alert and outcome == 0)
+            stats["brier_sum"] += (record.probability - outcome) ** 2
+            key = record.forecaster or "unknown"
+            stats["scored_by_forecaster"][key] = stats["scored_by_forecaster"].get(key, 0) + 1
+        for stats in summary["diseases"].values():
+            scored = stats["scored"]
+            stats["brier_score"] = round(stats.pop("brier_sum") / scored, 4) if scored else None
+            stats["recall"] = round(stats["hits"] / stats["outbreaks"], 3) if stats["outbreaks"] else None
+            stats["precision"] = round(stats["hits"] / stats["alerts"], 3) if stats["alerts"] else None
+        return summary
+
     def generate_period(self, year: int, month: int, diseases: Iterable[str] = ("FMD", "LSD"),
                         generated_by: Optional[str] = None, trigger_type: str = "MANUAL",
                         dry_run: bool = False) -> dict:

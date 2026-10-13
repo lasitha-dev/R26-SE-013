@@ -1,6 +1,7 @@
 """Tests for v2 prediction, coverage-aware surveillance, the v2 service and endpoints.
 No network or real database: public data and Mongo collections are faked."""
 
+import json
 import re
 from datetime import datetime
 
@@ -279,3 +280,48 @@ def test_model_card_endpoint():
     card = response.json()
     assert card["FMD"]["deployment"]["surveillance_known"]["status"] == "validated"
     assert card["LSD"]["deployment"]["surveillance_known"]["status"] == "exploratory"
+
+
+# ─── monitoring and monthly job ────────────────────────────────────────────
+
+def test_performance_scores_only_known_outcomes():
+    repo = InMemoryForecastRecordRepository()
+    service = make_service(repo)
+    service.generate_period(2023, 5, ["FMD"])  # outcome comes from curated 2023 labels
+    service.generate_period(2026, 9, ["FMD"])  # outcome from app records (fake db)
+    report = service.performance(as_of=datetime(2026, 11, 13))
+    fmd = report["diseases"]["FMD"]
+    assert report["scored_through"] == "2026-09"
+    # 25 curated outcomes + Anuradhapura (confirmed) and Colombo (covered, no cases) from the app
+    assert fmd["scored"] == 27
+    assert fmd["unscored_by_status"] == {"NO_SURVEILLANCE_COVERAGE": 23}
+    assert fmd["hits"] + fmd["missed_outbreaks"] == fmd["outbreaks"]
+    assert fmd["brier_score"] is not None
+
+
+def test_performance_skips_months_inside_grace_period():
+    service = make_service(InMemoryForecastRecordRepository())
+    service.generate_period(2026, 10, ["LSD"])
+    assert service.performance(as_of=datetime(2026, 11, 13))["diseases"] == {}
+
+
+def test_monthly_job_runs_and_logs(tmp_path, monkeypatch, capsys):
+    from components.risk_forecasting.jobs import run_monthly_forecast as job
+    monkeypatch.setattr(job, "RUN_LOG", tmp_path / "runs.jsonl")
+    code = job.main(["--year", "2026", "--month", "10", "--diseases", "LSD", "--dry-run"],
+                    service=make_service(InMemoryForecastRecordRepository()))
+    assert code == 0
+    entry = json.loads((tmp_path / "runs.jsonl").read_text().strip())
+    assert entry["status"] == "ok" and entry["summary"]["records"] == 25 and entry["dry_run"] is True
+
+
+def test_monthly_job_reports_storage_failure(tmp_path, monkeypatch):
+    from components.risk_forecasting.jobs import run_monthly_forecast as job
+    monkeypatch.setattr(job, "RUN_LOG", tmp_path / "runs.jsonl")
+
+    class BrokenRepo(InMemoryForecastRecordRepository):
+        def save(self, record):
+            raise RuntimeError("Forecast record storage is temporarily unavailable.")
+
+    assert job.main(["--year", "2026", "--month", "10", "--diseases", "FMD"],
+                    service=make_service(BrokenRepo())) == 1

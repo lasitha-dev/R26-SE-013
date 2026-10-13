@@ -1447,3 +1447,15 @@ def get_active_surveillance(
         "period": f"{year:04d}-{month:02d}",
         "districts": {d: o.as_dict() for d, o in observations.items()},
     }
+
+
+@router.get("/v2/performance", summary="Score stored v2 forecasts against observed outcomes")
+def get_v2_performance(service=Depends(get_forecast_v2_service)):
+    """Prospective monitoring: hits, missed outbreaks, false alarms and Brier score for v2
+    forecasts whose target month has passed. Months without known surveillance are listed
+    as unscored rather than counted as 'no outbreak'."""
+    try:
+        return service.performance()
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Forecast record storage is temporarily unavailable.")
