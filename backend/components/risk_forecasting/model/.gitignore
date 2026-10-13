@@ -46,3 +46,6 @@ plots/
 
 # Local Backup Snapshots
 scripts/backup_v1_validated/
+
+# v2 pipeline download cache (rebuilt from public sources)
+data/cache/
