@@ -8,6 +8,7 @@ import {
   hasForecastingPermission,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
+import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import {
   listForecastDistricts,
   listForecastRecords,
@@ -60,8 +61,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     normalizedContext?.authorization?.scopeLevel === SCOPE_LEVELS.DISTRICT;
 
   // 2. State Management
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
+  const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
   const [districtList, setDistrictList] = useState([]);
   const [monthNamesList, setMonthNamesList] = useState([]);
   const [allRecords, setAllRecords] = useState([]);
@@ -124,7 +125,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       let fetchedRecords = [];
       try {
         const recordsRes = await listForecastRecords(
-          { limit: 200, offset: 0 },
+          { limit: 200, offset: 0, target_year: Number(selectedYear), target_month: Number(selectedMonth) },
           { signal: controller.signal }
         );
         if (controller.signal.aborted) return;
@@ -266,8 +267,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           const linkedAdv = advisoriesByForecastId.get(record.forecast_id) || [];
           const hasApprovedAdv = linkedAdv.some((a) => a.status === 'APPROVED');
           const isHighOrMed = record.risk_level === 'HIGH' || record.risk_level === 'MEDIUM';
-          const isOfficialStored = !record.fallback_applied;
-          const requiresFollowUp = isOfficialStored && isHighOrMed && !hasApprovedAdv;
+          // Persisted records are authoritative model outputs; proxy-input records keep their
+          // provenance badge but are not excluded from operational follow-up.
+          const requiresFollowUp = isHighOrMed && !hasApprovedAdv;
 
           let advisoryStatusSummary = 'No Advisory';
           if (linkedAdv.length === 1) {
@@ -353,17 +355,17 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     if (riskFilter === 'NO_RECORD') {
       filtered = filtered.filter((r) => r.isMissingRecord);
     } else if (riskFilter !== 'ALL') {
-      filtered = filtered.filter((r) => r.risk_level === riskFilter && !r.fallback_applied);
+      filtered = filtered.filter((r) => r.risk_level === riskFilter);
     }
     if (advisoryFilter !== 'ALL') {
       filtered = filtered.filter((r) => {
-        if (r.fallback_applied) return false;
+        if (r.isMissingRecord) return false;
         if (advisoryFilter === 'NO_ADVISORY') return r.advisoryStatusSummary === 'No Advisory';
         return r.advisoryStatusSummary === advisoryFilter;
       });
     }
     if (followUpOnly) {
-      filtered = filtered.filter((r) => r.requiresFollowUp && !r.fallback_applied);
+      filtered = filtered.filter((r) => r.requiresFollowUp);
     }
 
     return filtered.sort((a, b) => {
@@ -453,8 +455,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     setSelectedDisease('ALL');
     setRiskFilter('ALL');
     setAdvisoryFilter('ALL');
-    setSelectedYear(2025);
-    setSelectedMonth(1);
+    const defaultPeriod = getDefaultTargetPeriod();
+    setSelectedYear(defaultPeriod.year);
+    setSelectedMonth(defaultPeriod.month);
     setFollowUpOnly(false);
     setOffset(0);
   };
@@ -880,7 +883,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                             >
                               View
                             </button>
-                            {Boolean(row.id) && !row.fallback_applied && (
+                            {Boolean(row.id) && (
                               <button
                                 type="button"
                                 onClick={() => setComposingForecastRecord(row)}

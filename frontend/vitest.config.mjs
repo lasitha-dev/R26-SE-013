@@ -8,5 +8,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.mjs'],
     css: false,
+    env: { VITE_FORECAST_REFERENCE_PERIOD: '2024-12' },
   },
 });

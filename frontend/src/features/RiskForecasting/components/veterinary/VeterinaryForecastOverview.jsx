@@ -7,6 +7,7 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
+import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import {
   listForecastRecords,
 } from '../../services/riskForecastingWorkflowApi.js';
@@ -121,8 +122,8 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [fmdRecord, setFmdRecord] = useState(null);
   const [lsdRecord, setLsdRecord] = useState(null);
 
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
+  const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
 
   const [explanationData, setExplanationData] = useState(null);
   const [explainingDisease, setExplainingDisease] = useState(null);

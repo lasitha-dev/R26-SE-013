@@ -7,6 +7,7 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
+import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -64,8 +65,8 @@ export function DaphDistrictForecasts({ viewerContext }) {
 
   const [selectedDisease, setSelectedDisease] = useState('ALL');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
+  const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
 
   const abortControllerRef = useRef(null);
 
@@ -141,8 +142,9 @@ export function DaphDistrictForecasts({ viewerContext }) {
   const handleReset = () => {
     setSelectedDisease('ALL');
     setSelectedDistrict('ALL');
-    setSelectedYear(2025);
-    setSelectedMonth(1);
+    const defaultPeriod = getDefaultTargetPeriod();
+    setSelectedYear(defaultPeriod.year);
+    setSelectedMonth(defaultPeriod.month);
   };
 
   const displayRecords = useMemo(() => {

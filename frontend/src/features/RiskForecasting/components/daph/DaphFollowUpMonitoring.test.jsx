@@ -83,7 +83,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       target_year: 2026,
       target_month: 8,
       forecast_risk_level: 'HIGH',
-      forecast_probability_pct: 85,
+      probability: 0.85,
       operational_priority: 'HIGH',
       assigned_vet_id: 'vet_officer_01',
       issued_by_daph_id: 'usr_daph_001',
@@ -101,7 +101,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       target_year: 2026,
       target_month: 8,
       forecast_risk_level: 'MEDIUM',
-      forecast_probability_pct: 60,
+      probability: 0.6,
       operational_priority: 'MEDIUM',
       assigned_vet_id: 'vet_officer_02',
       issued_by_daph_id: 'usr_daph_001',
@@ -120,7 +120,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       target_year: 2026,
       target_month: 8,
       forecast_risk_level: 'HIGH',
-      forecast_probability_pct: 90,
+      probability: 0.9,
       operational_priority: 'HIGH',
       assigned_vet_id: 'vet_officer_03',
       issued_by_daph_id: 'usr_daph_001',
@@ -140,7 +140,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       target_year: 2026,
       target_month: 7,
       forecast_risk_level: 'LOW',
-      forecast_probability_pct: 20,
+      probability: 0.2,
       operational_priority: 'LOW',
       assigned_vet_id: 'vet_officer_04',
       issued_by_daph_id: 'usr_daph_001',
@@ -161,7 +161,7 @@ describe('DaphFollowUpMonitoring Component', () => {
       target_year: 2026,
       target_month: 8,
       forecast_risk_level: 'HIGH',
-      forecast_probability_pct: 88,
+      probability: 0.88,
       operational_priority: 'HIGH',
       assigned_vet_id: 'vet_officer_05',
       issued_by_daph_id: 'usr_daph_001',
@@ -298,6 +298,8 @@ describe('DaphFollowUpMonitoring Component', () => {
       expect(screen.getByText(/Scientific Forecast Snapshot \(Read-Only\)/i)).toBeInTheDocument();
       expect(screen.getByText(/Lifecycle Timeline/i)).toBeInTheDocument();
       expect(screen.getByText(/Targeted FMD ring vaccination/i)).toBeInTheDocument();
+      // Probability comes from the follow-up snapshot's `probability` field (0-1)
+      expect(screen.getByText('85.0%')).toBeInTheDocument();
     });
   });
 

@@ -617,7 +617,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                   </div>
                   <div>
                     <span className="text-slate-500 block">Probability:</span>
-                    <span>{selectedRecord.forecast_probability_pct !== undefined ? `${selectedRecord.forecast_probability_pct}%` : 'N/A'}</span>
+                    <span>{typeof selectedRecord.probability === 'number' ? `${(selectedRecord.probability * 100).toFixed(1)}%` : 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block">Priority:</span>

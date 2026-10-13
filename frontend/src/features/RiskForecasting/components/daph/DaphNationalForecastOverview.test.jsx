@@ -240,6 +240,31 @@ describe('DaphNationalForecastOverview Component', () => {
       }, { timeout: 4000 });
     });
 
+    it('keeps proxy-input records in risk filtering and allows follow-up, with provenance visible', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/Risk Tier/i), { target: { value: 'MEDIUM' } });
+
+      await waitFor(() => {
+        const row = screen.getByText('Polonnaruwa').closest('tr');
+        expect(within(row).getByText('Fallback Proxy')).toBeInTheDocument();
+        expect(within(row).getByRole('button', { name: 'Follow-up' })).toBeInTheDocument();
+      });
+    });
+
+    it('requests records for the selected target period only', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => {
+        expect(api.listForecastRecords).toHaveBeenCalledWith(
+          expect.objectContaining({ target_year: 2025, target_month: 1 }),
+          expect.anything()
+        );
+      });
+    });
+
     it('accurately counts fallback_applied records in summary cards', async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 

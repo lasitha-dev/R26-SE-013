@@ -18,6 +18,13 @@ import {
   forwardToAssignedFarmers,
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
+import { getReferencePeriod, shiftPeriod, isSamePeriod } from '../../config/forecastPeriod';
+
+const TIMEFRAME_LABELS = Object.freeze({
+  PREVIOUS: 'previous months',
+  CURRENT: 'the current month',
+  NEXT: 'the next-month forecast period',
+});
 
 function sanitizeErrorMessage(err, defaultMsg) {
   if (!err) return defaultMsg;
@@ -61,7 +68,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   const [forecastRecords, setForecastRecords] = useState([]);
   const [selectedForecast, setSelectedForecast] = useState(null);
   const [loadingForecasts, setLoadingForecasts] = useState(false);
-  const [timeframeTab, setTimeframeTab] = useState('CURRENT'); // 'PREVIOUS', 'CURRENT', 'NEXT'
+  const [timeframeTab, setTimeframeTab] = useState('NEXT'); // 'PREVIOUS', 'CURRENT', 'NEXT' — default to the active forecast month
 
   // Step 2 State: Recipient Selection
   const [recipientList, setRecipientList] = useState([]);
@@ -508,20 +515,21 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               <p>Loading official forecast decision records...</p>
             </div>
           ) : (() => {
-            const currentDate = new Date();
-            const currentYear = currentDate.getFullYear();
-            const currentMonth = currentDate.getMonth() + 1; // e.g. August 2026
+            // "Current" is the configured reference month (today unless pinned for a demonstration);
+            // "Next" is the forecast target month that follows it.
+            const currentPeriod = getReferencePeriod();
+            const nextPeriod = shiftPeriod(currentPeriod, 1);
 
             const filteredForecasts = forecastRecords.filter(rec => {
-              const recYear = rec.target_year;
-              const recMonth = rec.target_month;
-              
-              const isCurrent = recYear === currentYear && recMonth === currentMonth;
-              const isNext = (recYear === currentYear && recMonth === currentMonth + 1) || (recMonth === 1 && currentMonth === 12 && recYear === currentYear + 1);
-              
+              const recPeriod = { year: rec.target_year, month: rec.target_month };
+              const isCurrent = isSamePeriod(recPeriod, currentPeriod);
+              const isNext = isSamePeriod(recPeriod, nextPeriod);
+
               if (timeframeTab === 'CURRENT') return isCurrent;
               if (timeframeTab === 'NEXT') return isNext;
-              if (timeframeTab === 'PREVIOUS') return !isCurrent && !isNext;
+              if (timeframeTab === 'PREVIOUS') {
+                return recPeriod.year * 12 + recPeriod.month < currentPeriod.year * 12 + currentPeriod.month;
+              }
               return true;
             });
 
@@ -529,9 +537,9 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               return (
                 <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
                   <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
-                  <h4 className="text-base font-semibold text-slate-200">No Records Found</h4>
+                  <h4 className="text-base font-semibold text-slate-200">No Stored Forecast Available</h4>
                   <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    No forecast decision records are currently available for the selected timeframe ({timeframeTab}).
+                    No persisted forecast decision records exist for {TIMEFRAME_LABELS[timeframeTab] || 'the selected timeframe'}.
                   </p>
                 </div>
               );
