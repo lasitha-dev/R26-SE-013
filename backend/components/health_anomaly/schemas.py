@@ -181,6 +181,7 @@ class PredictResponse(BaseModel):
 from typing import List
 
 class TriagePredictPayload(BaseModel):
+    cattle_id: Optional[str] = None
     bcs_score: float
     age_months: int
     days_in_milk: int

@@ -2440,7 +2440,20 @@ async def predict_7day(payload: TriagePredictPayload):
         preds = late_fusion_model.predict([X_ts, X_static, X_vis], verbose=False)
         pred_class = int(np.argmax(preds[0]))
 
-        return {"class": pred_class}
+        status_map = {
+            0: "Healthy",
+            1: "Heat Stress",
+            2: "Unhealthy"
+        }
+        new_status = status_map.get(pred_class, "Healthy")
+
+        if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
+            await cattles_collection.update_one(
+                {"_id": ObjectId(payload.cattle_id)},
+                {"$set": {"health_status": new_status, "status": new_status}}
+            )
+
+        return {"class": pred_class, "status": new_status}
 
     except Exception as e:
         raise HTTPException(

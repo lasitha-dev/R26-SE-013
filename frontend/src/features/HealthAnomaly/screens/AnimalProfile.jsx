@@ -398,21 +398,76 @@ export default function AnimalProfile() {
   const rawStatus = cattle.health_status || cattle.status || 'Healthy'
   const isHealthy = rawStatus === 'Healthy'
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Heat Stress':
+        return {
+          pill: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+          dot: 'bg-amber-400',
+          label: 'HEAT STRESS',
+        }
+      case 'Unhealthy':
+        return {
+          pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+          dot: 'bg-rose-400',
+          label: 'UNHEALTHY',
+        }
+      case 'Alert':
+      case 'At Risk':
+        return {
+          pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+          dot: 'bg-rose-400',
+          label: 'ALERT',
+        }
+      case 'Deceased':
+        return {
+          pill: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+          dot: 'bg-slate-500',
+          label: 'DECEASED',
+        }
+      case 'Healthy':
+      default:
+        return {
+          pill: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+          dot: 'bg-emerald-400',
+          label: 'HEALTHY',
+        }
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Alert Warning Banner */}
-      {!isHealthy && (
-        <div className="bg-error/15 border border-error/30 text-error p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+      {!isHealthy && rawStatus !== 'Deceased' && (
+        <div
+          className={`${
+            rawStatus === 'Heat Stress'
+              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+              : 'bg-error/15 border-error/30 text-error'
+          } border p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4`}
+        >
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-3xl animate-bounce">warning</span>
             <div>
-              <p className="font-bold text-sm">🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.</p>
-              <p className="text-xs text-slate-400 mt-1">This subject has breached standard clinical deviations. Check logs or perform triage.</p>
+              <p className="font-bold text-sm">
+                {rawStatus === 'Heat Stress'
+                  ? '🚨 HEAT STRESS: Potential thermal strain detected. Check cooling protocols and logs.'
+                  : rawStatus === 'Unhealthy'
+                  ? '🚨 UNHEALTHY: Potential health anomaly detected. Please review clinical metrics or run triage.'
+                  : '🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.'}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                This subject has breached standard clinical deviations. Check logs or perform triage.
+              </p>
             </div>
           </div>
           <button
             onClick={handleDismissAlert}
-            className="w-full md:w-auto px-6 py-2.5 bg-error text-on-error hover:bg-error/95 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98]"
+            className={`w-full md:w-auto px-6 py-2.5 ${
+              rawStatus === 'Heat Stress'
+                ? 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                : 'bg-error text-on-error hover:bg-error/95'
+            } text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98]`}
             type="button"
           >
             Ignore Alert (Own Risk)
@@ -445,20 +500,19 @@ export default function AnimalProfile() {
                 {t}
               </span>
             ))}
-            <span
-              className={`px-3 py-1 ${
-                isHealthy
-                  ? 'bg-primary-container/20 text-primary border-primary/30'
-                  : 'bg-error-container/20 text-error border-error/30'
-              } text-[10px] font-black tracking-widest rounded border uppercase flex items-center gap-1.5`}
-            >
-              <span
-                className={`w-1.5 h-1.5 ${
-                  isHealthy ? 'bg-primary' : 'bg-error'
-                } rounded-full animate-pulse`}
-              ></span>
-              {isHealthy ? 'Healthy' : 'Alert'}
-            </span>
+            {(() => {
+              const badge = getStatusBadge(rawStatus)
+              return (
+                <span
+                  className={`px-3 py-1 ${badge.pill} text-[10px] font-black tracking-widest rounded uppercase flex items-center gap-1.5`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 ${badge.dot} rounded-full ${!isHealthy ? 'animate-pulse' : ''}`}
+                  ></span>
+                  {badge.label}
+                </span>
+              )
+            })()}
           </div>
         </div>
         <div className="flex gap-4">

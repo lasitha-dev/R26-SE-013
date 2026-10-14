@@ -18,7 +18,8 @@ export function ProfileProvider({ children }) {
       })
       if (response.ok) {
         const data = await response.json()
-        const alertExists = data.some(c => c.health_status === 'Alert' || c.status === 'Alert')
+        const alertStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk']
+        const alertExists = Array.isArray(data) && data.some(c => alertStates.includes(c.health_status) || alertStates.includes(c.status))
         setHasAlerts(alertExists)
       }
     } catch (err) {
