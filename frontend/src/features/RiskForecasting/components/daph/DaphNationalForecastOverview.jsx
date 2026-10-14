@@ -22,7 +22,9 @@ import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
 import { OutlookCard } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
-import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, nextPeriod, periodLabel, selectOfficialRecords } from '../forecastPresentation';
+
+const periodKey = (p) => p.year * 12 + p.month;
 
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
@@ -91,6 +93,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [monthNamesList, setMonthNamesList] = useState([]);
   const [allRecords, setAllRecords] = useState([]);
   const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
+  const [storedPeriods, setStoredPeriods] = useState([]);   // months that have a stored forecast
   const [advisories, setAdvisories] = useState([]);
   const [notificationBatches, setNotificationBatches] = useState([]);
 
@@ -119,6 +122,27 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const abortControllerRef = useRef(null);
 
   // 3. Data Fetching Handler
+  // Months that have a stored forecast (for the Month list). Loaded once, after the table's own request, and not awaited.
+  const periodsRequested = useRef(false);
+  const loadStoredPeriods = useCallback(async () => {
+    if (periodsRequested.current) return;
+    periodsRequested.current = true;
+    const found = new Map();
+    try {
+      for (let offsetValue = 0; offsetValue < 1000; offsetValue += 200) {
+        const res = await listForecastRecords({ limit: 200, offset: offsetValue });
+        const batch = (res?.records || []).filter(isActiveRecord);
+        batch.forEach((r) => {
+          const year = r.target_year ?? r.targetYear;
+          const month = r.target_month ?? r.targetMonth;
+          if (year && month) found.set(`${year}-${month}`, { year, month });
+        });
+        if ((res?.records || []).length < 200) break;
+      }
+    } catch (_) { /* the list falls back to the default and outlook months */ }
+    setStoredPeriods([...found.values()]);
+  }, []);
+
   const fetchData = useCallback(async () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -168,6 +192,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         if (controller.signal.aborted) return;
         fetchedRecords = [];
       }
+
+      loadStoredPeriods();
 
       // Only persisted forecast records are displayed. Periods without stored records
       // are shown as "No Record"; no client-side substitute predictions are generated.
@@ -523,6 +549,21 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     return sortedTableRows.slice(offset, offset + limit);
   }, [sortedTableRows, offset, limit]);
 
+  // Month list: months with a stored forecast, the forecast month and the outlook month after it; older ones are grouped apart.
+  const periodOptions = useMemo(() => {
+    const target = getDefaultTargetPeriod();
+    const outlookMonth = nextPeriod(target.year, target.month);
+    const all = new Map();
+    [...storedPeriods, target, { year: Number(selectedYear), month: Number(selectedMonth) }, outlookMonth]
+      .forEach((p) => all.set(`${p.year}-${p.month}`, { year: p.year, month: p.month }));
+    const hasStored = (p) => storedPeriods.some((q) => q.year === p.year && q.month === p.month);
+    const list = [...all.values()]
+      .sort((a, b) => periodKey(b) - periodKey(a))
+      .map((p) => ({ ...p, outlook: p.year === outlookMonth.year && p.month === outlookMonth.month && !hasStored(p) }));
+    const isRecent = (p) => p.outlook || (periodKey(p) <= periodKey(target) && periodKey(p) >= periodKey(target) - 3);
+    return { recent: list.filter(isRecent), other: list.filter((p) => !isRecent(p)) };
+  }, [storedPeriods, selectedYear, selectedMonth]);
+
   // Handlers for Reset and Pagination
   const handleResetFilters = () => {
     setSelectedDisease('ALL');
@@ -754,47 +795,34 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       {/* 4. Filter & Target Period Controls */}
       <div className="bg-slate-800/40 border border-slate-800 rounded-xl p-4 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {/* Forecast Year */}
-          <div>
-            <label htmlFor="national-year-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Forecast Year
-            </label>
-            <input
-              id="national-year-select"
-              type="number"
-              min={2017}
-              max={2030}
-              value={selectedYear}
-              onChange={(e) => {
-                setSelectedYear(Number(e.target.value));
-                setOffset(0);
-              }}
-              className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Target Month */}
+          {/* Month */}
           <div>
             <label htmlFor="national-month-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Target Month
+              Month
             </label>
             <select
               id="national-month-select"
-              value={selectedMonth}
+              value={`${selectedYear}-${selectedMonth}`}
               onChange={(e) => {
-                setSelectedMonth(Number(e.target.value));
+                const [year, month] = e.target.value.split('-').map(Number);
+                setSelectedYear(year);
+                setSelectedMonth(month);
                 setOffset(0);
               }}
               className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
             >
-              {(monthNamesList.length > 0 ? monthNamesList : [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December',
-              ]).map((mName, idx) => (
-                <option key={mName} value={idx + 1}>
-                  {idx + 1} — {mName}
+              {periodOptions.recent.map((p) => (
+                <option key={`${p.year}-${p.month}`} value={`${p.year}-${p.month}`}>
+                  {periodLabel(p.year, p.month)}{p.outlook ? ' (outlook)' : ''}
                 </option>
               ))}
+              {periodOptions.other.length > 0 && (
+                <optgroup label="Other months">
+                  {periodOptions.other.map((p) => (
+                    <option key={`${p.year}-${p.month}`} value={`${p.year}-${p.month}`}>{periodLabel(p.year, p.month)}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

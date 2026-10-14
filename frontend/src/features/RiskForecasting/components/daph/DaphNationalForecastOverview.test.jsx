@@ -206,7 +206,7 @@ describe('DaphNationalForecastOverview Component', () => {
 
       await waitFor(() => {
         expect(api.listForecastDistricts).toHaveBeenCalledTimes(1);
-        expect(api.listForecastRecords).toHaveBeenCalledTimes(1);
+        expect(api.listForecastRecords).toHaveBeenCalled();
         expect(api.listAdvisories).toHaveBeenCalledTimes(1);
         expect(api.listNotificationBatches).toHaveBeenCalledTimes(1);
       }, { timeout: 4000 });
@@ -735,7 +735,7 @@ describe('DaphNationalForecastOverview Component', () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
       fireEvent.change(screen.getByLabelText(/Risk Tier/i), { target: { value: 'HIGH' } });
-      fireEvent.change(screen.getByLabelText(/Target Month|Month/i), { target: { value: '2' } });
+      fireEvent.change(screen.getByLabelText('Month'), { target: { value: '2025-2' } });
       await waitFor(() => expect(api.listForecastRecords).toHaveBeenCalled());
       expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
@@ -935,6 +935,16 @@ describe('DaphNationalForecastOverview Component', () => {
       // an outlook-only month has no forecast counts, so the empty 0 tiles are not shown
       expect(screen.queryByText('Total Forecast Records')).not.toBeInTheDocument();
       expect(screen.queryByText('HIGH Risk Districts')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Month list', () => {
+    it('offers one Month list with the outlook month and groups older months apart', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      const select = await screen.findByLabelText('Month');
+      expect(screen.queryByLabelText(/Forecast Year/i)).not.toBeInTheDocument();
+      await waitFor(() => expect(Array.from(select.options).some((o) => o.text.endsWith('(outlook)'))).toBe(true));
+      expect(select.value).toBe('2025-1');
     });
   });
 });
