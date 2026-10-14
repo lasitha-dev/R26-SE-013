@@ -14,7 +14,7 @@ import { isActiveRecord } from '../components/forecastPresentation';
 
 export const STORED_FORECAST_NO_RECORD = 'NO_RECORD';
 
-function newestPreferringV2(records) {
+export function newestPreferringV2(records) {
   return [...records].sort((a, b) => {
     const v2 = Number(Boolean(b.model_version)) - Number(Boolean(a.model_version));
     if (v2 !== 0) return v2;
