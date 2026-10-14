@@ -73,6 +73,16 @@ export function formatRelativeRisk(relativeRisk) {
   return `${relativeRisk.toFixed(1)}× usual`;
 }
 
+/**
+ * "80% range 12–48%": the uncertainty of the probability estimate (not of the 0/1 outcome).
+ * Returns null for records without an interval (v1 records and older v2 records).
+ */
+export function formatProbabilityInterval(record) {
+  const { probability_low: low, probability_high: high, interval_level: level } = record || {};
+  if (![low, high, level].every((v) => typeof v === 'number' && !Number.isNaN(v))) return null;
+  return `${Math.round(level * 100)}% range ${Math.round(low * 100)}–${Math.round(high * 100)}%`;
+}
+
 export function describePreviousMonth(observation) {
   if (!observation) return null;
   const [year, month] = String(observation.period || '').split('-').map(Number);

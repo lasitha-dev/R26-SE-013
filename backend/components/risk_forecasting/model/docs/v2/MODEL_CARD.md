@@ -153,6 +153,33 @@ districts with registered farms; elsewhere status is unknown and the climatology
 labelled as such. A climatology record's relative risk is 1.0 by construction, so it is displayed as a
 seasonal baseline, never as an assessed LOW risk.
 
+## 6b. Forecast uncertainty (probability intervals)
+
+Every stored forecast carries an **80% interval** (`probability_low`, `probability_high`, `interval_level`)
+shown in the UI as e.g. "80% range 18–47%".
+
+- **Models:** 200 coefficient sets are stored per deployed model, each fitted on training months resampled in
+  6-month blocks. The interval is the 10th–90th percentile of the probabilities those sets give for the
+  forecast's inputs. It captures **uncertainty in the estimated probability from limited training data
+  only** — not outcome randomness and not drift between years.
+- **Baseline:** 10th–90th percentile of a Beta distribution built from the district-month's outbreak counts
+  (wide, because each district-month has only 5–7 yearly observations).
+- **Reliability check (backtest):** forecasts are grouped into five probability bins; for each bin the
+  observed outbreak rate is compared with the bin's mean interval. "± sampling noise" additionally allows
+  ±1.28 standard errors on the observed rate, because a bin of ~120 rows has noisy outcomes. This check
+  was refined after a first run showed the raw check ignores that noise; both versions are reported.
+
+| Disease | Case | Forecaster | Bins inside (raw) | Bins inside (± sampling noise) | Mean width |
+|---|---|---|---|---|---|
+| FMD | District known, neighbours unknown | O | 2/5 | 3/5 | 0.045 |
+| FMD | Nothing known | climatology | 4/5 | 5/5 | 0.198 |
+| LSD | District and neighbours known | A | 4/5 | 4/5 | 0.096 |
+| LSD | Nothing known | climatology | 2/5 | 3/5 | 0.144 |
+
+Reading: the baseline and LSD-A intervals are mostly consistent with what happened; the FMD district-only
+model's interval is **too narrow** (observed rate outside it in 2 of 5 bins raw, 3 of 5 allowing for noise)
+— treat it as a lower bound on the real uncertainty. Intervals were not tuned to improve this result.
+
 ## 7. Protocol history (all evaluation runs, for transparency)
 
 1. **Run 1:** variants A and B, C chosen on the first backtest year. FMD: A passed. LSD: nothing
@@ -190,6 +217,7 @@ seasonal baseline, never as an assessed LOW risk.
 - Operational surveillance (app verified cases/deaths from registered farms) is a different signal from
   the curated labels used in training and currently covers few districts.
 - The relative-risk alert threshold (2×) is a design choice, not tuned on outcomes.
+- Intervals reflect parameter uncertainty (and counts for the baseline) only; see section 6b.
 - Coefficients are associations, not causal effects; climate terms contribute little compared with the
   climatology prior and last month's outbreak status.
 - Host density values are GLW-derived yearly interpolations whose method is undocumented.

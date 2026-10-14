@@ -9,7 +9,7 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { BASELINE_BADGE, describePreviousMonth, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -350,6 +350,9 @@ export function DaphDistrictForecasts({ viewerContext }) {
                       </span>
                       {formatRelativeRisk(r.relative_risk) && (
                         <span className="block text-xs text-on-surface-variant">{formatRelativeRisk(r.relative_risk)}</span>
+                      )}
+                      {formatProbabilityInterval(r) && (
+                        <span className="block text-xs text-on-surface-variant" title="Uncertainty of the probability estimate">{formatProbabilityInterval(r)}</span>
                       )}
                     </div>
                     <div className="space-y-1">

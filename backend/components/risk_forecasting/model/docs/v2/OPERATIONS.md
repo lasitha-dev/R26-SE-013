@@ -66,6 +66,9 @@ a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400
   assessed"), never as an assessed LOW RISK, and it is not counted in the LOW tier summary.
 - `relative_risk` = probability ÷ `baseline_probability` (usual rate for that district and month).
   LOW < 2×, MEDIUM ≥ 2×, HIGH ≥ 4× (or probability ≥ 50%).
+- `probability_low` / `probability_high` / `interval_level`: 80% interval of the probability estimate
+  (parameter uncertainty only; see model card 6b). Absent on v1 records and on v2 records created before
+  intervals were added.
 - `previous_month_observation`: verified cases, deaths and observed severity (cases + 10 × deaths;
   heuristic weights) for month t-1. Null counts mean the app has no coverage in that district.
 - `input_quality`: `DEGRADED` when climate inputs were unavailable (e.g. data not yet published).

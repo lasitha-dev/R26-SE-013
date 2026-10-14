@@ -19,7 +19,7 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { BASELINE_BADGE, describePreviousMonth, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
@@ -995,6 +995,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                             {(row.probability * 100).toFixed(1)}%
                             {formatRelativeRisk(row.record?.relative_risk) && (
                               <span className="block text-[10px] font-medium text-slate-400">{formatRelativeRisk(row.record.relative_risk)}</span>
+                            )}
+                            {formatProbabilityInterval(row.record) && (
+                              <span className="block text-[10px] font-medium text-slate-500" title="Uncertainty of the probability estimate">{formatProbabilityInterval(row.record)}</span>
                             )}
                           </span>
                         ) : (

@@ -23,6 +23,11 @@ Design (sparse-event forecasting practice):
 - The climatology prior used as a model input is computed leave-one-year-out on the
   training rows (a row never sees its own year's labels inside its prior); at prediction
   time the prior comes from all earlier data, exactly as in operation.
+- Forecast uncertainty: each deployed model stores bootstrap replicates of its coefficients (months
+  resampled in 6-month blocks); a forecast's 80% interval is the 10th-90th percentile of the
+  probabilities those replicates give. It reflects parameter uncertainty only. Baseline forecasts use
+  the 10th-90th percentile of a Beta distribution built from the district-month's counts. A reliability
+  check against backtest outcomes is stored in the evaluation report.
 - Moving-block bootstrap CIs (6 consecutive months) for PR-AUC differences, which respects
   month-to-month dependence; the i.i.d. month bootstrap is reported alongside as a sensitivity.
 Artifacts are written as JSON (no pickles): model/models/v2/<disease>_v2.json.
@@ -58,6 +63,9 @@ RELATIVE_RISK_ALERT = 2.0     # "elevated" when probability >= 2x the climatolog
 BOOTSTRAP = 2000
 BOOTSTRAP_BLOCK_MONTHS = 6    # decision CI uses 6-month moving blocks (outbreaks cluster in time)
 BOOTSTRAP_SEED = 42
+INTERVAL_LEVEL = 0.8          # forecast interval: 10th-90th percentile
+INTERVAL_REPLICATES = 200     # coefficient replicates stored per deployed model
+INTERVAL_BACKTEST_REPLICATES = 60
 OWN_FEATURES = ["own_t1", "own_t2"]
 # name -> (features, use climatology prior)
 VARIANTS = {
@@ -157,6 +165,123 @@ def backtest(data, disease):
                 out.loc[ok, col] = predict_lr(params, test[ok], features, table, use_prior)
         preds.append(out)
     return pd.concat(preds, ignore_index=True)
+
+
+def bootstrap_coefficients(train, features, c, table, use_prior, replicates, seed):
+    """Coefficient replicates from resampling the training months in 6-month blocks.
+    Scaling and the (leave-one-year-out) prior are computed once from the full training set."""
+    rng = np.random.default_rng(seed)
+    x = train[features].to_numpy(float)
+    mean, std = x.mean(axis=0), x.std(axis=0)
+    std[std == 0] = 1.0
+    prior = loyo_prior(train) if use_prior else None
+    design = design_matrix(train, features, mean, std, table, use_prior, prior=prior)
+    y = train.outbreak.to_numpy(int)
+    ordered = train.assign(_t=train.year * 12 + train.month - 1).groupby("_t").indices
+    months = list(ordered)
+    n = len(months)
+    block = min(BOOTSTRAP_BLOCK_MONTHS, n)
+    out = []
+    while len(out) < replicates:
+        picked = []
+        while len(picked) < n:
+            start = int(rng.integers(0, n - block + 1))
+            picked.extend(range(start, start + block))
+        idx = np.concatenate([ordered[months[i]] for i in picked[:n]])
+        if y[idx].sum() == 0 or y[idx].sum() == len(idx):
+            continue
+        model = LogisticRegression(C=c, max_iter=5000)
+        model.fit(design[idx], y[idx])
+        out.append(np.concatenate([[model.intercept_[0]], model.coef_[0]]))
+    return np.array(out), mean, std
+
+
+def interval_from_replicates(replicates, design_rows):
+    """design_rows: (m, k) -> (lo, hi) probability percentiles, each of length m."""
+    z = replicates[:, :1].T + design_rows @ replicates[:, 1:].T          # (m, B)
+    p = 1 / (1 + np.exp(-z))
+    q = (1 - INTERVAL_LEVEL) / 2 * 100
+    return np.percentile(p, q, axis=1), np.percentile(p, 100 - q, axis=1)
+
+
+def beta_interval(rate, effective_n):
+    from scipy.stats import beta as beta_dist
+    a, b = max(rate * effective_n, 1e-3), max((1 - rate) * effective_n, 1e-3)
+    q = (1 - INTERVAL_LEVEL) / 2
+    return [float(beta_dist.ppf(q, a, b)), float(beta_dist.ppf(1 - q, a, b))]
+
+
+def climatology_intervals(train):
+    """Interval per district-month from the shrunken rate and its effective sample size."""
+    table = climatology_table(train)
+    nat = train.groupby("month").outbreak.agg(["sum", "count"])
+    dm = train.groupby(["district", "month"]).outbreak.agg(["sum", "count"]).reset_index()
+    return {
+        "level": INTERVAL_LEVEL,
+        "method": "Beta(rate*(n+prior), (1-rate)*(n+prior)) from district-month counts",
+        "overall": beta_interval(table["overall"], float(len(train))),
+        "national_month": {int(m): beta_interval(table["national_month"][int(m)], float(r["count"] + PRIOR_STRENGTH))
+                           for m, r in nat.iterrows()},
+        "district_month": {f"{r.district}|{int(r.month)}": beta_interval(table["district_month"][f"{r.district}|{int(r.month)}"],
+                                                                         float(r.count + PRIOR_STRENGTH))
+                           for r in dm.itertuples()},
+    }
+
+
+def interval_reliability(data, disease, decision):
+    """Backtest check of the interval method for each deployed forecaster: in the evaluation years, bin
+    forecasts by probability and compare the observed outbreak rate in each bin with the bin's mean interval.
+    Intervals describe uncertainty in the probability, so the observed rate (not each 0/1 outcome) is compared."""
+    first, last = BACKTEST[disease]
+    data = data.assign(t=data.year * 12 + data.month - 1)
+    result = {}
+    for tier, choice in decision.items():
+        fc = choice["forecaster"]
+        rows = []
+        for t in range((first + 1) * 12, (last + 1) * 12):
+            train, test = data[data.t < t], data[data.t == t]
+            table = climatology_table(train)
+            if fc == "climatology":
+                iv = climatology_intervals(train)
+                p = np.array([prior_for(table, d, m) for d, m in zip(test.district, test.month)])
+                bounds = [iv["district_month"].get(f"{d}|{m}", iv["overall"]) for d, m in zip(test.district, test.month)]
+                lo, hi = np.array([b[0] for b in bounds]), np.array([b[1] for b in bounds])
+                keep = np.ones(len(test), bool)
+            else:
+                features, use_prior = VARIANTS[fc]
+                tr = train.dropna(subset=features)
+                keep = test[features].notna().all(axis=1).to_numpy()
+                if not keep.any():
+                    continue
+                reps, mean, std = bootstrap_coefficients(tr, features, choice["C"], table, use_prior,
+                                                         INTERVAL_BACKTEST_REPLICATES, BOOTSTRAP_SEED + t)
+                sub = test[keep]
+                design = design_matrix(sub, features, mean, std, table, use_prior)
+                params = fit_lr(tr, features, choice["C"], table, use_prior)
+                p = np.full(len(test), np.nan)
+                p[keep] = predict_lr(params, sub, features, table, use_prior)
+                lo, hi = np.full(len(test), np.nan), np.full(len(test), np.nan)
+                lo[keep], hi[keep] = interval_from_replicates(reps, design)
+            rows.append(pd.DataFrame({"p": p[keep], "lo": lo[keep], "hi": hi[keep], "y": test.outbreak.to_numpy()[keep]}))
+        if not rows:
+            continue
+        frame = pd.concat(rows, ignore_index=True)
+        frame["bin"] = pd.qcut(frame.p.rank(method="first"), 5, labels=False)
+        bins = []
+        for b, g in frame.groupby("bin"):
+            observed = float(g.y.mean())
+            # The observed bin rate itself has binomial noise (n ~ 120); allow +-1.28 SE (80%) around the interval.
+            se = float(np.sqrt(max(observed * (1 - observed), 1e-4) / len(g)))
+            lo, hi = float(g.lo.mean()), float(g.hi.mean())
+            bins.append({"mean_p": float(g.p.mean()), "mean_lo": lo, "mean_hi": hi,
+                         "observed_rate": observed, "observed_se": se, "n": int(len(g)),
+                         "observed_inside_interval": bool(lo <= observed <= hi),
+                         "observed_inside_interval_allowing_sampling_noise": bool(lo - 1.28 * se <= observed <= hi + 1.28 * se)})
+        result[tier] = {"forecaster": fc, "bins": bins,
+                        "bins_inside_interval": int(sum(b["observed_inside_interval"] for b in bins)),
+                        "bins_inside_allowing_sampling_noise": int(sum(b["observed_inside_interval_allowing_sampling_noise"] for b in bins)),
+                        "mean_interval_width": float((frame.hi - frame.lo).mean())}
+    return result
 
 
 def metrics(y, p, base):
@@ -347,7 +472,7 @@ def export(data, disease, ev, decision):
         "label_policy": "FMD 2017-2023 (2024 excluded as unverified); LSD 2020-2024",
         "issue_rule": "issued on day 5 of target month t using observations up to t-1 (Nino 3.4 up to t-2)",
         "relative_risk_alert": RELATIVE_RISK_ALERT,
-        "climatology": table,
+        "climatology": {**table, "intervals": climatology_intervals(data)},
         "deployment": decision,
         "variants": {},
         "evaluation_summary": {
@@ -388,6 +513,12 @@ def export(data, disease, ev, decision):
             "intercept": params["intercept"],
             "training_rows": int(len(train)),
         }
+        reps, _, _ = bootstrap_coefficients(train, features, c, table, use_prior, INTERVAL_REPLICATES,
+                                            BOOTSTRAP_SEED + sum(map(ord, f"{disease}{v}")))
+        artifact["variants"][v]["interval"] = {
+            "level": INTERVAL_LEVEL, "method": "bootstrap coefficients, 6-month blocks (parameter uncertainty only)",
+            "replicates": np.round(reps, 5).tolist(),   # rows: [intercept, coef..., prior coef]
+        }
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     path = ARTIFACTS / f"{disease.lower()}_v2.json"
     path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
@@ -426,7 +557,12 @@ def main():
         ev = evaluate(preds, disease)
         decision = decide(ev)
         path = export(data, disease, ev, decision)
-        full[disease] = {**ev, "deployment": decision}
+        reliability = interval_reliability(data, disease, decision)
+        full[disease] = {**ev, "deployment": decision, "interval_reliability": reliability}
+        for tier, r in reliability.items():
+            print(f"  interval check [{tier}:{r['forecaster']}] observed rate inside the mean 80% interval in "
+                  f"{r['bins_inside_interval']}/5 probability bins ({r['bins_inside_allowing_sampling_noise']}/5 allowing sampling noise); "
+                  f"mean width {r['mean_interval_width']:.3f}")
         print(f"\n===== {disease}  evaluation years {ev['evaluation_years']}  final config {ev['final_configuration']}")
         for k, v in ev["overall"].items():
             print(f"  {k:14s} PR-AUC {fmt(v.get('pr_auc'))}  ROC {fmt(v.get('roc_auc'))}  "

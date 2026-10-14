@@ -143,6 +143,35 @@ def test_district_known_but_neighbours_unknown_uses_the_own_district_model_for_f
     assert predictor.predict("Anuradhapura", 1, _complete_features()).forecaster == predictor.artifact["deployment"]["surveillance_known"]["forecaster"]
 
 
+@pytest.mark.parametrize("disease", ["FMD", "LSD"])
+def test_every_prediction_carries_a_consistent_interval(disease):
+    predictor = V2Predictor.load(disease)
+    cases = [
+        _complete_features(),                                                             # best available model
+        {**_complete_features(), "neighbour_fraction_t1": None, "neighbour_count_t1": None,
+         "neighbour_fraction_t2": None},                                                   # own district only
+        {**_complete_features(), "own_t1": None},                                          # baseline
+    ]
+    for features in cases:
+        p = predictor.predict("Kandy", 3, features)
+        assert p.interval_level == pytest.approx(0.8)
+        assert 0 <= p.probability_low <= p.probability_high <= 1
+        # The point estimate lies inside its own interval (small tolerance for the bootstrap median shift).
+        assert p.probability_low - 0.05 <= p.probability <= p.probability_high + 0.05
+
+
+def test_baseline_interval_is_wider_for_thinner_evidence():
+    predictor = V2Predictor.load("LSD")
+    low, high = predictor.baseline_interval("Kandy", 3)
+    assert 0 <= low < predictor.baseline("Kandy", 3) < high <= 1
+
+
+def test_records_store_the_interval():
+    records = make_service(InMemoryForecastRecordRepository()).forecast_period(2026, 10, ["FMD"])
+    assert all(r.interval_level == pytest.approx(0.8) and r.probability_low <= r.probability <= r.probability_high + 0.05
+               for r in records)
+
+
 def test_missing_climate_input_falls_back_to_climatology_for_climate_model():
     predictor = V2Predictor.load("LSD")  # deployed known-surveillance forecaster uses climate features
     assert predictor.artifact["deployment"]["surveillance_known"]["forecaster"] == "A"

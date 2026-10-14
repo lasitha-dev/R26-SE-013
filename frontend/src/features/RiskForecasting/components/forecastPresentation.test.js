@@ -3,6 +3,7 @@ import {
   BASELINE_BADGE,
   describeForecastSource,
   describeProvenance,
+  formatProbabilityInterval,
   isBaselineRecord,
 } from './forecastPresentation';
 
@@ -45,5 +46,18 @@ describe('describeProvenance', () => {
   it('keeps the v1 wording', () => {
     expect(describeProvenance({ fallback_applied: true })).toBe('Fallback Proxy Applied');
     expect(describeProvenance({ fallback_applied: false })).toBe('Exact Period');
+  });
+});
+
+describe('formatProbabilityInterval', () => {
+  it('formats the interval as a rounded percentage range', () => {
+    expect(formatProbabilityInterval({ probability_low: 0.1234, probability_high: 0.4766, interval_level: 0.8 }))
+      .toBe('80% range 12–48%');
+  });
+
+  it('is absent for records without an interval', () => {
+    expect(formatProbabilityInterval({})).toBeNull();
+    expect(formatProbabilityInterval(null)).toBeNull();
+    expect(formatProbabilityInterval({ probability_low: 0.1, probability_high: null, interval_level: 0.8 })).toBeNull();
   });
 });

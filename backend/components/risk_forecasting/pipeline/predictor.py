@@ -54,6 +54,9 @@ class Prediction:
     deployment_status: str
     model_version: str
     contributions: List[Dict[str, float]]
+    probability_low: Optional[float] = None
+    probability_high: Optional[float] = None
+    interval_level: Optional[float] = None
 
 
 class V2Predictor:
@@ -72,6 +75,13 @@ class V2Predictor:
         table = self.climatology
         return table["district_month"].get(
             f"{district}|{month}", table["national_month"].get(str(month), table["overall"]))
+
+    def baseline_interval(self, district: str, month: int) -> Optional[List[float]]:
+        intervals = self.climatology.get("intervals")
+        if not intervals:
+            return None
+        return (intervals["district_month"].get(f"{district}|{month}")
+                or intervals["national_month"].get(str(month)) or intervals["overall"])
 
     @staticmethod
     def surveillance_known(features: Dict[str, Optional[float]]) -> bool:
@@ -102,14 +112,20 @@ class V2Predictor:
         base = self.baseline(district, month)
         choice = self.choose(features)
         contributions: List[Dict[str, float]] = []
+        low = high = level = None
         if choice["forecaster"] == "climatology":
             probability = base
+            interval = self.baseline_interval(district, month)
+            if interval:
+                low, high, level = interval[0], interval[1], self.climatology["intervals"]["level"]
         else:
             variant = self.artifact["variants"][choice["forecaster"]]
             z = variant["intercept"]
             names = list(variant["features"])
+            scaled_values = []
             for i, name in enumerate(names):
                 scaled = (features[name] - variant["scaler_mean"][i]) / variant["scaler_std"][i]
+                scaled_values.append(scaled)
                 term = variant["coef"][i] * scaled
                 contributions.append({"feature": name, "value": features[name], "contribution_log_odds": term})
                 z += term
@@ -118,6 +134,14 @@ class V2Predictor:
                 contributions.append({"feature": "climatology_logit", "value": base, "contribution_log_odds": term})
                 z += term
             probability = 1 / (1 + math.exp(-z))
+            replicates = (variant.get("interval") or {}).get("replicates")
+            if replicates:
+                inputs = scaled_values + ([_logit(base)] if variant["uses_climatology_prior"] else [])
+                draws = sorted(1 / (1 + math.exp(-(r[0] + sum(c * v for c, v in zip(r[1:], inputs))))) for r in replicates)
+                tail = (1 - variant["interval"]["level"]) / 2
+                low = draws[int(math.floor(tail * (len(draws) - 1)))]
+                high = draws[int(math.ceil((1 - tail) * (len(draws) - 1)))]
+                level = variant["interval"]["level"]
         relative = probability / base if base > 0 else 0.0
         contributions.sort(key=lambda c: abs(c["contribution_log_odds"]), reverse=True)
         return Prediction(
@@ -129,4 +153,5 @@ class V2Predictor:
             deployment_status=choice["status"],
             model_version=self.model_version,
             contributions=[{**c, "contribution_log_odds": round(c["contribution_log_odds"], 4)} for c in contributions[:6]],
+            probability_low=low, probability_high=high, interval_level=level,
         )

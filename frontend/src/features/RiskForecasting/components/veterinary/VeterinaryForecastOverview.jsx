@@ -12,6 +12,7 @@ import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import {
   BASELINE_BADGE,
   describePreviousMonth,
+  formatProbabilityInterval,
   formatRelativeRisk,
   isActiveRecord,
   isBaselineRecord,
@@ -314,6 +315,11 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               {formatRelativeRisk(record.relative_risk) && (
                 <span className="block text-xs font-semibold text-on-surface-variant">
                   {formatRelativeRisk(record.relative_risk)} for this district and month
+                </span>
+              )}
+              {formatProbabilityInterval(record) && (
+                <span className="block text-xs text-on-surface-variant" title="Uncertainty of the probability estimate, not of the outcome">
+                  {formatProbabilityInterval(record)}
                 </span>
               )}
             </div>
