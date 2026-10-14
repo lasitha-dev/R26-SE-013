@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { formatChance, formatLikelyRange, monthName } from './forecastPresentation';
+import { SeverityEstimate } from './SeverityEstimate';
 
 export const OUTLOOK_NOTE =
   "Based on past years only. It does not include this year's cases or weather. An updated forecast follows at the start of the month.";
@@ -19,7 +20,7 @@ export function describeOutlookEvidence(outlook) {
  * Next-month outlook in ordinary words: the chance, the likely range and how often it happened before.
  * Never shows a risk tier. `compact` is the one-line reminder used inside "More details".
  */
-export function OutlookCard({ outlook, preview = false, compact = false, title }) {
+export function OutlookCard({ outlook, preview = false, compact = false, title, severityEntry = null }) {
   if (!outlook) return null;
   const chance = formatChance(outlook.probability);
   const range = formatLikelyRange(outlook);
@@ -45,6 +46,7 @@ export function OutlookCard({ outlook, preview = false, compact = false, title }
       {describeOutlookEvidence(outlook) && (
         <p className="text-xs text-on-surface-variant">{describeOutlookEvidence(outlook)}</p>
       )}
+      <SeverityEstimate entry={severityEntry} />
       <span className="sr-only">{monthName(outlook.target_month)}</span>
     </div>
   );
@@ -55,4 +57,5 @@ OutlookCard.propTypes = {
   preview: PropTypes.bool,
   compact: PropTypes.bool,
   title: PropTypes.string,
+  severityEntry: PropTypes.object,
 };

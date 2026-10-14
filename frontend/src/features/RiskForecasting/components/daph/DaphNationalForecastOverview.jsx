@@ -1254,7 +1254,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                     No early-month forecast has been issued for {selectedDetailRow.district} ({selectedDetailRow.disease}) yet.
                     The seasonal outlook below was prepared from historical patterns.
                   </p>
-                  <OutlookCard outlook={selectedDetailRow.outlook} preview={selectedDetailRow.outlookPreview} />
+                  <OutlookCard outlook={selectedDetailRow.outlook} preview={selectedDetailRow.outlookPreview} severityEntry={severityFor(severityHistory, selectedDetailRow.disease, selectedDetailRow.district)} />
                 </div>
               ) : selectedDetailRow.isMissingRecord ? (
                 <div className="p-6 bg-slate-800/40 rounded-xl border border-slate-800 text-center space-y-2">

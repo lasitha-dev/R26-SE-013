@@ -410,6 +410,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
             title={diseaseTitle[disease]}
             outlook={outlookFor(outlooks, assignedDistrict, disease)}
             preview={outlooks.source === 'preview'}
+            severityEntry={severityFor(severityHistory, disease, assignedDistrict)}
           />
         ))}
       </div>
