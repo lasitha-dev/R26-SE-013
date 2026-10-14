@@ -14,8 +14,9 @@ import { OutlookCard, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityEstimate } from '../SeverityEstimate';
+import { SeverityWatch } from '../SeverityWatch';
+import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import {
-  describeLastMonthPlain,
   describePreviousMonth,
   describeRiskPlain,
   formatChance,
@@ -145,6 +146,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [outlookPeriod, setOutlookPeriod] = useState(null);
   const [earlierOutlooks, setEarlierOutlooks] = useState(NO_OUTLOOK);   // outlook issued earlier for the month on screen
   const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  const [liveObservations, setLiveObservations] = useState({});   // disease -> district -> recorded counts for the month on screen
 
   const [explanationData, setExplanationData] = useState(null);
   const [explanationError, setExplanationError] = useState(null);
@@ -187,6 +189,19 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       fetchOverviewRecords();
     }
   }, [isAccessAllowed, fetchOverviewRecords]);
+
+  useEffect(() => {
+    if (!isAccessAllowed || !selected || !monthHasStarted(selected.year, selected.month)) {
+      setLiveObservations({});
+      return undefined;
+    }
+    let active = true;
+    Promise.all(['FMD', 'LSD'].map((disease) => loadObservations({ disease, year: selected.year, month: selected.month })
+      .then((districts) => [disease, districts]))).then((pairs) => {
+      if (active) setLiveObservations(Object.fromEntries(pairs));
+    });
+    return () => { active = false; };
+  }, [isAccessAllowed, selected]);
 
   useEffect(() => {
     let active = true;
@@ -277,7 +292,16 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     const plain = describeRiskPlain(record, assignedDistrict, record.target_month);
     const chance = formatChance(record.probability ?? (record.probability_pct != null ? record.probability_pct / 100 : undefined));
     const range = formatLikelyRange(record);
-    const lastMonth = isV2Record(record) ? describeLastMonthPlain(record.previous_month_observation) : null;
+    const previous = isV2Record(record) ? record.previous_month_observation : null;
+    const [prevYear, prevMonthNumber] = String(previous?.period || '').split('-').map(Number);
+    const now = new Date();
+    const isCurrentMonth = record.target_year === now.getFullYear() && record.target_month === now.getMonth() + 1;
+    const recent = [
+      ...(monthHasStarted(record.target_year, record.target_month)
+        ? [{ label: `${periodLabel(record.target_year, record.target_month)}${isCurrentMonth ? ' so far' : ''}`, observation: liveObservations[diseaseCode]?.[assignedDistrict] }]
+        : []),
+      ...(previous && prevYear && prevMonthNumber ? [{ label: periodLabel(prevYear, prevMonthNumber), observation: previous }] : []),
+    ];
 
     return (
       <article
@@ -317,7 +341,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
         {plain.sentence && <p className="text-sm text-on-surface leading-relaxed">{plain.sentence}</p>}
         <SeverityEstimate entry={severityFor(severityHistory, diseaseCode, assignedDistrict)} />
-        {lastMonth && <p className="text-xs text-on-surface-variant">{lastMonth}</p>}
+        {recent.length > 0 && <SeverityWatch recent={recent} />}
 
         <details className="border-t border-outline-variant/30 pt-3">
           <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>

@@ -329,3 +329,66 @@ export const SEVERITY_BADGE_CLASS = Object.freeze({
   MEDIUM: 'bg-amber-950/70 text-amber-300 border-amber-800',
   HIGH: 'bg-red-950/70 text-red-300 border-red-800',
 });
+
+// ─── Recorded cases and deaths → "severity watch" (rule-based, not a model forecast) ───
+
+const WATCH_ORDER = ['NONE', 'LOW', 'MEDIUM', 'HIGH'];
+
+/** Level of a month's recorded counts with the application's own rule: cases + 10 x deaths (0 / <10 / <30 / 30+). */
+export function observedLevel(observation) {
+  const cases = observation?.cases ?? observation?.verified_cases;
+  const deaths = observation?.deaths;
+  if (typeof cases !== 'number' || typeof deaths !== 'number') return null;
+  const score = cases + 10 * deaths;
+  if (score === 0) return 'NONE';
+  if (score < 10) return 'LOW';
+  if (score < 30) return 'MEDIUM';
+  return 'HIGH';
+}
+
+function countsText(observation) {
+  const cases = observation?.cases ?? observation?.verified_cases;
+  const deaths = observation?.deaths;
+  if (typeof cases !== 'number' || typeof deaths !== 'number') return null;
+  if (cases === 0 && deaths === 0) return 'no cases or deaths';
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  return `${plural(cases, 'case')}, ${plural(deaths, 'death')}`;
+}
+
+/**
+ * Severity watch: the higher of the levels of the recorded counts for the month so far and the previous month.
+ * It is an early-warning indicator computed from recorded cases and deaths, not a model forecast.
+ * `recent` is a list of { label, observation }; observations without counts (district not covered) are ignored.
+ */
+export function describeSeverityWatch(recent) {
+  const known = (recent || [])
+    .map((r) => ({ label: r.label, level: observedLevel(r.observation), text: countsText(r.observation) }))
+    .filter((r) => r.level !== null);
+  if (known.length === 0) return { level: null, lines: [], note: 'No app reports for this district yet.' };
+  const level = known.map((r) => r.level).sort((a, b) => WATCH_ORDER.indexOf(b) - WATCH_ORDER.indexOf(a))[0];
+  return { level, lines: known.map((r) => `${r.label}: ${r.text}`), note: null };
+}
+
+/**
+ * The observations behind the severity watch for one stored forecast: the month it targets (recorded so far) when that
+ * month has started, and the previous month stored with the forecast.
+ */
+export function buildRecentObservations(record, liveObservation, now = new Date()) {
+  if (!record) return [];
+  const started = record.target_year < now.getFullYear()
+    || (record.target_year === now.getFullYear() && record.target_month <= now.getMonth() + 1);
+  const isCurrent = record.target_year === now.getFullYear() && record.target_month === now.getMonth() + 1;
+  const previous = isV2Record(record) ? record.previous_month_observation : null;
+  const [prevYear, prevMonth] = String(previous?.period || '').split('-').map(Number);
+  return [
+    ...(started ? [{ label: `${periodLabel(record.target_year, record.target_month)}${isCurrent ? ' so far' : ''}`, observation: liveObservation }] : []),
+    ...(previous && prevYear && prevMonth ? [{ label: periodLabel(prevYear, prevMonth), observation: previous }] : []),
+  ];
+}
+
+export const WATCH_BADGE_CLASS = Object.freeze({
+  NONE: 'bg-slate-800 text-slate-300 border-slate-600/40',
+  LOW: SEVERITY_BADGE_CLASS.LOW,
+  MEDIUM: SEVERITY_BADGE_CLASS.MEDIUM,
+  HIGH: SEVERITY_BADGE_CLASS.HIGH,
+});

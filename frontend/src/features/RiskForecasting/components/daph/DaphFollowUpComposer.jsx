@@ -5,7 +5,9 @@ import {
   validateViewerContext,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
-import { describeProvenance, describeLastMonthPlain, isV2Record } from '../forecastPresentation';
+import { describeProvenance, buildRecentObservations, isV2Record } from '../forecastPresentation';
+import { SeverityWatch } from '../SeverityWatch';
+import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityEstimate } from '../SeverityEstimate';
 import {
@@ -106,6 +108,15 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   const abortControllerRef = useRef(null);
 
   const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  const [liveObservation, setLiveObservation] = useState(undefined);   // recorded counts of this district for the target month
+  useEffect(() => {
+    const record = forecastRecord?.record || forecastRecord;
+    if (!record?.district || !record?.disease || !record?.target_year || !monthHasStarted(record.target_year, record.target_month)) return undefined;
+    let active = true;
+    loadObservations({ disease: record.disease, year: record.target_year, month: record.target_month })
+      .then((districts) => { if (active) setLiveObservation(districts[record.district]); });
+    return () => { active = false; };
+  }, [forecastRecord]);
   useEffect(() => {
     let active = true;
     loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
@@ -389,9 +400,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
               </div>
               <div>
                 <SeverityEstimate entry={severityFor(severityHistory, disease, district)} />
-                {describeLastMonthPlain(storedRecord?.previous_month_observation) && (
-                  <span className="block text-[11px] text-slate-400 mt-1">{describeLastMonthPlain(storedRecord.previous_month_observation)}</span>
-                )}
+                <div className="mt-2"><SeverityWatch recent={buildRecentObservations(storedRecord, liveObservation)} /></div>
               </div>
               <div>
                 <span className="text-slate-500 block">Operational Priority</span>

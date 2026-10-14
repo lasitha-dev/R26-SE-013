@@ -11,6 +11,7 @@ vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listOutlooks: vi.fn(),
   previewOutlooks: vi.fn(),
   getSeverityHistory: vi.fn(),
+  getActiveSurveillance: vi.fn(),
 }));
 
 const respond = (records) => ({ total_count: records.length, limit: 200, offset: 0, records });
@@ -183,7 +184,7 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     await waitFor(() => expect(screen.getByText('about 31%')).toBeInTheDocument());
     expect(screen.getByText('likely between 18% and 47%')).toBeInTheDocument();
     expect(screen.getByText('MEDIUM RISK')).toBeInTheDocument();
-    expect(screen.getByText('Last month: 4 cases and 0 deaths confirmed.')).toBeInTheDocument();
+    expect(screen.getByText('December 2024: 4 cases, 0 deaths')).toBeInTheDocument();
     // details (collapsed by default, still in the document)
     expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
     expect(screen.getByText('80% range 18–47%')).toBeInTheDocument();
@@ -300,5 +301,33 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.getAllByText('Severity if an outbreak occurs')).toHaveLength(1);   // LSD has no history for this district
     expect(screen.getByText('Based on 4 past outbreak years (2017–2024).')).toBeInTheDocument();
     expect(screen.queryByText(/Predicted Severity|MODERATE|N\/A/)).not.toBeInTheDocument();
+  });
+
+  it('severity watch follows the recorded counts: it changes when more cases and deaths are recorded', async () => {
+    const withPrevious = forecast('FMD', {
+      target_year: 2025, target_month: 1,
+      previous_month_observation: { period: '2024-12', status: 'CONFIRMED_OUTBREAK', verified_cases: 2, deaths: 0, observed_severity: 'LOW' },
+    });
+    workflowApi.listForecastRecords.mockResolvedValue(respond([withPrevious]));
+    workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', cases: 3, deaths: 0 } } });
+    const first = render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+    await waitFor(() => expect(screen.getByTestId('severity-watch')).toHaveTextContent('LOW'));
+    expect(screen.getByText('January 2025: 3 cases, 0 deaths')).toBeInTheDocument();
+    expect(screen.getByText('December 2024: 2 cases, 0 deaths')).toBeInTheDocument();
+    expect(screen.getByText(/Rule-based indicator from pilot records; not a model forecast\./)).toBeInTheDocument();
+    first.unmount();
+
+    workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', cases: 12, deaths: 2 } } });
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+    await waitFor(() => expect(screen.getByTestId('severity-watch')).toHaveTextContent('HIGH'));
+    expect(screen.getByText('January 2025: 12 cases, 2 deaths')).toBeInTheDocument();
+  });
+
+  it('shows "No app reports" instead of a level when the district is not covered', async () => {
+    workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD', { previous_month_observation: { period: '2024-12', status: 'NO_SURVEILLANCE_COVERAGE', verified_cases: null, deaths: null } })]));
+    workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'NO_SURVEILLANCE_COVERAGE', cases: null, deaths: null } } });
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+    await waitFor(() => expect(screen.getByText('No app reports for this district yet.')).toBeInTheDocument());
+    expect(screen.getByTestId('severity-watch')).not.toHaveTextContent(/LOW|MEDIUM|HIGH/);
   });
 });

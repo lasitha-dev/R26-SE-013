@@ -12,6 +12,9 @@ import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityEstimate } from '../SeverityEstimate';
+import { SeverityWatch } from '../SeverityWatch';
+import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
+import { buildRecentObservations } from '../forecastPresentation';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, describeRiskPlain, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
@@ -69,12 +72,29 @@ export function DaphDistrictForecasts({ viewerContext }) {
 
   const [allRecords, setAllRecords] = useState([]);
   const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  const [liveObservations, setLiveObservations] = useState({});   // `${disease}|${year}-${month}` -> district -> recorded counts
 
   useEffect(() => {
     let active = true;
     loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
     return () => { active = false; };
   }, []);
+
+  // Recorded cases and deaths for each month that has started and has stored forecasts (live, read-only).
+  useEffect(() => {
+    const wanted = new Map();
+    allRecords.forEach((r) => {
+      if (r.target_year && r.target_month && monthHasStarted(r.target_year, r.target_month)) {
+        wanted.set(`${r.disease}|${r.target_year}-${r.target_month}`, { disease: r.disease, year: r.target_year, month: r.target_month });
+      }
+    });
+    if (wanted.size === 0) return undefined;
+    let active = true;
+    Promise.all([...wanted.entries()].map(([key, q]) => loadObservations(q).then((districts) => [key, districts]))).then((pairs) => {
+      if (active) setLiveObservations(Object.fromEntries(pairs));
+    });
+    return () => { active = false; };
+  }, [allRecords]);
   const [canonicalDistricts, setCanonicalDistricts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -355,6 +375,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
                       <p className="text-sm text-on-surface">{describeRiskPlain(r, r.district, r.target_month).sentence}</p>
                     )}
                     <SeverityEstimate entry={severityFor(severityHistory, r.disease, r.district)} />
+                    <SeverityWatch recent={buildRecentObservations(r, liveObservations[`${r.disease}|${r.target_year}-${r.target_month}`]?.[r.district])} />
                   </div>
 
                   <details className="flex-1 text-sm">
