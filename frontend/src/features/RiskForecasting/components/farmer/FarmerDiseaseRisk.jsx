@@ -5,13 +5,11 @@ import {
   validateViewerContext,
   getRegisteredFarmDistrict,
 } from '../../contracts/viewerContext';
-import { predictDistrictDiseaseRisks } from '../../services/api';
+import { fetchStoredDistrictRisks } from '../../services/storedForecastApi';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
 import { DemoForecastingAuthContext } from '../../context/DemoForecastingAuthContext.jsx';
-import {
-  fetchAuthorizedDiseaseForecasts,
-  DEMO_FORECASTING_ERROR_CATEGORIES,
-} from '../../services/demoForecastingApi.js';
+import { DEMO_FORECASTING_ERROR_CATEGORIES } from '../../services/demoForecastingApi.js';
+import { formatProbabilityInterval, isBaselineRecord } from '../forecastPresentation';
 
 const MONTH_NAMES = [
   'January',
@@ -128,6 +126,24 @@ function getRiskDetails(riskLevel) {
 }
 
 /**
+ * A baseline record is the district's usual seasonal level, not an assessment of current conditions, so
+ * it must not be presented to a farmer as a LOW RISK assessment.
+ */
+const BASELINE_DETAILS = Object.freeze({
+  label: 'SEASONAL BASELINE',
+  colorClass: 'bg-slate-700/40 text-slate-200 border-slate-500/40',
+  icon: 'info',
+  meaning:
+    'This is the usual seasonal level of outbreak likelihood for your district at this time of year. ' +
+    'No current warning signs have been assessed, because recent district surveillance is not yet available.',
+  guidance: [
+    'Continue routine biosecurity and regular monitoring.',
+    'Keep farm records current.',
+    'Follow local veterinary guidance.',
+  ],
+});
+
+/**
  * Extracts normalized stage1 and provenance data from prediction service or protected demo API response.
  */
 function extractStage1AndProvenance(resultData) {
@@ -177,13 +193,13 @@ function isDiseaseValid(result) {
  * @param {object} props.viewerContext
  * @param {number|string} [props.initialYear]
  * @param {number|string} [props.initialMonth]
- * @param {Function} [props.predictionService=predictDistrictDiseaseRisks]
+ * @param {Function} [props.predictionService=fetchStoredDistrictRisks] Reads the stored (official) forecast.
  */
 export function FarmerDiseaseRisk({
   viewerContext,
   initialYear,
   initialMonth,
-  predictionService = predictDistrictDiseaseRisks,
+  predictionService = fetchStoredDistrictRisks,
 }) {
   // 1. Access & Fail-Closed Validation
   const validation = validateViewerContext(viewerContext);
@@ -219,10 +235,6 @@ export function FarmerDiseaseRisk({
   }, []);
 
   const authContext = useContext(DemoForecastingAuthContext);
-  const isDemoAuthActive = Boolean(
-    (authContext?.isDemoEnabled || authContext?.demoEnabled) &&
-    (authContext?.isDemoAuthenticated || authContext?.status === 'authenticated')
-  );
 
   // 4. Fetch Forecast Function
   const fetchForecast = useCallback(
@@ -237,20 +249,12 @@ export function FarmerDiseaseRisk({
       setErrorState(null);
 
       try {
-        let result;
-        if (isDemoAuthActive) {
-          result = await fetchAuthorizedDiseaseForecasts({
-            district,
-            year: Number(yr),
-            targetMonth: Number(mth),
-          });
-        } else {
-          result = await predictionService({
-            district,
-            year: Number(yr),
-            month: Number(mth),
-          });
-        }
+        // The stored forecast is the single official result; no model is run on demand.
+        const result = await predictionService({
+          district,
+          year: Number(yr),
+          month: Number(mth),
+        });
 
         if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
           return;
@@ -277,7 +281,7 @@ export function FarmerDiseaseRisk({
         setLoading(false);
       }
     },
-    [isAccessAllowed, district, periodValidation.valid, predictionService, isDemoAuthActive, authContext]
+    [isAccessAllowed, district, periodValidation.valid, predictionService, authContext]
   );
 
   // 5. Scoped District & Access Change Observer Effect
@@ -523,7 +527,11 @@ function DiseaseCard({ title, abbreviation, loading, result }) {
 
   const isValid = isDiseaseValid(result);
   const { stage1, provenance } = isValid ? extractStage1AndProvenance(result.data) : { stage1: null, provenance: null };
-  const riskDetails = isValid ? getRiskDetails(stage1.risk_level) : null;
+  const storedRecord = isValid ? result.data?.record : null;
+  const baseline = Boolean(storedRecord) && isBaselineRecord(storedRecord);
+  const riskDetails = isValid ? (baseline ? BASELINE_DETAILS : getRiskDetails(stage1.risk_level)) : null;
+  const interval = storedRecord ? formatProbabilityInterval(storedRecord) : null;
+  const noRecord = result?.error?.category === 'NO_RECORD';
 
   return (
     <section
@@ -549,6 +557,9 @@ function DiseaseCard({ title, abbreviation, loading, result }) {
                 {stage1.probability_pct.toFixed(1)}%
               </span>
               <span className="block text-xs text-on-surface-variant mt-0.5">District Outbreak Likelihood</span>
+              {interval && (
+                <span className="block text-xs text-on-surface-variant mt-0.5" title="Uncertainty of the estimate">{interval}</span>
+              )}
             </div>
 
             <div
@@ -564,7 +575,9 @@ function DiseaseCard({ title, abbreviation, loading, result }) {
           <div className="p-4 rounded-xl bg-surface-container-lowest/40 border border-outline-variant/30 text-on-surface-variant text-sm">
             <span className="font-semibold text-error">Forecast unavailable</span>
             <span className="block text-xs text-on-surface-variant/70 mt-1">
-              Data for this disease could not be retrieved for the selected period.
+              {noRecord
+                ? 'No forecast has been issued for this month yet.'
+                : 'Data for this disease could not be retrieved for the selected period.'}
             </span>
           </div>
         )}
@@ -608,7 +621,9 @@ function DiseaseCard({ title, abbreviation, loading, result }) {
               : 'help_outline'}
           </span>
           <span>
-            {provenance && typeof provenance.fallback_applied === 'boolean'
+            {baseline
+              ? "Based on this district's historical pattern for the month; current local surveillance is not yet available."
+              : provenance && typeof provenance.fallback_applied === 'boolean'
               ? provenance.fallback_applied
                 ? 'Some forecast inputs use historical reference data because current-period data was unavailable. Interpret this forecast with additional care.'
                 : 'Forecast inputs are available for the selected period.'

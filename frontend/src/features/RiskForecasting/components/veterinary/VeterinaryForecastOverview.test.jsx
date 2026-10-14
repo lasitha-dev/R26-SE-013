@@ -225,6 +225,27 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     fetchSpy.mockRestore();
   });
 
+  it('explains an earlier-version (v1) record with a notice and never runs the old model live', async () => {
+    const v1 = {
+      forecast_id: 'fdr_v1', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+      risk_level: 'MEDIUM', probability: 0.4, probability_pct: 40.0, predicted_severity: 'LOW', status: 'GENERATED',
+      generated_at: '2026-08-01T00:00:00Z', model_variant: '30_feature_baseline', fallback_applied: true,
+      data_quality: 'HISTORICAL_SAME_MONTH_PROXY', source_year: 2024, source_month: 12, data_age_months: 1,
+    };
+    workflowApi.listForecastRecords.mockImplementation(({ disease }) => Promise.resolve({
+      total_count: disease === 'FMD' ? 1 : 0, limit: 50, offset: 0, records: disease === 'FMD' ? [v1] : [],
+    }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+    await waitFor(() => expect(screen.getByText('40.0%')).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole('button', { name: /EXPLAIN FORECAST/i })[0]);
+
+    await waitFor(() => expect(screen.getByText(/earlier version of the forecasting system/i)).toBeInTheDocument());
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
   it('shows a climatology record as a seasonal baseline, never as an assessed LOW RISK tier', async () => {
     const baseline = {
       forecast_id: 'fdr_v2_base', disease: 'FMD', district: 'Kandy', target_year: 2025, target_month: 1,

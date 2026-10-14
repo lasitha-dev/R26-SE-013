@@ -138,7 +138,6 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
 
   const [explanationData, setExplanationData] = useState(null);
-  const [explainingDisease, setExplainingDisease] = useState(null);
   const [explanationError, setExplanationError] = useState(null);
 
   // 3. Load latest stored records for assigned district
@@ -208,38 +207,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       setExplanationData(storedExplanation(record));
       return;
     }
-    setExplainingDisease(diseaseCode);
-    setExplanationError(null);
+    // Records from the earlier (v1) forecasting version carry no stored explanation, and recomputing one
+    // with the old model would show a number that differs from the official record. Say so instead.
     setExplanationData(null);
-
-    try {
-      // Live API call to the prediction endpoint for its linear log-odds feature contributions
-      const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
-      const endpoint = `${API_BASE}/api/v1/risk-forecasting/predict/${diseaseCode.toLowerCase()}`;
-      
-      const payload = {
-        district: assignedDistrict,
-        year: record.target_year || record.targetYear || selectedYear,
-        month: record.target_month || record.targetMonth || selectedMonth
-      };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to calculate live explainability (Status: ${res.status})`);
-      }
-
-      const data = await res.json();
-      setExplanationData(data);
-    } catch (err) {
-      setExplanationError(err.message || 'Unable to generate the feature contribution breakdown at this moment.');
-    } finally {
-      setExplainingDisease(null);
-    }
+    setExplanationError(
+      'This forecast was issued by an earlier version of the forecasting system and has no stored explanation. ' +
+      'Newer forecasts include a full feature breakdown.'
+    );
   };
 
   const renderDiseaseCard = (diseaseName, diseaseCode, record) => {
@@ -370,13 +344,10 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
           <div className="pt-4 border-t border-outline-variant/30 flex justify-end">
             <button
               onClick={() => handleExplainForecast(diseaseCode, record)}
-              disabled={explainingDisease === diseaseCode || explainingDisease !== null}
               className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold tracking-wide transition-colors disabled:opacity-50"
             >
-              <span className={`material-symbols-outlined text-sm ${explainingDisease === diseaseCode ? 'animate-spin' : ''}`}>
-                {explainingDisease === diseaseCode ? 'sync' : 'psychology'}
-              </span>
-              {explainingDisease === diseaseCode ? 'CALCULATING...' : 'EXPLAIN FORECAST'}
+              <span className="material-symbols-outlined text-sm">psychology</span>
+              EXPLAIN FORECAST
             </button>
           </div>
         </div>
