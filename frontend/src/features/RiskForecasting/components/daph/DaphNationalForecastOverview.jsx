@@ -19,6 +19,7 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import { TierBasisNote } from '../TierBasisNote';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
@@ -1202,6 +1203,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         <span className="font-semibold text-white">
                           {isBaselineRecord(selectedDetailRow.record) ? 'Baseline (no elevated signal assessed)' : selectedDetailRow.record.risk_level}
                         </span>
+                        <TierBasisNote record={selectedDetailRow.record} className="block text-[11px] text-slate-400 mt-1" />
                       </div>
                       <div>
                         <span className="text-slate-500 block">Predicted Severity</span>

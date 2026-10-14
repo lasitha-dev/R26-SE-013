@@ -12,6 +12,7 @@ import { listForecastRecords } from '../../services/riskForecastingWorkflowApi.j
 import { newestPreferringV2 } from '../../services/storedForecastApi.js';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod.js';
 import { ForecastSourceBadge } from '../ForecastSourceBadge.jsx';
+import { TierBasisNote } from '../TierBasisNote.jsx';
 import {
   BASELINE_BADGE,
   formatProbabilityInterval,
@@ -209,6 +210,7 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
               {formatRelativeRisk(record.relative_risk) && (
                 <p className="text-xs text-on-surface-variant">{formatRelativeRisk(record.relative_risk)} for this district and month</p>
               )}
+              <TierBasisNote record={record} />
               <div className="flex items-center justify-between text-xs text-on-surface-variant">
                 <span>Target: {MONTH_NAMES[selectedMonth - 1]} {selectedYear}</span>
                 <ForecastSourceBadge record={record} />

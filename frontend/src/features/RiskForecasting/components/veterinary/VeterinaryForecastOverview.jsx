@@ -9,6 +9,7 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import { TierBasisNote } from '../TierBasisNote';
 import {
   BASELINE_BADGE,
   describePreviousMonth,
@@ -296,6 +297,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                   {formatProbabilityInterval(record)}
                 </span>
               )}
+              <TierBasisNote record={record} />
             </div>
             <div>
               <span className="text-[11px] font-medium text-on-surface-variant block uppercase tracking-wider">

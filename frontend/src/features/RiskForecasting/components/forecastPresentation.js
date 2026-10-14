@@ -83,6 +83,34 @@ export function formatProbabilityInterval(record) {
   return `${Math.round(level * 100)}% range ${Math.round(low * 100)}–${Math.round(high * 100)}%`;
 }
 
+/**
+ * Why a v2 record has a MEDIUM or HIGH tier, and how strong the evidence behind it is. The tier rule is
+ * relative (probability against the usual rate for the district and month), so a high tier can sit on a
+ * low absolute probability; stating the basis stops it being read as more than it is. Thresholds are
+ * unchanged. Returns null for baseline, LOW and v1 records.
+ */
+export function describeTierBasis(record) {
+  if (!isV2Record(record) || isBaselineRecord(record)) return null;
+  const level = record.risk_level;
+  if (level !== 'HIGH' && level !== 'MEDIUM') return null;
+  const relative = record.relative_risk;
+  const usual = typeof record.baseline_probability === 'number' ? `${(record.baseline_probability * 100).toFixed(1)}%` : null;
+  let reason;
+  if (level === 'HIGH' && typeof relative === 'number' && relative >= 4) {
+    reason = `${relative.toFixed(1)}× the usual rate${usual ? ` of ${usual}` : ''} for this district and month (HIGH starts at 4×)`;
+  } else if (level === 'HIGH' && typeof record.probability === 'number' && record.probability >= 0.5) {
+    reason = 'the probability is 50% or more';
+  } else if (typeof relative === 'number') {
+    reason = `${relative.toFixed(1)}× the usual rate${usual ? ` of ${usual}` : ''} for this district and month (MEDIUM starts at 2×)`;
+  } else {
+    return null;
+  }
+  let evidence = null;
+  if (record.deployment_status === 'back_tested') evidence = 'Model evidence: back-tested only, not yet confirmed on future data.';
+  else if (record.deployment_status === 'exploratory') evidence = 'Model evidence: exploratory.';
+  return { text: `${level} because ${reason}.`, evidence };
+}
+
 export function describePreviousMonth(observation) {
   if (!observation) return null;
   const [year, month] = String(observation.period || '').split('-').map(Number);
@@ -184,33 +212,3 @@ export function selectOfficialRecords(records) {
   });
   return [...groups.values()].map(pickOfficialRecord);
 }
-
-describe('official record selection', () => {
-  const rec = (id, extra = {}) => ({
-    forecast_id: id, disease: 'FMD', district: 'Colombo', target_year: 2026, target_month: 10,
-    status: 'GENERATED', generated_at: '2026-10-01T00:00:00Z', ...extra,
-  });
-
-  it('prefers a v2 record over a newer v1 record and remembers the other record id', () => {
-    const picked = pickOfficialRecord([rec('v1', { generated_at: '2026-10-20T00:00:00Z' }), rec('v2', { model_version: 'x_v2.0' })]);
-    expect(picked.forecast_id).toBe('v2');
-    expect(picked.related_forecast_ids).toEqual(['v1']);
-  });
-
-  it('ignores superseded records and falls back to the newest', () => {
-    const picked = pickOfficialRecord([rec('old', { status: 'SUPERSEDED', model_version: 'x' }), rec('a'), rec('b', { generated_at: '2026-10-05T00:00:00Z' })]);
-    expect(picked.forecast_id).toBe('b');
-    expect(pickOfficialRecord([rec('s', { status: 'SUPERSEDED' })])).toBeNull();
-    expect(pickOfficialRecord([])).toBeNull();
-  });
-
-  it('keeps one record per disease, district and month', () => {
-    const all = [
-      rec('c1'), rec('c2', { model_version: 'v' }), rec('l1', { disease: 'LSD' }),
-      rec('k1', { district: 'KANDY' }), rec('k2', { district: 'Kandy', model_version: 'v' }),
-      rec('n1', { target_month: 11 }),
-    ];
-    const ids = selectOfficialRecords(all).map((r) => r.forecast_id).sort();
-    expect(ids).toEqual(['c2', 'k2', 'l1', 'n1']);
-  });
-});

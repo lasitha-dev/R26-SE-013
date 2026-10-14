@@ -9,6 +9,7 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
+import { TierBasisNote } from '../TierBasisNote';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
@@ -354,6 +355,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
                       {formatProbabilityInterval(r) && (
                         <span className="block text-xs text-on-surface-variant" title="Uncertainty of the probability estimate">{formatProbabilityInterval(r)}</span>
                       )}
+                      <TierBasisNote record={r} className="block text-xs text-on-surface-variant" />
                     </div>
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-on-surface-variant block">Record Status</span>

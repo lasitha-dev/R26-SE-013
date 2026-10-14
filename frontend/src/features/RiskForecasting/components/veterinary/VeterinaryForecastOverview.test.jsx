@@ -211,6 +211,10 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     await waitFor(() => expect(screen.getByText('31.0%')).toBeInTheDocument());
     expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
     expect(screen.getByText('80% range 18–47%')).toBeInTheDocument();
+    // The tier is explained and the evidence level stated; the thresholds themselves are unchanged.
+    const basis = screen.getByTestId('tier-basis');
+    expect(basis).toHaveTextContent('MEDIUM because 2.4× the usual rate for this district and month (MEDIUM starts at 2×).');
+    expect(basis).toHaveTextContent('Model evidence: back-tested only, not yet confirmed on future data.');
     expect(screen.getByText('Dec 2024: 4 verified cases, 0 deaths · LOW')).toBeInTheDocument();
     expect(screen.getByText('Back-tested candidate')).toBeInTheDocument();
     expect(screen.queryByText('Validated model')).not.toBeInTheDocument();
