@@ -496,6 +496,25 @@ def test_performance_scores_only_known_outcomes():
     assert fmd["brier_score"] is not None
 
 
+def test_performance_tracks_monthly_severity_data_for_a_future_stage_2():
+    repo = InMemoryForecastRecordRepository()
+    service = make_service(repo)
+    service.generate_period(2026, 9, ["FMD"])  # app records: Anuradhapura 1 case + 1 death; Colombo covered, none
+    readiness = service.performance(as_of=datetime(2026, 11, 13))["diseases"]["FMD"]["stage2_readiness"]
+    assert readiness["observed_outbreak_months_with_monthly_counts"] == 1
+    assert readiness["distinct_months"] == 1
+    assert readiness["observed_severity_bands"] == {"MODERATE": 1}  # score 1 + 10 x 1 = 11
+    assert readiness["ready_to_evaluate"] is False
+    assert readiness["required_outbreak_months"] == 100
+
+
+def test_curated_months_do_not_count_as_monthly_severity_data():
+    service = make_service(InMemoryForecastRecordRepository())
+    service.generate_period(2023, 5, ["FMD"])  # curated labels have no monthly counts
+    readiness = service.performance(as_of=datetime(2026, 11, 13))["diseases"]["FMD"]["stage2_readiness"]
+    assert readiness["observed_outbreak_months_with_monthly_counts"] == 0
+
+
 def test_performance_skips_months_inside_grace_period():
     service = make_service(InMemoryForecastRecordRepository())
     service.generate_period(2026, 10, ["LSD"])

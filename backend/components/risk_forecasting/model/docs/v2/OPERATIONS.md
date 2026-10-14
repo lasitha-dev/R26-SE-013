@@ -76,6 +76,20 @@ a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400
 - v2 records do **not** predict severity (`predicted_severity` is null): the v1 severity models were
   not validated and, for FMD, are of uncertain provenance.
 
+## Preparing Stage 2 (severity)
+
+v2 forecasts the probability of an outbreak month; it does **not** forecast severity (`predicted_severity`
+is null). Severity labels from the training bulletins are annual totals, so they cannot train or validate a
+monthly severity model (model card, limitations). What the system does instead:
+
+- every month the app records verified cases and deaths per district, and `previous_month_observation`
+  shows them with an observed severity band (score = cases + 10 × deaths; bands are descriptive);
+- `GET /v2/performance` → `stage2_readiness` counts outbreak district-months that have **monthly** verified
+  counts (curated bulletin months are excluded), the distinct calendar months covered and the band counts;
+- `ready_to_evaluate` becomes true at **100 outbreak district-months across at least 12 distinct months**
+  (fixed in advance). Only then should a severity model be trained and evaluated (forward-chaining, same
+  deployment rule as the outbreak models). Until then the UI keeps showing last month's observed severity.
+
 ## Known operational limits
 
 - Current deployment (model card section 6): where the district's own last two months are known but a

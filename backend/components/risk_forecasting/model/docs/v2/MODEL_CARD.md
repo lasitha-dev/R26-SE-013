@@ -213,6 +213,14 @@ model's interval is **too narrow** (observed rate outside it in 2 of 5 bins raw,
 - Five evaluation runs were made on the same data (section 7). The fixes in run 5 correct a method
   flaw, but model selection across runs is still a source of optimism; only prospective results
   (`GET /v2/performance` on non-backfilled records) can confirm skill.
+- **No severity (Stage 2) forecast.** The proposal's second stage (outbreak severity) is not implemented
+  because the available severity labels cannot support it: FMD has no case/death columns at all, and in LSD
+  the `Cases`/`Deaths` of a district-year are one annual total copied onto every outbreak month (all 56
+  outbreak district-years; 557 non-outbreak months also carry a value). The effective sample is therefore
+  56 annual labels, correlated and dominated by 2023, and they are not comparable with the monthly
+  cases + 10 × deaths severity the app now records. A model on them would look plausible but could not be
+  validated. Instead, `GET /v2/performance` reports `stage2_readiness` (see OPERATIONS.md); Stage 2 should be
+  evaluated, with the same time-aware rules, once enough monthly counts exist.
 - Label semantics are undocumented; FMD 2024 labels are excluded.
 - Operational surveillance (app verified cases/deaths from registered farms) is a different signal from
   the curated labels used in training and currently covers few districts.

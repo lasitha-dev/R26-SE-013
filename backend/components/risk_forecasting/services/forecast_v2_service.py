@@ -27,7 +27,7 @@ from components.risk_forecasting.pipeline.labels import load_labels
 from components.risk_forecasting.pipeline.live_sources import build_live_sources
 from components.risk_forecasting.pipeline.predictor import V2Predictor
 from components.risk_forecasting.pipeline.supersede_policy import SupersedePlan, plan_supersede
-from components.risk_forecasting.pipeline.surveillance import SurveillanceProvider
+from components.risk_forecasting.pipeline.surveillance import SurveillanceProvider, observed_severity
 from components.risk_forecasting.config import FMD_DATASET_FILE, LSD_DATASET_FILE
 from components.risk_forecasting.schemas import ForecastDecisionRecord
 
@@ -64,6 +64,12 @@ class StalePreview(Exception):
         super().__init__(f"Preview is stale: confirmed {expected} but {actual} records would be superseded. Preview again.")
         self.expected = expected
         self.actual = actual
+
+
+# Stage 2 (outbreak severity) is not predicted: the training labels are annual district totals, not monthly.
+# It becomes worth trying once the app has recorded enough MONTHLY verified counts for outbreak months.
+STAGE2_MIN_OUTBREAK_MONTHS = 100
+STAGE2_MIN_DISTINCT_MONTHS = 12
 
 
 class ForecastV2Service:
@@ -192,7 +198,7 @@ class ForecastV2Service:
             observation = provider.month(record.target_year, record.target_month)[record.district]
             stats = summary["diseases"].setdefault(record.disease, {
                 "scored": 0, "retrospective_scored": 0, "outbreaks": 0, "alerts": 0, "hits": 0, "missed_outbreaks": 0,
-                "false_alarms": 0, "brier_sum": 0.0, "unscored_by_status": {}, "scored_by_forecaster": {},
+                "false_alarms": 0, "brier_sum": 0.0, "severity_bands": {}, "severity_periods": set(), "unscored_by_status": {}, "scored_by_forecaster": {},
             })
             outcome = observation.outbreak
             if outcome is None:
@@ -207,10 +213,24 @@ class ForecastV2Service:
             stats["missed_outbreaks"] += int(not alert and outcome == 1)
             stats["false_alarms"] += int(alert and outcome == 0)
             stats["brier_sum"] += (record.probability - outcome) ** 2
+            if outcome == 1 and observation.cases is not None and observation.deaths is not None:
+                band = observed_severity(observation.cases, observation.deaths)
+                stats["severity_bands"][band] = stats["severity_bands"].get(band, 0) + 1
+                stats["severity_periods"].add((record.target_year, record.target_month))
             key = record.forecaster or "unknown"
             stats["scored_by_forecaster"][key] = stats["scored_by_forecaster"].get(key, 0) + 1
         for stats in summary["diseases"].values():
             scored = stats["scored"]
+            outbreak_months = sum(stats["severity_bands"].values())
+            distinct = len(stats.pop("severity_periods"))
+            stats["stage2_readiness"] = {
+                "observed_outbreak_months_with_monthly_counts": outbreak_months,
+                "distinct_months": distinct,
+                "observed_severity_bands": stats.pop("severity_bands"),
+                "required_outbreak_months": STAGE2_MIN_OUTBREAK_MONTHS,
+                "required_distinct_months": STAGE2_MIN_DISTINCT_MONTHS,
+                "ready_to_evaluate": outbreak_months >= STAGE2_MIN_OUTBREAK_MONTHS and distinct >= STAGE2_MIN_DISTINCT_MONTHS,
+            }
             stats["brier_score"] = round(stats.pop("brier_sum") / scored, 4) if scored else None
             stats["recall"] = round(stats["hits"] / stats["outbreaks"], 3) if stats["outbreaks"] else None
             stats["precision"] = round(stats["hits"] / stats["alerts"], 3) if stats["alerts"] else None
