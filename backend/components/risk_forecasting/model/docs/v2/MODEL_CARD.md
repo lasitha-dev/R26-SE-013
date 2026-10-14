@@ -241,14 +241,26 @@ issued on or after day 5 with `v2.1`.
 - Five evaluation runs were made on the same data (section 7). The fixes in run 5 correct a method
   flaw, but model selection across runs is still a source of optimism; only prospective results
   (`GET /v2/performance` on non-backfilled records) can confirm skill.
-- **No severity (Stage 2) forecast.** The proposal's second stage (outbreak severity) is not implemented
-  because the available severity labels cannot support it: FMD has no case/death columns at all, and in LSD
-  the `Cases`/`Deaths` of a district-year are one annual total copied onto every outbreak month (all 56
-  outbreak district-years; 557 non-outbreak months also carry a value). The effective sample is therefore
-  56 annual labels, correlated and dominated by 2023, and they are not comparable with the monthly
-  cases + 10 × deaths severity the app now records. A model on them would look plausible but could not be
-  validated. Instead, `GET /v2/performance` reports `stage2_readiness` (see OPERATIONS.md); Stage 2 should be
-  evaluated, with the same time-aware rules, once enough monthly counts exist.
+- **No severity (Stage 2) forecast is issued.** Annual DAPH severity labels do exist (FMD: 115 district-years,
+  2017-2024; LSD: 56 district-years, 2020-2024; `data/processed/severity_labels.csv`, `LSD_severity_labels.csv`;
+  an earlier statement that FMD had no case/death labels was wrong for these files and is corrected here). They
+  are annual totals (cases, deaths, outbreak months), not monthly, so each label is one correlated annual value.
+  `scripts/v2/evaluate_severity.py` evaluates the old Stage 2 idea against baselines that use no weather
+  (leave-one-year-out and forward-chaining, 95% intervals from resampling whole years; full numbers in
+  `docs/v2/severity_evaluation.json`):
+  - FMD (LOW 72 / MEDIUM 31 / HIGH 12): "always LOW" reaches 62.6% accuracy (macro-F1 0.26); the old-style random
+    forest 56.5% (macro-F1 0.35); the district's own past severity (mode) 62.6% (macro-F1 0.37). Models are not
+    better than district history (random forest minus district history, macro-F1: -0.08 to +0.06 leave-one-year-out;
+    -0.06 to +0.24 forward); logistic regression is worse.
+  - LSD (classes balanced, 19/18/19; chance is about 33%): district history 35.7% accuracy, no model clearly above it
+    (all intervals against district history include 0, or are below it).
+  - Conclusion: with annual labels, weather and density features add no demonstrated skill over a district's own
+    history, so no severity forecast is deployed (the same deployment rule as Stage 1: not better than the
+    baseline means the baseline is shown). The severity score formula (`cases * months/12 + 10 * deaths`) and its
+    thresholds are design choices, not clinically validated. Monthly app counts are a different quantity and are
+    not comparable with these labels. `GET /v2/performance` reports `stage2_readiness`; Stage 2 should be
+    re-evaluated with the same rules once enough monthly counts exist. Until then the application shows the
+    previous month's observed cases and deaths as an observation, not as a severity prediction.
 - Label semantics are undocumented; FMD 2024 labels are excluded.
 - Operational surveillance (app verified cases/deaths from registered farms) is a different signal from
   the curated labels used in training and currently covers few districts.
