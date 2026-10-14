@@ -83,8 +83,8 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.queryByText(/SHAP/)).not.toBeInTheDocument();
     // Technical facts remain available, but inside "More details"
     expect(screen.getAllByText('More details').length).toBe(2);
-    expect(screen.getByText('1 month')).toBeInTheDocument();
-    expect(screen.getByText('0 months')).toBeInTheDocument();
+    expect(screen.getAllByText('1 month old').length).toBeGreaterThan(0);
+    expect(screen.getByText('0 months old')).toBeInTheDocument();
   });
 
   it('ends with one short reassurance line instead of a long scientific paragraph', async () => {
@@ -186,7 +186,9 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.getByText('MEDIUM RISK')).toBeInTheDocument();
     expect(screen.getAllByTestId('severity-recorded').some((c) => /December 2024/.test(c.textContent) && /4 cases/.test(c.textContent))).toBe(true);
     // details (collapsed by default, still in the document)
-    expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
+    expect(screen.getByText('2.4×')).toBeInTheDocument();
+    expect(screen.getByText('the usual rate for Anuradhapura and month')).toBeInTheDocument();
+    expect(screen.getByText('Compared with usual')).toBeInTheDocument();
     expect(screen.getByText('80% range 18–47%')).toBeInTheDocument();
     expect(screen.getByTestId('tier-basis')).toHaveTextContent('MEDIUM because 2.4× the usual rate for this district and month (MEDIUM starts at 2×).');
     expect(screen.getByText('Back-tested candidate')).toBeInTheDocument();

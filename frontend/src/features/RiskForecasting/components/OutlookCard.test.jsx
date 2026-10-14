@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { OutlookCard, describeOutlookEvidence, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from './OutlookCard';
+import { OutlookCard, describeOutlookEvidence, OUTLOOK_NOTE } from './OutlookCard';
 
 const outlook = {
   disease: 'FMD', district: 'Colombo', target_month: 11, probability: 0.0326, probability_low: 0.0, probability_high: 0.0967,
@@ -32,9 +32,8 @@ describe('OutlookCard', () => {
     expect(describeOutlookEvidence({})).toBeNull();
   });
 
-  it('keeps the short explanatory notes in English and Sinhala', () => {
+  it('keeps the short explanatory note in English only', () => {
     expect(OUTLOOK_NOTE).toMatch(/Based on past years only/);
-    expect(OUTLOOK_NOTE_SI).toMatch(/අතීත/);
   });
 
   it('shows the usual severity of the district under the outlook when history exists, and nothing otherwise', () => {

@@ -8,20 +8,16 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
-import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { TierBasisNote } from '../TierBasisNote';
-import { OutlookCard, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from '../OutlookCard';
+import { OutlookCard, OUTLOOK_NOTE } from '../OutlookCard';
+import { ForecastDetails } from '../ForecastDetails';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityPanel } from '../SeverityPanel';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import {
-  describePreviousMonth,
   describeRiskPlain,
   formatChance,
   formatLikelyRange,
-  formatProbabilityInterval,
-  formatRelativeRisk,
   isV2Record,
   monthName,
   nextPeriod,
@@ -30,11 +26,6 @@ import {
   storedExplanation,
 } from '../forecastPresentation';
 import { listForecastRecords } from '../../services/riskForecastingWorkflowApi.js';
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
 
 const FEATURE_LABELS = {
   'Iod Dmi': 'Indian Ocean Dipole (Sea Temp Anomaly)',
@@ -81,22 +72,6 @@ function formatProbability(val) {
     return isNaN(parsed) ? val : `${parsed.toFixed(1)}%`;
   }
   return 'Not available';
-}
-
-function formatIsoDate(isoStr) {
-  if (!isoStr) return 'Not available';
-  try {
-    const dt = new Date(isoStr);
-    return isNaN(dt.getTime()) ? isoStr : dt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  } catch (_) {
-    return isoStr;
-  }
-}
-
-function formatDataAgeMonths(months) {
-  if (months === undefined || months === null) return 'Not available';
-  const unit = months === 1 ? 'month' : 'months';
-  return `${months} ${unit}`;
 }
 
 const periodKey = (p) => p.year * 12 + p.month;
@@ -341,71 +316,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         {plain.sentence && <p className="text-sm text-on-surface leading-relaxed">{plain.sentence}</p>}
         <SeverityPanel recent={recent} entry={severityFor(severityHistory, diseaseCode, assignedDistrict)} />
 
-        <details className="border-t border-outline-variant/30 pt-3">
-          <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>
-          <div className="space-y-3 pt-3 text-xs">
-            <div>
-              <span className="text-on-surface-variant">Exact figure: </span>
-              <span className="font-semibold text-on-surface">{formatProbability(record.probability_pct ?? record.predicted_probability)}</span>
-              {formatRelativeRisk(record.relative_risk) && (
-                <span className="block text-on-surface-variant">{formatRelativeRisk(record.relative_risk)} for this district and month</span>
-              )}
-              {formatProbabilityInterval(record) && (
-                <span className="block text-on-surface-variant" title="Uncertainty of the estimate, not of the outcome">
-                  {formatProbabilityInterval(record)}
-                </span>
-              )}
-              <TierBasisNote record={record} />
-              {isV2Record(record) ? (
-                <span className="block text-on-surface-variant mt-1">{describePreviousMonth(record.previous_month_observation) || ''}</span>
-              ) : (
-                <span className="block text-on-surface-variant mt-1">Predicted severity: {record.predicted_severity || 'Not evaluated'}</span>
-              )}
-              {earlierOutlooks.source === 'stored' && outlookFor(earlierOutlooks, assignedDistrict, diseaseCode) && (
-                <OutlookCard compact outlook={outlookFor(earlierOutlooks, assignedDistrict, diseaseCode)} />
-              )}
-            </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <div>
-                <dt className="text-on-surface-variant">Status:</dt>
-                <dd className="font-semibold text-primary">{record.status || 'GENERATED'}</dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">Model Variant:</dt>
-                <dd className="text-on-surface">{record.model_variant || 'Standard'}</dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">Forecast Source:</dt>
-                <dd className="mt-0.5"><ForecastSourceBadge record={record} /></dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">Generated At:</dt>
-                <dd className="text-on-surface">{formatIsoDate(record.generated_at)}</dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">Data Period:</dt>
-                <dd className="text-on-surface">
-                  {record.source_year && record.source_month
-                    ? `${MONTH_NAMES[record.source_month - 1]} ${record.source_year}`
-                    : 'Not available'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-on-surface-variant">Input Data Age:</dt>
-                <dd className="text-on-surface">{formatDataAgeMonths(record.data_age_months)}</dd>
-              </div>
-            </dl>
-            <div className="flex justify-end">
-              <button
-                onClick={() => handleExplainForecast(diseaseCode, record)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold tracking-wide transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">psychology</span>
-                EXPLAIN FORECAST
-              </button>
-            </div>
-          </div>
-        </details>
+        <ForecastDetails
+          record={record}
+          district={assignedDistrict}
+          chance={formatProbability(record.probability_pct ?? record.predicted_probability)}
+          earlierOutlook={earlierOutlooks.source === 'stored' ? outlookFor(earlierOutlooks, assignedDistrict, diseaseCode) : null}
+          onExplain={() => handleExplainForecast(diseaseCode, record)}
+        />
       </article>
     );
   };
@@ -423,7 +340,6 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
           {hasForecast ? `Looking ahead: ${outlookMonthName}` : `Outlook for ${outlookMonthName}`}
         </h2>
         <p className="text-xs text-on-surface-variant">{OUTLOOK_NOTE}</p>
-        <p className="text-xs text-on-surface-variant/80">{OUTLOOK_NOTE_SI}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {outlookDiseases.map((disease) => (

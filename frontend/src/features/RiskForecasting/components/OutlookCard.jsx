@@ -5,8 +5,6 @@ import { SeverityPanel } from './SeverityPanel';
 
 export const OUTLOOK_NOTE =
   "Based on past years only. It does not include this year's cases or weather. An updated forecast follows at the start of the month.";
-export const OUTLOOK_NOTE_SI =
-  'අතීත වසර මත පදනම් වූ දර්ශනයකි. මෙම වසරේ රෝග වාර්තා හෝ කාලගුණ දත්ත ඇතුළත් නැත.';
 
 /** "An outbreak was recorded in this month in 0 of the last 7 years." */
 export function describeOutlookEvidence(outlook) {
