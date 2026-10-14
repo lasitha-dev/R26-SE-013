@@ -9,7 +9,7 @@ import {
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -103,9 +103,9 @@ export function DaphDistrictForecasts({ viewerContext }) {
 
       if (recordsRes.status === 'fulfilled') {
         const rawRecords = recordsRes.value?.records || [];
-        fetchedRecords = rawRecords.filter(
+        fetchedRecords = selectOfficialRecords(rawRecords.filter(
           r => isActiveRecord(r) && (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)
-        );
+        ));
       }
 
       // Only persisted forecast records are displayed; an empty period shows the empty state.

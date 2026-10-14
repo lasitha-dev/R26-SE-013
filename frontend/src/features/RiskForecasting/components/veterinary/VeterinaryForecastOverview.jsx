@@ -14,9 +14,9 @@ import {
   describePreviousMonth,
   formatProbabilityInterval,
   formatRelativeRisk,
-  isActiveRecord,
   isBaselineRecord,
   isV2Record,
+  pickOfficialRecord,
   storedExplanation,
 } from '../forecastPresentation';
 import {
@@ -157,12 +157,12 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
       if (fmdRes.status === 'fulfilled') {
         const records = fmdRes.value?.records || fmdRes.value || [];
-        foundFmd = records.filter(isActiveRecord).find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
+        foundFmd = pickOfficialRecord(records.filter(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)));
       }
 
       if (lsdRes.status === 'fulfilled') {
         const records = lsdRes.value?.records || lsdRes.value || [];
-        foundLsd = records.filter(isActiveRecord).find(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)) || null;
+        foundLsd = pickOfficialRecord(records.filter(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)));
       }
 
       setFmdRecord(foundFmd);

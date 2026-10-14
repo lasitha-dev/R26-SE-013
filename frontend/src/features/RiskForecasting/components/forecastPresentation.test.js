@@ -4,6 +4,8 @@ import {
   describeForecastSource,
   describeProvenance,
   formatProbabilityInterval,
+  pickOfficialRecord,
+  selectOfficialRecords,
   isBaselineRecord,
 } from './forecastPresentation';
 

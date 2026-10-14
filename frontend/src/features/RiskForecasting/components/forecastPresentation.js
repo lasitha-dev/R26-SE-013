@@ -148,3 +148,69 @@ export function storedExplanation(record) {
 export function isActiveRecord(record) {
   return Boolean(record) && record.status !== 'SUPERSEDED';
 }
+
+function preferredFirst(a, b) {
+  const v2 = Number(Boolean(b.model_version)) - Number(Boolean(a.model_version));
+  if (v2 !== 0) return v2;
+  const time = String(b.generated_at || '').localeCompare(String(a.generated_at || ''));
+  return time !== 0 ? time : String(a.forecast_id || '').localeCompare(String(b.forecast_id || ''));
+}
+
+/**
+ * The official record among several active ones for the same disease, district and month:
+ * a current-version (v2) record wins over an older-version one, then the newest. The other records'
+ * ids are kept in `related_forecast_ids` so advisories already written against them stay visible.
+ */
+export function pickOfficialRecord(records) {
+  const active = (records || []).filter(isActiveRecord);
+  if (active.length === 0) return null;
+  const [official, ...others] = [...active].sort(preferredFirst);
+  const related = others.map((r) => r.forecast_id).filter(Boolean);
+  return related.length ? { ...official, related_forecast_ids: related } : official;
+}
+
+/** One official record per disease + district + target month (see pickOfficialRecord). */
+export function selectOfficialRecords(records) {
+  const groups = new Map();
+  (records || []).filter(isActiveRecord).forEach((record) => {
+    const key = [
+      record.disease,
+      String(record.district || '').toLowerCase(),
+      record.target_year ?? record.targetYear,
+      record.target_month ?? record.targetMonth,
+    ].join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  });
+  return [...groups.values()].map(pickOfficialRecord);
+}
+
+describe('official record selection', () => {
+  const rec = (id, extra = {}) => ({
+    forecast_id: id, disease: 'FMD', district: 'Colombo', target_year: 2026, target_month: 10,
+    status: 'GENERATED', generated_at: '2026-10-01T00:00:00Z', ...extra,
+  });
+
+  it('prefers a v2 record over a newer v1 record and remembers the other record id', () => {
+    const picked = pickOfficialRecord([rec('v1', { generated_at: '2026-10-20T00:00:00Z' }), rec('v2', { model_version: 'x_v2.0' })]);
+    expect(picked.forecast_id).toBe('v2');
+    expect(picked.related_forecast_ids).toEqual(['v1']);
+  });
+
+  it('ignores superseded records and falls back to the newest', () => {
+    const picked = pickOfficialRecord([rec('old', { status: 'SUPERSEDED', model_version: 'x' }), rec('a'), rec('b', { generated_at: '2026-10-05T00:00:00Z' })]);
+    expect(picked.forecast_id).toBe('b');
+    expect(pickOfficialRecord([rec('s', { status: 'SUPERSEDED' })])).toBeNull();
+    expect(pickOfficialRecord([])).toBeNull();
+  });
+
+  it('keeps one record per disease, district and month', () => {
+    const all = [
+      rec('c1'), rec('c2', { model_version: 'v' }), rec('l1', { disease: 'LSD' }),
+      rec('k1', { district: 'KANDY' }), rec('k2', { district: 'Kandy', model_version: 'v' }),
+      rec('n1', { target_month: 11 }),
+    ];
+    const ids = selectOfficialRecords(all).map((r) => r.forecast_id).sort();
+    expect(ids).toEqual(['c2', 'k2', 'l1', 'n1']);
+  });
+});

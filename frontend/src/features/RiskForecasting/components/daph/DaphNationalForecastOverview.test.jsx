@@ -848,4 +848,28 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(within(panel).queryByText(/Colombo/)).not.toBeInTheDocument();
     });
   });
+
+  describe('One official record per district, disease and month', () => {
+    it('shows the v2 record, not the older v1 one, and keeps advisories written against the v1 record', async () => {
+      const v1 = mockRecordsData.records[0];                       // fdr_001, 75.0%, has an APPROVED advisory
+      const v2 = {
+        ...v1, forecast_id: 'fdr_v2_001', probability: 0.41, probability_pct: 41.0, risk_level: 'MEDIUM',
+        predicted_severity: null, model_variant: 'fmd_v2.0:O', model_version: 'fmd_v2.0', forecaster: 'O',
+        deployment_status: 'back_tested', relative_risk: 3.2, data_quality: 'V2_MODEL', fallback_applied: false,
+        generated_at: '2026-10-14T03:20:20Z',
+      };
+      api.listForecastRecords.mockResolvedValue({ total: 2, records: [v1, v2] });
+
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => expect(screen.getByText('41.0%')).toBeInTheDocument());
+      expect(screen.queryByText('75.0%')).not.toBeInTheDocument();
+      // The approved advisory written against the older record still counts for this district and month.
+      expect(api.listAdvisories).toHaveBeenCalled();
+      const cellTexts = (row) => Array.from(row.querySelectorAll('td')).map((td) => td.textContent.trim());
+      const rows = screen.getAllByRole('row').filter((r) => cellTexts(r).includes('Anuradhapura') && cellTexts(r).includes('FMD'));
+      expect(rows).toHaveLength(1);
+      expect(within(rows[0]).getByText('APPROVED')).toBeInTheDocument();
+    });
+  });
 });

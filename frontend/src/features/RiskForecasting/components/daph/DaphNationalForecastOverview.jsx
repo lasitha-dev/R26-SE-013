@@ -19,7 +19,7 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
   HIGH: 3,
@@ -150,13 +150,16 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
       // Step B: Fetch Official Forecast Records (Complete set for national summary, Amendment 2)
       let fetchedRecords = [];
+      let activeRecords = [];
       try {
         const recordsRes = await listForecastRecords(
           { limit: 200, offset: 0, target_year: Number(selectedYear), target_month: Number(selectedMonth) },
           { signal: controller.signal }
         );
         if (controller.signal.aborted) return;
-        fetchedRecords = (recordsRes?.records || []).filter(isActiveRecord);
+        activeRecords = (recordsRes?.records || []).filter(isActiveRecord);
+        // One official record per disease, district and month; advisories on the others stay linked.
+        fetchedRecords = selectOfficialRecords(activeRecords);
       } catch (recErr) {
         if (controller.signal.aborted) return;
         fetchedRecords = [];
@@ -193,7 +196,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       }
 
       // Extract authorized forecast IDs for client-side relationship containment
-      const forecastIds = fetchedRecords.map((r) => r.forecast_id).filter(Boolean);
+      const forecastIds = activeRecords.map((r) => r.forecast_id).filter(Boolean);
 
       // Step C & D: Fetch Advisories & Batches with Bounded Concurrency & Partial Failure Protection (Amendment 8)
       let fetchedAdvisories = [];
@@ -317,7 +320,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         );
 
         if (record) {
-          const linkedAdv = advisoriesByForecastId.get(record.forecast_id) || [];
+          const linkedAdv = [record.forecast_id, ...(record.related_forecast_ids || [])]
+            .flatMap((id) => advisoriesByForecastId.get(id) || []);
           const hasApprovedAdv = linkedAdv.some((a) => a.status === 'APPROVED');
           const isHighOrMed = record.risk_level === 'HIGH' || record.risk_level === 'MEDIUM';
           // Persisted records are authoritative model outputs; proxy-input records keep their
