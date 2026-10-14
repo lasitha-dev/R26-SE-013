@@ -76,6 +76,8 @@ function formatProbability(val) {
 
 const periodKey = (p) => p.year * 12 + p.month;
 
+const prevPeriod = (p) => (p.month === 1 ? { year: p.year - 1, month: 12 } : { year: p.year, month: p.month - 1 });
+
 const samePeriod = (a, b) => Boolean(a && b) && a.year === b.year && a.month === b.month;
 
 /**
@@ -121,6 +123,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [earlierOutlooks, setEarlierOutlooks] = useState(NO_OUTLOOK);   // outlook issued earlier for the month on screen
   const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
   const [liveObservations, setLiveObservations] = useState({});   // disease -> district -> recorded counts for the month on screen
+  const [outlookRecent, setOutlookRecent] = useState({});          // disease -> recorded counts behind the severity of an outlook month
 
   const [explanationData, setExplanationData] = useState(null);
   const [explanationError, setExplanationError] = useState(null);
@@ -177,6 +180,28 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     return () => { active = false; };
   }, [isAccessAllowed, selected]);
 
+  // An outlook month has no counts of its own; its severity follows the two months before it, like the forecast cards.
+  useEffect(() => {
+    if (!isAccessAllowed || !selected?.outlook) {
+      setOutlookRecent({});
+      return undefined;
+    }
+    const first = prevPeriod(selected);
+    const second = prevPeriod(first);
+    const now = new Date();
+    const months = [first, second].filter((m) => monthHasStarted(m.year, m.month, now));
+    let active = true;
+    Promise.all(['FMD', 'LSD'].map(async (disease) => {
+      const lists = await Promise.all(months.map(async (m) => {
+        const districts = await loadObservations({ disease, year: m.year, month: m.month });
+        const isCurrent = m.year === now.getFullYear() && m.month === now.getMonth() + 1;
+        return { label: `${periodLabel(m.year, m.month)}${isCurrent ? ' so far' : ''}`, observation: districts[assignedDistrict] };
+      }));
+      return [disease, lists];
+    })).then((pairs) => { if (active) setOutlookRecent(Object.fromEntries(pairs)); });
+    return () => { active = false; };
+  }, [isAccessAllowed, selected, assignedDistrict]);
+
   useEffect(() => {
     let active = true;
     loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
@@ -186,16 +211,19 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   // 4. The outlook is for the month after the one on screen (or the default next month when nothing is issued yet)
   useEffect(() => {
     if (!isAccessAllowed || loading) return undefined;
-    const target = selected
-      ? (selected.outlook ? selected : nextPeriod(selected.year, selected.month))
-      : getDefaultTargetPeriod();
+    const target = selected ? (selected.outlook ? selected : null) : getDefaultTargetPeriod();
     let active = true;
-    loadOutlooks({ year: target.year, month: target.month, district: assignedDistrict }).then((result) => {
-      if (active) {
-        setOutlooks(result);
-        setOutlookPeriod(target);
-      }
-    });
+    if (target) {
+      loadOutlooks({ year: target.year, month: target.month, district: assignedDistrict }).then((result) => {
+        if (active) {
+          setOutlooks(result);
+          setOutlookPeriod(target);
+        }
+      });
+    } else {
+      setOutlooks(NO_OUTLOOK);
+      setOutlookPeriod(null);
+    }
     if (selected) {
       loadOutlooks({ year: selected.year, month: selected.month, district: assignedDistrict }).then((result) => {
         if (active) setEarlierOutlooks(result.source === 'stored' ? result : NO_OUTLOOK);
@@ -333,11 +361,11 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const outlookDiseases = ['FMD', 'LSD'].filter((d) => outlookFor(outlooks, assignedDistrict, d));
   const outlookMonthName = outlookPeriod ? periodLabel(outlookPeriod.year, outlookPeriod.month) : '';
 
-  const outlookSection = outlookDiseases.length > 0 && (
+  const outlookSection = !hasForecast && outlookDiseases.length > 0 && (
     <section aria-labelledby="next-month-outlook-heading" className="space-y-3">
       <div>
         <h2 id="next-month-outlook-heading" className="text-lg font-bold text-on-surface">
-          {hasForecast ? `Looking ahead: ${outlookMonthName}` : `Outlook for ${outlookMonthName}`}
+          {`Outlook for ${outlookMonthName}`}
         </h2>
         <p className="text-xs text-on-surface-variant">{OUTLOOK_NOTE}</p>
       </div>
@@ -349,6 +377,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
             outlook={outlookFor(outlooks, assignedDistrict, disease)}
             preview={outlooks.source === 'preview'}
             severityEntry={severityFor(severityHistory, disease, assignedDistrict)}
+            recent={outlookRecent[disease] || []}
           />
         ))}
       </div>

@@ -231,22 +231,33 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
   });
 
   describe('Looking ahead (next-month outlook)', () => {
-    it('shows the next month under the current forecast, in plain words and without a risk tier', async () => {
+    it('keeps the next month out of the forecast month; picking the outlook month shows it in plain words with the same severity', async () => {
       workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD'), forecast('LSD', { probability: 0.1, probability_pct: 10, risk_level: 'LOW' })]));
       workflowApi.listOutlooks.mockImplementation(async ({ target_month }) => (
         target_month === 2 ? { records: [outlook('FMD'), outlook('LSD', { probability: 0.027 })] } : { records: [] }
       ));
+      workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', cases: 12, deaths: 0 } } });
 
       render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
 
-      const heading = await screen.findByRole('heading', { name: 'Looking ahead: February 2025' });
+      await waitFor(() => expect(screen.getByText('about 31%')).toBeInTheDocument());
+      expect(screen.queryByRole('heading', { name: /Looking ahead|Outlook for/ })).not.toBeInTheDocument();   // nothing about February here
+
+      const select = screen.getByLabelText('Month:');
+      const outlookOption = Array.from(select.options).find((o) => /\(outlook\)$/.test(o.text));
+      fireEvent.change(select, { target: { value: outlookOption.value } });
+
+      const heading = await screen.findByRole('heading', { name: 'Outlook for February 2025' });
       const section = heading.closest('section');
       expect(within(section).getAllByText('about 3%').length).toBe(2);
       expect(within(section).getAllByText('likely between 0% and 10%').length).toBe(2);
       expect(within(section).getAllByText('An outbreak was recorded in this month in 0 of the last 7 years.').length).toBe(2);
-      expect(within(section).queryByText(/RISK|HIGH|MEDIUM|LOW/)).not.toBeInTheDocument();
       expect(within(section).getByText(/Based on past years only/)).toBeInTheDocument();
       expect(within(section).queryByText('Preview')).not.toBeInTheDocument();
+      expect(within(section).queryByText(/RISK/)).not.toBeInTheDocument();
+      // the severity follows the recorded counts of the months before it, exactly like the forecast cards
+      await waitFor(() => expect(within(section).getAllByTestId('severity-level').length).toBe(2));
+      within(section).getAllByTestId('severity-level').forEach((badge) => expect(badge).toHaveTextContent('MEDIUM'));   // 12 cases
     });
 
     it('shows the outlook as the main content, labelled Preview, when no forecast is issued yet', async () => {

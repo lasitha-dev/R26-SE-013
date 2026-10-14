@@ -18,7 +18,7 @@ export function describeOutlookEvidence(outlook) {
  * Next-month outlook in ordinary words: the chance, the likely range and how often it happened before.
  * Never shows a risk tier. `compact` is the one-line reminder used inside "More details".
  */
-export function OutlookCard({ outlook, preview = false, compact = false, title, severityEntry = null }) {
+export function OutlookCard({ outlook, preview = false, compact = false, title, severityEntry = null, recent = [] }) {
   if (!outlook) return null;
   const chance = formatChance(outlook.probability);
   const range = formatLikelyRange(outlook);
@@ -44,7 +44,7 @@ export function OutlookCard({ outlook, preview = false, compact = false, title, 
       {describeOutlookEvidence(outlook) && (
         <p className="text-xs text-on-surface-variant">{describeOutlookEvidence(outlook)}</p>
       )}
-      <SeverityPanel entry={severityEntry} recent={[]} />
+      <SeverityPanel entry={severityEntry} recent={recent} />
       <span className="sr-only">{monthName(outlook.target_month)}</span>
     </div>
   );
@@ -56,4 +56,5 @@ OutlookCard.propTypes = {
   compact: PropTypes.bool,
   title: PropTypes.string,
   severityEntry: PropTypes.object,
+  recent: PropTypes.array,
 };
