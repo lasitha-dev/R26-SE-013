@@ -1,7 +1,12 @@
-# Seasonal Outlook — Product Contract v1.1 (DRAFT for approval, nothing implemented)
+# Seasonal Outlook — Product Contract v1.1
 
-Status: **proposed**. No code, collection or record exists for this product. Implementation starts only after
-this contract is approved **and** the existing v2 review and the first prospective run are done.
+Status (2026-10-14): **code written for P1–P4 (backend, CLI, endpoints, Vet and DAPH screens), accelerated for a
+2026-10-19 demonstration of the November 2026 outlook.** No collection and no record exists in Atlas yet: reading,
+the preview endpoint and `--dry-run` create nothing. P5 (docs) is partly done here; P6 (manual review),
+P6.5 (index creation) and P8 (first issuance) each still need your explicit approval. Scoring (P3) is not built yet.
+
+Demo path: until an issuance is approved, the screens show the server-computed **PREVIEW** (clearly labelled
+"not yet issued"); after P6.5 and P8 they show the issued, immutable records.
 
 Related: [MODEL_CARD.md](MODEL_CARD.md) (evidence and limits), [OPERATIONS.md](OPERATIONS.md).
 
@@ -119,10 +124,10 @@ field. Climatology has relative risk 1.0 by construction, so a tier would be mea
 | Phase | Content | Gate |
 |---|---|---|
 | P0 | Approve this contract | your approval |
-| P1 | Schema, service, artifact `climatology` counts, tests | allowlisted tests pass |
-| P2 | CLI job (dry-run), repository, GET endpoint | tests pass; dry-run shown to you |
-| P3 | Scoring | tests pass |
-| P4 | UI (Vet, DAPH) | no new frontend failures; build passes |
+| P1 | Schema, service, artifact `climatology` counts, tests | **done** (91 allowlisted tests pass) |
+| P2 | CLI job (dry-run), repository, GET endpoint | **done**; dry-run output: 50 planned, 0 saved |
+| P3 | Scoring | not built (after the demo) |
+| P4 | UI (Vet, DAPH) | **done**; frontend suite has no new failures, build passes |
 | P5 | Docs (model card "Products", operations) | — |
 | P6 | Read-only audit and your manual UI review | your sign-off |
 | P6.5 | `ensure_indexes()` on the new collection | **explicit approval** |
@@ -167,5 +172,8 @@ explicitly instead.
 
 ## 12. Open items for your decision
 1. Approve this contract (P0).
-2. Confirm the first real issuance is the December 2026 outlook, issued after November 5.
-3. Confirm `years_observed` and `positive_years` may be added to the exported climatology block (needs a re-export).
+2. First real issuance: changed to the **November 2026** outlook for the 2026-10-19 demonstration (approval still needed
+   for P6.5 and P8). `lead_days` records the true lead time (about 17 days if issued on Oct 15); the 15–30 day issue
+   window is a target, not a validity rule, and an issuance on Oct 19 would be 13 days ahead and recorded as such.
+3. `years_observed` and `positive_years` were added to the exported climatology block (re-export done; rates and
+   every other field are unchanged).
