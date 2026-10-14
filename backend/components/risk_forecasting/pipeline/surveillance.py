@@ -9,12 +9,9 @@ Status of a district-month (never defaulted to "no outbreak"):
   UNVERIFIED_LABEL          curated label exists but is excluded (FMD 2024)   -> unknown
   SOURCE_UNAVAILABLE        the database could not be queried                 -> unknown
 
-Periods covered by the verified curated dataset use its labels. Later periods (and the unverified
-FMD 2024 year) combine two sources: verified app records (diagnostic_cases with verified=True,
-death_logs with a matching cause, written by the Smart Diagnostics / Health Anomaly component) and
-DAPH bulletin rows imported with pipeline/bulletin_import.py. Positive evidence from either source
-confirms an outbreak; a "no outbreak" needs a source that actually covers the district; a district
-with neither stays unknown.
+Periods covered by the curated dataset use its labels; later periods use verified app
+records (diagnostic_cases with verified=True, death_logs with a matching cause), which are
+written by the Smart Diagnostics / Health Anomaly component.
 """
 
 from __future__ import annotations
@@ -41,8 +38,6 @@ DISEASE_PATTERNS = {
 }
 CURATED_SOURCE = "CURATED_DAPH_DATASET"
 APP_SOURCE = "APP_VERIFIED_CASES_AND_DEATHS"
-BULLETIN_SOURCE = "DAPH_BULLETIN_IMPORT"
-BULLETIN_COLLECTION = "surveillance_bulletin_reports"
 
 
 @dataclass
@@ -156,31 +151,6 @@ def app_month_observations(db, disease: str, year: int, month: int) -> Dict[str,
     return result
 
 
-def bulletin_month_reports(db, disease: str, year: int, month: int) -> Dict[str, dict]:
-    """Imported DAPH bulletin rows for one disease-month, keyed by canonical district name."""
-    reports = {}
-    for doc in db[BULLETIN_COLLECTION].find({"disease": disease, "year": year, "month": month}):
-        district = normalize_district(doc.get("district"))
-        if district and doc.get("outbreak") in (0, 1):
-            reports[district] = doc
-    return reports
-
-
-def combine_with_bulletin(base: Dict[str, DistrictObservation], reports: Dict[str, dict]) -> Dict[str, DistrictObservation]:
-    """Overlay bulletin facts on the base observations without ever inventing a 'no outbreak'."""
-    result = dict(base)
-    for district, doc in reports.items():
-        current = base[district]
-        if current.outbreak == 1:
-            continue                                    # the app already confirmed an outbreak
-        if doc["outbreak"] == 1:
-            result[district] = DistrictObservation("CONFIRMED_OUTBREAK", BULLETIN_SOURCE, doc.get("cases"), doc.get("deaths"))
-        elif current.outbreak is None:                  # bulletin negative fills an unknown
-            result[district] = DistrictObservation("NO_OUTBREAK_RECORDED", BULLETIN_SOURCE, doc.get("cases"), doc.get("deaths"))
-        # app already reported a covered, negative district: keep the app observation and its counts
-    return result
-
-
 @dataclass
 class SurveillanceProvider:
     """Answers 'outbreak status of district d in month m' for one disease, with provenance."""
@@ -209,20 +179,8 @@ class SurveillanceProvider:
             except Exception as exc:  # database unreachable -> unknown, never "no outbreak"
                 logger.error("Surveillance query failed for %s %d-%02d: %s", self.disease, year, month, exc)
                 result = {d: DistrictObservation("SOURCE_UNAVAILABLE", APP_SOURCE) for d in DISTRICT_NAMES}
-        if not (year in LABEL_YEARS[self.disease] and year not in UNVERIFIED_YEARS.get(self.disease, set())):
-            result = self._with_bulletins(result, year, month)
         self._cache[key] = result
         return result
-
-    def _with_bulletins(self, base: Dict[str, DistrictObservation], year: int, month: int) -> Dict[str, DistrictObservation]:
-        if self.app_db_factory is None:
-            return base
-        try:
-            reports = bulletin_month_reports(self.app_db_factory(), self.disease, year, month)
-        except Exception as exc:  # bulletin source unreachable -> behave as if there were none
-            logger.error("Bulletin lookup failed for %s %d-%02d: %s", self.disease, year, month, exc)
-            return base
-        return combine_with_bulletin(base, reports)
 
     def status(self, district: str, year: int, month: int) -> Optional[int]:
         return self.month(year, month)[district].outbreak

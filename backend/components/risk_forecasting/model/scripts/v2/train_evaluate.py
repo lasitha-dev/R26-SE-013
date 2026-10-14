@@ -14,6 +14,8 @@ Design (sparse-event forecasting practice):
     variant A = base + surveillance features + climatology prior
     variant S = surveillance features only (outbreak-history dynamics, no prior)
     variant B = base + climatology prior (used when surveillance status is unknown)
+    variant O = own district's last two months + climatology prior (district known, neighbours unknown)
+    variant OC = O + season/climate/host features
 - Prequential selection: the forecast for month T uses the (variant, C) with the
   best PR-AUC on all earlier backtest months only, as a running system would.
   The first backtest year is a warm-up; metrics come from the later years.
@@ -56,11 +58,14 @@ RELATIVE_RISK_ALERT = 2.0     # "elevated" when probability >= 2x the climatolog
 BOOTSTRAP = 2000
 BOOTSTRAP_BLOCK_MONTHS = 6    # decision CI uses 6-month moving blocks (outbreaks cluster in time)
 BOOTSTRAP_SEED = 42
+OWN_FEATURES = ["own_t1", "own_t2"]
 # name -> (features, use climatology prior)
 VARIANTS = {
     "A": (BASE_FEATURES + SURVEILLANCE_FEATURES, True),
     "S": (SURVEILLANCE_FEATURES, False),
     "B": (BASE_FEATURES, True),
+    "O": (OWN_FEATURES, True),
+    "OC": (BASE_FEATURES + OWN_FEATURES, True),
 }
 
 
@@ -239,7 +244,8 @@ def evaluate(preds, disease):
     eval_months = sorted(preds.loc[preds.year > first, "t"].unique())
 
     series, choices = {}, {}
-    groups = {"known": ("A", "S"), "unknown": ("B",), "A": ("A",), "S": ("S",), "B": ("B",)}
+    groups = {"known": ("A", "S"), "unknown": ("B",), "A": ("A",), "S": ("S",), "B": ("B",),
+              "own": ("O", "OC"), "O": ("O",), "OC": ("OC",)}
     for name, variants in groups.items():
         series[name], choices[name] = prequential(preds, candidate_columns(variants), eval_months)
 
@@ -257,7 +263,7 @@ def evaluate(preds, disease):
     onset = {k: metrics(onset_rows.outbreak, v[onset_mask], onset_rows.climatology)
              for k, v in candidates.items() if k != "persistence"}
     comparisons = {}
-    for k in ("known", "unknown", "A", "S", "B"):
+    for k in ("known", "unknown", "A", "S", "B", "own", "O", "OC"):
         comparisons[f"model_{k}_minus_climatology"] = block_bootstrap_diff(rows, f"model_{k}", "climatology")
         comparisons[f"model_{k}_minus_persistence"] = block_bootstrap_diff(rows, f"model_{k}", "persistence")
     per_year = {int(y): metrics(g.outbreak, g.model_known, g.climatology) for y, g in rows.groupby("year")}
@@ -266,12 +272,15 @@ def evaluate(preds, disease):
     final_known = best_column(preds, candidate_columns(("A", "S")))
     final_unknown = best_column(preds, candidate_columns(("B",)))
     final_primary = best_column(preds, candidate_columns(("A",)))
+    final_own = best_column(preds, candidate_columns(("O", "OC")))
+    final_own_primary = best_column(preds, candidate_columns(("O",)))
     return {
         "evaluation_years": sorted(int(y) for y in rows.year.unique()),
         "selection": "prequential: each month uses the best (variant, C) on all earlier backtest months",
         "monthly_choices": choices,
         "final_configuration": {"surveillance_known": final_known, "surveillance_unknown": final_unknown,
-                                "primary_A": final_primary},
+                                "primary_A": final_primary, "own_known": final_own,
+                                "primary_O": final_own_primary},
         "overall": overall,
         "onset": onset,
         "bootstrap_pr_auc": comparisons,
@@ -292,6 +301,8 @@ def decide(ev):
          status "exploratory" (variant S was added after the first evaluation run, so it
          needs prospective confirmation).
       3. Else climatology, status "baseline".
+    Own district known but a neighbour unknown ("own_known"): pre-specified primary O if it passes
+    ("back_tested"); else the prequential O/OC forecaster if it passes ("exploratory"); else climatology.
     Surveillance unknown: variant B if it passes ("back_tested"), else climatology.
     """
     def ok(name):
@@ -312,8 +323,14 @@ def decide(ev):
         known = config(final["surveillance_known"], "exploratory")
     else:
         known = baseline
+    if ok("O"):
+        own = config(final["primary_O"], "back_tested")
+    elif ok("own"):
+        own = config(final["own_known"], "exploratory")
+    else:
+        own = baseline
     unknown = config(final["surveillance_unknown"], "back_tested") if ok("unknown") else baseline
-    return {"surveillance_known": known, "surveillance_unknown": unknown}
+    return {"surveillance_known": known, "own_known": own, "surveillance_unknown": unknown}
 
 
 def export(data, disease, ev, decision):

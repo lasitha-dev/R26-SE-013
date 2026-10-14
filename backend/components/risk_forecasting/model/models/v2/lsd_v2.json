@@ -1,7 +1,7 @@
 {
   "disease": "LSD",
   "model_version": "lsd_v2.0",
-  "created_at": "2026-10-13T18:29:14.527568+00:00",
+  "created_at": "2026-10-14T02:58:14.407467+00:00",
   "training_period": [
     "2020-01",
     "2024-12"
@@ -334,6 +334,11 @@
       "C": 0.01,
       "status": "back_tested"
     },
+    "own_known": {
+      "forecaster": "climatology",
+      "C": null,
+      "status": "baseline"
+    },
     "surveillance_unknown": {
       "forecaster": "climatology",
       "C": null,
@@ -458,7 +463,10 @@
       "model_unknown": 0.11281198265821775,
       "model_A": 0.2490660347252808,
       "model_S": 0.30746821644678474,
-      "model_B": 0.11281198265821775
+      "model_B": 0.11281198265821775,
+      "model_own": 0.2560396322488565,
+      "model_O": 0.2560396322488565,
+      "model_OC": 0.21359664400557565
     },
     "brier_skill_vs_climatology": {
       "always_zero": 0.022230856737812332,
@@ -468,7 +476,10 @@
       "model_unknown": 0.050272846994757314,
       "model_A": 0.16822796902376946,
       "model_S": 0.20555034959741314,
-      "model_B": 0.050272846994757314
+      "model_B": 0.050272846994757314,
+      "model_own": 0.19511724229253558,
+      "model_O": 0.19511724229253558,
+      "model_OC": 0.15472674282849086
     },
     "known_minus_climatology_ci95": [
       -0.021651269413045644,

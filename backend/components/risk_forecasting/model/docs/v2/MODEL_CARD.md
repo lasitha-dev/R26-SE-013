@@ -60,6 +60,9 @@ HadISST DMI file is ~5 months behind real time, so it is not available at issue 
   - **A** — season + climate + host + surveillance + logit(climatology) *(pre-specified primary)*
   - **S** — surveillance features only
   - **B** — season + climate + host + logit(climatology) *(for when surveillance is unknown)*
+  - **O** — the district's own last two months + logit(climatology) *(pre-specified primary for the
+    "own district known, neighbours unknown" case; added in run 6)*
+  - **OC** — O + season/climate/host features
 - **Backtest:** monthly rolling origin, expanding window; each month is predicted by models trained
   only on earlier months. C ∈ {0.01, 0.03, 0.1, 0.3, 1}. Selection is **prequential**: each month uses
   the (variant, C) with the best PR-AUC on all earlier backtest months. First backtest year is
@@ -109,12 +112,24 @@ A passes the pre-specified rule, but the lower confidence bound (+0.010) is bare
 skill comes almost entirely from the 2023 wave. Treat it as weak evidence that needs prospective
 confirmation. (Climatology's ROC of 0.30 means the LSD seasonal pattern *reversed* between years.)
 
+### Own district known, neighbours unknown (run 6; same rows and rule)
+
+| Forecaster | FMD PR-AUC | FMD gain vs climatology (95% CI) | LSD PR-AUC | LSD gain vs climatology (95% CI) |
+|---|---|---|---|---|
+| Climatology | 0.196 | — | 0.094 | — |
+| **O** | **0.302** | **+0.069 [+0.004, +0.123]** | 0.256 | +0.140 [−0.025, +0.219] |
+| OC | 0.337 | +0.057 [−0.000, +0.172] | 0.214 | +0.116 [+0.017, +0.168] |
+
+FMD O passes the rule, but its lower bound (+0.004) is almost zero and O/OC were added after the earlier
+runs on the same data, so treat it as weak evidence. LSD O fails (CI includes zero; also not better than
+persistence), so LSD stays on the baseline for this case.
+
 ## 6. Deployment
 
-| Disease | Surveillance status known | Surveillance status unknown |
-|---|---|---|
-| FMD | Climatology — **baseline** (no model passed) | Climatology — baseline |
-| LSD | Variant **A**, C = 0.01 — **back-tested candidate** | Climatology — baseline |
+| Disease | District **and** neighbours known | District known, neighbours unknown | Nothing known |
+|---|---|---|---|
+| FMD | Climatology — **baseline** (no model passed) | Variant **O**, C = 1.0 — **back-tested candidate** (weak) | Climatology — baseline |
+| LSD | Variant **A**, C = 0.01 — **back-tested candidate** (weak) | Climatology — baseline | Climatology — baseline |
 
 "Back-tested candidate" means the forecaster beat climatology in rolling back-testing; it has **not**
 been confirmed on future data. "Surveillance known" means the outbreak status of the district **and all
@@ -143,6 +158,10 @@ seasonal baseline, never as an assessed LOW risk.
    pre-specified primary A now passes (A − climatology +0.151 [+0.010, +0.227]) and is deployed as a
    back-tested candidate in place of the exploratory S. No decision rule or threshold was changed after
    seeing these results; the earlier runs' numbers are superseded by this run.
+6. **Run 6 (own-district tier):** because the app covers few districts, "district and all neighbours
+   known" almost never holds. Added the pre-specified variants O and OC for "district known, neighbours
+   unknown" and a new `own_known` deployment tier. Rule unchanged. FMD O passes narrowly; LSD does not.
+   No other numbers changed.
 
 ## 8. Limitations
 

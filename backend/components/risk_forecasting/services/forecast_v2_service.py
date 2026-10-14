@@ -43,6 +43,8 @@ FORECASTER_LABELS = {
     "A": "climate + surveillance model",
     "S": "surveillance-dynamics model",
     "B": "climate model",
+    "O": "district-history model",
+    "OC": "district-history + climate model",
     "climatology": "district-month historical baseline",
 }
 

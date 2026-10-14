@@ -10,8 +10,6 @@ Provenance (verified 2026-10-13 against the curated training datasets):
   outbreak features of both FMD and LSD datasets (100% of rows, within rounding).
 """
 
-import re
-
 DISTRICTS = {
     "Ampara": {"pcode": "LK52", "lat": 7.2913, "lon": 81.6722},
     "Anuradhapura": {"pcode": "LK71", "lat": 8.3114, "lon": 80.4037},
@@ -70,7 +68,7 @@ ADJACENCY = {
 
 DISTRICT_NAMES = sorted(DISTRICTS)
 
-_ALIASES = {"moneragala": "Monaragala", "nuwaraeliya": "Nuwara Eliya", "kegalla": "Kegalle"}
+_ALIASES = {"moneragala": "Monaragala", "nuwaraeliya": "Nuwara Eliya"}
 
 
 def normalize_district(value):
@@ -83,8 +81,7 @@ def normalize_district(value):
     for alias, canonical in _ALIASES.items():
         if alias in compact:
             return canonical
-    # Whole-word match: "Kegalle" must not also match "Galle". Several matches stay ambiguous (None).
-    matches = [name for name in DISTRICT_NAMES if re.search(rf"(?<![a-z]){re.escape(name.lower())}(?![a-z])", text)]
+    matches = [name for name in DISTRICT_NAMES if name.lower() in text]
     if len(matches) == 1:
         return matches[0]
     return None

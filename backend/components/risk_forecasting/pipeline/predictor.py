@@ -77,9 +77,20 @@ class V2Predictor:
     def surveillance_known(features: Dict[str, Optional[float]]) -> bool:
         return all(features.get(name) is not None for name in SURVEILLANCE_FEATURES)
 
+    @staticmethod
+    def own_known(features: Dict[str, Optional[float]]) -> bool:
+        """The district's own last two months are known although a neighbour's may not be."""
+        return features.get("own_t1") is not None and features.get("own_t2") is not None
+
     def choose(self, features: Dict[str, Optional[float]]) -> dict:
-        key = "surveillance_known" if self.surveillance_known(features) else "surveillance_unknown"
-        choice = dict(self.artifact["deployment"][key])
+        deployment = self.artifact["deployment"]
+        if self.surveillance_known(features):
+            key = "surveillance_known"
+        elif self.own_known(features) and "own_known" in deployment:
+            key = "own_known"
+        else:
+            key = "surveillance_unknown"
+        choice = dict(deployment[key])
         if choice["forecaster"] != "climatology":
             variant = self.artifact["variants"][choice["forecaster"]]
             if any(features.get(f) is None for f in variant["features"]):

@@ -121,10 +121,26 @@ def test_deployment_decisions_follow_the_current_evidence():
     Re-training may legitimately change these; update the model card together with this test."""
     fmd = V2Predictor.load("FMD").artifact["deployment"]
     assert fmd["surveillance_known"] == {"forecaster": "climatology", "C": None, "status": "baseline"}
+    assert fmd["own_known"]["forecaster"] == "O" and fmd["own_known"]["status"] == "back_tested"
     assert fmd["surveillance_unknown"]["forecaster"] == "climatology"
     lsd = V2Predictor.load("LSD").artifact["deployment"]
     assert lsd["surveillance_known"]["forecaster"] == "A" and lsd["surveillance_known"]["status"] == "back_tested"
     assert lsd["surveillance_unknown"]["forecaster"] == "climatology"
+    assert lsd["own_known"]["forecaster"] == "climatology"  # O/OC did not clear the rule for LSD
+
+
+def test_district_known_but_neighbours_unknown_uses_the_own_district_model_for_fmd():
+    predictor = V2Predictor.load("FMD")
+    own_only = {**_complete_features(), "neighbour_fraction_t1": None, "neighbour_count_t1": None,
+                "neighbour_fraction_t2": None}
+    prediction = predictor.predict("Anuradhapura", 1, own_only)
+    assert prediction.forecaster == "O" and prediction.deployment_status == "back_tested"
+    assert {c["feature"] for c in prediction.contributions} <= {"own_t1", "own_t2", "climatology_logit"}
+    # Own district unknown too -> baseline, never a guess.
+    nothing = predictor.predict("Anuradhapura", 1, {**own_only, "own_t1": None})
+    assert nothing.forecaster == "climatology"
+    # Full surveillance still takes precedence over the own-district tier.
+    assert predictor.predict("Anuradhapura", 1, _complete_features()).forecaster == predictor.artifact["deployment"]["surveillance_known"]["forecaster"]
 
 
 def test_missing_climate_input_falls_back_to_climatology_for_climate_model():
@@ -221,13 +237,15 @@ def test_forecast_period_builds_one_record_per_district_with_provenance():
     records = service.forecast_period(2026, 10)
     assert len(records) == 2 * len(DISTRICT_NAMES)
     by_key = {(r.disease, r.district): r for r in records}
-    # Anuradhapura FMD: previous month confirmed in the app, but neighbours lack coverage
-    # -> surveillance unknown -> climatology baseline, clearly labelled.
+    # Anuradhapura FMD: the district's own last two months are known from the app, but its
+    # neighbours lack coverage -> the own-district model (not the full surveillance model).
     r = by_key[("FMD", "Anuradhapura")]
     assert r.surveillance_status == "CONFIRMED_OUTBREAK"
     assert r.previous_month_observation["verified_cases"] == 1
-    assert r.forecaster == "climatology" and r.deployment_status == "baseline"
+    assert r.forecaster == "O" and r.deployment_status == "back_tested"
     assert r.feature_snapshot["neighbour_fraction_t1"] is None
+    # Every other district has no app coverage at all -> climatology baseline.
+    assert by_key[("FMD", "Jaffna")].forecaster == "climatology"
     assert r.idempotency_key == "v2|FMD|Anuradhapura|2026-10|fmd_v2.0"
     assert r.input_quality == "COMPLETE"
     assert r.predicted_severity is None

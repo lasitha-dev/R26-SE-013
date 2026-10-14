@@ -1,7 +1,7 @@
 {
   "disease": "FMD",
   "model_version": "fmd_v2.0",
-  "created_at": "2026-10-13T18:27:34.144662+00:00",
+  "created_at": "2026-10-14T02:55:17.411531+00:00",
   "training_period": [
     "2017-01",
     "2023-12"
@@ -334,13 +334,42 @@
       "C": null,
       "status": "baseline"
     },
+    "own_known": {
+      "forecaster": "O",
+      "C": 1.0,
+      "status": "back_tested"
+    },
     "surveillance_unknown": {
       "forecaster": "climatology",
       "C": null,
       "status": "baseline"
     }
   },
-  "variants": {},
+  "variants": {
+    "O": {
+      "features": [
+        "own_t1",
+        "own_t2"
+      ],
+      "uses_climatology_prior": true,
+      "C": 1.0,
+      "scaler_mean": [
+        0.1073170731707317,
+        0.11121951219512195
+      ],
+      "scaler_std": [
+        0.30951594300907914,
+        0.3144037727225949
+      ],
+      "coef": [
+        0.5645306993527386,
+        0.03401984395914404,
+        0.3060123161268987
+      ],
+      "intercept": -1.5407914945125838,
+      "training_rows": 2050
+    }
+  },
   "evaluation_summary": {
     "evaluation_years": [
       2022,
@@ -354,7 +383,10 @@
       "model_unknown": 0.2083145398285827,
       "model_A": 0.2943850389268429,
       "model_S": 0.3123767585642524,
-      "model_B": 0.2083145398285827
+      "model_B": 0.2083145398285827,
+      "model_own": 0.3067321847773772,
+      "model_O": 0.3016682537110982,
+      "model_OC": 0.3368387100464491
     },
     "brier_skill_vs_climatology": {
       "always_zero": -0.04225670666552883,
@@ -364,7 +396,10 @@
       "model_unknown": 0.06026832973637808,
       "model_A": 0.131253771076851,
       "model_S": 0.1600573870439792,
-      "model_B": 0.06026832973637808
+      "model_B": 0.06026832973637808,
+      "model_own": 0.1352391692044428,
+      "model_O": 0.1395340129703686,
+      "model_OC": 0.13865014631609185
     },
     "known_minus_climatology_ci95": [
       -0.02219252683772205,

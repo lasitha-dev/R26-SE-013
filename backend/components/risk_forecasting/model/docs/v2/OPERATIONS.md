@@ -42,29 +42,6 @@ preview (`dry_run`), shows what will be stored, superseded and protected, and on
 official confirms (`POST /api/v1/risk-forecasting/v2/forecasts/generate`, JWT role DAPH_OFFICIAL only;
 a real run sends `expected_supersede_count` from the preview, otherwise HTTP 400/409 and nothing is written).
 
-## Adding surveillance from DAPH bulletins
-
-The app only sees districts with registered farms, so most districts are "unknown" and receive the
-climatology baseline. Officials can add facts from DAPH bulletins (see `bulletin_template.csv`):
-
-```
-python -m components.risk_forecasting.jobs.import_bulletin bulletin.csv               # preview, writes nothing
-python -m components.risk_forecasting.jobs.import_bulletin bulletin.csv --confirm N   # N = rows_to_write from the preview
-```
-
-- Columns: `disease, district, year, month, outbreak (1|0), cases, deaths, source_document, entered_by`.
-  `outbreak` must be an explicit 1 or 0 and `source_document` (bulletin and page) is required. A
-  district-month that is left out stays **unknown** - it is never read as "no outbreak".
-- Rows for verified curated-label years (FMD 2017-2023, LSD 2020-2024) are skipped; the curated dataset
-  takes precedence. Bulletins are most useful for 2025 onwards and for the unverified FMD 2024 year.
-- Rows are stored in the `surveillance_bulletin_reports` collection (`_id` = `DISEASE|district|YYYY-MM`),
-  so re-importing the same file changes nothing, and a corrected row is shown as "changed" in the preview.
-- Combination rule: a verified app case or a bulletin outbreak confirms an outbreak; a "no outbreak"
-  needs a source that covers the district (app farms or a bulletin row); otherwise the district stays
-  unknown. A forecast record shows the source in `surveillance_source`.
-- The LSD model runs for a district only when the district and all its neighbours are known for the
-  two previous months, so coverage must be complete enough for that; otherwise the baseline is shown.
-
 ## Endpoints
 
 | Endpoint | Purpose |
@@ -98,9 +75,10 @@ python -m components.risk_forecasting.jobs.import_bulletin bulletin.csv --confir
 
 ## Known operational limits
 
-- Current deployment (model card section 6): **FMD uses the climatology baseline everywhere** because no
-  model beat it with a confidence interval above zero; LSD uses variant A (back-tested candidate) where
-  surveillance of the district and its neighbours is known, otherwise climatology.
+- Current deployment (model card section 6): where the district's own last two months are known but a
+  neighbour's are not, **FMD uses variant O** (back-tested candidate, weak evidence); where the district
+  and all neighbours are known, **LSD uses variant A** (back-tested candidate, weak evidence); everything
+  else uses the climatology baseline.
 - Surveillance coverage: the app currently has few registered farms, so most districts have
   unknown surveillance and receive the climatology baseline. Forecast skill rises as coverage grows
   or if DAPH monthly reports are imported.
