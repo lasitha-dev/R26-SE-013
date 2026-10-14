@@ -18,7 +18,6 @@ import MyAreaPage from './features/GeospatialMap/pages/MyAreaPage.jsx'
 import AnalysisTrendsPage from './features/GeospatialMap/pages/AnalysisTrendsPage.jsx'
 import RiskForecastingIntegrationAdapter from './features/RiskForecasting/integration/RiskForecastingIntegrationAdapter.jsx'
 import { RiskForecastingDemoEntry } from './features/RiskForecasting/RiskForecastingDemoEntry'
-import FarmerPreview from './features/RiskForecasting/FarmerPreview.jsx'
 
 export function isDemoPath(pathname) {
   const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '/');
@@ -69,9 +68,6 @@ export default function App() {
 
       {/* Standalone Demo Gateway */}
       <Route path="/risk-forecasting-demo/*" element={<DemoRouteHandler />} />
-
-      {/* Review-only Farmer view of the stored forecasts (off unless VITE_FORECASTING_FARMER_PREVIEW=true) */}
-      <Route path="/risk-forecasting-farmer-preview" element={<FarmerPreview />} />
 
       {/* Standalone Vet Auth Routes */}
       <Route path="/vet/login" element={<VetLogin />} />
