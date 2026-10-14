@@ -93,15 +93,17 @@ export function ForecastDetails({ record, district, chance, earlierOutlook, onEx
 
         {earlierOutlook && <OutlookCard compact outlook={earlierOutlook} />}
 
-        <button
-          type="button"
-          onClick={onExplain}
-          className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/20 px-4 py-2.5 text-xs font-bold tracking-wide text-primary transition duration-200 hover:-translate-y-0.5 hover:from-primary/20 hover:to-primary/30 hover:shadow-lg"
-        >
-          <Icon name="psychology" className="text-base transition-transform duration-200 group-hover/btn:scale-110" />
-          EXPLAIN FORECAST
-          <Icon name="arrow_forward" className="text-base transition-transform duration-200 group-hover/btn:translate-x-1" />
-        </button>
+        {onExplain && (
+          <button
+            type="button"
+            onClick={onExplain}
+            className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/20 px-4 py-2.5 text-xs font-bold tracking-wide text-primary transition duration-200 hover:-translate-y-0.5 hover:from-primary/20 hover:to-primary/30 hover:shadow-lg"
+          >
+            <Icon name="psychology" className="text-base transition-transform duration-200 group-hover/btn:scale-110" />
+            EXPLAIN FORECAST
+            <Icon name="arrow_forward" className="text-base transition-transform duration-200 group-hover/btn:translate-x-1" />
+          </button>
+        )}
       </div>
     </details>
   );

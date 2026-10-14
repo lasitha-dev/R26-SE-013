@@ -8,13 +8,12 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
-import { ForecastSourceBadge } from '../ForecastSourceBadge';
-import { TierBasisNote } from '../TierBasisNote';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityPanel } from '../SeverityPanel';
+import { ForecastDetails } from '../ForecastDetails';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { buildRecentObservations } from '../forecastPresentation';
-import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, describeRiskPlain, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
+import { BASELINE_BADGE, describeRiskPlain, isActiveRecord, isBaselineRecord, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -379,40 +378,13 @@ export function DaphDistrictForecasts({ viewerContext }) {
                     />
                   </div>
 
-                  <details className="flex-1 text-sm">
-                    <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>
-                  <div className="grid grid-cols-2 gap-4 pt-3">
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">
-                        {isV2Record(r) ? 'Previous Month (Observed)' : 'Predicted Severity'}
-                      </span>
-                      <span className="text-on-surface font-medium">
-                        {isV2Record(r) ? describePreviousMonth(r.previous_month_observation) || 'Not available' : r.predicted_severity ?? 'N/A'}
-                      </span>
-                      {formatRelativeRisk(r.relative_risk) && (
-                        <span className="block text-xs text-on-surface-variant">{formatRelativeRisk(r.relative_risk)}</span>
-                      )}
-                      {formatProbabilityInterval(r) && (
-                        <span className="block text-xs text-on-surface-variant" title="Uncertainty of the probability estimate">{formatProbabilityInterval(r)}</span>
-                      )}
-                      <TierBasisNote record={r} className="block text-xs text-on-surface-variant" />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Record Status</span>
-                      <span className="text-on-surface font-medium">{r.status ?? 'N/A'}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Target Period</span>
-                      <span className="text-on-surface font-medium">
-                        {MONTH_NAMES[(r.target_month || selectedMonth) - 1]} {r.target_year || selectedYear}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Data Provenance</span>
-                      <span className="block"><ForecastSourceBadge record={r} /></span>
-                    </div>
+                  <div className="flex-1">
+                    <ForecastDetails
+                      record={r}
+                      district={r.district}
+                      chance={typeof r.probability_pct === 'number' ? `${r.probability_pct.toFixed(1)}%` : 'Not available'}
+                    />
                   </div>
-                  </details>
                 </div>
               );
             })}

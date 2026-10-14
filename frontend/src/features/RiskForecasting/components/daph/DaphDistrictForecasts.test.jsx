@@ -344,8 +344,8 @@ describe('DaphDistrictForecasts Component', () => {
     await screen.findByText('Colombo District · FMD');
     await screen.findByText('Colombo District · LSD');
 
-    expect(screen.getByText('85.0%')).toBeInTheDocument();
-    expect(screen.getByText('15.0%')).toBeInTheDocument();
+    expect(screen.getAllByText('85.0%').length).toBeGreaterThan(0);   // card figure and the details tile
+    expect(screen.getAllByText('15.0%').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/HIGH/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/LOW/i).length).toBeGreaterThan(0);
   });
