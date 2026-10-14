@@ -275,7 +275,7 @@ def test_forecast_period_builds_one_record_per_district_with_provenance():
     assert r.feature_snapshot["neighbour_fraction_t1"] is None
     # Every other district has no app coverage at all -> climatology baseline.
     assert by_key[("FMD", "Jaffna")].forecaster == "climatology"
-    assert r.idempotency_key == "v2|FMD|Anuradhapura|2026-10|fmd_v2.0"
+    assert r.idempotency_key == "v2|FMD|Anuradhapura|2026-10|fmd_v2.1"
     assert r.input_quality == "COMPLETE"
     assert r.predicted_severity is None
 
@@ -565,3 +565,13 @@ def test_monthly_job_exit_code_for_partial_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(job, "RUN_LOG", tmp_path / "runs.jsonl")
     assert job.main(["--year", "2026", "--month", "10", "--diseases", "FMD"],
                     service=make_service(FlakyRepo(fail_save_at=7))) == 4
+
+
+@pytest.mark.parametrize("disease", ["FMD", "LSD"])
+def test_stored_records_carry_the_version_of_the_artifact_that_made_them(disease):
+    artifact_version = V2Predictor.load(disease).model_version
+    assert artifact_version == f"{disease.lower()}_v2.1"
+    records = make_service(InMemoryForecastRecordRepository()).forecast_period(2026, 11, [disease])
+    assert {r.model_version for r in records} == {artifact_version}
+    assert all(r.idempotency_key.endswith(f"|{artifact_version}") for r in records)
+    assert all(r.model_variant.startswith(f"{artifact_version}:") for r in records)

@@ -60,6 +60,10 @@ BACKTEST = {"FMD": (2021, 2023), "LSD": (2022, 2024)}  # first year = C selectio
 C_GRID = [0.01, 0.03, 0.1, 0.3, 1.0]
 PRIOR_STRENGTH = 3.0          # pseudo-years pulling a district-month rate toward the national rate
 RELATIVE_RISK_ALERT = 2.0     # "elevated" when probability >= 2x the climatological baseline
+# 2.0 = records issued 2026-10-14 (before the own-district tier, intervals, soil wetness and the
+# leave-one-year-out prior fixes were in the artifact); 2.1 = current. Bump whenever coefficients,
+# features or deployment decisions change, so a stored record identifies the artifact that made it.
+MODEL_VERSION = "2.1"
 BOOTSTRAP = 2000
 BOOTSTRAP_BLOCK_MONTHS = 6    # decision CI uses 6-month moving blocks (outbreaks cluster in time)
 BOOTSTRAP_SEED = 42
@@ -466,7 +470,7 @@ def export(data, disease, ev, decision):
     chosen_c = {d["forecaster"]: d["C"] for d in decision.values() if d["forecaster"] != "climatology"}
     artifact = {
         "disease": disease,
-        "model_version": f"{disease.lower()}_v2.0",
+        "model_version": f"{disease.lower()}_v{MODEL_VERSION}",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "training_period": [f"{data.year.min()}-01", f"{data.year.max()}-12"],
         "label_policy": "FMD 2017-2023 (2024 excluded as unverified); LSD 2020-2024",

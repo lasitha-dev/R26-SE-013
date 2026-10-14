@@ -193,6 +193,18 @@ Reading: intervals that are too narrow understate the real uncertainty (observed
 several bins) — treat every interval as a lower bound on the true uncertainty. Intervals were not tuned to
 improve this result.
 
+## 6c. Artifact versions
+
+| Version | What it is | Records made with it |
+|---|---|---|
+| `v2.0` | Artifact before the own-district tier, probability intervals, soil wetness and the Patch C evaluation fixes were in the shipped models | The 50 forecasts issued on 2026-10-14 for October 2026 (no interval or soil fields; issued on day 14, not the nominal day 5) |
+| `v2.1` | Current artifact (coefficients re-derived deterministically; only the version label and timestamp differ from the artifact those intermediate runs produced) | Every forecast issued from now on |
+
+A record's `model_version` and idempotency key therefore identify the artifact that produced it. October 2026
+records are kept as issued and are not re-written; they are late-issued (day 14) and use the older schema, so
+they should not be counted as prospective validation evidence. The first prospective run is the next month,
+issued on or after day 5 with `v2.1`.
+
 ## 7. Protocol history (all evaluation runs, for transparency)
 
 1. **Run 1:** variants A and B, C chosen on the first backtest year. FMD: A passed. LSD: nothing

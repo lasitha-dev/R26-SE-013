@@ -28,7 +28,10 @@ python -m components.risk_forecasting.jobs.run_monthly_forecast --year 2026 --mo
 python -m components.risk_forecasting.jobs.run_monthly_forecast --supersede-count N   # N = "would_supersede" from the preview
 ```
 
-Re-running is safe: record identity is `v2|DISEASE|district|YYYY-MM|model_version`.
+Re-running is safe: record identity is `v2|DISEASE|district|YYYY-MM|model_version`. A new model version
+(see model card 6c) therefore creates new records instead of silently reusing records made by an older artifact;
+older ones for the same period stay active until they are superseded through the preview-and-confirm flow, and
+the UI shows one official record per district, disease and month (v2 first, then newest).
 Each run appends a JSON line to `model/data/cache/runs/forecast_runs.jsonl`.
 Exit codes: 0 ok, 1 storage unavailable, 2 bad arguments, 3 supersede count missing/stale (nothing written),
 4 partial failure (some records failed; nothing superseded; re-running is safe).
