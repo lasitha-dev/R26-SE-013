@@ -621,7 +621,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       await waitFor(() => {
@@ -658,7 +661,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       await waitFor(() => {
@@ -745,7 +751,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       // Verify "Notify Assigned Farmers" is absent before approval
       expect(screen.queryByRole('button', { name: /Notify Assigned Farmers/i })).not.toBeInTheDocument();
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -794,7 +803,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -834,7 +846,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -844,6 +859,29 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       fireEvent.click(notifyBtn);
 
       expect(await screen.findByText(/Network error or 403/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Review steps (no error screen for the wrong order)', () => {
+    it('keeps Approve disabled with a hint while the advisory is a draft, and shows where it is in the review', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [{
+        forecast_id: 'fdr_x', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+        risk_level: 'HIGH', probability_pct: 50, probability: 0.5, status: 'GENERATED',
+      }] });
+      workflowApi.listAssignedRecipients.mockResolvedValue({ recipients: [{ recipient_id: 'r1', recipient_name: 'Farm 1', district: 'Anuradhapura' }] });
+      workflowApi.createAdvisoryDraft.mockResolvedValue({ advisory_id: 'adv_1', forecast_id: 'fdr_x', status: 'DRAFT', version: 1 });
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+      fireEvent.click(await screen.findByText(/FMD — Anuradhapura/i));
+      fireEvent.click(await screen.findByRole('button', { name: /Continue to Prepare Advice/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /Save Advisory Draft/i }));
+
+      const approve = await screen.findByRole('button', { name: /Approve Advisory/i });
+      expect(approve).toBeDisabled();
+      expect(approve).toHaveAttribute('title', 'Mark the advisory ready for review first.');
+      expect(screen.getByTestId('advisory-progress')).toHaveTextContent('Draft saved');
+      expect(screen.getByRole('button', { name: /Mark Ready for Review/i })).toBeEnabled();
+      expect(workflowApi.approveAdvisory).not.toHaveBeenCalled();
     });
   });
 });

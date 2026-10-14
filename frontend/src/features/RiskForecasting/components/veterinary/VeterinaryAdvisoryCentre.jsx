@@ -352,6 +352,15 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
     }
   };
 
+  // A lifecycle step refused because of the advisory's current status reads as guidance, not as an error code.
+  const friendlyLifecycleError = (err, fallback) => {
+    const text = String(err?.message || '');
+    if (/forbidden|must be in|status/i.test(text) && /\b(DRAFT|REVIEW_READY|APPROVED|CANCELLED)\b/.test(text)) {
+      return "This step can't be done yet. Please finish the previous step first.";
+    }
+    return sanitizeErrorMessage(err, fallback);
+  };
+
   const handleMarkReadyForReview = async () => {
     if (!currentAdvisory || lifecyclePending) return;
 
@@ -363,7 +372,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
       setCurrentAdvisory(updated);
       setInfoMessage('Advisory marked as READY FOR REVIEW.');
     } catch (err) {
-      setError(sanitizeErrorMessage(err, 'Failed to transition advisory to ready for review.'));
+      setError(friendlyLifecycleError(err, 'Failed to transition advisory to ready for review.'));
     } finally {
       setLifecyclePending(false);
     }
@@ -383,7 +392,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
       setCurrentAdvisory(updated);
       setInfoMessage('Advisory APPROVED. Recipient snapshot and advisory text are now frozen.');
     } catch (err) {
-      setError(sanitizeErrorMessage(err, 'Failed to approve advisory.'));
+      setError(friendlyLifecycleError(err, 'Failed to approve advisory.'));
     } finally {
       setLifecyclePending(false);
     }
@@ -893,6 +902,36 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
             )}
           </div>
 
+          {/* Where the advisory is in its review */}
+          <ol className="flex items-center gap-2 text-xs" aria-label="Advisory progress" data-testid="advisory-progress">
+            {[
+              { key: 'DRAFT', label: 'Draft saved', icon: 'edit_note' },
+              { key: 'REVIEW_READY', label: 'Ready for review', icon: 'rate_review' },
+              { key: 'APPROVED', label: 'Approved', icon: 'verified' },
+            ].map((step, index, steps) => {
+              const order = ['DRAFT', 'REVIEW_READY', 'APPROVED'];
+              const position = order.indexOf(currentAdvisory.status);
+              const done = position > index || currentAdvisory.status === 'APPROVED';
+              const current = position === index && currentAdvisory.status !== 'APPROVED';
+              return (
+                <li key={step.key} className="flex flex-1 items-center gap-2">
+                  <span
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
+                      done ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
+                        : current ? 'border-blue-400/60 bg-blue-950/60 text-blue-200 shadow-[0_0_12px_rgba(96,165,250,0.35)]'
+                          : 'border-slate-700 bg-slate-900 text-slate-500'
+                    }`}
+                    aria-current={current ? 'step' : undefined}
+                  >
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">{done ? 'check_circle' : step.icon}</span>
+                    {step.label}
+                  </span>
+                  {index < steps.length - 1 && <span className={`h-px flex-1 ${done ? 'bg-emerald-500/50' : 'bg-slate-700'}`} aria-hidden="true" />}
+                </li>
+              );
+            })}
+          </ol>
+
           {/* Lifecycle Action Toolbar */}
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
@@ -901,7 +940,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   type="button"
                   onClick={handleMarkReadyForReview}
                   disabled={lifecyclePending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white ring-2 ring-blue-400/40 disabled:opacity-50 transition"
                 >
                   Mark Ready for Review
                 </button>
@@ -911,8 +950,9 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                 <button
                   type="button"
                   onClick={handleApproveAdvisory}
-                  disabled={lifecyclePending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
+                  disabled={lifecyclePending || currentAdvisory.status !== 'REVIEW_READY'}
+                  title={currentAdvisory.status !== 'REVIEW_READY' ? 'Mark the advisory ready for review first.' : undefined}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:hover:bg-slate-800 transition-colors"
                 >
                   Approve Advisory
                 </button>
