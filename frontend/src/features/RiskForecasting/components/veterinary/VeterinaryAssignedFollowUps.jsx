@@ -7,6 +7,8 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { isV2Record } from '../forecastPresentation';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityEstimate } from '../SeverityEstimate';
 import {
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
@@ -119,6 +121,13 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
   // 2. Component State
   const [followUps, setFollowUps] = useState([]);
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
 
@@ -382,10 +391,16 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
             <dt className="text-on-surface-variant">Risk Probability:</dt>
             <dd className="font-extrabold text-primary">{formatProbability(probabilityVal)}</dd>
           </div>
-          <div>
-            <dt className="text-on-surface-variant">Predicted Severity:</dt>
-            <dd className="font-semibold text-on-surface">{record.predicted_severity || 'N/A'}</dd>
-          </div>
+          {isV2Record(record) || !record.predicted_severity ? (
+            <div className="col-span-2 sm:col-span-3">
+              <SeverityEstimate entry={severityFor(severityHistory, record.disease, record.district)} />
+            </div>
+          ) : (
+            <div>
+              <dt className="text-on-surface-variant">Severity:</dt>
+              <dd className="font-semibold text-on-surface">{record.predicted_severity}</dd>
+            </div>
+          )}
         </dl>
 
         {record.fallback_applied && (
@@ -906,7 +921,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
             {activeActionModal === 'ACKNOWLEDGE' && (
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                Recording acknowledgement registers that officer <strong className="text-on-surface">{actorId}</strong> has received this DAPH operational follow-up instruction in the standalone workflow.
+                Recording acknowledgement confirms that you have received this DAPH operational follow-up instruction.
               </p>
             )}
 

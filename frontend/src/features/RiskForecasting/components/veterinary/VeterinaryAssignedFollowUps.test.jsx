@@ -510,6 +510,20 @@ describe('VeterinaryAssignedFollowUps Component', () => {
     });
   });
 
+  describe('Plain wording in the detail panel', () => {
+    it('shows no "Predicted Severity: N/A" line and the acknowledgement text never shows a raw user id', async () => {
+      render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
+      await waitFor(() => expect(screen.getByText('Jaffna')).toBeInTheDocument());
+
+      fireEvent.click(screen.getAllByRole('button', { name: /View Details/i })[0]);
+      expect(screen.queryByText(/Predicted Severity/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Acknowledge/i }));
+      expect(screen.getByText(/confirms that you have received this DAPH operational follow-up instruction/i)).toBeInTheDocument();
+      expect(screen.queryByText('usr_vet_001')).not.toBeInTheDocument();
+    });
+  });
+
   describe('State-Machine Transitions & Action Matrix', () => {
     it('renders Acknowledge and Escalate buttons for ISSUED record', async () => {
       render(<VeterinaryAssignedFollowUps viewerContext={validVetContext} />);
