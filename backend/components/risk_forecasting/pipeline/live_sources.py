@@ -52,6 +52,22 @@ class PublicDataCache:
         cached = self._read(name, ttl)
         return cached if cached is not None else self._write(name, self.fetch_text(url))
 
+    def soil_month(self, district: str, year: int, month: int) -> Optional[float]:
+        """Mean surface soil wetness of a complete month, or None while the month is incomplete."""
+        info = DISTRICTS[district]
+        name = f"power_soil_daily_{info['pcode']}_{year}{month:02d}.json"
+        cached = self._read(name, ttl=None)
+        if cached is None:
+            last = calendar.monthrange(year, month)[1]
+            payload = self.fetch_power(info["lat"], info["lon"], f"{year}{month:02d}01",
+                                       f"{year}{month:02d}{last:02d}", daily=True, parameters=src.NASA_SOIL_PARAMETERS)
+            if src.nasa_power_monthly_from_daily_payload(payload, src.NASA_SOIL_PARAMETERS).empty:
+                return None  # month not complete yet: do not cache
+            cached = self._write(name, json.dumps(payload))
+        monthly = src.nasa_power_monthly_from_daily_payload(json.loads(cached), src.NASA_SOIL_PARAMETERS)
+        row = monthly[(monthly.year == year) & (monthly.month == month)]
+        return None if row.empty else float(row.iloc[0]["GWETTOP"])
+
     def weather_month(self, district: str, year: int, month: int) -> Optional[dict]:
         info = DISTRICTS[district]
         name = f"power_daily_{info['pcode']}_{year}{month:02d}.json"
@@ -69,7 +85,15 @@ class PublicDataCache:
         if row.empty:
             return None
         r = row.iloc[0]
-        return {"T2M": float(r.T2M), "RH2M": float(r.RH2M), "WS2M": float(r.WS2M)}
+        result = {"T2M": float(r.T2M), "RH2M": float(r.RH2M), "WS2M": float(r.WS2M)}
+        try:
+            soil = self.soil_month(district, year, month)
+        except Exception as exc:  # soil wetness missing must not discard the other weather inputs
+            logger.error("NASA POWER soil wetness unavailable for %s %d-%02d: %s", district, year, month, exc)
+            soil = None
+        if soil is not None:
+            result["GWETTOP"] = soil
+        return result
 
 
 def load_density(path: Path = DENSITY_SOURCE) -> Dict[str, list]:

@@ -34,6 +34,9 @@ NINO34_URL = "https://psl.noaa.gov/data/correlation/nina34.data"
 DMI_URL = "https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/dmi.had.long.data"
 
 NASA_PARAMETERS = ("T2M", "RH2M", "WS2M")
+# Surface soil wetness (0 = dry, 1 = saturated) from NASA POWER, community AG. It stands in for the
+# proposal's SMAP surface soil moisture, which needs an Earthdata login and has a different latency.
+NASA_SOIL_PARAMETERS = ("GWETTOP",)
 NASA_FILL_VALUE = -999.0
 
 
@@ -73,48 +76,48 @@ def chirps_monthly(chirps_csv_text: str) -> pd.DataFrame:
 
 # ─── NASA POWER ────────────────────────────────────────────────────────────
 
-def nasa_power_monthly_from_payload(payload: dict) -> pd.DataFrame:
-    """Parse a NASA POWER *monthly* point payload into year, month, T2M, RH2M, WS2M."""
+def nasa_power_monthly_from_payload(payload: dict, parameters=NASA_PARAMETERS) -> pd.DataFrame:
+    """Parse a NASA POWER *monthly* point payload into year, month and one column per parameter."""
     params = payload["properties"]["parameter"]
     rows = []
-    for key, value in params["T2M"].items():
+    for key, value in params[parameters[0]].items():
         month = int(key[4:])
         if month == 13:  # annual mean row
             continue
         row = {"year": int(key[:4]), "month": month}
-        for p in NASA_PARAMETERS:
+        for p in parameters:
             v = params[p][key]
             row[p] = None if v == NASA_FILL_VALUE else v
         rows.append(row)
     return pd.DataFrame(rows).dropna()
 
 
-def nasa_power_monthly_from_daily_payload(payload: dict) -> pd.DataFrame:
+def nasa_power_monthly_from_daily_payload(payload: dict, parameters=NASA_PARAMETERS) -> pd.DataFrame:
     """Aggregate a NASA POWER *daily* payload to monthly means, keeping complete months only."""
     params = payload["properties"]["parameter"]
     records = []
-    for key in params["T2M"]:
-        values = {p: params[p][key] for p in NASA_PARAMETERS}
+    for key in params[parameters[0]]:
+        values = {p: params[p][key] for p in parameters}
         if any(v == NASA_FILL_VALUE for v in values.values()):
             continue
         records.append({"year": int(key[:4]), "month": int(key[4:6]), **values})
     if not records:
-        return pd.DataFrame(columns=["year", "month", *NASA_PARAMETERS])
+        return pd.DataFrame(columns=["year", "month", *parameters])
     daily = pd.DataFrame(records)
     grouped = daily.groupby(["year", "month"])
-    monthly = grouped[list(NASA_PARAMETERS)].mean().round(2)
+    monthly = grouped[list(parameters)].mean().round(2)
     monthly["days"] = grouped.size()
     monthly = monthly.reset_index()
     complete = monthly.apply(lambda r: r["days"] == calendar.monthrange(int(r.year), int(r.month))[1], axis=1)
     return monthly[complete].drop(columns="days").reset_index(drop=True)
 
 
-def fetch_nasa_power(lat: float, lon: float, start: str, end: str, daily: bool) -> dict:
+def fetch_nasa_power(lat: float, lon: float, start: str, end: str, daily: bool, parameters=NASA_PARAMETERS) -> dict:
     import json
 
     url = NASA_POWER_DAILY_URL if daily else NASA_POWER_MONTHLY_URL
     params = {
-        "parameters": ",".join(NASA_PARAMETERS),
+        "parameters": ",".join(parameters),
         "community": "AG",
         "longitude": lon,
         "latitude": lat,

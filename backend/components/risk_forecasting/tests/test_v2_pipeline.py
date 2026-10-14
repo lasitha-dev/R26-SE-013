@@ -113,7 +113,7 @@ def _sources(statuses):
     return FeatureSources(
         rain={(pcode, 2024, 12): {"rainfall_mm": 100.0, "r3h": 400.0, "rfq": 95.0},
               (pcode, 2024, 11): {"rainfall_mm": 200.0, "r3h": 350.0, "rfq": 120.0}},
-        weather={("Jaffna", 2024, 12): {"T2M": 26.0, "RH2M": 80.0, "WS2M": 3.0}},
+        weather={("Jaffna", 2024, 12): {"T2M": 26.0, "RH2M": 80.0, "WS2M": 3.0, "GWETTOP": 0.42}},
         nino_anomaly={(2024, 11): 0.4, (2024, 10): 0.3},
         density={"Jaffna": [(2023, 1.0, 5.0), (2024, 1.5, 6.0)]},
         surveillance=lambda d, y, m: statuses.get((d, y, m)),
@@ -132,6 +132,7 @@ def test_build_features_uses_only_lagged_inputs_and_complete_surveillance():
     assert feats["own_t1"] == 1.0 and feats["own_t2"] == 0.0
     assert feats["neighbour_count_t1"] == 1 and feats["neighbour_fraction_t1"] == pytest.approx(0.5)
     assert feats["buffalo_density"] == 1.5
+    assert feats["soil_top_t1"] == 0.42
 
 
 def test_build_features_never_turns_unknown_into_zero():
@@ -151,3 +152,39 @@ def test_district_names_do_not_match_inside_other_names():
     assert normalize_district("Kegalla") == "Kegalle"
     assert normalize_district("Galle District") == "Galle"
     assert normalize_district("Galle and Kegalle") is None                          # ambiguous stays unknown
+
+
+def test_soil_wetness_is_missing_not_zero_when_unavailable():
+    sources = _sources({("Jaffna", 2024, 12): 0})
+    sources.weather[("Jaffna", 2024, 12)].pop("GWETTOP")
+    feats, missing = build_features("Jaffna", 2025, 1, sources)
+    assert feats["soil_top_t1"] is None and "soil_top_t1" in missing
+
+
+def test_soil_wetness_payloads_parse_with_the_soil_parameter():
+    monthly = {"properties": {"parameter": {"GWETTOP": {"202401": 0.5, "202402": -999.0, "202413": 0.4}}}}
+    frame = src.nasa_power_monthly_from_payload(monthly, src.NASA_SOIL_PARAMETERS)
+    assert frame[["year", "month", "GWETTOP"]].values.tolist() == [[2024, 1, 0.5]]
+    daily = {"properties": {"parameter": {"GWETTOP": {f"202402{d:02d}": 0.2 + d / 100 for d in range(1, 30)}}}}
+    complete = src.nasa_power_monthly_from_daily_payload(daily, src.NASA_SOIL_PARAMETERS)
+    assert len(complete) == 1 and 0 < complete.iloc[0]["GWETTOP"] < 1
+    partial = {"properties": {"parameter": {"GWETTOP": {f"202402{d:02d}": 0.3 for d in range(1, 21)}}}}
+    assert src.nasa_power_monthly_from_daily_payload(partial, src.NASA_SOIL_PARAMETERS).empty
+
+
+def test_live_soil_month_is_cached_only_when_complete(tmp_path):
+    from components.risk_forecasting.pipeline.live_sources import PublicDataCache
+    calls = []
+
+    def fake_power(lat, lon, start, end, daily, parameters=src.NASA_PARAMETERS):
+        calls.append(parameters)
+        days = 29 if end.endswith("29") else 10
+        return {"properties": {"parameter": {p: {f"202402{d:02d}": 0.4 for d in range(1, days + 1)} for p in parameters}}}
+
+    cache = PublicDataCache(directory=tmp_path, fetch_power=fake_power)
+    assert cache.soil_month("Jaffna", 2024, 2) == pytest.approx(0.4)
+    assert cache.soil_month("Jaffna", 2024, 2) == pytest.approx(0.4)
+    assert len(calls) == 1 and calls[0] == src.NASA_SOIL_PARAMETERS   # second read came from the cache
+    incomplete = PublicDataCache(directory=tmp_path / "other", fetch_power=lambda *a, **k: fake_power(a[0], a[1], a[2], "20240210", True, k.get("parameters", src.NASA_PARAMETERS)))
+    assert incomplete.soil_month("Jaffna", 2024, 2) is None
+    assert not list((tmp_path / "other").glob("power_soil_daily_*"))

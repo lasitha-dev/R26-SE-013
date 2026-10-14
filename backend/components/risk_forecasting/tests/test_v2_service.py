@@ -233,7 +233,7 @@ def fake_sources_builder(targets, surveillance):
     for district, info in DISTRICTS.items():
         for p in (prev, prev2):
             rain[(info["pcode"], *p)] = {"rainfall_mm": 150.0, "r3h": 450.0, "rfq": 100.0}
-        weather[(district, *prev)] = {"T2M": 27.0, "RH2M": 80.0, "WS2M": 3.0}
+        weather[(district, *prev)] = {"T2M": 27.0, "RH2M": 80.0, "WS2M": 3.0, "GWETTOP": 0.45}
     nino = {(y, m): 0.2 for y in range(2015, 2031) for m in range(1, 13)}
     density = {d: [(2024, 3.0, 12.0)] for d in DISTRICTS}
     sources = FeatureSources(rain=rain, weather=weather, nino_anomaly=nino, density=density,

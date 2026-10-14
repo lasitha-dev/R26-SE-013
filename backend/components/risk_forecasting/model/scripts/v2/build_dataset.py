@@ -56,6 +56,12 @@ def load_sources(first_year, last_year):
         payload = json.loads(cached_text(name, fetch))
         for r in src.nasa_power_monthly_from_payload(payload).itertuples(index=False):
             weather[(district, int(r.year), int(r.month))] = {"T2M": r.T2M, "RH2M": r.RH2M, "WS2M": r.WS2M}
+        soil_name = f"nasa_power_soil_monthly_{info['pcode']}_{first_year - 1}_{last_year}.json"
+        soil_fetch = lambda i=info: json.dumps(src.fetch_nasa_power(  # noqa: E731
+            i["lat"], i["lon"], str(first_year - 1), str(last_year), daily=False, parameters=src.NASA_SOIL_PARAMETERS))
+        soil_payload = json.loads(cached_text(soil_name, soil_fetch))
+        for r in src.nasa_power_monthly_from_payload(soil_payload, src.NASA_SOIL_PARAMETERS).itertuples(index=False):
+            weather[(district, int(r.year), int(r.month))]["GWETTOP"] = r.GWETTOP
 
     nino = src.parse_psl_series(cached_text("nina34.data", lambda: src.http_get_text(src.NINO34_URL)))
 

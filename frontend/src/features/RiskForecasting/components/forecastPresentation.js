@@ -107,6 +107,7 @@ const V2_FEATURE_LABELS = Object.freeze({
   temp_t1: 'Temperature last month',
   humidity_t1: 'Humidity last month',
   wind_t1: 'Wind speed last month',
+  soil_top_t1: 'Surface soil wetness last month',
   nino34_anom_t2: 'El Niño index (2 months ago)',
   nino34_anom_t3: 'El Niño index (3 months ago)',
   buffalo_density: 'Buffalo density',

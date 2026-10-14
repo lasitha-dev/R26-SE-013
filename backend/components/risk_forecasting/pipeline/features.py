@@ -29,7 +29,7 @@ SEASONAL_FEATURES = [
 ]
 CLIMATE_FEATURES = [
     "rain_t1", "rain_t2", "r3h_t1", "rfq_t1",
-    "temp_t1", "humidity_t1", "wind_t1",
+    "temp_t1", "humidity_t1", "wind_t1", "soil_top_t1",
     "nino34_anom_t2", "nino34_anom_t3",
 ]
 HOST_FEATURES = ["buffalo_density", "livestock_density"]
@@ -67,7 +67,7 @@ def nino_anomalies(series: Dict[Period, float], base_years=range(1991, 2021)) ->
 class FeatureSources:
     """Inputs for the feature builder. Every lookup returns None when unknown."""
     rain: Dict[Tuple[str, int, int], dict]              # (pcode, year, month) -> {rainfall_mm, r3h, rfq}
-    weather: Dict[Tuple[str, int, int], dict]           # (district, year, month) -> {T2M, RH2M, WS2M}
+    weather: Dict[Tuple[str, int, int], dict]           # (district, year, month) -> {T2M, RH2M, WS2M, GWETTOP}
     nino_anomaly: Dict[Period, float]                   # (year, month) -> anomaly
     density: Dict[str, List[Tuple[int, float, float]]]  # district -> [(year, buffalo, livestock)]
     surveillance: Callable[[str, int, int], Optional[int]]  # (district, year, month) -> 0/1/None
@@ -117,6 +117,7 @@ def build_features(district: str, year: int, month: int, sources: FeatureSources
     f["temp_t1"] = w1["T2M"] if w1 else None
     f["humidity_t1"] = w1["RH2M"] if w1 else None
     f["wind_t1"] = w1["WS2M"] if w1 else None
+    f["soil_top_t1"] = w1.get("GWETTOP") if w1 else None   # surface soil wetness, 0-1
 
     f["nino34_anom_t2"] = sources.nino_anomaly.get(t2)
     f["nino34_anom_t3"] = sources.nino_anomaly.get(t3)

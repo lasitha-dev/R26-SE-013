@@ -41,6 +41,7 @@ Note: v1 reported its headline FMD metrics on this 2024 block.
 | Season | sin/cos month, monsoon phase (target month) | calendar | — |
 | Rainfall | rain_t1, rain_t2, r3h_t1, rfq_t1 | CHIRPS, WFP/HDX `lka-rainfall-subnat-full.csv` (adm2). Monthly = Σ dekad `rfh`; `r3h` = mean dekad 3-month rolling rainfall; `rfq` = mean dekad rainfall anomaly % | Reproduces v1 columns for 2,400/2,400 rows |
 | Weather | temp_t1, humidity_t1, wind_t1 | NASA POWER (community AG) T2M, RH2M, WS2M at the dataset's district points | 2,400/2,400 rows exact; monthly = mean of daily (exact) |
+| Soil | soil_top_t1 | NASA POWER (community AG) GWETTOP, surface soil wetness 0–1, previous month, same district points | Stands in for the proposal's SMAP soil moisture (Earthdata login, different latency); available as early as T2M |
 | ENSO | nino34_anom_t2, nino34_anom_t3 | NOAA PSL `nina34.data` (now ERSST v6), anomaly vs 1991–2020 | Rebuilt for all years from the current file |
 | Host | buffalo_density, livestock_density | v1 dataset (GLW-derived yearly values; latest year carried forward) | Interpolation method undocumented |
 | Surveillance | own_t1, own_t2, neighbour_fraction_t1, neighbour_count_t1, neighbour_fraction_t2 | Outbreak labels (training); verified app cases/deaths (operations) | Neighbours from HDX COD-AB `lka_admin2` touches; reproduces all v1 neighbour features |
@@ -75,69 +76,81 @@ HadISST DMI file is ~5 months behind real time, so it is not available at issue 
 - **Deployment rule:** a forecaster is deployed only if its PR-AUC gain over climatology has a 95%
   CI above 0, its Brier skill is positive, and it is not worse than persistence on average.
 
-## 5. Results (evaluation years; leave-one-year-out prior, 6-month block CIs)
+## 5. Results (evaluation years; leave-one-year-out prior, 6-month block CIs, soil wetness included)
 
 ### FMD (2022–2023, 48 outbreak months)
 
 | Forecaster | PR-AUC | ROC-AUC | Brier skill | Onset PR-AUC |
 |---|---|---|---|---|
-| Always zero | 0.080 | 0.500 | −0.042 | 0.053 |
-| Persistence | 0.180 | 0.663 | −0.455 | — |
-| **Climatology (deployed)** | **0.196** | 0.671 | 0 | 0.111 |
-| A (primary, not deployed) | 0.294 | 0.740 | +0.131 | 0.144 |
+| Always zero | 0.080 | 0.500 | -0.042 | 0.053 |
+| Persistence | 0.180 | 0.663 | -0.455 | — |
+| **Climatology (deployed for known surveillance)** | 0.196 | 0.671 | +0.000 | 0.111 |
+| A (primary, not deployed) | 0.295 | 0.745 | +0.131 | 0.146 |
 | S | 0.312 | 0.760 | +0.160 | 0.168 |
-| B | 0.208 | 0.702 | +0.060 | 0.109 |
+| B | 0.211 | 0.706 | +0.058 | 0.112 |
 
-A − climatology: +0.051, **95% CI [−0.022, +0.123]** (i.i.d. month bootstrap [−0.025, +0.297]) — the
-interval includes zero, so A **does not pass** the deployment rule. A − persistence: +0.093 [+0.004, +0.190].
-S − climatology: +0.067 [−0.029, +0.156]. Per year (A/S prequential): 2022 0.308, 2023 0.359.
+A − climatology: +0.052 [-0.022, +0.126] (i.i.d. month bootstrap [-0.024, +0.296]) — the interval includes zero, so A **does not pass**
+the deployment rule. A − persistence: +0.094 [+0.006, +0.193]. S − climatology: +0.067 [-0.029, +0.156]. Per year (A/S prequential): 2022 0.308, 2023 0.360.
 The models are ahead of climatology on point estimates, but with 48 outbreak months in two years that
-advantage cannot be distinguished from chance. FMD therefore deploys the climatology baseline.
+advantage cannot be distinguished from chance, so the full-surveillance case deploys the baseline.
 
 ### LSD (2023–2024, 70 outbreak months)
 
 | Forecaster | PR-AUC | ROC-AUC | Brier skill | Onset PR-AUC |
 |---|---|---|---|---|
 | Always zero | 0.117 | 0.500 | +0.022 | 0.079 |
-| Persistence | 0.228 | 0.659 | −0.187 | — |
-| Climatology | 0.094 | 0.299 | 0 | 0.065 |
-| **A (deployed)** | **0.249** | 0.644 | +0.168 | 0.093 |
+| Persistence | 0.228 | 0.659 | -0.187 | — |
+| Climatology | 0.094 | 0.299 | +0.000 | 0.065 |
+| **A (deployed)** | 0.246 | 0.647 | +0.166 | 0.093 |
 | S | 0.307 | 0.723 | +0.206 | 0.152 |
-| B | 0.113 | 0.405 | +0.050 | 0.081 |
+| B | 0.098 | 0.320 | +0.018 | 0.063 |
 
-A − climatology: +0.151, **95% CI [+0.010, +0.227]** (i.i.d. [+0.046, +0.312]); A − persistence: +0.027
-[−0.017, +0.078]. S − climatology: +0.188 [−0.022, +0.257]; S − persistence: +0.064 [+0.014, +0.106].
-Per year (prequential A/S): 2023 0.340, **2024 0.021** (only 5 outbreak months).
-A passes the pre-specified rule, but the lower confidence bound (+0.010) is barely above zero and the
-skill comes almost entirely from the 2023 wave. Treat it as weak evidence that needs prospective
-confirmation. (Climatology's ROC of 0.30 means the LSD seasonal pattern *reversed* between years.)
+A − climatology: +0.148 [+0.004, +0.228] (i.i.d. [+0.042, +0.312]); A − persistence: +0.024 [-0.019, +0.077]. S − climatology: +0.188 [-0.022, +0.257]; S − persistence: +0.064 [+0.014, +0.106].
+Per year (prequential A/S): 2023 0.339, 2024 0.021 (2024 has only 5 outbreak months).
+A passes the pre-specified rule, but its lower confidence bound is barely above zero and the skill comes almost
+entirely from the 2023 wave. Treat it as weak evidence that needs prospective confirmation. (Climatology's ROC
+of 0.30 means the LSD seasonal pattern *reversed* between years.)
 
-### Own district known, neighbours unknown (run 6; same rows and rule)
+### Own district known, neighbours unknown (same rows and rule)
 
 | Forecaster | FMD PR-AUC | FMD gain vs climatology (95% CI) | LSD PR-AUC | LSD gain vs climatology (95% CI) |
 |---|---|---|---|---|
 | Climatology | 0.196 | — | 0.094 | — |
-| **O** | **0.302** | **+0.069 [+0.004, +0.123]** | 0.256 | +0.140 [−0.025, +0.219] |
-| OC | 0.337 | +0.057 [−0.000, +0.172] | 0.214 | +0.116 [+0.017, +0.168] |
+| **O** | **0.302** | **+0.069 [+0.004, +0.123]** | 0.256 | +0.140 [-0.025, +0.219] |
+| OC | 0.338 | +0.059 [+0.002, +0.172] | 0.215 | +0.118 [+0.018, +0.171] |
 
-FMD O passes the rule, but its lower bound (+0.004) is almost zero and O/OC were added after the earlier
-runs on the same data, so treat it as weak evidence. LSD O fails (CI includes zero; also not better than
-persistence), so LSD stays on the baseline for this case.
+FMD O passes the rule, but its lower bound is almost zero and O/OC were added after the earlier runs on the same
+data, so treat it as weak evidence. LSD O fails (CI includes zero; also not better than persistence), so LSD stays
+on the baseline for this case.
 
 ### Alert-rule metrics (alert = probability ≥ 2× the climatological baseline)
 
 | Forecaster | FMD recall | FMD precision | FMD F1 | LSD recall | LSD precision | LSD F1 |
 |---|---|---|---|---|---|---|
-| Persistence (last month) | 0.33 | 0.30 | **0.32** | 0.40 | 0.39 | **0.40** |
-| Climatology | 0 | n/a | 0 | 0 | n/a | 0 |
-| A (known surveillance) | 0.38 | 0.09 | 0.14 | 0.81 | 0.20 | 0.32 |
+| Persistence (last month) | 0.33 | 0.30 | 0.32 | 0.40 | 0.39 | 0.40 |
+| Climatology | 0.00 | n/a | 0.00 | 0.00 | n/a | 0.00 |
+| A (known surveillance) | 0.40 | 0.09 | 0.15 | 0.81 | 0.19 | 0.31 |
 | S | 0.42 | 0.08 | 0.13 | 0.81 | 0.19 | 0.31 |
 | O (own district only) | 0.35 | 0.08 | 0.13 | 0.77 | 0.19 | 0.30 |
 
-Climatology never raises an alert by construction (its relative risk is exactly 1). At this alert rule the
-models find more outbreaks than persistence (higher recall, especially LSD 0.81 vs 0.40) but with much
-lower precision (≈ 1 alert in 5 for LSD, 1 in 12 for FMD), so **persistence has the better F1**. The
-models' advantage is in ranking and calibration (PR-AUC, Brier skill), not in a hard yes/no alert.
+Climatology never raises an alert by construction (its relative risk is exactly 1). At this alert rule the models
+find more outbreaks than persistence (higher recall, especially LSD) but with much lower precision, so
+**persistence has the better F1**. The models' advantage is in ranking and calibration (PR-AUC, Brier skill), not
+in a hard yes/no alert.
+
+### Effect of adding soil wetness (run 7)
+
+`soil_top_t1` (NASA POWER surface soil wetness, previous month) was added to the climate features as the
+proposal's soil-moisture variable. Evaluated with the unchanged rule it made **no measurable difference**:
+
+| Forecaster | FMD PR-AUC before → after | LSD PR-AUC before → after |
+|---|---|---|
+| A | 0.294 → 0.295 | 0.249 → 0.246 |
+| B | 0.208 → 0.211 | 0.113 → 0.098 |
+| OC | 0.337 → 0.338 | 0.214 → 0.215 |
+
+Changes are within ±0.015 PR-AUC and no deployment decision changed. The feature is kept because it is part of
+the proposal's design and is harmless, not because it improved the forecasts.
 
 ## 6. Deployment
 
@@ -173,12 +186,12 @@ shown in the UI as e.g. "80% range 18–47%".
 |---|---|---|---|---|---|
 | FMD | District known, neighbours unknown | O | 2/5 | 3/5 | 0.045 |
 | FMD | Nothing known | climatology | 4/5 | 5/5 | 0.198 |
-| LSD | District and neighbours known | A | 4/5 | 4/5 | 0.096 |
+| LSD | District and neighbours known | A | 4/5 | 4/5 | 0.097 |
 | LSD | Nothing known | climatology | 2/5 | 3/5 | 0.144 |
 
-Reading: the baseline and LSD-A intervals are mostly consistent with what happened; the FMD district-only
-model's interval is **too narrow** (observed rate outside it in 2 of 5 bins raw, 3 of 5 allowing for noise)
-— treat it as a lower bound on the real uncertainty. Intervals were not tuned to improve this result.
+Reading: intervals that are too narrow understate the real uncertainty (observed rate outside the interval in
+several bins) — treat every interval as a lower bound on the true uncertainty. Intervals were not tuned to
+improve this result.
 
 ## 7. Protocol history (all evaluation runs, for transparency)
 
@@ -204,6 +217,9 @@ model's interval is **too narrow** (observed rate outside it in 2 of 5 bins raw,
    known" almost never holds. Added the pre-specified variants O and OC for "district known, neighbours
    unknown" and a new `own_known` deployment tier. Rule unchanged. FMD O passes narrowly; LSD does not.
    No other numbers changed.
+7. **Run 7 (soil wetness):** added `soil_top_t1` (NASA POWER surface soil wetness). All variants were
+   re-evaluated with the unchanged rule: PR-AUC changed by at most 0.015, no deployment decision changed.
+   NDVI (MODIS) was not added: it needs an Earthdata login and was not part of the training data.
 
 ## 8. Limitations
 

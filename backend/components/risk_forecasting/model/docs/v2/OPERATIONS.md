@@ -101,7 +101,8 @@ monthly severity model (model card, limitations). What the system does instead:
   or if DAPH monthly reports are imported.
 - Preliminary CHIRPS values for the latest months can be revised; records keep the `preliminary` source
   note in `fallback_message`.
-- NASA POWER daily data lags ~4 days; running before day 5 may leave weather inputs missing
-  (`input_quality: DEGRADED`).
+- NASA POWER daily data (temperature, humidity, wind and surface soil wetness) lags ~3-4 days; running before day 5
+  may leave weather inputs missing (`input_quality: DEGRADED`). Soil wetness is fetched separately, and if only it is
+  unavailable the other weather inputs are kept (models that need it then fall back to the baseline).
 - Re-train with `scripts/v2/build_dataset.py` + `scripts/v2/train_evaluate.py` when enough new labelled
   months exist (yearly). Promote a new model only if it passes the deployment rule in the model card.
