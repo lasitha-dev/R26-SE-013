@@ -6,10 +6,9 @@ import {
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
 import { describeProvenance, buildRecentObservations, isV2Record } from '../forecastPresentation';
-import { SeverityWatch } from '../SeverityWatch';
+import { SeverityPanel } from '../SeverityPanel';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
-import { SeverityEstimate } from '../SeverityEstimate';
 import {
   listEligibleFollowUpVets,
   issueFollowUp,
@@ -399,8 +398,7 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 </span>
               </div>
               <div>
-                <SeverityEstimate entry={severityFor(severityHistory, disease, district)} />
-                <div className="mt-2"><SeverityWatch recent={buildRecentObservations(storedRecord, liveObservation)} /></div>
+                <SeverityPanel entry={severityFor(severityHistory, disease, district)} recent={buildRecentObservations(storedRecord, liveObservation)} />
               </div>
               <div>
                 <span className="text-slate-500 block">Operational Priority</span>

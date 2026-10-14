@@ -13,8 +13,7 @@ import { TierBasisNote } from '../TierBasisNote';
 import { OutlookCard, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
-import { SeverityEstimate } from '../SeverityEstimate';
-import { SeverityWatch } from '../SeverityWatch';
+import { SeverityPanel } from '../SeverityPanel';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import {
   describePreviousMonth,
@@ -340,8 +339,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
 
         {plain.sentence && <p className="text-sm text-on-surface leading-relaxed">{plain.sentence}</p>}
-        <SeverityEstimate entry={severityFor(severityHistory, diseaseCode, assignedDistrict)} />
-        {recent.length > 0 && <SeverityWatch recent={recent} />}
+        <SeverityPanel recent={recent} entry={severityFor(severityHistory, diseaseCode, assignedDistrict)} />
 
         <details className="border-t border-outline-variant/30 pt-3">
           <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>

@@ -11,8 +11,7 @@ import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
-import { SeverityEstimate } from '../SeverityEstimate';
-import { SeverityWatch } from '../SeverityWatch';
+import { SeverityPanel } from '../SeverityPanel';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { buildRecentObservations } from '../forecastPresentation';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, describeRiskPlain, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
@@ -374,8 +373,10 @@ export function DaphDistrictForecasts({ viewerContext }) {
                     {describeRiskPlain(r, r.district, r.target_month).sentence && (
                       <p className="text-sm text-on-surface">{describeRiskPlain(r, r.district, r.target_month).sentence}</p>
                     )}
-                    <SeverityEstimate entry={severityFor(severityHistory, r.disease, r.district)} />
-                    <SeverityWatch recent={buildRecentObservations(r, liveObservations[`${r.disease}|${r.target_year}-${r.target_month}`]?.[r.district])} />
+                    <SeverityPanel
+                      entry={severityFor(severityHistory, r.disease, r.district)}
+                      recent={buildRecentObservations(r, liveObservations[`${r.disease}|${r.target_year}-${r.target_month}`]?.[r.district])}
+                    />
                   </div>
 
                   <details className="flex-1 text-sm">

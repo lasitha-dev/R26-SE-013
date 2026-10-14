@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { formatChance, formatLikelyRange, monthName } from './forecastPresentation';
-import { SeverityEstimate } from './SeverityEstimate';
+import { SeverityPanel } from './SeverityPanel';
 
 export const OUTLOOK_NOTE =
   "Based on past years only. It does not include this year's cases or weather. An updated forecast follows at the start of the month.";
@@ -46,7 +46,7 @@ export function OutlookCard({ outlook, preview = false, compact = false, title, 
       {describeOutlookEvidence(outlook) && (
         <p className="text-xs text-on-surface-variant">{describeOutlookEvidence(outlook)}</p>
       )}
-      <SeverityEstimate entry={severityEntry} />
+      <SeverityPanel entry={severityEntry} recent={[]} />
       <span className="sr-only">{monthName(outlook.target_month)}</span>
     </div>
   );

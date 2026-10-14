@@ -40,9 +40,8 @@ describe('OutlookCard', () => {
   it('shows the usual severity of the district under the outlook when history exists, and nothing otherwise', () => {
     const entry = { outbreak_years: 4, years: [2017, 2024], typical: 'MEDIUM', probabilities: { LOW: 0.3, MEDIUM: 0.45, HIGH: 0.25 } };
     const { rerender } = render(<OutlookCard outlook={outlook} severityEntry={entry} />);
-    expect(screen.getByText('Severity if an outbreak occurs')).toBeInTheDocument();
-    expect(screen.getByText('MEDIUM')).toBeInTheDocument();
+    expect(screen.getByTestId('severity-level')).toHaveTextContent('MEDIUM');
     rerender(<OutlookCard outlook={outlook} />);
-    expect(screen.queryByText('Severity if an outbreak occurs')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('severity-panel')).not.toBeInTheDocument();
   });
 });

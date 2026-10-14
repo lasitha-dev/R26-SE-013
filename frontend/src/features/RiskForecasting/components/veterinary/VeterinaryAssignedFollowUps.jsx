@@ -6,9 +6,9 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
-import { isV2Record } from '../forecastPresentation';
+import { isV2Record, buildRecentObservations } from '../forecastPresentation';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
-import { SeverityEstimate } from '../SeverityEstimate';
+import { SeverityPanel } from '../SeverityPanel';
 import {
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
@@ -393,7 +393,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
           </div>
           {isV2Record(record) || !record.predicted_severity ? (
             <div className="col-span-2 sm:col-span-3">
-              <SeverityEstimate entry={severityFor(severityHistory, record.disease, record.district)} />
+              <SeverityPanel entry={severityFor(severityHistory, record.disease, record.district)} recent={buildRecentObservations(record)} />
             </div>
           ) : (
             <div>

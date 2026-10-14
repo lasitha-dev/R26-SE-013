@@ -362,11 +362,14 @@ function countsText(observation) {
  */
 export function describeSeverityWatch(recent) {
   const known = (recent || [])
-    .map((r) => ({ label: r.label, level: observedLevel(r.observation), text: countsText(r.observation) }))
+    .map((r) => ({
+      label: r.label, level: observedLevel(r.observation), text: countsText(r.observation),
+      cases: r.observation?.cases ?? r.observation?.verified_cases, deaths: r.observation?.deaths,
+    }))
     .filter((r) => r.level !== null);
-  if (known.length === 0) return { level: null, lines: [], note: 'No app reports for this district yet.' };
+  if (known.length === 0) return { level: null, lines: [], items: [], note: 'No app reports for this district yet.' };
   const level = known.map((r) => r.level).sort((a, b) => WATCH_ORDER.indexOf(b) - WATCH_ORDER.indexOf(a))[0];
-  return { level, lines: known.map((r) => `${r.label}: ${r.text}`), note: null };
+  return { level, lines: known.map((r) => `${r.label}: ${r.text}`), items: known, note: null };
 }
 
 /**
@@ -392,3 +395,32 @@ export const WATCH_BADGE_CLASS = Object.freeze({
   MEDIUM: SEVERITY_BADGE_CLASS.MEDIUM,
   HIGH: SEVERITY_BADGE_CLASS.HIGH,
 });
+
+/**
+ * One severity for the card. It follows the recorded cases and deaths (this month so far and last month) when there
+ * are any; when nothing is recorded it falls back to the usual severity of the district's past outbreaks.
+ * Returns null when there is nothing to show.
+ */
+export function describeSeverityPanel({ recent, entry } = {}) {
+  const watch = describeSeverityWatch(recent);
+  const history = describeSeverityEstimate(entry);
+  let level = null;
+  let basis = null;
+  if (watch.level && watch.level !== 'NONE') { level = watch.level; basis = 'recorded'; }
+  else if (history) { level = history.level; basis = 'history'; }
+  else if (watch.level === 'NONE') { level = 'NONE'; basis = 'recorded'; }
+  if (!level) return null;
+  const district = entry?.district || 'this district';
+  const years = Array.isArray(entry?.years) ? `${entry.years[0]}\u2013${entry.years[1]}` : '';
+  return {
+    level,
+    basis,
+    basisText: basis === 'recorded'
+      ? 'Based on cases and deaths recorded in the application.'
+      : `Based on past outbreaks in ${district}${years ? `, ${years}` : ''}.`,
+    items: watch.items,
+    noReports: Array.isArray(recent) && recent.length > 0 ? watch.note : null,
+    historyLine: history ? `Past outbreaks in ${district}: usually ${history.level}` : null,
+    historyCounts: entry?.counts ? `${entry.counts.LOW} low \u00b7 ${entry.counts.MEDIUM} medium \u00b7 ${entry.counts.HIGH} high${years ? ` (${years})` : ''}` : null,
+  };
+}

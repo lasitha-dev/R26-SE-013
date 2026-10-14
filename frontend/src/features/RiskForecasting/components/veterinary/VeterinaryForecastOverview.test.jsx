@@ -184,7 +184,7 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     await waitFor(() => expect(screen.getByText('about 31%')).toBeInTheDocument());
     expect(screen.getByText('likely between 18% and 47%')).toBeInTheDocument();
     expect(screen.getByText('MEDIUM RISK')).toBeInTheDocument();
-    expect(screen.getByText('December 2024: 4 cases, 0 deaths')).toBeInTheDocument();
+    expect(screen.getAllByTestId('severity-recorded').some((c) => /December 2024/.test(c.textContent) && /4 cases/.test(c.textContent))).toBe(true);
     // details (collapsed by default, still in the document)
     expect(screen.getByText('2.4× usual for this district and month')).toBeInTheDocument();
     expect(screen.getByText('80% range 18–47%')).toBeInTheDocument();
@@ -291,19 +291,23 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.queryByText(/Chance of an outbreak in/)).not.toBeInTheDocument();
   });
 
-  it('shows the usual severity of the district if an outbreak occurs, with the shares, and no invented severity otherwise', async () => {
+  const history = { diseases: { FMD: { years: [2017, 2024], districts: { Anuradhapura: {
+    outbreak_years: 4, counts: { LOW: 1, MEDIUM: 2, HIGH: 1 }, probabilities: { LOW: 0.3, MEDIUM: 0.45, HIGH: 0.25 }, typical: 'MEDIUM' } } } } };
+
+  it('shows one severity, from past outbreaks when nothing is recorded, and nothing for a disease without history', async () => {
     workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD'), forecast('LSD')]));
-    workflowApi.getSeverityHistory.mockResolvedValue({ diseases: { FMD: { years: [2017, 2024], districts: { Anuradhapura: {
-      outbreak_years: 4, counts: { LOW: 1, MEDIUM: 2, HIGH: 1 }, probabilities: { LOW: 0.3, MEDIUM: 0.45, HIGH: 0.25 }, typical: 'MEDIUM' } } } } });
+    workflowApi.getSeverityHistory.mockResolvedValue(history);
     render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
 
-    await waitFor(() => expect(screen.getByText('Low 30% · Medium 45% · High 25%')).toBeInTheDocument());
-    expect(screen.getAllByText('Severity if an outbreak occurs')).toHaveLength(1);   // LSD has no history for this district
-    expect(screen.getByText('Based on 4 past outbreak years (2017–2024).')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('severity-panel')).toBeInTheDocument());
+    expect(screen.getAllByTestId('severity-panel')).toHaveLength(1);   // LSD has no history for this district
+    expect(screen.getByTestId('severity-level')).toHaveTextContent('MEDIUM');
+    expect(screen.getByText('Based on past outbreaks in Anuradhapura, 2017–2024.')).toBeInTheDocument();
+    expect(screen.getByTestId('severity-history')).toHaveTextContent('Past outbreaks in Anuradhapura: usually MEDIUM');
     expect(screen.queryByText(/Predicted Severity|MODERATE|N\/A/)).not.toBeInTheDocument();
   });
 
-  it('severity watch follows the recorded counts: it changes when more cases and deaths are recorded', async () => {
+  it('the severity follows the recorded counts: it changes when more cases and deaths are recorded', async () => {
     const withPrevious = forecast('FMD', {
       target_year: 2025, target_month: 1,
       previous_month_observation: { period: '2024-12', status: 'CONFIRMED_OUTBREAK', verified_cases: 2, deaths: 0, observed_severity: 'LOW' },
@@ -311,23 +315,26 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     workflowApi.listForecastRecords.mockResolvedValue(respond([withPrevious]));
     workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', cases: 3, deaths: 0 } } });
     const first = render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
-    await waitFor(() => expect(screen.getByTestId('severity-watch')).toHaveTextContent('LOW'));
-    expect(screen.getByText('January 2025: 3 cases, 0 deaths')).toBeInTheDocument();
-    expect(screen.getByText('December 2024: 2 cases, 0 deaths')).toBeInTheDocument();
-    expect(screen.getByText(/Rule-based indicator from pilot records; not a model forecast\./)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('severity-level')).toHaveTextContent('LOW'));
+    const chips = screen.getAllByTestId('severity-recorded').map((c) => c.textContent);
+    expect(chips.some((t) => /January 2025/.test(t) && /3 cases/.test(t))).toBe(true);
+    expect(chips.some((t) => /December 2024/.test(t) && /2 cases/.test(t))).toBe(true);
+    expect(screen.getByText('Based on cases and deaths recorded in the application.')).toBeInTheDocument();
     first.unmount();
 
     workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'CONFIRMED_OUTBREAK', cases: 12, deaths: 2 } } });
     render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
-    await waitFor(() => expect(screen.getByTestId('severity-watch')).toHaveTextContent('HIGH'));
-    expect(screen.getByText('January 2025: 12 cases, 2 deaths')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('severity-level')).toHaveTextContent('HIGH'));
+    expect(screen.getAllByTestId('severity-recorded').some((c) => /January 2025/.test(c.textContent) && /12 cases/.test(c.textContent))).toBe(true);
   });
 
-  it('shows "No app reports" instead of a level when the district is not covered', async () => {
+  it('says there are no app reports and falls back to the past outbreaks when the district is not covered', async () => {
     workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD', { previous_month_observation: { period: '2024-12', status: 'NO_SURVEILLANCE_COVERAGE', verified_cases: null, deaths: null } })]));
     workflowApi.getActiveSurveillance.mockResolvedValue({ districts: { Anuradhapura: { status: 'NO_SURVEILLANCE_COVERAGE', cases: null, deaths: null } } });
+    workflowApi.getSeverityHistory.mockResolvedValue(history);
     render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
     await waitFor(() => expect(screen.getByText('No app reports for this district yet.')).toBeInTheDocument());
-    expect(screen.getByTestId('severity-watch')).not.toHaveTextContent(/LOW|MEDIUM|HIGH/);
+    expect(screen.getByTestId('severity-level')).toHaveTextContent('MEDIUM');
+    expect(screen.getByText('Based on past outbreaks in Anuradhapura, 2017–2024.')).toBeInTheDocument();
   });
 });

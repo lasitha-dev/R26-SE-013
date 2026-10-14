@@ -720,7 +720,7 @@ describe('DaphNationalForecastOverview Component', () => {
         const row = screen.getAllByText('Jaffna').map((cell) => cell.closest('tr')).find((tr) => within(tr).queryByText('LSD'));
         expect(within(row).getByText('Exploratory model')).toBeInTheDocument();
         expect(within(row).getByText('2.6× usual')).toBeInTheDocument();
-        expect(within(row).getByTestId('severity-estimate-compact')).toHaveTextContent('MEDIUM');
+        expect(within(row).getByTestId('severity-badge')).toHaveTextContent('MEDIUM');
         expect(within(row).queryByText(/MODERATE/)).not.toBeInTheDocument();
         expect(within(row).queryByText('90.0%')).not.toBeInTheDocument();
       });

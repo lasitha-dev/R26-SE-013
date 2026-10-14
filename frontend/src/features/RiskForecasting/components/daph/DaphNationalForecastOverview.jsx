@@ -23,8 +23,9 @@ import { TierBasisNote } from '../TierBasisNote';
 import { OutlookCard } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
-import { SeverityEstimate } from '../SeverityEstimate';
-import { describeLastMonthPlain } from '../forecastPresentation';
+import { SeverityBadge, SeverityPanel } from '../SeverityPanel';
+import { buildRecentObservations } from '../forecastPresentation';
+import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, nextPeriod, periodLabel, selectOfficialRecords } from '../forecastPresentation';
 
 const periodKey = (p) => p.year * 12 + p.month;
@@ -88,6 +89,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
   const [storedPeriods, setStoredPeriods] = useState([]);   // months that have a stored forecast
   const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  const [liveObservations, setLiveObservations] = useState({});   // disease -> district -> recorded counts for the month on screen
   const [advisories, setAdvisories] = useState([]);
   const [notificationBatches, setNotificationBatches] = useState([]);
 
@@ -121,6 +123,19 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!monthHasStarted(Number(selectedYear), Number(selectedMonth))) {
+      setLiveObservations({});
+      return undefined;
+    }
+    let active = true;
+    Promise.all(['FMD', 'LSD'].map((disease) => loadObservations({ disease, year: selectedYear, month: selectedMonth })
+      .then((districts) => [disease, districts]))).then((pairs) => {
+      if (active) setLiveObservations(Object.fromEntries(pairs));
+    });
+    return () => { active = false; };
+  }, [selectedYear, selectedMonth]);
 
   // Months that have a stored forecast (for the Month list). Loaded once, after the table's own request, and not awaited.
   const periodsRequested = useRef(false);
@@ -1009,7 +1024,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   <th className="py-3 px-3">Target Period</th>
                   <th className="py-3 px-[#10b981] text-right">Probability</th>
                   <th className="py-3 px-3 text-center">Risk Tier</th>
-                  <th className="py-3 px-3 text-center" title="Usual severity of this district's past outbreak years">Severity if outbreak</th>
+                  <th className="py-3 px-3 text-center" title="From recorded cases and deaths; if none are recorded, from the district's past outbreaks">Severity</th>
                   <th className="py-3 px-3 text-center">Advisory Coverage</th>
                   <th className="py-3 px-3 text-center">Simulated Batch</th>
                   <th className="py-3 px-3 text-center">Follow-up</th>
@@ -1096,7 +1111,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-3 px-3 text-center" title={describeLastMonthPlain(row.record?.previous_month_observation) || undefined}><SeverityEstimate compact entry={severityFor(severityHistory, row.disease, row.district)} /></td>
+                      <td className="py-3 px-3 text-center"><SeverityBadge entry={severityFor(severityHistory, row.disease, row.district)} recent={row.record ? buildRecentObservations(row.record, liveObservations[row.disease]?.[row.district]) : []} /></td>
 
                       {/* Advisory Coverage */}
                       <td className="py-3 px-3 text-center">
@@ -1287,10 +1302,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         <TierBasisNote record={selectedDetailRow.record} className="block text-[11px] text-slate-400 mt-1" />
                       </div>
                       <div>
-                        <SeverityEstimate entry={severityFor(severityHistory, selectedDetailRow.disease, selectedDetailRow.district)} />
-                        {describeLastMonthPlain(selectedDetailRow.record.previous_month_observation) && (
-                          <span className="block text-[11px] text-slate-400 mt-1">{describeLastMonthPlain(selectedDetailRow.record.previous_month_observation)}</span>
-                        )}
+                        <SeverityPanel
+                          entry={severityFor(severityHistory, selectedDetailRow.disease, selectedDetailRow.district)}
+                          recent={buildRecentObservations(selectedDetailRow.record, liveObservations[selectedDetailRow.disease]?.[selectedDetailRow.district])}
+                        />
                       </div>
                       <div>
                         <span className="text-slate-500 block">Lifecycle Status</span>
