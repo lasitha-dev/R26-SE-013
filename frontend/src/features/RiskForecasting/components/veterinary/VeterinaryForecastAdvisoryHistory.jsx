@@ -730,11 +730,6 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                       ? <span>Source: <strong className="text-slate-300">{describeProvenance(selectedForecastRecord)}</strong></span>
                       : <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>}
                   </div>
-
-                  <div className="p-2.5 bg-slate-950/80 rounded border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
-                    <span className="material-symbols-outlined text-amber-400 text-sm flex-shrink-0 mt-0.5">info</span>
-                    <span>{selectedForecastRecord.disclaimer || 'Scientific decision-support output. Model forecasts do not constitute confirmed clinical diagnoses.'}</span>
-                  </div>
                 </div>
               </div>
 

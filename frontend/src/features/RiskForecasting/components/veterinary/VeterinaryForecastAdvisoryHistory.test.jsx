@@ -401,11 +401,12 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       ).toBeInTheDocument();
     });
 
-    it('displays scientific disclaimer and forecast-not-diagnosis guardrail', async () => {
+    it('keeps the decision record free of the long disclaimer box, and never presents a forecast as a diagnosis', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      expect(
-        await screen.findByText(/Scientific decision-support output\. Model forecasts do not constitute confirmed clinical diagnoses\./i)
-      ).toBeInTheDocument();
+      await screen.findByText('Forecast Decision Record');
+      expect(screen.queryByText(/Scientific decision-support output/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/confirmed clinical diagnoses|See the v2 model card/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Confirmed Diagnosis/i)).not.toBeInTheDocument();
     });
 
     it('does not render chart or trend UI elements in history workspace', async () => {
