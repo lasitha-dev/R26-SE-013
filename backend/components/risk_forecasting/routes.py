@@ -1496,6 +1496,12 @@ def get_seasonal_outlook_service():
     return SeasonalOutlookService(repository_getter=get_outlook_repository)
 
 
+@router.get("/v2/severity-history", summary="District severity history: class mix of past outbreak years (descriptive, read-only; no database)")
+def get_severity_history():
+    from components.risk_forecasting.pipeline.severity_history import summary
+    return summary()
+
+
 @router.get("/v2/outlooks", summary="Issued Seasonal Outlooks (read-only; never creates a collection or index)")
 def list_seasonal_outlooks(
     disease: Optional[Literal["FMD", "LSD"]] = Query(None),

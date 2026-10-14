@@ -116,8 +116,7 @@ export function describePreviousMonth(observation) {
   const [year, month] = String(observation.period || '').split('-').map(Number);
   const period = year && month ? `${MONTH_SHORT[month - 1]} ${year}` : 'Previous month';
   if (typeof observation.verified_cases === 'number' && typeof observation.deaths === 'number') {
-    const severity = observation.observed_severity ? ` · ${observation.observed_severity}` : '';
-    return `${period}: ${observation.verified_cases} verified case${observation.verified_cases === 1 ? '' : 's'}, ${observation.deaths} death${observation.deaths === 1 ? '' : 's'}${severity}`;
+    return `${period}: ${observation.verified_cases} verified case${observation.verified_cases === 1 ? '' : 's'}, ${observation.deaths} death${observation.deaths === 1 ? '' : 's'}`;
   }
   return `${period}: ${SURVEILLANCE_STATUS_TEXT[observation.status] || 'status unknown'}`;
 }
@@ -307,3 +306,26 @@ export function describeLastMonthPlain(observation) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   return `Last month: ${plural(cases, 'case')} and ${plural(deaths, 'death')} confirmed.`;
 }
+
+export const SEVERITY_CLASSES = Object.freeze(['LOW', 'MEDIUM', 'HIGH']);
+
+/**
+ * "Severity if an outbreak occurs" from a district's past outbreak years (annual records), in plain words.
+ * Returns null when there is no history (a district without recorded outbreak years is unknown, not LOW).
+ */
+export function describeSeverityEstimate(entry) {
+  if (!entry || !entry.probabilities || !SEVERITY_CLASSES.includes(entry.typical)) return null;
+  const years = entry.outbreak_years;
+  const span = Array.isArray(entry.years) ? `${entry.years[0]}–${entry.years[1]}` : '';
+  return {
+    level: entry.typical,
+    percents: SEVERITY_CLASSES.map((c) => ({ level: c, text: `${Math.round((entry.probabilities[c] || 0) * 100)}%` })),
+    evidence: `Based on ${years} past outbreak year${years === 1 ? '' : 's'}${span ? ` (${span})` : ''}.`,
+  };
+}
+
+export const SEVERITY_BADGE_CLASS = Object.freeze({
+  LOW: 'bg-emerald-950/70 text-emerald-300 border-emerald-800',
+  MEDIUM: 'bg-amber-950/70 text-amber-300 border-amber-800',
+  HIGH: 'bg-red-950/70 text-red-300 border-red-800',
+});

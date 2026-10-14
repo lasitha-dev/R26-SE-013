@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { DaphNationalForecastOverview } from './DaphNationalForecastOverview';
+import { resetSeverityHistoryCache } from '../../services/severityHistoryLoader';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 import * as api from '../../services/riskForecastingWorkflowApi';
 
@@ -9,6 +10,7 @@ import * as api from '../../services/riskForecastingWorkflowApi';
 vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listForecastDistricts: vi.fn(),
   listForecastRecords: vi.fn(),
+  getSeverityHistory: vi.fn(),
   listAdvisories: vi.fn(),
   listNotificationBatches: vi.fn(),
   generateV2Forecasts: vi.fn(),
@@ -143,6 +145,8 @@ describe('DaphNationalForecastOverview Component', () => {
   beforeEach(() => {
     api.listForecastDistricts.mockReset().mockResolvedValue(mockDistrictsData);
     api.listForecastRecords.mockReset().mockResolvedValue(mockRecordsData);
+    resetSeverityHistoryCache();
+    api.getSeverityHistory.mockReset().mockResolvedValue({ diseases: {} });
     api.listAdvisories.mockReset().mockResolvedValue(mockAdvisoriesData);
     api.listNotificationBatches.mockReset().mockResolvedValue(mockBatchesData);
     api.getActiveSurveillance.mockReset().mockResolvedValue({ disease: 'FMD', period: '2026-10', districts: {} });
@@ -708,13 +712,16 @@ describe('DaphNationalForecastOverview Component', () => {
 
     it('shows v2 provenance, relative risk and observed severity, and hides superseded records', async () => {
       api.listForecastRecords.mockResolvedValueOnce({ total: 2, records: [v2Record, supersededRecord] });
+      api.getSeverityHistory.mockResolvedValue({ diseases: { LSD: { years: [2020, 2024], districts: { Jaffna: {
+        outbreak_years: 3, counts: { LOW: 0, MEDIUM: 2, HIGH: 1 }, probabilities: { LOW: 0.1, MEDIUM: 0.6, HIGH: 0.3 }, typical: 'MEDIUM' } } } } });
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
       await waitFor(() => {
         const row = screen.getAllByText('Jaffna').map((cell) => cell.closest('tr')).find((tr) => within(tr).queryByText('LSD'));
         expect(within(row).getByText('Exploratory model')).toBeInTheDocument();
         expect(within(row).getByText('2.6× usual')).toBeInTheDocument();
-        expect(within(row).getByText('Prev. month: MODERATE')).toBeInTheDocument();
+        expect(within(row).getByTestId('severity-estimate-compact')).toHaveTextContent('MEDIUM');
+        expect(within(row).queryByText(/MODERATE/)).not.toBeInTheDocument();
         expect(within(row).queryByText('90.0%')).not.toBeInTheDocument();
       });
     });

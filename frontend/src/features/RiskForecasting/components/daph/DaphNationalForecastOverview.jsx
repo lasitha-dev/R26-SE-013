@@ -22,6 +22,9 @@ import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
 import { OutlookCard } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityEstimate } from '../SeverityEstimate';
+import { describeLastMonthPlain } from '../forecastPresentation';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, nextPeriod, periodLabel, selectOfficialRecords } from '../forecastPresentation';
 
 const periodKey = (p) => p.year * 12 + p.month;
@@ -39,16 +42,6 @@ const SUPERSEDE_PROTECTION_TEXT = Object.freeze({
   WORKFLOW_STATUS: 'already used in a workflow',
   DEPENDENCY_CHECK_UNAVAILABLE: 'dependency check unavailable',
 });
-
-function severityDisplay(row) {
-  // v2 forecasts do not predict severity; they report the severity observed last month.
-  if (!row.record || !isV2Record(row.record)) return { text: row.predicted_severity, title: undefined };
-  const observation = row.record.previous_month_observation;
-  return {
-    text: observation?.observed_severity ? `Prev. month: ${observation.observed_severity}` : '—',
-    title: describePreviousMonth(observation) || undefined,
-  };
-}
 
 function getMonthNameFallback(monthNum) {
   const months = [
@@ -94,6 +87,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [allRecords, setAllRecords] = useState([]);
   const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
   const [storedPeriods, setStoredPeriods] = useState([]);   // months that have a stored forecast
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
   const [advisories, setAdvisories] = useState([]);
   const [notificationBatches, setNotificationBatches] = useState([]);
 
@@ -122,6 +116,12 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const abortControllerRef = useRef(null);
 
   // 3. Data Fetching Handler
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
+
   // Months that have a stored forecast (for the Month list). Loaded once, after the table's own request, and not awaited.
   const periodsRequested = useRef(false);
   const loadStoredPeriods = useCallback(async () => {
@@ -1009,7 +1009,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   <th className="py-3 px-3">Target Period</th>
                   <th className="py-3 px-[#10b981] text-right">Probability</th>
                   <th className="py-3 px-3 text-center">Risk Tier</th>
-                  <th className="py-3 px-3 text-center">Severity</th>
+                  <th className="py-3 px-3 text-center" title="Usual severity of this district's past outbreak years">Severity if outbreak</th>
                   <th className="py-3 px-3 text-center">Advisory Coverage</th>
                   <th className="py-3 px-3 text-center">Simulated Batch</th>
                   <th className="py-3 px-3 text-center">Follow-up</th>
@@ -1096,7 +1096,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-3 px-3 text-center font-mono text-slate-300" title={severityDisplay(row).title}>{severityDisplay(row).text}</td>
+                      <td className="py-3 px-3 text-center" title={describeLastMonthPlain(row.record?.previous_month_observation) || undefined}><SeverityEstimate compact entry={severityFor(severityHistory, row.disease, row.district)} /></td>
 
                       {/* Advisory Coverage */}
                       <td className="py-3 px-3 text-center">
@@ -1287,8 +1287,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         <TierBasisNote record={selectedDetailRow.record} className="block text-[11px] text-slate-400 mt-1" />
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Predicted Severity</span>
-                        <span className="font-semibold text-white">{selectedDetailRow.record.predicted_severity || 'N/A'}</span>
+                        <SeverityEstimate entry={severityFor(severityHistory, selectedDetailRow.disease, selectedDetailRow.district)} />
+                        {describeLastMonthPlain(selectedDetailRow.record.previous_month_observation) && (
+                          <span className="block text-[11px] text-slate-400 mt-1">{describeLastMonthPlain(selectedDetailRow.record.previous_month_observation)}</span>
+                        )}
                       </div>
                       <div>
                         <span className="text-slate-500 block">Lifecycle Status</span>

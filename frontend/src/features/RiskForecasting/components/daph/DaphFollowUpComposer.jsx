@@ -5,7 +5,9 @@ import {
   validateViewerContext,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
-import { describeProvenance } from '../forecastPresentation';
+import { describeProvenance, describeLastMonthPlain, isV2Record } from '../forecastPresentation';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityEstimate } from '../SeverityEstimate';
 import {
   listEligibleFollowUpVets,
   issueFollowUp,
@@ -103,6 +105,13 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   // AbortController ref for race condition safeguarding
   const abortControllerRef = useRef(null);
 
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
+
   // 3. Extract Canonical Forecast Snapshot Properties
   const rawForecastId = forecastRecord?.forecast_id || forecastRecord?.id || '';
   const forecastId = String(rawForecastId).trim();
@@ -113,8 +122,9 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
   const targetMonth = forecastRecord?.target_month ?? null;
   const riskLevel = forecastRecord?.risk_level || 'LOW';
   const probability = forecastRecord?.probability ?? null;
-  const predictedSeverity = forecastRecord?.predicted_severity || 'N/A';
   const dataQuality = forecastRecord?.data_quality || 'N/A';
+  // The overview passes a table row that wraps the stored record; show the stored record's own fields.
+  const storedRecord = forecastRecord?.record && typeof forecastRecord.record === 'object' ? { ...forecastRecord, ...forecastRecord.record } : forecastRecord;
   const fallbackApplied = forecastRecord?.fallback_applied === true;
   const forecastStatus = forecastRecord?.status || 'OFFICIAL';
 
@@ -378,8 +388,10 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">Predicted Severity</span>
-                <span className="font-medium text-slate-200">{predictedSeverity}</span>
+                <SeverityEstimate entry={severityFor(severityHistory, disease, district)} />
+                {describeLastMonthPlain(storedRecord?.previous_month_observation) && (
+                  <span className="block text-[11px] text-slate-400 mt-1">{describeLastMonthPlain(storedRecord.previous_month_observation)}</span>
+                )}
               </div>
               <div>
                 <span className="text-slate-500 block">Operational Priority</span>
@@ -387,12 +399,12 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
               </div>
               <div>
                 <span className="text-slate-500 block">Data Quality</span>
-                <span className="font-mono text-slate-300">{dataQuality}</span>
+                <span className="font-mono text-slate-300">{isV2Record(storedRecord) ? 'Current model' : dataQuality}</span>
               </div>
               <div>
                 <span className="text-slate-500 block">Provenance</span>
                 <span className="font-medium text-slate-300">
-                  {describeProvenance(forecastRecord)}
+                  {describeProvenance(storedRecord)}
                 </span>
               </div>
             </div>

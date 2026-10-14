@@ -12,6 +12,8 @@ import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
 import { OutlookCard, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityEstimate } from '../SeverityEstimate';
 import {
   describeLastMonthPlain,
   describePreviousMonth,
@@ -142,6 +144,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
   const [outlookPeriod, setOutlookPeriod] = useState(null);
   const [earlierOutlooks, setEarlierOutlooks] = useState(NO_OUTLOOK);   // outlook issued earlier for the month on screen
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
 
   const [explanationData, setExplanationData] = useState(null);
   const [explanationError, setExplanationError] = useState(null);
@@ -184,6 +187,12 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       fetchOverviewRecords();
     }
   }, [isAccessAllowed, fetchOverviewRecords]);
+
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
 
   // 4. The outlook is for the month after the one on screen (or the default next month when nothing is issued yet)
   useEffect(() => {
@@ -307,6 +316,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
 
         {plain.sentence && <p className="text-sm text-on-surface leading-relaxed">{plain.sentence}</p>}
+        <SeverityEstimate entry={severityFor(severityHistory, diseaseCode, assignedDistrict)} />
         {lastMonth && <p className="text-xs text-on-surface-variant">{lastMonth}</p>}
 
         <details className="border-t border-outline-variant/30 pt-3">

@@ -10,6 +10,8 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityEstimate } from '../SeverityEstimate';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, describeRiskPlain, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
@@ -66,6 +68,13 @@ export function DaphDistrictForecasts({ viewerContext }) {
     authorizedDistricts.includes('ALL_DISTRICTS');
 
   const [allRecords, setAllRecords] = useState([]);
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
   const [canonicalDistricts, setCanonicalDistricts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -345,6 +354,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
                     {describeRiskPlain(r, r.district, r.target_month).sentence && (
                       <p className="text-sm text-on-surface">{describeRiskPlain(r, r.district, r.target_month).sentence}</p>
                     )}
+                    <SeverityEstimate entry={severityFor(severityHistory, r.disease, r.district)} />
                   </div>
 
                   <details className="flex-1 text-sm">

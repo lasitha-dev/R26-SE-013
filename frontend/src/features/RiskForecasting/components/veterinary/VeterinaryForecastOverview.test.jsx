@@ -9,6 +9,7 @@ vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listForecastRecords: vi.fn(),
   listOutlooks: vi.fn(),
   previewOutlooks: vi.fn(),
+  getSeverityHistory: vi.fn(),
 }));
 
 const respond = (records) => ({ total_count: records.length, limit: 200, offset: 0, records });
@@ -285,5 +286,17 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     fireEvent.change(select, { target: { value: outlookOption.value } });
     await waitFor(() => expect(screen.getByRole('heading', { name: /^Outlook for / })).toBeInTheDocument());
     expect(screen.queryByText(/Chance of an outbreak in/)).not.toBeInTheDocument();
+  });
+
+  it('shows the usual severity of the district if an outbreak occurs, with the shares, and no invented severity otherwise', async () => {
+    workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD'), forecast('LSD')]));
+    workflowApi.getSeverityHistory.mockResolvedValue({ diseases: { FMD: { years: [2017, 2024], districts: { Anuradhapura: {
+      outbreak_years: 4, counts: { LOW: 1, MEDIUM: 2, HIGH: 1 }, probabilities: { LOW: 0.3, MEDIUM: 0.45, HIGH: 0.25 }, typical: 'MEDIUM' } } } } });
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+    await waitFor(() => expect(screen.getByText('Low 30% · Medium 45% · High 25%')).toBeInTheDocument());
+    expect(screen.getAllByText('Severity if an outbreak occurs')).toHaveLength(1);   // LSD has no history for this district
+    expect(screen.getByText('Based on 4 past outbreak years (2017–2024).')).toBeInTheDocument();
+    expect(screen.queryByText(/Predicted Severity|MODERATE|N\/A/)).not.toBeInTheDocument();
   });
 });

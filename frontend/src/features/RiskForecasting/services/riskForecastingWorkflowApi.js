@@ -1126,3 +1126,11 @@ export async function previewOutlooks(filters = {}, options = {}) {
   const queryString = buildQueryString({ disease: filters.disease, district: filters.district });
   return requestWorkflowApi(`/api/v1/risk-forecasting/v2/outlooks/preview${queryString}`, { method: 'GET', signal: options.signal });
 }
+
+/**
+ * District severity history (descriptive, read-only; no database).
+ * GET /api/v1/risk-forecasting/v2/severity-history
+ */
+export async function getSeverityHistory(options = {}) {
+  return requestWorkflowApi('/api/v1/risk-forecasting/v2/severity-history', { method: 'GET', signal: options.signal });
+}

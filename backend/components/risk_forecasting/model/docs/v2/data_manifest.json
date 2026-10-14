@@ -244,5 +244,11 @@
    }
   },
   "evaluation": "docs/v2/severity_evaluation.json (script: scripts/v2/evaluate_severity.py)"
+ },
+ "severity_history_artifact": {
+  "file": "models/v2/severity_history.json",
+  "sha256": "4aaa2c4c01e9c7c1f59880bc2053bc7fa9a379a1ea6aa2c47afb044ca5128ea7",
+  "built_by": "scripts/v2/build_severity_history.py",
+  "inputs": "stage2_severity_inputs.files"
  }
 }

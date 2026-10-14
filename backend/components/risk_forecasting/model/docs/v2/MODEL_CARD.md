@@ -267,6 +267,13 @@ issued on or after day 5 with `v2.1`.
     not comparable with these labels. `GET /v2/performance` reports `stage2_readiness`; Stage 2 should be
     re-evaluated with the same rules once enough monthly counts exist. Until then the application shows the
     previous month's observed cases and deaths as an observation, not as a severity prediction.
+- **Severity shown in the application.** Each forecast card shows "Severity if an outbreak occurs": the most likely
+  class of the district's recorded outbreak years (annual DAPH labels), with the three class shares and the number of
+  years behind it (`models/v2/severity_history.json`, built by `scripts/v2/build_severity_history.py`, served by
+  `GET /v2/severity-history`). District shares are shrunk toward the national shares (k = 2) and classes within five
+  percentage points of the most likely one show the more severe class. This is a descriptive estimate from past annual
+  records, not a model forecast and not a monthly figure; a district with no recorded outbreak year shows nothing.
+  The previous month's verified cases and deaths are shown separately, without the derived severity label.
 - Label semantics are undocumented; FMD 2024 labels are excluded.
 - Operational surveillance (app verified cases/deaths from registered farms) is a different signal from
   the curated labels used in training and currently covers few districts.
