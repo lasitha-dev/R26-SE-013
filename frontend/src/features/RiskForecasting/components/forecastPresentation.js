@@ -57,9 +57,9 @@ export function isBaselineRecord(record) {
 }
 
 export const BASELINE_BADGE = Object.freeze({
-  label: 'BASELINE',
+  label: 'USUAL LEVEL',
   class: 'bg-slate-800 text-slate-300 border-slate-600/40',
-  title: 'Seasonal baseline for this district and month. No elevated signal was assessed; this is not a model forecast.',
+  title: 'The usual level for this district and month. No extra warning signs were found; this is not a model forecast.',
 });
 
 /** Provenance text for lists and detail panels: honest for v2 records, unchanged wording for v1. */
@@ -211,4 +211,99 @@ export function selectOfficialRecords(records) {
     groups.get(key).push(record);
   });
   return [...groups.values()].map(pickOfficialRecord);
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+export function monthName(month) {
+  return MONTHS[Number(month) - 1] || '';
+}
+
+/** "October 2026". */
+export function periodLabel(year, month) {
+  return `${monthName(month)} ${year}`.trim();
+}
+
+/** The month after (year, month). */
+export function nextPeriod(year, month) {
+  return Number(month) === 12 ? { year: Number(year) + 1, month: 1 } : { year: Number(year), month: Number(month) + 1 };
+}
+
+function wholePercent(fraction) {
+  const pct = fraction * 100;
+  if (pct < 1) return 'less than 1%';
+  return `${Math.round(pct)}%`;
+}
+
+/** "about 30%": the chance as ordinary people read it (no decimals, no jargon). */
+export function formatChance(probability) {
+  if (typeof probability !== 'number' || Number.isNaN(probability)) return null;
+  return probability * 100 < 1 ? 'less than 1%' : `about ${Math.round(probability * 100)}%`;
+}
+
+/** "likely between 18% and 47%" or null when the record has no range. */
+export function formatLikelyRange(record) {
+  const { probability_low: low, probability_high: high } = record || {};
+  if (typeof low !== 'number' || typeof high !== 'number') return null;
+  const lo = Math.round(low * 100);
+  const hi = Math.round(high * 100);
+  if (lo === hi) return null;
+  return `likely between ${lo}% and ${hi}%`;
+}
+
+/**
+ * Plain-language wording for a stored v2 or v1 forecast: the badge people see and one sentence on what it means.
+ * Thresholds are unchanged; only the words are.
+ */
+export function describeRiskPlain(record, district, month) {
+  const where = district ? `${district}` : 'this district';
+  const when = month ? ` in ${monthName(month)}` : ' at this time of year';
+  if (isBaselineRecord(record)) {
+    return {
+      level: 'USUAL',
+      label: 'USUAL LEVEL',
+      class: 'bg-slate-700/40 text-slate-200 border-slate-500/40',
+      sentence: `This is the usual level for ${where}${when}. No extra warning signs at the moment.`,
+    };
+  }
+  switch (String(record?.risk_level || '').toUpperCase()) {
+    case 'HIGH':
+      return {
+        level: 'HIGH',
+        label: 'HIGH RISK',
+        class: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+        sentence: `Higher than usual for ${where}${when}. Check your animals closely and follow veterinary advice.`,
+      };
+    case 'MEDIUM':
+      return {
+        level: 'MEDIUM',
+        label: 'MEDIUM RISK',
+        class: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        sentence: `A little higher than usual for ${where}${when}. Stay alert.`,
+      };
+    case 'LOW':
+      return {
+        level: 'LOW',
+        label: 'LOW RISK',
+        class: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        sentence: `Not higher than usual for ${where}${when}. Continue routine care.`,
+      };
+    default:
+      return {
+        level: 'UNKNOWN',
+        label: String(record?.risk_level || 'UNKNOWN').toUpperCase(),
+        class: 'bg-surface-container-high text-on-surface-variant border-outline-variant/40',
+        sentence: '',
+      };
+  }
+}
+
+/** "Last month: 1 case and 2 deaths confirmed." or null when the counts are unknown. */
+export function describeLastMonthPlain(observation) {
+  const cases = observation?.verified_cases;
+  const deaths = observation?.deaths;
+  if (typeof cases !== 'number' || typeof deaths !== 'number') return null;
+  if (cases === 0 && deaths === 0) return 'Last month: no cases or deaths reported.';
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  return `Last month: ${plural(cases, 'case')} and ${plural(deaths, 'death')} confirmed.`;
 }

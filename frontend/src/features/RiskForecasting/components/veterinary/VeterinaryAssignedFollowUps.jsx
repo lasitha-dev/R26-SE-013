@@ -682,7 +682,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
               </span>
               <h3 className="text-base font-semibold text-on-surface">No Assigned Follow-Ups Found</h3>
               <p className="max-w-md mx-auto text-xs text-on-surface-variant/80">
-                No DAPH operational follow-up tasks match the selected filter criteria for officer {actorId}.
+                You have no follow-up tasks that match these filters.
               </p>
             </div>
           ) : (

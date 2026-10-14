@@ -4,6 +4,12 @@ import {
   describeForecastSource,
   describeProvenance,
   describeTierBasis,
+  describeLastMonthPlain,
+  describeRiskPlain,
+  formatChance,
+  formatLikelyRange,
+  nextPeriod,
+  periodLabel,
   formatProbabilityInterval,
   pickOfficialRecord,
   selectOfficialRecords,
@@ -34,7 +40,7 @@ describe('baseline records', () => {
   });
 
   it('are not presented as an assessed LOW RISK tier', () => {
-    expect(BASELINE_BADGE.label).toBe('BASELINE');
+    expect(BASELINE_BADGE.label).toBe('USUAL LEVEL');
     expect(BASELINE_BADGE.label).not.toMatch(/LOW/);
     expect(BASELINE_BADGE.title).toMatch(/not a model forecast/);
   });
@@ -114,5 +120,37 @@ describe('describeTierBasis', () => {
     expect(describeTierBasis({ ...base, forecaster: 'climatology', deployment_status: 'baseline', risk_level: 'LOW', relative_risk: 1 })).toBeNull();
     expect(describeTierBasis({ ...base, risk_level: 'LOW', relative_risk: 1.2 })).toBeNull();
     expect(describeTierBasis({ risk_level: 'HIGH', relative_risk: 9 })).toBeNull(); // v1: no model_version
+  });
+});
+
+describe('plain-language helpers', () => {
+  it('writes chances as ordinary people read them', () => {
+    expect(formatChance(0.295)).toBe('about 30%');
+    expect(formatChance(0.033)).toBe('about 3%');
+    expect(formatChance(0.004)).toBe('less than 1%');
+    expect(formatChance(undefined)).toBeNull();
+    expect(formatLikelyRange({ probability_low: 0.18, probability_high: 0.47 })).toBe('likely between 18% and 47%');
+    expect(formatLikelyRange({ probability_low: 0.2, probability_high: 0.2 })).toBeNull();
+    expect(formatLikelyRange({})).toBeNull();
+  });
+
+  it('keeps the tier thresholds but explains them in plain words', () => {
+    const base = { model_version: 'fmd_v2.1', forecaster: 'O' };
+    expect(describeRiskPlain({ ...base, risk_level: 'HIGH' }, 'Colombo', 10)).toMatchObject({ label: 'HIGH RISK', level: 'HIGH' });
+    expect(describeRiskPlain({ ...base, risk_level: 'HIGH' }, 'Colombo', 10).sentence)
+      .toBe('Higher than usual for Colombo in October. Check your animals closely and follow veterinary advice.');
+    expect(describeRiskPlain({ ...base, risk_level: 'MEDIUM' }, 'Kandy', 3).sentence).toMatch(/A little higher than usual for Kandy in March/);
+    expect(describeRiskPlain({ ...base, risk_level: 'LOW' }, 'Kandy', 3).label).toBe('LOW RISK');
+    const baseline = describeRiskPlain({ ...base, forecaster: 'climatology', risk_level: 'LOW' }, 'Colombo', 10);
+    expect(baseline.label).toBe('USUAL LEVEL');                       // never an assessed LOW
+    expect(baseline.sentence).toMatch(/usual level for Colombo in October/);
+  });
+
+  it('describes last month and months in plain words', () => {
+    expect(describeLastMonthPlain({ verified_cases: 1, deaths: 2 })).toBe('Last month: 1 case and 2 deaths confirmed.');
+    expect(describeLastMonthPlain({ verified_cases: 0, deaths: 0 })).toBe('Last month: no cases or deaths reported.');
+    expect(describeLastMonthPlain({ verified_cases: null, deaths: null })).toBeNull();
+    expect(periodLabel(2026, 10)).toBe('October 2026');
+    expect(nextPeriod(2026, 12)).toEqual({ year: 2027, month: 1 });
   });
 });

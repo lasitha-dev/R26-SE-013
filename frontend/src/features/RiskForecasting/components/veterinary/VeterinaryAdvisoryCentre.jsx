@@ -19,7 +19,25 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
 import { getReferencePeriod, shiftPeriod, isSamePeriod } from '../../config/forecastPeriod';
-import { isActiveRecord } from '../forecastPresentation';
+import { describeRiskPlain, selectOfficialRecords } from '../forecastPresentation';
+
+const TAB_ORDER = ['PREVIOUS', 'CURRENT', 'NEXT'];
+const TAB_BUTTON_LABELS = Object.freeze({ PREVIOUS: 'Previous Months', CURRENT: 'Current Month', NEXT: 'Next Month (Forecast)' });
+const TAB_ACTIVE_CLASS = Object.freeze({
+  PREVIOUS: 'bg-slate-800 text-white shadow',
+  CURRENT: 'bg-emerald-900/60 text-emerald-300 shadow',
+  NEXT: 'bg-amber-900/60 text-amber-300 shadow',
+});
+
+// Which timeframe tab a stored forecast belongs to ("current" is the configured reference month).
+function periodMatchesTab(rec, tab) {
+  const current = getReferencePeriod();
+  const next = shiftPeriod(current, 1);
+  const period = { year: rec.target_year, month: rec.target_month };
+  if (tab === 'CURRENT') return isSamePeriod(period, current);
+  if (tab === 'NEXT') return isSamePeriod(period, next);
+  return period.year * 12 + period.month < current.year * 12 + current.month;
+}
 
 const TIMEFRAME_LABELS = Object.freeze({
   PREVIOUS: 'previous months',
@@ -69,7 +87,11 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   const [forecastRecords, setForecastRecords] = useState([]);
   const [selectedForecast, setSelectedForecast] = useState(null);
   const [loadingForecasts, setLoadingForecasts] = useState(false);
-  const [timeframeTab, setTimeframeTab] = useState('NEXT'); // 'PREVIOUS', 'CURRENT', 'NEXT' — default to the active forecast month
+  const [timeframeTab, setTimeframeTab] = useState('NEXT'); // 'PREVIOUS', 'CURRENT', 'NEXT' — preferred tab
+  const tabsWithForecasts = TAB_ORDER.filter((tab) => forecastRecords.some((rec) => periodMatchesTab(rec, tab)));
+  const activeTab = tabsWithForecasts.includes(timeframeTab)
+    ? timeframeTab
+    : (tabsWithForecasts.includes('CURRENT') ? 'CURRENT' : tabsWithForecasts[0] || timeframeTab);
 
   // Step 2 State: Recipient Selection
   const [recipientList, setRecipientList] = useState([]);
@@ -116,8 +138,8 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         );
 
         const recordSets = await Promise.all(fetchPromises);
-        // Superseded records stay in history; advisories are drafted from current forecasts only.
-        const allRecords = recordSets.flat().filter(isActiveRecord);
+        // Superseded records stay in history; one official record per disease, district and month (v2 first).
+        const allRecords = selectOfficialRecords(recordSets.flat());
 
         // Deterministic newest-first ordering: target_year desc, target_month desc, generated_at desc
         const sorted = allRecords.sort((a, b) => {
@@ -487,27 +509,16 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
             </div>
             
             <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('PREVIOUS')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'PREVIOUS' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Previous Months
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('CURRENT')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'CURRENT' ? 'bg-emerald-900/60 text-emerald-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Current Month
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('NEXT')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'NEXT' ? 'bg-amber-900/60 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Next Month (Forecast)
-              </button>
+              {TAB_ORDER.filter((tab) => forecastRecords.some((rec) => periodMatchesTab(rec, tab))).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setTimeframeTab(tab)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === tab ? TAB_ACTIVE_CLASS[tab] : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  {TAB_BUTTON_LABELS[tab]}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -519,31 +530,13 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
           ) : (() => {
             // "Current" is the configured reference month (today unless pinned for a demonstration);
             // "Next" is the forecast target month that follows it.
-            const currentPeriod = getReferencePeriod();
-            const nextPeriod = shiftPeriod(currentPeriod, 1);
-
-            const filteredForecasts = forecastRecords.filter(rec => {
-              const recPeriod = { year: rec.target_year, month: rec.target_month };
-              const isCurrent = isSamePeriod(recPeriod, currentPeriod);
-              const isNext = isSamePeriod(recPeriod, nextPeriod);
-
-              if (timeframeTab === 'CURRENT') return isCurrent;
-              if (timeframeTab === 'NEXT') return isNext;
-              if (timeframeTab === 'PREVIOUS') {
-                return recPeriod.year * 12 + recPeriod.month < currentPeriod.year * 12 + currentPeriod.month;
-              }
-              return true;
-            });
+            const filteredForecasts = forecastRecords.filter((rec) => periodMatchesTab(rec, activeTab));
 
             if (filteredForecasts.length === 0) {
               return (
-                <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
-                  <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
-                  <h4 className="text-base font-semibold text-slate-200">No Stored Forecast Available</h4>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    No persisted forecast decision records exist for {TIMEFRAME_LABELS[timeframeTab] || 'the selected timeframe'}.
-                  </p>
-                </div>
+                <p className="py-6 text-sm text-slate-400">
+                  Forecasts for your district will appear here as soon as they are issued.
+                </p>
               );
             }
 
@@ -554,8 +547,10 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   const isHigh = rec.risk_level === 'HIGH';
                   const isMed = rec.risk_level === 'MEDIUM';
 
+                  const plain = describeRiskPlain(rec, rec.district, rec.target_month);
                   let riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-                  if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
+                  if (plain.level === 'USUAL') riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+                  else if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
                   else if (isMed) riskBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-800';
                   else riskBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-800';
 
@@ -574,7 +569,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                           {rec.disease} — {rec.district}
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${riskBadgeClass}`}>
-                          {rec.risk_level} RISK ({rec.probability_pct}%)
+                          {plain.label} ({rec.probability_pct}%)
                         </span>
                       </div>
 
@@ -582,9 +577,11 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                         Target: {rec.target_year}-{String(rec.target_month).padStart(2, '0')}
                       </div>
 
-                      <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
-                        <span>Severity: {rec.predicted_severity || 'N/A'}</span>
-                      </div>
+                      {rec.predicted_severity && (
+                        <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
+                          <span>Severity: {rec.predicted_severity}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

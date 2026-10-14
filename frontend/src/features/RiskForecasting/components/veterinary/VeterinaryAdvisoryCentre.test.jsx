@@ -224,14 +224,16 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(cards.length).toBeGreaterThan(0);
     });
 
-    it('renders empty state when no official forecast records exist for district', async () => {
+    it('shows one friendly line, not an empty-state placeholder, when no forecast exists for the district', async () => {
       workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No Stored Forecast Available/i)).toBeInTheDocument();
+        expect(screen.getByText(/will appear here as soon as they are issued/i)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/No Stored Forecast Available/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Previous Months|Current Month|Next Month/i })).not.toBeInTheDocument();
     });
 
     it('does not automatically generate forecasts or create drafts on load', async () => {
@@ -267,7 +269,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(radioAll).toBeChecked();
     });
 
-    it('renders N/A for missing predicted severity without inventing values', async () => {
+    it('shows no severity line, and no invented value, when severity is missing', async () => {
       const recordsWithMissingVal = [
         {
           ...mockForecastRecords[0],
@@ -278,7 +280,8 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      expect(await screen.findByText(/Severity: N\/A/i)).toBeInTheDocument();
+      await screen.findAllByText(/FMD — Anuradhapura/i);
+      expect(screen.queryByText(/Severity:/i)).not.toBeInTheDocument();
     });
 
     it('ensures raw identifiers and mock/demo fallback notices are absent visually', async () => {

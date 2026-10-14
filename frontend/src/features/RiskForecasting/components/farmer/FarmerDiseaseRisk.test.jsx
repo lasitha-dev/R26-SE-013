@@ -876,7 +876,7 @@ describe('FarmerDiseaseRisk Component', () => {
       });
       render(<FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2026} initialMonth={10} predictionService={stored} />);
 
-      await waitFor(() => expect(screen.getAllByText('SEASONAL BASELINE').length).toBe(2));
+      await waitFor(() => expect(screen.getAllByText('USUAL LEVEL').length).toBe(2));
       expect(screen.queryByText('LOW RISK')).not.toBeInTheDocument();
       expect(screen.getAllByText(/historical pattern for the month/i).length).toBe(2);
     });

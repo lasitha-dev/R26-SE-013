@@ -130,7 +130,7 @@ function getRiskDetails(riskLevel) {
  * it must not be presented to a farmer as a LOW RISK assessment.
  */
 const BASELINE_DETAILS = Object.freeze({
-  label: 'SEASONAL BASELINE',
+  label: 'USUAL LEVEL',
   colorClass: 'bg-slate-700/40 text-slate-200 border-slate-500/40',
   icon: 'info',
   meaning:

@@ -365,12 +365,12 @@ describe('VeterinaryDistrictForecasts Component', () => {
       expect(screen.getAllByText('2.4× usual for this district and month').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('shows a baseline record as BASELINE, never as an assessed LOW RISK', async () => {
+    it('shows a baseline record as the usual level, never as an assessed LOW RISK', async () => {
       workflowApi.listForecastRecords.mockImplementation(async ({ disease, district }) => ({
         records: [rec(disease, district, { forecaster: 'climatology', deployment_status: 'baseline', risk_level: 'LOW', probability_pct: 12, relative_risk: 1.0, fallback_applied: true, data_quality: 'V2_BASELINE' })],
       }));
       await renderConnected();
-      await waitFor(() => expect(screen.getAllByText('BASELINE').length).toBeGreaterThanOrEqual(1));
+      await waitFor(() => expect(screen.getAllByText('USUAL LEVEL').length).toBeGreaterThanOrEqual(1));
       expect(screen.queryByText('LOW RISK')).not.toBeInTheDocument();
     });
 

@@ -10,21 +10,24 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
-import { OutlookCard } from '../OutlookCard';
+import { OutlookCard, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import {
-  BASELINE_BADGE,
+  describeLastMonthPlain,
   describePreviousMonth,
+  describeRiskPlain,
+  formatChance,
+  formatLikelyRange,
   formatProbabilityInterval,
   formatRelativeRisk,
-  isBaselineRecord,
   isV2Record,
-  pickOfficialRecord,
+  monthName,
+  nextPeriod,
+  periodLabel,
+  selectOfficialRecords,
   storedExplanation,
 } from '../forecastPresentation';
-import {
-  listForecastRecords,
-} from '../../services/riskForecastingWorkflowApi.js';
+import { listForecastRecords } from '../../services/riskForecastingWorkflowApi.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -67,21 +70,6 @@ const FEATURE_LABELS = {
   'Cattle Density': 'District Cattle Density'
 };
 
-function getRiskBadge(riskLevel, record) {
-  if (isBaselineRecord(record)) return BASELINE_BADGE;
-  const norm = (riskLevel || '').toUpperCase();
-  switch (norm) {
-    case 'HIGH':
-      return { label: 'HIGH', class: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
-    case 'MEDIUM':
-      return { label: 'MEDIUM', class: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
-    case 'LOW':
-      return { label: 'LOW', class: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
-    default:
-      return { label: norm || 'UNKNOWN', class: 'bg-surface-container-high text-on-surface-variant border-outline-variant/40' };
-  }
-}
-
 function formatProbability(val) {
   if (typeof val === 'number') {
     return `${val.toFixed(1)}%`;
@@ -109,11 +97,24 @@ function formatDataAgeMonths(months) {
   return `${months} ${unit}`;
 }
 
+const samePeriod = (a, b) => Boolean(a && b) && a.year === b.year && a.month === b.month;
+
 /**
- * Veterinary Forecast Overview Component.
+ * The month shown first: the latest one with a forecast that is not later than the forecast target month
+ * (the month after the reference month), so stray records for far-future months never become the default.
+ */
+function pickDefaultPeriod(available) {
+  if (available.length === 0) return null;
+  const target = getDefaultTargetPeriod();
+  const key = (p) => p.year * 12 + p.month;
+  return available.find((p) => key(p) <= key(target)) || available[available.length - 1];   // `available` is newest first
+}
+
+/**
+ * Veterinary Forecast Overview.
  *
- * Displays latest official stored FMD & LSD ForecastDecisionRecords for the assigned district,
- * and provides next-month generation capabilities.
+ * Shows, in plain words, the stored forecast for the assigned district (only months that have one can be chosen,
+ * so there are no empty cards) and the outlook for the month after it. Technical details sit behind "More details".
  */
 export function VeterinaryForecastOverview({ viewerContext, referenceDate = new Date() }) {
   // 1. Fail-closed Context & Access Validation
@@ -129,71 +130,70 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const assignedDistrict = authorizedDistricts.length > 0 ? authorizedDistricts[0] : null;
 
   const isAccessAllowed = Boolean(isVetRole && isAllowedScope && assignedDistrict);
-  const actorId = validation.valid ? validation.normalizedContext.userId : 'vet_officer_01';
 
   // 2. Component State
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
-  const [fmdRecord, setFmdRecord] = useState(null);
-  const [lsdRecord, setLsdRecord] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [periods, setPeriods] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
-
-  const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
-  const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
+  const [outlookPeriod, setOutlookPeriod] = useState(null);
+  const [earlierOutlooks, setEarlierOutlooks] = useState(NO_OUTLOOK);   // outlook issued earlier for the month on screen
 
   const [explanationData, setExplanationData] = useState(null);
   const [explanationError, setExplanationError] = useState(null);
 
-  // 3. Load latest stored records for assigned district
+  // 3. Load the stored forecasts of the assigned district (all months) and pick the latest month that has one
   const fetchOverviewRecords = useCallback(async () => {
     if (!assignedDistrict) return;
     setLoading(true);
     setApiError(null);
-
     try {
-      const [fmdRes, lsdRes] = await Promise.allSettled([
-        listForecastRecords({ disease: 'FMD', district: assignedDistrict, target_year: selectedYear, target_month: selectedMonth, limit: 50 }),
-        listForecastRecords({ disease: 'LSD', district: assignedDistrict, target_year: selectedYear, target_month: selectedMonth, limit: 50 }),
-      ]);
-
-      let foundFmd = null;
-      let foundLsd = null;
-
-      if (fmdRes.status === 'fulfilled') {
-        const records = fmdRes.value?.records || fmdRes.value || [];
-        foundFmd = pickOfficialRecord(records.filter(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)));
-      }
-
-      if (lsdRes.status === 'fulfilled') {
-        const records = lsdRes.value?.records || lsdRes.value || [];
-        foundLsd = pickOfficialRecord(records.filter(r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)));
-      }
-
-      setFmdRecord(foundFmd);
-      setLsdRecord(foundLsd);
-
-      // Seasonal Outlook for the same month (stored, or the next month's server-computed preview)
-      setOutlooks(await loadOutlooks({ year: selectedYear, month: selectedMonth, district: assignedDistrict }));
-
-      if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
-        setApiError(fmdRes.reason?.message || lsdRes.reason?.message || 'Failed to load official forecast records.');
-      }
-      
-      // Clear previous explanation data when the selected period changes
+      const response = await listForecastRecords({ district: assignedDistrict, limit: 200 });
+      const official = selectOfficialRecords(response?.records || response || []);
+      const available = [...new Map(official.map((r) => {
+        const period = { year: r.target_year ?? r.targetYear, month: r.target_month ?? r.targetMonth };
+        return [`${period.year}-${period.month}`, period];
+      })).values()].sort((a, b) => (b.year - a.year) || (b.month - a.month));
+      setRecords(official);
+      setPeriods(available);
+      setSelected((current) => (current && available.some((p) => samePeriod(p, current)) ? current : pickDefaultPeriod(available)));
       setExplanationData(null);
       setExplanationError(null);
     } catch (err) {
-      setApiError(err.message || 'An unexpected error occurred loading forecast overview.');
+      setApiError(err.message || 'Forecasts could not be loaded. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [assignedDistrict, selectedYear, selectedMonth]);
+  }, [assignedDistrict]);
 
   useEffect(() => {
     if (isAccessAllowed) {
       fetchOverviewRecords();
     }
   }, [isAccessAllowed, fetchOverviewRecords]);
+
+  // 4. The outlook is for the month after the one on screen (or the default next month when nothing is issued yet)
+  useEffect(() => {
+    if (!isAccessAllowed || loading) return undefined;
+    const target = selected ? nextPeriod(selected.year, selected.month) : getDefaultTargetPeriod();
+    let active = true;
+    loadOutlooks({ year: target.year, month: target.month, district: assignedDistrict }).then((result) => {
+      if (active) {
+        setOutlooks(result);
+        setOutlookPeriod(target);
+      }
+    });
+    if (selected) {
+      loadOutlooks({ year: selected.year, month: selected.month, district: assignedDistrict }).then((result) => {
+        if (active) setEarlierOutlooks(result.source === 'stored' ? result : NO_OUTLOOK);
+      });
+    } else {
+      setEarlierOutlooks(NO_OUTLOOK);
+    }
+    return () => { active = false; };
+  }, [isAccessAllowed, loading, selected, assignedDistrict]);
 
   if (!isAccessAllowed) {
     return (
@@ -223,153 +223,156 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
     );
   };
 
-  const renderDiseaseCard = (diseaseName, diseaseCode, record) => {
-    if (!record) {
-      return (
-        <article
-          aria-labelledby={`empty-${diseaseCode.toLowerCase()}-heading`}
-          className="p-6 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-lg space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-xl" aria-hidden="true">
-                {diseaseCode === 'FMD' ? 'coronavirus' : 'vaccines'}
-              </span>
-              <h3 id={`empty-${diseaseCode.toLowerCase()}-heading`} className="text-base font-semibold text-on-surface">
-                {diseaseName}
-              </h3>
-            </div>
-            <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-semibold">
-              No Forecast
-            </span>
-          </div>
-          <p className="text-xs text-on-surface-variant leading-relaxed">
-            No official stored forecast decision record exists for {diseaseCode} in {assignedDistrict} District.
-          </p>
-          <OutlookCard outlook={outlookFor(outlooks, assignedDistrict, diseaseCode)} preview={outlooks.source === 'preview'} />
-        </article>
-      );
-    }
+  const recordFor = (disease) => (selected
+    ? records.find((r) => r.disease === disease
+      && (r.target_year ?? r.targetYear) === selected.year
+      && (r.target_month ?? r.targetMonth) === selected.month) || null
+    : null);
 
-    const badge = getRiskBadge(record.risk_level, record);
-    const targetMonthName = record.target_month ? MONTH_NAMES[record.target_month - 1] : 'Unknown';
+  const diseaseTitle = { FMD: 'Foot-and-Mouth Disease (FMD)', LSD: 'Lumpy Skin Disease (LSD)' };
 
+  const renderDiseaseCard = (diseaseCode, record) => {
+    if (!record) return null;           // no empty "No forecast" cards
+    const plain = describeRiskPlain(record, assignedDistrict, record.target_month);
+    const chance = formatChance(record.probability ?? (record.probability_pct != null ? record.probability_pct / 100 : undefined));
+    const range = formatLikelyRange(record);
+    const lastMonth = isV2Record(record) ? describeLastMonthPlain(record.previous_month_observation) : null;
 
     return (
       <article
+        key={diseaseCode}
         aria-labelledby={`card-${diseaseCode.toLowerCase()}-heading`}
-        className="p-6 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-xl space-y-5 flex flex-col justify-between"
+        className="p-6 rounded-2xl bg-surface-container border border-outline-variant/30 shadow-xl space-y-4"
       >
-        <div className="space-y-4">
-          {/* Header & Risk Badge */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl" aria-hidden="true">
-                  {diseaseCode === 'FMD' ? 'coronavirus' : 'vaccines'}
-                </span>
-                <h3 id={`card-${diseaseCode.toLowerCase()}-heading`} className="text-lg font-bold text-on-surface">
-                  {diseaseName}
-                </h3>
-              </div>
-              <p className="text-xs text-on-surface-variant font-medium">
-                {assignedDistrict} District — Target: {targetMonthName} {record.target_year}
-              </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-xl" aria-hidden="true">
+                {diseaseCode === 'FMD' ? 'coronavirus' : 'vaccines'}
+              </span>
+              <h3 id={`card-${diseaseCode.toLowerCase()}-heading`} className="text-lg font-bold text-on-surface">
+                {diseaseTitle[diseaseCode]}
+              </h3>
             </div>
-
-            <span
-              className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold tracking-wide shrink-0 ${badge.class}`}
-              aria-label={`Risk Level: ${badge.label}`}
-            >
-              {badge.label}{isBaselineRecord(record) ? '' : ' RISK'}
-            </span>
+            <p className="text-xs text-on-surface-variant font-medium">
+              {assignedDistrict} District · {periodLabel(record.target_year, record.target_month)}
+            </p>
           </div>
+          <span
+            className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold tracking-wide shrink-0 ${plain.class}`}
+            aria-label={`Risk level: ${plain.label}`}
+          >
+            {plain.label}
+          </span>
+        </div>
 
-          {/* Probability & Severity Grid */}
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-surface-container-high/60 border border-outline-variant/40">
+        <div>
+          <span className="text-xs text-on-surface-variant block">Chance of an outbreak in {monthName(record.target_month)}</span>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-3xl font-extrabold text-on-surface">{chance}</span>
+            {range && <span className="text-sm text-on-surface-variant">{range}</span>}
+          </div>
+        </div>
+
+        {plain.sentence && <p className="text-sm text-on-surface leading-relaxed">{plain.sentence}</p>}
+        {lastMonth && <p className="text-xs text-on-surface-variant">{lastMonth}</p>}
+
+        <details className="border-t border-outline-variant/30 pt-3">
+          <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>
+          <div className="space-y-3 pt-3 text-xs">
             <div>
-              <span className="text-[11px] font-medium text-on-surface-variant block uppercase tracking-wider">
-                Risk Probability
-              </span>
-              <span className="text-2xl font-extrabold text-on-surface">
-                {formatProbability(record.probability_pct ?? record.predicted_probability)}
-              </span>
+              <span className="text-on-surface-variant">Exact figure: </span>
+              <span className="font-semibold text-on-surface">{formatProbability(record.probability_pct ?? record.predicted_probability)}</span>
               {formatRelativeRisk(record.relative_risk) && (
-                <span className="block text-xs font-semibold text-on-surface-variant">
-                  {formatRelativeRisk(record.relative_risk)} for this district and month
-                </span>
+                <span className="block text-on-surface-variant">{formatRelativeRisk(record.relative_risk)} for this district and month</span>
               )}
               {formatProbabilityInterval(record) && (
-                <span className="block text-xs text-on-surface-variant" title="Uncertainty of the probability estimate, not of the outcome">
+                <span className="block text-on-surface-variant" title="Uncertainty of the estimate, not of the outcome">
                   {formatProbabilityInterval(record)}
                 </span>
               )}
               <TierBasisNote record={record} />
-              {outlooks.source === 'stored' && (
-                <OutlookCard compact outlook={outlookFor(outlooks, assignedDistrict, record.disease || 'FMD')} />
+              {isV2Record(record) ? (
+                <span className="block text-on-surface-variant mt-1">{describePreviousMonth(record.previous_month_observation) || ''}</span>
+              ) : (
+                <span className="block text-on-surface-variant mt-1">Predicted severity: {record.predicted_severity || 'Not evaluated'}</span>
+              )}
+              {earlierOutlooks.source === 'stored' && outlookFor(earlierOutlooks, assignedDistrict, diseaseCode) && (
+                <OutlookCard compact outlook={outlookFor(earlierOutlooks, assignedDistrict, diseaseCode)} />
               )}
             </div>
-            <div>
-              <span className="text-[11px] font-medium text-on-surface-variant block uppercase tracking-wider">
-                {isV2Record(record) ? 'Previous Month (Observed)' : 'Predicted Severity'}
-              </span>
-              <span className="text-sm font-semibold text-on-surface mt-1 block">
-                {isV2Record(record)
-                  ? describePreviousMonth(record.previous_month_observation) || 'Not available'
-                  : record.predicted_severity || 'Not evaluated'}
-              </span>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <dt className="text-on-surface-variant">Status:</dt>
+                <dd className="font-semibold text-primary">{record.status || 'GENERATED'}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">Model Variant:</dt>
+                <dd className="text-on-surface">{record.model_variant || 'Standard'}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">Forecast Source:</dt>
+                <dd className="mt-0.5"><ForecastSourceBadge record={record} /></dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">Generated At:</dt>
+                <dd className="text-on-surface">{formatIsoDate(record.generated_at)}</dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">Data Period:</dt>
+                <dd className="text-on-surface">
+                  {record.source_year && record.source_month
+                    ? `${MONTH_NAMES[record.source_month - 1]} ${record.source_year}`
+                    : 'Not available'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-on-surface-variant">Input Data Age:</dt>
+                <dd className="text-on-surface">{formatDataAgeMonths(record.data_age_months)}</dd>
+              </div>
+            </dl>
+            <div className="flex justify-end">
+              <button
+                onClick={() => handleExplainForecast(diseaseCode, record)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold tracking-wide transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">psychology</span>
+                EXPLAIN FORECAST
+              </button>
             </div>
           </div>
-
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs border-t border-outline-variant/30 pt-3">
-            <div>
-              <dt className="text-on-surface-variant">Status:</dt>
-              <dd className="font-semibold text-primary">{record.status || 'GENERATED'}</dd>
-            </div>
-            <div>
-              <dt className="text-on-surface-variant">Model Variant:</dt>
-              <dd className="text-on-surface">{record.model_variant || 'Standard'}</dd>
-            </div>
-            <div>
-              <dt className="text-on-surface-variant">Forecast Source:</dt>
-              <dd className="mt-0.5"><ForecastSourceBadge record={record} /></dd>
-            </div>
-            <div>
-              <dt className="text-on-surface-variant">Generated At:</dt>
-              <dd className="text-on-surface">{formatIsoDate(record.generated_at)}</dd>
-            </div>
-            <div>
-              <dt className="text-on-surface-variant">Data Period:</dt>
-              <dd className="text-on-surface">
-                {record.source_year && record.source_month
-                  ? `${MONTH_NAMES[record.source_month - 1]} ${record.source_year}`
-                  : 'Not available'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-on-surface-variant">Input Data Age:</dt>
-              <dd className="text-on-surface">{formatDataAgeMonths(record.data_age_months)}</dd>
-            </div>
-          </dl>
-
-          {/* Explainability Button */}
-          <div className="pt-4 border-t border-outline-variant/30 flex justify-end">
-            <button
-              onClick={() => handleExplainForecast(diseaseCode, record)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold tracking-wide transition-colors disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-sm">psychology</span>
-              EXPLAIN FORECAST
-            </button>
-          </div>
-        </div>
-
-        <p className="text-[11px] text-on-surface-variant/70 italic border-t border-outline-variant/20 pt-2">
-          Statistical epidemiological early-warning decision record. Does not constitute laboratory confirmation.
-        </p>
+        </details>
       </article>
     );
   };
+
+  const fmdRecord = recordFor('FMD');
+  const lsdRecord = recordFor('LSD');
+  const hasForecast = Boolean(fmdRecord || lsdRecord);
+  const outlookDiseases = ['FMD', 'LSD'].filter((d) => outlookFor(outlooks, assignedDistrict, d));
+  const outlookMonthName = outlookPeriod ? periodLabel(outlookPeriod.year, outlookPeriod.month) : '';
+
+  const outlookSection = outlookDiseases.length > 0 && (
+    <section aria-labelledby="next-month-outlook-heading" className="space-y-3">
+      <div>
+        <h2 id="next-month-outlook-heading" className="text-lg font-bold text-on-surface">
+          {hasForecast ? `Looking ahead: ${outlookMonthName}` : `Outlook for ${outlookMonthName}`}
+        </h2>
+        <p className="text-xs text-on-surface-variant">{OUTLOOK_NOTE}</p>
+        <p className="text-xs text-on-surface-variant/80">{OUTLOOK_NOTE_SI}</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {outlookDiseases.map((disease) => (
+          <OutlookCard
+            key={disease}
+            title={diseaseTitle[disease]}
+            outlook={outlookFor(outlooks, assignedDistrict, disease)}
+            preview={outlooks.source === 'preview'}
+          />
+        ))}
+      </div>
+    </section>
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 text-on-surface">
@@ -378,63 +381,42 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-primary tracking-tight">
-              Veterinary Forecast Overview
+              Disease Risk Forecast
             </h1>
             <p className="text-sm text-on-surface-variant">
-              Official Risk Forecast Decision Records — {assignedDistrict} District ({MONTH_NAMES[selectedMonth - 1]} {selectedYear})
+              {assignedDistrict} District{selected ? ` · ${periodLabel(selected.year, selected.month)}` : ''}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/40">
-              <label htmlFor="vet-year-input" className="text-xs text-on-surface-variant font-medium">Year:</label>
-              <input
-                id="vet-year-input"
-                type="number"
-                min={2017}
-                max={2030}
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-transparent text-xs text-on-surface font-semibold w-16 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/40">
+          {periods.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-xl border border-outline-variant/40 w-fit">
               <label htmlFor="vet-month-select" className="text-xs text-on-surface-variant font-medium">Month:</label>
               <select
                 id="vet-month-select"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                value={selected ? `${selected.year}-${selected.month}` : ''}
+                onChange={(e) => {
+                  const [year, month] = e.target.value.split('-').map(Number);
+                  setSelected({ year, month });
+                  setExplanationData(null);
+                  setExplanationError(null);
+                }}
                 className="bg-transparent text-xs text-on-surface font-semibold focus:outline-none"
               >
-                {MONTH_NAMES.map((mName, idx) => (
-                  <option key={mName} value={idx + 1} className="bg-surface-container text-on-surface">
-                    {idx + 1} — {mName}
+                {periods.map((period) => (
+                  <option key={`${period.year}-${period.month}`} value={`${period.year}-${period.month}`} className="bg-surface-container text-on-surface">
+                    {periodLabel(period.year, period.month)}
                   </option>
                 ))}
               </select>
             </div>
-
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-high rounded-full border border-outline-variant/40 text-xs text-on-surface-variant w-fit">
-              <span className="material-symbols-outlined text-primary text-sm" aria-hidden="true">
-                location_on
-              </span>
-              <span>
-                District:{' '}
-                <span className="font-semibold text-primary uppercase tracking-wide">
-                  {assignedDistrict}
-                </span>
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </header>
 
       <div role="status" aria-live="polite" className="sr-only">
-        {loading && 'Loading official forecast decision records…'}
+        {loading && 'Loading forecasts…'}
       </div>
 
-      {/* Notifications / Alerts */}
       {apiError && (
         <div role="alert" className="p-4 bg-error-container/20 border border-error/30 rounded-xl text-error text-sm flex items-center gap-3">
           <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
@@ -444,25 +426,29 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         </div>
       )}
 
-
-
-      {/* Loading Skeleton */}
       {loading ? (
         <div role="status" className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse motion-reduce:animate-none">
           <div className="h-64 rounded-2xl bg-surface-container border border-outline-variant/30"></div>
           <div className="h-64 rounded-2xl bg-surface-container border border-outline-variant/30"></div>
         </div>
       ) : (
-        /* Overview Cards Grid */
-        <section aria-labelledby="latest-forecast-cards-heading" className="space-y-4">
-          <h2 id="latest-forecast-cards-heading" className="sr-only">
-            Latest Official Forecast Cards
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {renderDiseaseCard('Foot-and-Mouth Disease (FMD)', 'FMD', fmdRecord)}
-            {renderDiseaseCard('Lumpy Skin Disease (LSD)', 'LSD', lsdRecord)}
-          </div>
-        </section>
+        <>
+          {hasForecast && (
+            <section aria-labelledby="latest-forecast-cards-heading" className="space-y-4">
+              <h2 id="latest-forecast-cards-heading" className="sr-only">Forecast for {periodLabel(selected.year, selected.month)}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderDiseaseCard('FMD', fmdRecord)}
+                {renderDiseaseCard('LSD', lsdRecord)}
+              </div>
+            </section>
+          )}
+          {outlookSection}
+          {!hasForecast && outlookDiseases.length === 0 && !apiError && (
+            <p className="text-sm text-on-surface-variant">
+              Forecasts for {assignedDistrict} District will appear here as soon as they are issued.
+            </p>
+          )}
+        </>
       )}
 
       {/* Feature Contribution Explanation Block */}
@@ -559,25 +545,14 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
          </section>
       )}
 
-      {/* Scientific & Diagnostic Disclaimer */}
-      <section
-        aria-labelledby="overview-disclaimer-heading"
-        className="p-6 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-on-surface space-y-3"
-      >
-        <div className="flex items-center gap-2 text-on-surface font-semibold text-sm">
-          <span className="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">
-            health_and_safety
-          </span>
-          <h2 id="overview-disclaimer-heading">Epidemiological &amp; Diagnostic Guardrails</h2>
-        </div>
-        <p className="text-xs text-on-surface-variant leading-relaxed">
-          Forecast decision records are immutable statistical early-warning estimates generated for veterinary surveillance support. They do not constitute clinical diagnosis, laboratory confirmation, or an active quarantine order. All operational disease response decisions must be validated through authorized field inspection.
-        </p>
-      </section>
+      <p className="text-xs text-on-surface-variant text-center">
+        Early-warning estimates from past records and recent data. They are not a diagnosis; confirm suspected cases in the field.
+      </p>
     </div>
   );
 }
 
 VeterinaryForecastOverview.propTypes = {
   viewerContext: PropTypes.object,
+  referenceDate: PropTypes.instanceOf(Date),
 };

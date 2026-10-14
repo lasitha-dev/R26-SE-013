@@ -891,39 +891,50 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         <div className="bg-rose-950/30 border border-rose-500/30 rounded-xl p-3.5">
           <span className="text-xs text-rose-300 font-medium block">HIGH Risk Districts</span>
           <span className="text-2xl font-bold text-rose-400 mt-1 block">{summaryMetrics.highRisk}</span>
-          <span className="text-[10px] text-rose-500">t ≥ 0.40 outbreak prob</span>
+          <span className="text-[10px] text-rose-500">Much higher than usual</span>
         </div>
 
         <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3.5">
           <span className="text-xs text-amber-300 font-medium block">MEDIUM Risk Districts</span>
           <span className="text-2xl font-bold text-amber-400 mt-1 block">{summaryMetrics.mediumRisk}</span>
-          <span className="text-[10px] text-amber-500">Elevated risk tier</span>
+          <span className="text-[10px] text-amber-500">Somewhat higher than usual</span>
         </div>
 
         <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3.5">
           <span className="text-xs text-emerald-300 font-medium block">LOW Risk Districts</span>
           <span className="text-2xl font-bold text-emerald-400 mt-1 block">{summaryMetrics.lowRisk}</span>
-          <span className="text-[10px] text-emerald-500">Routine surveillance</span>
+          <span className="text-[10px] text-emerald-500">Not higher than usual</span>
           {summaryMetrics.baselineOnly > 0 && (
             <span className="block text-[10px] text-slate-400 mt-0.5">
-              {summaryMetrics.baselineOnly} more show the seasonal baseline only (no elevated signal assessed)
+              {summaryMetrics.baselineOnly} more at the usual seasonal level
             </span>
           )}
         </div>
 
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
-          <span className="text-xs text-slate-400 font-medium block">Fallback Data Applied</span>
+          <span className="text-xs text-slate-400 font-medium block">Using the seasonal average</span>
           <span className="text-2xl font-bold text-amber-300 mt-1 block">{summaryMetrics.fallbackAppliedCount}</span>
+          <span className="text-[10px] text-slate-500">No recent local reports</span>
 
         </div>
 
-        <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
-          <span className="text-xs text-slate-400 font-medium block whitespace-normal break-words" title={summaryMetrics.missingLabel}>
-            {summaryMetrics.missingLabel}
-          </span>
-          <span className="text-2xl font-bold text-slate-300 mt-1 block">{summaryMetrics.missingCount}</span>
-          <span className="text-[10px] text-slate-500">Un-generated slots</span>
-        </div>
+        {summaryMetrics.totalRecords === 0 && outlooks.records.length > 0 ? (
+          <div className="bg-sky-950/30 border border-sky-500/30 rounded-xl p-3.5" data-testid="outlook-summary-tile">
+            <span className="text-xs text-sky-300 font-medium block">Outlook available</span>
+            <span className="text-2xl font-bold text-sky-300 mt-1 block">{outlooks.records.length}</span>
+            <span className="text-[10px] text-sky-400">
+              {outlooks.source === 'preview' ? 'Preview from past years' : `Prepared ${outlooks.records[0].issue_date}`}
+            </span>
+          </div>
+        ) : (
+          <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
+            <span className="text-xs text-slate-400 font-medium block whitespace-normal break-words" title={summaryMetrics.missingLabel}>
+              {summaryMetrics.missingLabel}
+            </span>
+            <span className="text-2xl font-bold text-slate-300 mt-1 block">{summaryMetrics.missingCount}</span>
+            <span className="text-[10px] text-slate-500">Not issued yet</span>
+          </div>
+        )}
       </div>
 
       {/* 6. Deterministic Priority District Table */}

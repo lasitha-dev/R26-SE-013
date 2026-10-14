@@ -275,7 +275,7 @@ describe('DaphNationalForecastOverview Component', () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Fallback Data Applied')).toBeInTheDocument();
+        expect(screen.getByText('Using the seasonal average')).toBeInTheDocument();
       }, { timeout: 4000 });
     });
   });
@@ -568,7 +568,7 @@ describe('DaphNationalForecastOverview Component', () => {
         expect(screen.getByText('HIGH Risk Districts')).toBeInTheDocument();
         expect(screen.getByText('MEDIUM Risk Districts')).toBeInTheDocument();
         expect(screen.getByText('LOW Risk Districts')).toBeInTheDocument();
-        expect(screen.getByText('Fallback Data Applied')).toBeInTheDocument();
+        expect(screen.getByText('Using the seasonal average')).toBeInTheDocument();
       });
 
       const missingLabel = screen.getByText(/Missing District–Disease Combinations/i);
@@ -909,6 +909,30 @@ describe('DaphNationalForecastOverview Component', () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getAllByText('No Record').length).toBeGreaterThan(0));
       expect(screen.queryByText('OUTLOOK')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Plain wording of the summary tiles', () => {
+    it('describes each tier in ordinary words and no longer shows the old model threshold text', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('Much higher than usual')).toBeInTheDocument());
+      expect(screen.getByText('Somewhat higher than usual')).toBeInTheDocument();
+      expect(screen.getByText('Not higher than usual')).toBeInTheDocument();
+      expect(screen.queryByText(/t ≥ 0\.40/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Un-generated slots|Fallback Data Applied/)).not.toBeInTheDocument();
+    });
+
+    it('replaces the "missing" tile with an outlook tile when only an outlook exists for the month', async () => {
+      api.listForecastRecords.mockResolvedValue({ total: 0, records: [] });
+      api.listOutlooks.mockResolvedValue({
+        records: [{ disease: 'FMD', district: 'Colombo', status: 'ACTIVE', probability: 0.033, probability_low: 0, probability_high: 0.1,
+          interval_level: 0.8, years_observed: 7, positive_years: 0, issue_date: '2026-10-14', lead_days: 18 }],
+      });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      const tile = await screen.findByTestId('outlook-summary-tile');
+      expect(tile).toHaveTextContent('Outlook available');
+      expect(tile).toHaveTextContent('Prepared 2026-10-14');
+      expect(screen.queryByText('Not issued yet')).not.toBeInTheDocument();
     });
   });
 });

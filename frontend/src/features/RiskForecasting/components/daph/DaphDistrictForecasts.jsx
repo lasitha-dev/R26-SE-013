@@ -10,7 +10,7 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
-import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
+import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, describeRiskPlain, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
 
 const CANONICAL_DISTRICTS = [
@@ -24,6 +24,9 @@ const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+// Districts that need attention come first; within a level the higher chance comes first.
+const TIER_RANK = { HIGH: 2, MEDIUM: 1, LOW: 0 };
 
 function getRiskBadge(riskLevel, record) {
   if (isBaselineRecord(record)) return BASELINE_BADGE;
@@ -156,7 +159,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
       const matchDisease = selectedDisease === 'ALL' || r.disease === selectedDisease;
       const matchDistrict = selectedDistrict === 'ALL' || r.district === selectedDistrict;
       return matchDisease && matchDistrict;
-    }).sort((a, b) => b.probability - a.probability);
+    }).sort((a, b) => (TIER_RANK[b.risk_level] ?? 0) - (TIER_RANK[a.risk_level] ?? 0) || b.probability - a.probability);
   }, [allRecords, selectedDisease, selectedDistrict]);
 
   const coverageSummary = useMemo(() => {
@@ -339,9 +342,14 @@ export function DaphDistrictForecasts({ viewerContext }) {
                         {typeof r.probability_pct === 'number' ? r.probability_pct.toFixed(1) : (r.probability_pct ?? 'N/A')}{r.probability_pct !== null && r.probability_pct !== undefined ? '%' : ''}
                       </div>
                     </div>
+                    {describeRiskPlain(r, r.district, r.target_month).sentence && (
+                      <p className="text-sm text-on-surface">{describeRiskPlain(r, r.district, r.target_month).sentence}</p>
+                    )}
                   </div>
 
-                  <div className="flex-1 grid grid-cols-2 gap-4 text-sm">
+                  <details className="flex-1 text-sm">
+                    <summary className="cursor-pointer text-xs font-semibold text-primary">More details</summary>
+                  <div className="grid grid-cols-2 gap-4 pt-3">
                     <div className="space-y-1">
                       <span className="text-xs font-medium text-on-surface-variant block">
                         {isV2Record(r) ? 'Previous Month (Observed)' : 'Predicted Severity'}
@@ -372,6 +380,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
                       <span className="block"><ForecastSourceBadge record={r} /></span>
                     </div>
                   </div>
+                  </details>
                 </div>
               );
             })}

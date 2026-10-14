@@ -1,37 +1,39 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { OutlookCard, describeOutlookEvidence } from './OutlookCard';
+import { OutlookCard, describeOutlookEvidence, OUTLOOK_NOTE, OUTLOOK_NOTE_SI } from './OutlookCard';
 
 const outlook = {
-  disease: 'FMD', district: 'Colombo', probability: 0.0326, probability_low: 0.0, probability_high: 0.0967,
+  disease: 'FMD', district: 'Colombo', target_month: 11, probability: 0.0326, probability_low: 0.0, probability_high: 0.0967,
   interval_level: 0.8, years_observed: 7, positive_years: 0, issue_date: '2026-10-15', lead_days: 17,
 };
 
 describe('OutlookCard', () => {
-  it('shows the outlook with its evidence and disclaimers, and never a risk tier', () => {
-    render(<OutlookCard outlook={outlook} />);
-    expect(screen.getByText('SEASONAL OUTLOOK')).toBeInTheDocument();
-    expect(screen.getByText('3.3%')).toBeInTheDocument();
-    expect(screen.getByText('80% range 0–10%')).toBeInTheDocument();
-    expect(screen.getByText('Historical evidence: 7 years, 0 with an outbreak in this month.')).toBeInTheDocument();
-    expect(screen.getByText(/does not include current surveillance/i)).toBeInTheDocument();
-    expect(screen.getByText(/වත්මන් රෝග වාර්තා/)).toBeInTheDocument();
-    expect(screen.getByText('Issued 2026-10-15 · 17 days before the month')).toBeInTheDocument();
-    expect(screen.queryByText(/LOW|MEDIUM|HIGH/)).not.toBeInTheDocument();
+  it('says the chance, the likely range and how often it happened, in ordinary words and never a risk tier', () => {
+    render(<OutlookCard outlook={outlook} title="Foot-and-Mouth Disease (FMD)" />);
+    expect(screen.getByText('Foot-and-Mouth Disease (FMD)')).toBeInTheDocument();
+    expect(screen.getByText('about 3%')).toBeInTheDocument();
+    expect(screen.getByText('likely between 0% and 10%')).toBeInTheDocument();
+    expect(screen.getByText('An outbreak was recorded in this month in 0 of the last 7 years.')).toBeInTheDocument();
+    expect(screen.queryByText(/LOW|MEDIUM|HIGH|RISK|%\s*range/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
   });
 
-  it('labels a preview as not yet issued', () => {
+  it('labels a computed (not yet issued) outlook as a preview', () => {
     render(<OutlookCard outlook={outlook} preview />);
-    expect(screen.getByText('PREVIEW · not yet issued')).toBeInTheDocument();
-    expect(screen.queryByText(/^Issued /)).not.toBeInTheDocument();
+    expect(screen.getByText('Preview')).toBeInTheDocument();
   });
 
   it('has a one-line compact form and renders nothing without an outlook', () => {
     const { container, rerender } = render(<OutlookCard outlook={outlook} compact />);
-    expect(screen.getByTestId('outlook-compact')).toHaveTextContent('Outlook issued earlier: 3.3% (80% range 0–10%)');
+    expect(screen.getByTestId('outlook-compact')).toHaveTextContent('Outlook given earlier: about 3% (likely between 0% and 10%)');
     rerender(<OutlookCard outlook={null} />);
     expect(container).toBeEmptyDOMElement();
     expect(describeOutlookEvidence({})).toBeNull();
+  });
+
+  it('keeps the short explanatory notes in English and Sinhala', () => {
+    expect(OUTLOOK_NOTE).toMatch(/Based on past years only/);
+    expect(OUTLOOK_NOTE_SI).toMatch(/අතීත/);
   });
 });
