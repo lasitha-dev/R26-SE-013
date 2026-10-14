@@ -174,6 +174,9 @@ def metrics(y, p, base):
     res["alert_rate"] = float(alert.mean())
     res["recall_at_rr2"] = float(tp / y.sum())
     res["precision_at_rr2"] = float(tp / alert.sum()) if alert.sum() else None
+    # F1 of the alert rule (probability >= 2x the climatological baseline); 0 when nothing is flagged.
+    precision, recall = res["precision_at_rr2"] or 0.0, res["recall_at_rr2"]
+    res["f1_at_rr2"] = float(2 * precision * recall / (precision + recall)) if precision + recall > 0 else 0.0
     return res
 
 
@@ -428,7 +431,7 @@ def main():
         for k, v in ev["overall"].items():
             print(f"  {k:14s} PR-AUC {fmt(v.get('pr_auc'))}  ROC {fmt(v.get('roc_auc'))}  "
                   f"BrierSkill {fmt(v.get('brier_skill_vs_climatology'))}  recall@RR2 {fmt(v.get('recall_at_rr2'), 2)}  "
-                  f"prec@RR2 {fmt(v.get('precision_at_rr2'), 2)}  (n={v['n']}, pos={v['positives']})")
+                  f"prec@RR2 {fmt(v.get('precision_at_rr2'), 2)}  F1@RR2 {fmt(v.get('f1_at_rr2'), 2)}  (n={v['n']}, pos={v['positives']})")
         print("  onset PR-AUC:", {k: fmt(v.get("pr_auc")) for k, v in ev["onset"].items()})
         for k, v in ev["bootstrap_pr_auc"].items():
             print(f"  {k:34s} mean {v['mean']:+.3f}  95% CI [{v['ci95'][0]:+.3f}, {v['ci95'][1]:+.3f}]")

@@ -124,6 +124,21 @@ FMD O passes the rule, but its lower bound (+0.004) is almost zero and O/OC were
 runs on the same data, so treat it as weak evidence. LSD O fails (CI includes zero; also not better than
 persistence), so LSD stays on the baseline for this case.
 
+### Alert-rule metrics (alert = probability ≥ 2× the climatological baseline)
+
+| Forecaster | FMD recall | FMD precision | FMD F1 | LSD recall | LSD precision | LSD F1 |
+|---|---|---|---|---|---|---|
+| Persistence (last month) | 0.33 | 0.30 | **0.32** | 0.40 | 0.39 | **0.40** |
+| Climatology | 0 | n/a | 0 | 0 | n/a | 0 |
+| A (known surveillance) | 0.38 | 0.09 | 0.14 | 0.81 | 0.20 | 0.32 |
+| S | 0.42 | 0.08 | 0.13 | 0.81 | 0.19 | 0.31 |
+| O (own district only) | 0.35 | 0.08 | 0.13 | 0.77 | 0.19 | 0.30 |
+
+Climatology never raises an alert by construction (its relative risk is exactly 1). At this alert rule the
+models find more outbreaks than persistence (higher recall, especially LSD 0.81 vs 0.40) but with much
+lower precision (≈ 1 alert in 5 for LSD, 1 in 12 for FMD), so **persistence has the better F1**. The
+models' advantage is in ranking and calibration (PR-AUC, Brier skill), not in a hard yes/no alert.
+
 ## 6. Deployment
 
 | Disease | District **and** neighbours known | District known, neighbours unknown | Nothing known |

@@ -1,7 +1,7 @@
 {
   "disease": "FMD",
   "model_version": "fmd_v2.0",
-  "created_at": "2026-10-14T02:55:17.411531+00:00",
+  "created_at": "2026-10-14T03:44:35.981587+00:00",
   "training_period": [
     "2017-01",
     "2023-12"

@@ -232,7 +232,8 @@
         "brier_skill_vs_climatology": -0.04225670666552883,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "persistence": {
         "n": 600,
@@ -243,7 +244,8 @@
         "brier_skill_vs_climatology": -0.45481665305396723,
         "alert_rate": 0.08833333333333333,
         "recall_at_rr2": 0.3333333333333333,
-        "precision_at_rr2": 0.3018867924528302
+        "precision_at_rr2": 0.3018867924528302,
+        "f1_at_rr2": 0.31683168316831684
       },
       "climatology": {
         "n": 600,
@@ -254,7 +256,8 @@
         "brier_skill_vs_climatology": 0.0,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "model_known": {
         "n": 600,
@@ -265,7 +268,8 @@
         "brier_skill_vs_climatology": 0.131253771076851,
         "alert_rate": 0.34,
         "recall_at_rr2": 0.375,
-        "precision_at_rr2": 0.08823529411764706
+        "precision_at_rr2": 0.08823529411764706,
+        "f1_at_rr2": 0.14285714285714285
       },
       "model_unknown": {
         "n": 600,
@@ -276,7 +280,8 @@
         "brier_skill_vs_climatology": 0.06026832973637808,
         "alert_rate": 0.515,
         "recall_at_rr2": 0.375,
-        "precision_at_rr2": 0.05825242718446602
+        "precision_at_rr2": 0.05825242718446602,
+        "f1_at_rr2": 0.10084033613445378
       },
       "model_A": {
         "n": 600,
@@ -287,7 +292,8 @@
         "brier_skill_vs_climatology": 0.131253771076851,
         "alert_rate": 0.34,
         "recall_at_rr2": 0.375,
-        "precision_at_rr2": 0.08823529411764706
+        "precision_at_rr2": 0.08823529411764706,
+        "f1_at_rr2": 0.14285714285714285
       },
       "model_S": {
         "n": 600,
@@ -298,7 +304,8 @@
         "brier_skill_vs_climatology": 0.1600573870439792,
         "alert_rate": 0.415,
         "recall_at_rr2": 0.4166666666666667,
-        "precision_at_rr2": 0.08032128514056225
+        "precision_at_rr2": 0.08032128514056225,
+        "f1_at_rr2": 0.13468013468013468
       },
       "model_B": {
         "n": 600,
@@ -309,7 +316,8 @@
         "brier_skill_vs_climatology": 0.06026832973637808,
         "alert_rate": 0.515,
         "recall_at_rr2": 0.375,
-        "precision_at_rr2": 0.05825242718446602
+        "precision_at_rr2": 0.05825242718446602,
+        "f1_at_rr2": 0.10084033613445378
       },
       "model_own": {
         "n": 600,
@@ -320,7 +328,8 @@
         "brier_skill_vs_climatology": 0.1352391692044428,
         "alert_rate": 0.435,
         "recall_at_rr2": 0.3333333333333333,
-        "precision_at_rr2": 0.06130268199233716
+        "precision_at_rr2": 0.06130268199233716,
+        "f1_at_rr2": 0.1035598705501618
       },
       "model_O": {
         "n": 600,
@@ -331,7 +340,8 @@
         "brier_skill_vs_climatology": 0.1395340129703686,
         "alert_rate": 0.3433333333333333,
         "recall_at_rr2": 0.3541666666666667,
-        "precision_at_rr2": 0.0825242718446602
+        "precision_at_rr2": 0.0825242718446602,
+        "f1_at_rr2": 0.13385826771653545
       },
       "model_OC": {
         "n": 600,
@@ -342,7 +352,8 @@
         "brier_skill_vs_climatology": 0.13865014631609185,
         "alert_rate": 0.445,
         "recall_at_rr2": 0.3541666666666667,
-        "precision_at_rr2": 0.06367041198501873
+        "precision_at_rr2": 0.06367041198501873,
+        "f1_at_rr2": 0.10793650793650796
       }
     },
     "onset": {
@@ -355,7 +366,8 @@
         "brier_skill_vs_climatology": 0.134427783669113,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "climatology": {
         "n": 543,
@@ -366,7 +378,8 @@
         "brier_skill_vs_climatology": 0.0,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "model_known": {
         "n": 543,
@@ -377,7 +390,8 @@
         "brier_skill_vs_climatology": 0.17264633465836476,
         "alert_rate": 0.32228360957642727,
         "recall_at_rr2": 0.3448275862068966,
-        "precision_at_rr2": 0.05714285714285714
+        "precision_at_rr2": 0.05714285714285714,
+        "f1_at_rr2": 0.0980392156862745
       },
       "model_unknown": {
         "n": 543,
@@ -388,7 +402,8 @@
         "brier_skill_vs_climatology": 0.08997401210845513,
         "alert_rate": 0.5377532228360957,
         "recall_at_rr2": 0.5172413793103449,
-        "precision_at_rr2": 0.05136986301369863
+        "precision_at_rr2": 0.05136986301369863,
+        "f1_at_rr2": 0.09345794392523364
       },
       "model_A": {
         "n": 543,
@@ -399,7 +414,8 @@
         "brier_skill_vs_climatology": 0.17264633465836476,
         "alert_rate": 0.32228360957642727,
         "recall_at_rr2": 0.3448275862068966,
-        "precision_at_rr2": 0.05714285714285714
+        "precision_at_rr2": 0.05714285714285714,
+        "f1_at_rr2": 0.0980392156862745
       },
       "model_S": {
         "n": 543,
@@ -410,7 +426,8 @@
         "brier_skill_vs_climatology": 0.19314774297502801,
         "alert_rate": 0.3996316758747698,
         "recall_at_rr2": 0.3793103448275862,
-        "precision_at_rr2": 0.05069124423963134
+        "precision_at_rr2": 0.05069124423963134,
+        "f1_at_rr2": 0.08943089430894309
       },
       "model_B": {
         "n": 543,
@@ -421,7 +438,8 @@
         "brier_skill_vs_climatology": 0.08997401210845513,
         "alert_rate": 0.5377532228360957,
         "recall_at_rr2": 0.5172413793103449,
-        "precision_at_rr2": 0.05136986301369863
+        "precision_at_rr2": 0.05136986301369863,
+        "f1_at_rr2": 0.09345794392523364
       },
       "model_own": {
         "n": 543,
@@ -432,7 +450,8 @@
         "brier_skill_vs_climatology": 0.1526865624671675,
         "alert_rate": 0.43462246777163904,
         "recall_at_rr2": 0.3448275862068966,
-        "precision_at_rr2": 0.0423728813559322
+        "precision_at_rr2": 0.0423728813559322,
+        "f1_at_rr2": 0.07547169811320754
       },
       "model_O": {
         "n": 543,
@@ -443,7 +462,8 @@
         "brier_skill_vs_climatology": 0.1729395541553752,
         "alert_rate": 0.31307550644567217,
         "recall_at_rr2": 0.27586206896551724,
-        "precision_at_rr2": 0.047058823529411764
+        "precision_at_rr2": 0.047058823529411764,
+        "f1_at_rr2": 0.08040201005025126
       },
       "model_OC": {
         "n": 543,
@@ -454,7 +474,8 @@
         "brier_skill_vs_climatology": 0.15548514208028963,
         "alert_rate": 0.44751381215469616,
         "recall_at_rr2": 0.41379310344827586,
-        "precision_at_rr2": 0.04938271604938271
+        "precision_at_rr2": 0.04938271604938271,
+        "f1_at_rr2": 0.08823529411764705
       }
     },
     "bootstrap_pr_auc": {
@@ -677,7 +698,8 @@
         "brier_skill_vs_climatology": 0.07703897693134976,
         "alert_rate": 0.36666666666666664,
         "recall_at_rr2": 0.4444444444444444,
-        "precision_at_rr2": 0.14545454545454545
+        "precision_at_rr2": 0.14545454545454545,
+        "f1_at_rr2": 0.2191780821917808
       },
       "2023": {
         "n": 300,
@@ -688,7 +710,8 @@
         "brier_skill_vs_climatology": 0.2498103760853153,
         "alert_rate": 0.31333333333333335,
         "recall_at_rr2": 0.16666666666666666,
-        "precision_at_rr2": 0.02127659574468085
+        "precision_at_rr2": 0.02127659574468085,
+        "f1_at_rr2": 0.03773584905660377
       }
     },
     "deployment": {
@@ -942,7 +965,8 @@
         "brier_skill_vs_climatology": 0.022230856737812332,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "persistence": {
         "n": 600,
@@ -953,7 +977,8 @@
         "brier_skill_vs_climatology": -0.18729110253265646,
         "alert_rate": 0.11833333333333333,
         "recall_at_rr2": 0.4,
-        "precision_at_rr2": 0.39436619718309857
+        "precision_at_rr2": 0.39436619718309857,
+        "f1_at_rr2": 0.3971631205673759
       },
       "climatology": {
         "n": 600,
@@ -964,7 +989,8 @@
         "brier_skill_vs_climatology": 0.0,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "model_known": {
         "n": 600,
@@ -975,7 +1001,8 @@
         "brier_skill_vs_climatology": 0.19354424205890208,
         "alert_rate": 0.48833333333333334,
         "recall_at_rr2": 0.8142857142857143,
-        "precision_at_rr2": 0.1945392491467577
+        "precision_at_rr2": 0.1945392491467577,
+        "f1_at_rr2": 0.3140495867768595
       },
       "model_unknown": {
         "n": 600,
@@ -986,7 +1013,8 @@
         "brier_skill_vs_climatology": 0.050272846994757314,
         "alert_rate": 0.555,
         "recall_at_rr2": 0.7714285714285715,
-        "precision_at_rr2": 0.16216216216216217
+        "precision_at_rr2": 0.16216216216216217,
+        "f1_at_rr2": 0.2679900744416874
       },
       "model_A": {
         "n": 600,
@@ -997,7 +1025,8 @@
         "brier_skill_vs_climatology": 0.16822796902376946,
         "alert_rate": 0.48333333333333334,
         "recall_at_rr2": 0.8142857142857143,
-        "precision_at_rr2": 0.19655172413793104
+        "precision_at_rr2": 0.19655172413793104,
+        "f1_at_rr2": 0.31666666666666665
       },
       "model_S": {
         "n": 600,
@@ -1008,7 +1037,8 @@
         "brier_skill_vs_climatology": 0.20555034959741314,
         "alert_rate": 0.48833333333333334,
         "recall_at_rr2": 0.8142857142857143,
-        "precision_at_rr2": 0.1945392491467577
+        "precision_at_rr2": 0.1945392491467577,
+        "f1_at_rr2": 0.3140495867768595
       },
       "model_B": {
         "n": 600,
@@ -1019,7 +1049,8 @@
         "brier_skill_vs_climatology": 0.050272846994757314,
         "alert_rate": 0.555,
         "recall_at_rr2": 0.7714285714285715,
-        "precision_at_rr2": 0.16216216216216217
+        "precision_at_rr2": 0.16216216216216217,
+        "f1_at_rr2": 0.2679900744416874
       },
       "model_own": {
         "n": 600,
@@ -1030,7 +1061,8 @@
         "brier_skill_vs_climatology": 0.19511724229253558,
         "alert_rate": 0.485,
         "recall_at_rr2": 0.7714285714285715,
-        "precision_at_rr2": 0.18556701030927836
+        "precision_at_rr2": 0.18556701030927836,
+        "f1_at_rr2": 0.2991689750692521
       },
       "model_O": {
         "n": 600,
@@ -1041,7 +1073,8 @@
         "brier_skill_vs_climatology": 0.19511724229253558,
         "alert_rate": 0.485,
         "recall_at_rr2": 0.7714285714285715,
-        "precision_at_rr2": 0.18556701030927836
+        "precision_at_rr2": 0.18556701030927836,
+        "f1_at_rr2": 0.2991689750692521
       },
       "model_OC": {
         "n": 600,
@@ -1052,7 +1085,8 @@
         "brier_skill_vs_climatology": 0.15472674282849086,
         "alert_rate": 0.5316666666666666,
         "recall_at_rr2": 0.8285714285714286,
-        "precision_at_rr2": 0.18181818181818182
+        "precision_at_rr2": 0.18181818181818182,
+        "f1_at_rr2": 0.29820051413881754
       }
     },
     "onset": {
@@ -1065,7 +1099,8 @@
         "brier_skill_vs_climatology": 0.07475575865669004,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "climatology": {
         "n": 529,
@@ -1076,7 +1111,8 @@
         "brier_skill_vs_climatology": 0.0,
         "alert_rate": 0.0,
         "recall_at_rr2": 0.0,
-        "precision_at_rr2": null
+        "precision_at_rr2": null,
+        "f1_at_rr2": 0.0
       },
       "model_known": {
         "n": 529,
@@ -1087,7 +1123,8 @@
         "brier_skill_vs_climatology": 0.1306958364400881,
         "alert_rate": 0.42911153119092627,
         "recall_at_rr2": 0.7142857142857143,
-        "precision_at_rr2": 0.13215859030837004
+        "precision_at_rr2": 0.13215859030837004,
+        "f1_at_rr2": 0.22304832713754646
       },
       "model_unknown": {
         "n": 529,
@@ -1098,7 +1135,8 @@
         "brier_skill_vs_climatology": 0.060653002566070424,
         "alert_rate": 0.5122873345935728,
         "recall_at_rr2": 0.7380952380952381,
-        "precision_at_rr2": 0.11439114391143912
+        "precision_at_rr2": 0.11439114391143912,
+        "f1_at_rr2": 0.19808306709265175
       },
       "model_A": {
         "n": 529,
@@ -1109,7 +1147,8 @@
         "brier_skill_vs_climatology": 0.11913405088908713,
         "alert_rate": 0.42533081285444235,
         "recall_at_rr2": 0.7380952380952381,
-        "precision_at_rr2": 0.13777777777777778
+        "precision_at_rr2": 0.13777777777777778,
+        "f1_at_rr2": 0.23220973782771534
       },
       "model_S": {
         "n": 529,
@@ -1120,7 +1159,8 @@
         "brier_skill_vs_climatology": 0.14248055183708508,
         "alert_rate": 0.42911153119092627,
         "recall_at_rr2": 0.7142857142857143,
-        "precision_at_rr2": 0.13215859030837004
+        "precision_at_rr2": 0.13215859030837004,
+        "f1_at_rr2": 0.22304832713754646
       },
       "model_B": {
         "n": 529,
@@ -1131,7 +1171,8 @@
         "brier_skill_vs_climatology": 0.060653002566070424,
         "alert_rate": 0.5122873345935728,
         "recall_at_rr2": 0.7380952380952381,
-        "precision_at_rr2": 0.11439114391143912
+        "precision_at_rr2": 0.11439114391143912,
+        "f1_at_rr2": 0.19808306709265175
       },
       "model_own": {
         "n": 529,
@@ -1142,7 +1183,8 @@
         "brier_skill_vs_climatology": 0.1211447953806093,
         "alert_rate": 0.42722117202268434,
         "recall_at_rr2": 0.6666666666666666,
-        "precision_at_rr2": 0.12389380530973451
+        "precision_at_rr2": 0.12389380530973451,
+        "f1_at_rr2": 0.20895522388059704
       },
       "model_O": {
         "n": 529,
@@ -1153,7 +1195,8 @@
         "brier_skill_vs_climatology": 0.1211447953806093,
         "alert_rate": 0.42722117202268434,
         "recall_at_rr2": 0.6666666666666666,
-        "precision_at_rr2": 0.12389380530973451
+        "precision_at_rr2": 0.12389380530973451,
+        "f1_at_rr2": 0.20895522388059704
       },
       "model_OC": {
         "n": 529,
@@ -1164,7 +1207,8 @@
         "brier_skill_vs_climatology": 0.1152872724818913,
         "alert_rate": 0.48015122873345933,
         "recall_at_rr2": 0.7619047619047619,
-        "precision_at_rr2": 0.12598425196850394
+        "precision_at_rr2": 0.12598425196850394,
+        "f1_at_rr2": 0.2162162162162162
       }
     },
     "bootstrap_pr_auc": {
@@ -1387,7 +1431,8 @@
         "brier_skill_vs_climatology": 0.17571884713100294,
         "alert_rate": 0.6866666666666666,
         "recall_at_rr2": 0.8615384615384616,
-        "precision_at_rr2": 0.27184466019417475
+        "precision_at_rr2": 0.27184466019417475,
+        "f1_at_rr2": 0.4132841328413284
       },
       "2024": {
         "n": 300,
@@ -1398,7 +1443,8 @@
         "brier_skill_vs_climatology": 0.3320106906824043,
         "alert_rate": 0.29,
         "recall_at_rr2": 0.2,
-        "precision_at_rr2": 0.011494252873563218
+        "precision_at_rr2": 0.011494252873563218,
+        "f1_at_rr2": 0.021739130434782608
       }
     },
     "deployment": {
