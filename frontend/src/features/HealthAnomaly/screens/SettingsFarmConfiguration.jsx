@@ -150,7 +150,9 @@ export default function SettingsFarmConfiguration() {
           .then(res => res.json())
           .then(data => {
             const address = data.address || {}
-            const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
+            const rawDistrict = address.state_district || address.city || address.town || address.suburb || address.village || "Unknown District"
+            const cleanDistrict = rawDistrict.replace(/\s+District$/i, '').trim()
+            const district = cleanDistrict ? `${cleanDistrict} District` : "Unknown District"
             
             const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
             setProfile(prev => ({ ...prev, location_district: coordsString }))
@@ -159,8 +161,9 @@ export default function SettingsFarmConfiguration() {
             localStorage.setItem('registered_farm_lat', lat)
             localStorage.setItem('registered_farm_lon', lon)
             localStorage.setItem('registered_farm_name', district)
+            localStorage.setItem('registered_farm_location', coordsString)
             setGpsLoading(false)
-            setMapSuccessMsg(`Successfully resolved coordinates to ${district} District!`)
+            setMapSuccessMsg(`Successfully resolved coordinates to ${district}!`)
           })
           .catch(err => {
             console.error(err)
@@ -174,6 +177,37 @@ export default function SettingsFarmConfiguration() {
         alert("Unable to retrieve location. Please check browser permissions.")
       }
     )
+  }
+
+  const handleDoneLocationModal = async () => {
+    setIsMapModalOpen(false)
+    const latVal = parseFloat(localStorage.getItem('registered_farm_lat'))
+    const lonVal = parseFloat(localStorage.getItem('registered_farm_lon'))
+    const districtVal = localStorage.getItem('registered_farm_district') || localStorage.getItem('registered_farm_name')
+    const locString = profile.location_district
+
+    if (!isNaN(latVal) && !isNaN(lonVal)) {
+      try {
+        const token = localStorage.getItem('token')
+        if (token) {
+          await fetch('http://127.0.0.1:8000/api/user/profile', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              location_district: districtVal || locString,
+              location: locString,
+              latitude: latVal,
+              longitude: lonVal
+            })
+          })
+        }
+      } catch (e) {
+        console.error('Auto-syncing location failed:', e)
+      }
+    }
   }
 
   const handleManualSearch = (query) => {
@@ -228,11 +262,13 @@ export default function SettingsFarmConfiguration() {
     setConfirmLoading(true)
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
       .then(res => res.json())
-      .then(data => {
+      .then(async data => {
         const addr = data.address || {}
-        const district =
+        const rawDistrict =
           addr.state_district || addr.city || addr.town ||
           addr.suburb || addr.village || 'Unknown District'
+        const cleanDistrict = rawDistrict.replace(/\s+District$/i, '').trim()
+        const district = cleanDistrict ? `${cleanDistrict} District` : 'Unknown District'
         const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
         setProfile(prev => ({ ...prev, location_district: coordsString }))
         setMockCoords(`${lat.toFixed(6)},${lon.toFixed(6)}`)
@@ -240,6 +276,30 @@ export default function SettingsFarmConfiguration() {
         localStorage.setItem('registered_farm_lat', lat)
         localStorage.setItem('registered_farm_lon', lon)
         localStorage.setItem('registered_farm_name', district)
+        localStorage.setItem('registered_farm_location', coordsString)
+
+        // Persist to backend immediately
+        const token = localStorage.getItem('token')
+        if (token) {
+          try {
+            await fetch('http://127.0.0.1:8000/api/user/profile', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                location_district: district,
+                location: coordsString,
+                latitude: lat,
+                longitude: lon
+              })
+            })
+          } catch (e) {
+            console.error('Failed to auto-save location to backend:', e)
+          }
+        }
+
         setConfirmLoading(false)
         setIsFullMapOpen(false)
       })
@@ -270,25 +330,42 @@ export default function SettingsFarmConfiguration() {
       })
       if (response.ok) {
         const data = await response.json()
-        const lat = localStorage.getItem('registered_farm_lat')
-        const lon = localStorage.getItem('registered_farm_lon')
-        const name = localStorage.getItem('registered_farm_name')
         
-        let localDistrict = ''
-        if (lat && lon && name) {
-          localDistrict = `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)} (${name})`
-        } else {
-          localDistrict = localStorage.getItem('registered_farm_district')
+        // Hydrate localStorage from DB if available in DB
+        if (data.latitude !== null && data.latitude !== undefined && data.longitude !== null && data.longitude !== undefined) {
+          localStorage.setItem('registered_farm_lat', data.latitude)
+          localStorage.setItem('registered_farm_lon', data.longitude)
+        }
+        if (data.location_district) {
+          localStorage.setItem('registered_farm_district', data.location_district)
+          localStorage.setItem('registered_farm_name', data.location_district)
+        }
+        if (data.location) {
+          localStorage.setItem('registered_farm_location', data.location)
+        }
+
+        const lat = data.latitude !== null && data.latitude !== undefined ? data.latitude : localStorage.getItem('registered_farm_lat')
+        const lon = data.longitude !== null && data.longitude !== undefined ? data.longitude : localStorage.getItem('registered_farm_lon')
+        const name = data.location_district || localStorage.getItem('registered_farm_name') || localStorage.getItem('registered_farm_district')
+
+        let displayLocation = data.location || ''
+        if (!displayLocation && lat && lon && name) {
+          displayLocation = `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)} (${name})`
+        } else if (!displayLocation) {
+          displayLocation = data.location_district || localStorage.getItem('registered_farm_district') || ''
         }
 
         setProfile({
           owner_name: data.owner_name || '',
           email: data.email || '',
-          location_district: localDistrict || data.location_district || '',
+          location_district: displayLocation,
           registration_number: data.registration_number || '',
           veterinarian_name: data.veterinarian_name || '',
           profile_photo: data.profile_photo || ''
         })
+        if (lat && lon) {
+          setMockCoords(`${lat},${lon}`)
+        }
         if (data.profile_photo) {
           setProfilePhoto(data.profile_photo)
         }
@@ -600,12 +677,11 @@ export default function SettingsFarmConfiguration() {
     setSuccessMessage('')
     setLoading(true)
 
-    localStorage.setItem('registered_farm_district', profile.location_district)
-
     try {
       const token = localStorage.getItem('token')
       const latVal = parseFloat(localStorage.getItem('registered_farm_lat'))
       const lonVal = parseFloat(localStorage.getItem('registered_farm_lon'))
+      const districtVal = localStorage.getItem('registered_farm_district') || localStorage.getItem('registered_farm_name')
 
       const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
         method: 'PUT',
@@ -617,7 +693,8 @@ export default function SettingsFarmConfiguration() {
           owner_name: profile.owner_name,
           veterinarian_name: profile.veterinarian_name,
           profile_photo: profile.profile_photo,
-          location_district: profile.location_district,
+          location_district: districtVal || profile.location_district,
+          location: profile.location_district,
           latitude: !isNaN(latVal) ? latVal : null,
           longitude: !isNaN(lonVal) ? lonVal : null
         })
@@ -1584,8 +1661,8 @@ export default function SettingsFarmConfiguration() {
             <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-surface-container-low/30">
               <button
                 type="button"
-                onClick={() => setIsMapModalOpen(false)}
-                className="px-6 py-3 bg-surface-container-highest text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all"
+                onClick={handleDoneLocationModal}
+                className="px-6 py-3 bg-surface-container-highest text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all hover:bg-primary hover:text-on-primary"
               >
                 Done
               </button>

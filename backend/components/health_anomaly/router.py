@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Header, File, UploadFile, Form
-from typing import Optional
+from typing import Optional, Union
 import jwt
 import os
 import numpy as np
@@ -26,7 +26,7 @@ from components.health_anomaly.database import (
     diagnostic_cases_collection, death_logs_collection, vet_notifications_collection
 )
 from components.health_anomaly.schemas import (
-    FarmRegister, FarmLogin, TokenResponse,
+    FarmRegister, FarmLogin, TokenResponse, FarmProfileUpdate, FarmProfileResponse,
     VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
     CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
@@ -266,12 +266,22 @@ async def login_farm(credentials: FarmLogin):
     }
     access_token = create_access_token(data=token_data)
     
+    location_district = farm.get("location_district")
+    lat = farm.get("latitude")
+    lon = farm.get("longitude")
+    loc = farm.get("location") or location_district
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "owner_name": farm["owner_name"],
         "email": farm["email"],
-        "veterinarian_name": farm["veterinarian_name"]
+        "veterinarian_name": farm.get("veterinarian_name", ""),
+        "location_district": location_district,
+        "district": location_district,
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lon) if lon is not None else None,
+        "location": loc
     }
 
 @router.post("/vet/register", status_code=status.HTTP_201_CREATED)
@@ -1752,7 +1762,7 @@ async def list_death_logs(
 
 # ─── User Profile & Settings Endpoints ────────────────────────────────────────
 
-@router.get("/user/profile")
+@router.get("/user/profile", response_model=FarmProfileResponse)
 async def get_user_profile(authorization: Optional[str] = Header(None)):
     email = await get_current_user_email(authorization)
     farm = await farms_collection.find_one({"email": email})
@@ -1761,12 +1771,18 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Farm profile not found."
         )
+    lat = farm.get("latitude")
+    lon = farm.get("longitude")
+    loc_district = farm.get("location_district")
+    loc = farm.get("location") or loc_district
     return {
         "owner_name": farm.get("owner_name"),
         "email": farm.get("email"),
-        "location_district": farm.get("location_district"),
-        "latitude": farm.get("latitude"),
-        "longitude": farm.get("longitude"),
+        "location_district": loc_district,
+        "district": loc_district,
+        "location": loc,
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lon) if lon is not None else None,
         "registration_number": farm.get("registration_number"),
         "veterinarian_name": farm.get("veterinarian_name"),
         "profile_photo": farm.get("profile_photo"),
@@ -1774,22 +1790,40 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
     }
 
 @router.put("/user/profile")
-async def update_user_profile(profile_data: dict, authorization: Optional[str] = Header(None)):
+async def update_user_profile(profile_data: Union[FarmProfileUpdate, dict], authorization: Optional[str] = Header(None)):
     email = await get_current_user_email(authorization)
+    data = profile_data.dict() if hasattr(profile_data, "dict") else dict(profile_data)
     
     update_fields = {}
-    if "owner_name" in profile_data:
-        update_fields["owner_name"] = profile_data["owner_name"]
-    if "veterinarian_name" in profile_data:
-        update_fields["veterinarian_name"] = profile_data["veterinarian_name"]
-    if "profile_photo" in profile_data:
-        update_fields["profile_photo"] = profile_data["profile_photo"]
-    if "location_district" in profile_data:
-        update_fields["location_district"] = profile_data["location_district"]
-    if "latitude" in profile_data and profile_data["latitude"] is not None:
-        update_fields["latitude"] = float(profile_data["latitude"])
-    if "longitude" in profile_data and profile_data["longitude"] is not None:
-        update_fields["longitude"] = float(profile_data["longitude"])
+    if data.get("owner_name") is not None:
+        update_fields["owner_name"] = data["owner_name"]
+    if data.get("veterinarian_name") is not None:
+        update_fields["veterinarian_name"] = data["veterinarian_name"]
+    if data.get("profile_photo") is not None:
+        update_fields["profile_photo"] = data["profile_photo"]
+        
+    district_val = data.get("location_district") or data.get("district")
+    if district_val is not None and str(district_val).strip() != "":
+        update_fields["location_district"] = str(district_val)
+
+    if data.get("location") is not None and str(data["location"]).strip() != "":
+        update_fields["location"] = str(data["location"])
+        if "location_district" not in update_fields:
+            update_fields["location_district"] = str(data["location"])
+
+    lat_val = data.get("latitude")
+    if lat_val is not None and str(lat_val).strip() != "":
+        try:
+            update_fields["latitude"] = float(lat_val)
+        except (ValueError, TypeError):
+            pass
+
+    lon_val = data.get("longitude")
+    if lon_val is not None and str(lon_val).strip() != "":
+        try:
+            update_fields["longitude"] = float(lon_val)
+        except (ValueError, TypeError):
+            pass
         
     if not update_fields:
         return {"message": "No changes submitted."}
@@ -1799,7 +1833,7 @@ async def update_user_profile(profile_data: dict, authorization: Optional[str] =
             {"email": email},
             {"$set": update_fields}
         )
-        return {"message": "Profile updated successfully."}
+        return {"message": "Profile updated successfully.", "updated": update_fields}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

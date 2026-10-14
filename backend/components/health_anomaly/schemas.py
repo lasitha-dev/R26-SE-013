@@ -24,6 +24,34 @@ class TokenResponse(BaseModel):
     owner_name: str
     email: str
     veterinarian_name: str
+    location_district: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location: Optional[str] = None
+    district: Optional[str] = None
+
+class FarmProfileUpdate(BaseModel):
+    owner_name: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    profile_photo: Optional[str] = None
+    location_district: Optional[str] = None
+    district: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[Union[float, int, str]] = None
+    longitude: Optional[Union[float, int, str]] = None
+
+class FarmProfileResponse(BaseModel):
+    owner_name: Optional[str] = None
+    email: Optional[str] = None
+    location_district: Optional[str] = None
+    district: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    registration_number: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    profile_photo: Optional[str] = None
+    assigned_vet_ids: List[str] = []
 
 class VetRegister(BaseModel):
     full_name: str = Field(..., min_length=1)

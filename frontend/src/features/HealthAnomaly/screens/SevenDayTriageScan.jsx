@@ -39,7 +39,40 @@ export default function SevenDayTriageScan() {
         console.error('Error fetching cattle:', err)
       }
     }
+
+    const hydrateLocation = async () => {
+      const storedLat = localStorage.getItem('registered_farm_lat')
+      const storedLon = localStorage.getItem('registered_farm_lon')
+      if (!storedLat || !storedLon) {
+        const token = localStorage.getItem('token')
+        if (token) {
+          try {
+            const res = await fetch('http://127.0.0.1:8000/api/user/profile', {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data.latitude !== null && data.latitude !== undefined && data.longitude !== null && data.longitude !== undefined) {
+                localStorage.setItem('registered_farm_lat', data.latitude)
+                localStorage.setItem('registered_farm_lon', data.longitude)
+              }
+              if (data.location_district) {
+                localStorage.setItem('registered_farm_district', data.location_district)
+                localStorage.setItem('registered_farm_name', data.location_district)
+              }
+              if (data.location) {
+                localStorage.setItem('registered_farm_location', data.location)
+              }
+            }
+          } catch (e) {
+            console.error('Failed to auto-hydrate farm location in SevenDayTriageScan:', e)
+          }
+        }
+      }
+    }
+
     fetchCattle()
+    hydrateLocation()
   }, [])
 
   // Weather Source Dialog & GPS Info states
@@ -135,10 +168,35 @@ export default function SevenDayTriageScan() {
     )
   }
 
-  const handleFetchOptionB = () => {
-    const lat = parseFloat(localStorage.getItem('registered_farm_lat'))
-    const lon = parseFloat(localStorage.getItem('registered_farm_lon'))
-    const district = localStorage.getItem('registered_farm_district') || 'Unknown'
+  const handleFetchOptionB = async () => {
+    let lat = parseFloat(localStorage.getItem('registered_farm_lat'))
+    let lon = parseFloat(localStorage.getItem('registered_farm_lon'))
+    let district = localStorage.getItem('registered_farm_district') || 'Unknown'
+
+    if (isNaN(lat) || isNaN(lon)) {
+      const token = localStorage.getItem('token')
+      if (token) {
+        try {
+          const res = await fetch('http://127.0.0.1:8000/api/user/profile', {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.latitude !== null && data.latitude !== undefined && data.longitude !== null && data.longitude !== undefined) {
+              lat = parseFloat(data.latitude)
+              lon = parseFloat(data.longitude)
+              district = data.location_district || 'Unknown'
+              localStorage.setItem('registered_farm_lat', lat)
+              localStorage.setItem('registered_farm_lon', lon)
+              localStorage.setItem('registered_farm_district', district)
+              localStorage.setItem('registered_farm_name', district)
+            }
+          }
+        } catch (e) {
+          console.error('Error hydrating location in Option B:', e)
+        }
+      }
+    }
 
     if (isNaN(lat) || isNaN(lon)) {
       alert('Please pin your exact farm location in Settings first.')

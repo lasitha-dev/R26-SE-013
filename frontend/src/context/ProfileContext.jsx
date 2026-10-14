@@ -48,6 +48,17 @@ export function ProfileProvider({ children }) {
             if (data.owner_name) {
               setFarmerName(data.owner_name)
             }
+            if (data.latitude !== undefined && data.latitude !== null && data.longitude !== undefined && data.longitude !== null) {
+              localStorage.setItem('registered_farm_lat', data.latitude)
+              localStorage.setItem('registered_farm_lon', data.longitude)
+            }
+            if (data.location_district) {
+              localStorage.setItem('registered_farm_district', data.location_district)
+              localStorage.setItem('registered_farm_name', data.location_district)
+            }
+            if (data.location) {
+              localStorage.setItem('registered_farm_location', data.location)
+            }
             checkAlertsStatus()
           }
         } catch (err) {
