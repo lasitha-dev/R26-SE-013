@@ -21,3 +21,11 @@ def build_default_service() -> ForecastV2Service:
 
     return ForecastV2Service(repository_getter=lambda: repository, app_db_factory=get_app_db,
                              dependency_counter=dependency_counter)
+
+
+def build_outlook_service():
+    """Outlook service on the Atlas collection. Constructing it performs no I/O (no index, no collection)."""
+    from components.risk_forecasting.repositories.outlook_repository import MongoOutlookRepository
+    from components.risk_forecasting.services.seasonal_outlook_service import SeasonalOutlookService
+    repository = MongoOutlookRepository()
+    return SeasonalOutlookService(repository_getter=lambda: repository)

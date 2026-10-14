@@ -232,6 +232,15 @@ def climatology_intervals(train):
     }
 
 
+def climatology_counts(train):
+    """Raw evidence behind each district-month rate: [years with an outbreak, years observed]."""
+    rows = train.groupby(["district", "month"]).outbreak.agg(["sum", "count"]).reset_index().to_dict("records")
+    return {
+        "district_month": {f"{r['district']}|{int(r['month'])}": [int(r["sum"]), int(r["count"])] for r in rows},
+        "overall": [int(train.outbreak.sum()), int(len(train))],
+    }
+
+
 def interval_reliability(data, disease, decision):
     """Backtest check of the interval method for each deployed forecaster: in the evaluation years, bin
     forecasts by probability and compare the observed outbreak rate in each bin with the bin's mean interval.
@@ -476,7 +485,7 @@ def export(data, disease, ev, decision):
         "label_policy": "FMD 2017-2023 (2024 excluded as unverified); LSD 2020-2024",
         "issue_rule": "issued on day 5 of target month t using observations up to t-1 (Nino 3.4 up to t-2)",
         "relative_risk_alert": RELATIVE_RISK_ALERT,
-        "climatology": {**table, "intervals": climatology_intervals(data)},
+        "climatology": {**table, "intervals": climatology_intervals(data), "counts": climatology_counts(data)},
         "deployment": decision,
         "variants": {},
         "evaluation_summary": {

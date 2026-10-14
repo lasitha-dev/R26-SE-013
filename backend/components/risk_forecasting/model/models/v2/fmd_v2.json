@@ -1,7 +1,7 @@
 {
   "disease": "FMD",
   "model_version": "fmd_v2.1",
-  "created_at": "2026-10-14T06:10:51.284744+00:00",
+  "created_at": "2026-10-14T07:32:34.975136+00:00",
   "training_period": [
     "2017-01",
     "2023-12"
@@ -1586,6 +1586,1214 @@
           0.3141254175461031
         ]
       }
+    },
+    "counts": {
+      "district_month": {
+        "Ampara|1": [
+          5,
+          7
+        ],
+        "Ampara|2": [
+          3,
+          7
+        ],
+        "Ampara|3": [
+          2,
+          7
+        ],
+        "Ampara|4": [
+          1,
+          7
+        ],
+        "Ampara|5": [
+          1,
+          7
+        ],
+        "Ampara|6": [
+          2,
+          7
+        ],
+        "Ampara|7": [
+          0,
+          7
+        ],
+        "Ampara|8": [
+          1,
+          7
+        ],
+        "Ampara|9": [
+          2,
+          7
+        ],
+        "Ampara|10": [
+          0,
+          7
+        ],
+        "Ampara|11": [
+          0,
+          7
+        ],
+        "Ampara|12": [
+          3,
+          7
+        ],
+        "Anuradhapura|1": [
+          6,
+          7
+        ],
+        "Anuradhapura|2": [
+          2,
+          7
+        ],
+        "Anuradhapura|3": [
+          2,
+          7
+        ],
+        "Anuradhapura|4": [
+          3,
+          7
+        ],
+        "Anuradhapura|5": [
+          2,
+          7
+        ],
+        "Anuradhapura|6": [
+          1,
+          7
+        ],
+        "Anuradhapura|7": [
+          1,
+          7
+        ],
+        "Anuradhapura|8": [
+          0,
+          7
+        ],
+        "Anuradhapura|9": [
+          0,
+          7
+        ],
+        "Anuradhapura|10": [
+          2,
+          7
+        ],
+        "Anuradhapura|11": [
+          3,
+          7
+        ],
+        "Anuradhapura|12": [
+          4,
+          7
+        ],
+        "Badulla|1": [
+          3,
+          7
+        ],
+        "Badulla|2": [
+          3,
+          7
+        ],
+        "Badulla|3": [
+          1,
+          7
+        ],
+        "Badulla|4": [
+          0,
+          7
+        ],
+        "Badulla|5": [
+          1,
+          7
+        ],
+        "Badulla|6": [
+          1,
+          7
+        ],
+        "Badulla|7": [
+          0,
+          7
+        ],
+        "Badulla|8": [
+          0,
+          7
+        ],
+        "Badulla|9": [
+          1,
+          7
+        ],
+        "Badulla|10": [
+          0,
+          7
+        ],
+        "Badulla|11": [
+          1,
+          7
+        ],
+        "Badulla|12": [
+          3,
+          7
+        ],
+        "Batticaloa|1": [
+          3,
+          7
+        ],
+        "Batticaloa|2": [
+          3,
+          7
+        ],
+        "Batticaloa|3": [
+          1,
+          7
+        ],
+        "Batticaloa|4": [
+          2,
+          7
+        ],
+        "Batticaloa|5": [
+          0,
+          7
+        ],
+        "Batticaloa|6": [
+          0,
+          7
+        ],
+        "Batticaloa|7": [
+          0,
+          7
+        ],
+        "Batticaloa|8": [
+          0,
+          7
+        ],
+        "Batticaloa|9": [
+          1,
+          7
+        ],
+        "Batticaloa|10": [
+          3,
+          7
+        ],
+        "Batticaloa|11": [
+          1,
+          7
+        ],
+        "Batticaloa|12": [
+          2,
+          7
+        ],
+        "Colombo|1": [
+          2,
+          7
+        ],
+        "Colombo|2": [
+          0,
+          7
+        ],
+        "Colombo|3": [
+          0,
+          7
+        ],
+        "Colombo|4": [
+          0,
+          7
+        ],
+        "Colombo|5": [
+          0,
+          7
+        ],
+        "Colombo|6": [
+          0,
+          7
+        ],
+        "Colombo|7": [
+          0,
+          7
+        ],
+        "Colombo|8": [
+          0,
+          7
+        ],
+        "Colombo|9": [
+          0,
+          7
+        ],
+        "Colombo|10": [
+          0,
+          7
+        ],
+        "Colombo|11": [
+          0,
+          7
+        ],
+        "Colombo|12": [
+          1,
+          7
+        ],
+        "Galle|1": [
+          0,
+          7
+        ],
+        "Galle|2": [
+          0,
+          7
+        ],
+        "Galle|3": [
+          0,
+          7
+        ],
+        "Galle|4": [
+          0,
+          7
+        ],
+        "Galle|5": [
+          1,
+          7
+        ],
+        "Galle|6": [
+          0,
+          7
+        ],
+        "Galle|7": [
+          0,
+          7
+        ],
+        "Galle|8": [
+          0,
+          7
+        ],
+        "Galle|9": [
+          0,
+          7
+        ],
+        "Galle|10": [
+          0,
+          7
+        ],
+        "Galle|11": [
+          0,
+          7
+        ],
+        "Galle|12": [
+          0,
+          7
+        ],
+        "Gampaha|1": [
+          4,
+          7
+        ],
+        "Gampaha|2": [
+          1,
+          7
+        ],
+        "Gampaha|3": [
+          1,
+          7
+        ],
+        "Gampaha|4": [
+          1,
+          7
+        ],
+        "Gampaha|5": [
+          0,
+          7
+        ],
+        "Gampaha|6": [
+          0,
+          7
+        ],
+        "Gampaha|7": [
+          0,
+          7
+        ],
+        "Gampaha|8": [
+          0,
+          7
+        ],
+        "Gampaha|9": [
+          1,
+          7
+        ],
+        "Gampaha|10": [
+          1,
+          7
+        ],
+        "Gampaha|11": [
+          1,
+          7
+        ],
+        "Gampaha|12": [
+          2,
+          7
+        ],
+        "Hambantota|1": [
+          2,
+          7
+        ],
+        "Hambantota|2": [
+          1,
+          7
+        ],
+        "Hambantota|3": [
+          0,
+          7
+        ],
+        "Hambantota|4": [
+          1,
+          7
+        ],
+        "Hambantota|5": [
+          0,
+          7
+        ],
+        "Hambantota|6": [
+          1,
+          7
+        ],
+        "Hambantota|7": [
+          0,
+          7
+        ],
+        "Hambantota|8": [
+          0,
+          7
+        ],
+        "Hambantota|9": [
+          0,
+          7
+        ],
+        "Hambantota|10": [
+          1,
+          7
+        ],
+        "Hambantota|11": [
+          0,
+          7
+        ],
+        "Hambantota|12": [
+          0,
+          7
+        ],
+        "Jaffna|1": [
+          2,
+          7
+        ],
+        "Jaffna|2": [
+          2,
+          7
+        ],
+        "Jaffna|3": [
+          1,
+          7
+        ],
+        "Jaffna|4": [
+          0,
+          7
+        ],
+        "Jaffna|5": [
+          0,
+          7
+        ],
+        "Jaffna|6": [
+          0,
+          7
+        ],
+        "Jaffna|7": [
+          0,
+          7
+        ],
+        "Jaffna|8": [
+          0,
+          7
+        ],
+        "Jaffna|9": [
+          0,
+          7
+        ],
+        "Jaffna|10": [
+          1,
+          7
+        ],
+        "Jaffna|11": [
+          1,
+          7
+        ],
+        "Jaffna|12": [
+          0,
+          7
+        ],
+        "Kalutara|1": [
+          2,
+          7
+        ],
+        "Kalutara|2": [
+          0,
+          7
+        ],
+        "Kalutara|3": [
+          0,
+          7
+        ],
+        "Kalutara|4": [
+          0,
+          7
+        ],
+        "Kalutara|5": [
+          0,
+          7
+        ],
+        "Kalutara|6": [
+          0,
+          7
+        ],
+        "Kalutara|7": [
+          0,
+          7
+        ],
+        "Kalutara|8": [
+          1,
+          7
+        ],
+        "Kalutara|9": [
+          0,
+          7
+        ],
+        "Kalutara|10": [
+          1,
+          7
+        ],
+        "Kalutara|11": [
+          0,
+          7
+        ],
+        "Kalutara|12": [
+          0,
+          7
+        ],
+        "Kandy|1": [
+          3,
+          7
+        ],
+        "Kandy|2": [
+          2,
+          7
+        ],
+        "Kandy|3": [
+          3,
+          7
+        ],
+        "Kandy|4": [
+          1,
+          7
+        ],
+        "Kandy|5": [
+          1,
+          7
+        ],
+        "Kandy|6": [
+          1,
+          7
+        ],
+        "Kandy|7": [
+          0,
+          7
+        ],
+        "Kandy|8": [
+          1,
+          7
+        ],
+        "Kandy|9": [
+          1,
+          7
+        ],
+        "Kandy|10": [
+          2,
+          7
+        ],
+        "Kandy|11": [
+          2,
+          7
+        ],
+        "Kandy|12": [
+          1,
+          7
+        ],
+        "Kegalle|1": [
+          2,
+          7
+        ],
+        "Kegalle|2": [
+          1,
+          7
+        ],
+        "Kegalle|3": [
+          0,
+          7
+        ],
+        "Kegalle|4": [
+          0,
+          7
+        ],
+        "Kegalle|5": [
+          1,
+          7
+        ],
+        "Kegalle|6": [
+          0,
+          7
+        ],
+        "Kegalle|7": [
+          0,
+          7
+        ],
+        "Kegalle|8": [
+          0,
+          7
+        ],
+        "Kegalle|9": [
+          1,
+          7
+        ],
+        "Kegalle|10": [
+          1,
+          7
+        ],
+        "Kegalle|11": [
+          0,
+          7
+        ],
+        "Kegalle|12": [
+          0,
+          7
+        ],
+        "Kilinochchi|1": [
+          0,
+          7
+        ],
+        "Kilinochchi|2": [
+          0,
+          7
+        ],
+        "Kilinochchi|3": [
+          0,
+          7
+        ],
+        "Kilinochchi|4": [
+          0,
+          7
+        ],
+        "Kilinochchi|5": [
+          0,
+          7
+        ],
+        "Kilinochchi|6": [
+          0,
+          7
+        ],
+        "Kilinochchi|7": [
+          0,
+          7
+        ],
+        "Kilinochchi|8": [
+          1,
+          7
+        ],
+        "Kilinochchi|9": [
+          1,
+          7
+        ],
+        "Kilinochchi|10": [
+          0,
+          7
+        ],
+        "Kilinochchi|11": [
+          1,
+          7
+        ],
+        "Kilinochchi|12": [
+          1,
+          7
+        ],
+        "Kurunegala|1": [
+          5,
+          7
+        ],
+        "Kurunegala|2": [
+          3,
+          7
+        ],
+        "Kurunegala|3": [
+          1,
+          7
+        ],
+        "Kurunegala|4": [
+          1,
+          7
+        ],
+        "Kurunegala|5": [
+          0,
+          7
+        ],
+        "Kurunegala|6": [
+          1,
+          7
+        ],
+        "Kurunegala|7": [
+          1,
+          7
+        ],
+        "Kurunegala|8": [
+          2,
+          7
+        ],
+        "Kurunegala|9": [
+          0,
+          7
+        ],
+        "Kurunegala|10": [
+          1,
+          7
+        ],
+        "Kurunegala|11": [
+          2,
+          7
+        ],
+        "Kurunegala|12": [
+          2,
+          7
+        ],
+        "Mannar|1": [
+          1,
+          7
+        ],
+        "Mannar|2": [
+          0,
+          7
+        ],
+        "Mannar|3": [
+          0,
+          7
+        ],
+        "Mannar|4": [
+          0,
+          7
+        ],
+        "Mannar|5": [
+          0,
+          7
+        ],
+        "Mannar|6": [
+          0,
+          7
+        ],
+        "Mannar|7": [
+          0,
+          7
+        ],
+        "Mannar|8": [
+          0,
+          7
+        ],
+        "Mannar|9": [
+          0,
+          7
+        ],
+        "Mannar|10": [
+          1,
+          7
+        ],
+        "Mannar|11": [
+          0,
+          7
+        ],
+        "Mannar|12": [
+          0,
+          7
+        ],
+        "Matale|1": [
+          2,
+          7
+        ],
+        "Matale|2": [
+          1,
+          7
+        ],
+        "Matale|3": [
+          1,
+          7
+        ],
+        "Matale|4": [
+          0,
+          7
+        ],
+        "Matale|5": [
+          0,
+          7
+        ],
+        "Matale|6": [
+          0,
+          7
+        ],
+        "Matale|7": [
+          0,
+          7
+        ],
+        "Matale|8": [
+          0,
+          7
+        ],
+        "Matale|9": [
+          0,
+          7
+        ],
+        "Matale|10": [
+          0,
+          7
+        ],
+        "Matale|11": [
+          0,
+          7
+        ],
+        "Matale|12": [
+          2,
+          7
+        ],
+        "Matara|1": [
+          0,
+          7
+        ],
+        "Matara|2": [
+          0,
+          7
+        ],
+        "Matara|3": [
+          0,
+          7
+        ],
+        "Matara|4": [
+          0,
+          7
+        ],
+        "Matara|5": [
+          0,
+          7
+        ],
+        "Matara|6": [
+          0,
+          7
+        ],
+        "Matara|7": [
+          0,
+          7
+        ],
+        "Matara|8": [
+          0,
+          7
+        ],
+        "Matara|9": [
+          0,
+          7
+        ],
+        "Matara|10": [
+          0,
+          7
+        ],
+        "Matara|11": [
+          0,
+          7
+        ],
+        "Matara|12": [
+          0,
+          7
+        ],
+        "Monaragala|1": [
+          3,
+          7
+        ],
+        "Monaragala|2": [
+          2,
+          7
+        ],
+        "Monaragala|3": [
+          0,
+          7
+        ],
+        "Monaragala|4": [
+          1,
+          7
+        ],
+        "Monaragala|5": [
+          1,
+          7
+        ],
+        "Monaragala|6": [
+          0,
+          7
+        ],
+        "Monaragala|7": [
+          0,
+          7
+        ],
+        "Monaragala|8": [
+          0,
+          7
+        ],
+        "Monaragala|9": [
+          0,
+          7
+        ],
+        "Monaragala|10": [
+          1,
+          7
+        ],
+        "Monaragala|11": [
+          1,
+          7
+        ],
+        "Monaragala|12": [
+          2,
+          7
+        ],
+        "Mullaitivu|1": [
+          0,
+          7
+        ],
+        "Mullaitivu|2": [
+          0,
+          7
+        ],
+        "Mullaitivu|3": [
+          1,
+          7
+        ],
+        "Mullaitivu|4": [
+          1,
+          7
+        ],
+        "Mullaitivu|5": [
+          0,
+          7
+        ],
+        "Mullaitivu|6": [
+          0,
+          7
+        ],
+        "Mullaitivu|7": [
+          1,
+          7
+        ],
+        "Mullaitivu|8": [
+          1,
+          7
+        ],
+        "Mullaitivu|9": [
+          1,
+          7
+        ],
+        "Mullaitivu|10": [
+          1,
+          7
+        ],
+        "Mullaitivu|11": [
+          0,
+          7
+        ],
+        "Mullaitivu|12": [
+          2,
+          7
+        ],
+        "Nuwara Eliya|1": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|2": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|3": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|4": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|5": [
+          0,
+          7
+        ],
+        "Nuwara Eliya|6": [
+          0,
+          7
+        ],
+        "Nuwara Eliya|7": [
+          0,
+          7
+        ],
+        "Nuwara Eliya|8": [
+          0,
+          7
+        ],
+        "Nuwara Eliya|9": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|10": [
+          0,
+          7
+        ],
+        "Nuwara Eliya|11": [
+          1,
+          7
+        ],
+        "Nuwara Eliya|12": [
+          1,
+          7
+        ],
+        "Polonnaruwa|1": [
+          3,
+          7
+        ],
+        "Polonnaruwa|2": [
+          2,
+          7
+        ],
+        "Polonnaruwa|3": [
+          1,
+          7
+        ],
+        "Polonnaruwa|4": [
+          1,
+          7
+        ],
+        "Polonnaruwa|5": [
+          2,
+          7
+        ],
+        "Polonnaruwa|6": [
+          1,
+          7
+        ],
+        "Polonnaruwa|7": [
+          0,
+          7
+        ],
+        "Polonnaruwa|8": [
+          0,
+          7
+        ],
+        "Polonnaruwa|9": [
+          0,
+          7
+        ],
+        "Polonnaruwa|10": [
+          1,
+          7
+        ],
+        "Polonnaruwa|11": [
+          0,
+          7
+        ],
+        "Polonnaruwa|12": [
+          2,
+          7
+        ],
+        "Puttalam|1": [
+          2,
+          7
+        ],
+        "Puttalam|2": [
+          1,
+          7
+        ],
+        "Puttalam|3": [
+          1,
+          7
+        ],
+        "Puttalam|4": [
+          0,
+          7
+        ],
+        "Puttalam|5": [
+          1,
+          7
+        ],
+        "Puttalam|6": [
+          0,
+          7
+        ],
+        "Puttalam|7": [
+          0,
+          7
+        ],
+        "Puttalam|8": [
+          0,
+          7
+        ],
+        "Puttalam|9": [
+          0,
+          7
+        ],
+        "Puttalam|10": [
+          0,
+          7
+        ],
+        "Puttalam|11": [
+          3,
+          7
+        ],
+        "Puttalam|12": [
+          3,
+          7
+        ],
+        "Ratnapura|1": [
+          0,
+          7
+        ],
+        "Ratnapura|2": [
+          0,
+          7
+        ],
+        "Ratnapura|3": [
+          0,
+          7
+        ],
+        "Ratnapura|4": [
+          0,
+          7
+        ],
+        "Ratnapura|5": [
+          0,
+          7
+        ],
+        "Ratnapura|6": [
+          0,
+          7
+        ],
+        "Ratnapura|7": [
+          0,
+          7
+        ],
+        "Ratnapura|8": [
+          0,
+          7
+        ],
+        "Ratnapura|9": [
+          0,
+          7
+        ],
+        "Ratnapura|10": [
+          0,
+          7
+        ],
+        "Ratnapura|11": [
+          0,
+          7
+        ],
+        "Ratnapura|12": [
+          0,
+          7
+        ],
+        "Trincomalee|1": [
+          1,
+          7
+        ],
+        "Trincomalee|2": [
+          0,
+          7
+        ],
+        "Trincomalee|3": [
+          2,
+          7
+        ],
+        "Trincomalee|4": [
+          0,
+          7
+        ],
+        "Trincomalee|5": [
+          0,
+          7
+        ],
+        "Trincomalee|6": [
+          0,
+          7
+        ],
+        "Trincomalee|7": [
+          0,
+          7
+        ],
+        "Trincomalee|8": [
+          0,
+          7
+        ],
+        "Trincomalee|9": [
+          1,
+          7
+        ],
+        "Trincomalee|10": [
+          1,
+          7
+        ],
+        "Trincomalee|11": [
+          1,
+          7
+        ],
+        "Trincomalee|12": [
+          3,
+          7
+        ],
+        "Vavuniya|1": [
+          1,
+          7
+        ],
+        "Vavuniya|2": [
+          1,
+          7
+        ],
+        "Vavuniya|3": [
+          0,
+          7
+        ],
+        "Vavuniya|4": [
+          0,
+          7
+        ],
+        "Vavuniya|5": [
+          0,
+          7
+        ],
+        "Vavuniya|6": [
+          1,
+          7
+        ],
+        "Vavuniya|7": [
+          0,
+          7
+        ],
+        "Vavuniya|8": [
+          0,
+          7
+        ],
+        "Vavuniya|9": [
+          0,
+          7
+        ],
+        "Vavuniya|10": [
+          0,
+          7
+        ],
+        "Vavuniya|11": [
+          1,
+          7
+        ],
+        "Vavuniya|12": [
+          1,
+          7
+        ]
+      },
+      "overall": [
+        228,
+        2100
+      ]
     }
   },
   "deployment": {

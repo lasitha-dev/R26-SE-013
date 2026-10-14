@@ -4,7 +4,7 @@ Provides validation and documentation for FMD and LSD prediction and forecast en
 """
 
 from typing import Any, Dict, List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator, computed_field
 from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 from components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
 
@@ -723,3 +723,50 @@ class EligibleVetListResponse(BaseModel):
     district: str = Field(..., description="Target Sri Lankan district name.")
     total_count: int = Field(..., ge=0, description="Total count of active eligible Veterinary Officers.")
     veterinary_officers: List[VeterinaryOfficerSummary] = Field(..., description="List of active eligible Veterinary Officers.")
+
+
+class SeasonalOutlookRecord(BaseModel):
+    """Immutable climatology-based outlook for the NEXT month (contract: docs/v2/SEASONAL_OUTLOOK_CONTRACT.md).
+
+    Deliberately has no risk tier, relative risk, contributions or severity, and stores only `probability`
+    (the percentage is derived when serving)."""
+    model_config = ConfigDict(extra="forbid")
+
+    outlook_id: str = Field(..., description="Unique outlook identifier (out_<12 hex>).")
+    product_type: Literal["SEASONAL_OUTLOOK"] = "SEASONAL_OUTLOOK"
+    disease: Literal["FMD", "LSD"]
+    district: str
+    target_year: int = Field(..., ge=2017, le=2030)
+    target_month: int = Field(..., ge=1, le=12)
+    probability: float = Field(..., ge=0.0, le=1.0, description="District-month climatological outbreak probability.")
+    interval_type: Literal["BETA_POSTERIOR_CREDIBLE_APPROX"] = "BETA_POSTERIOR_CREDIBLE_APPROX"
+    interval_level: float = Field(0.8, ge=0.0, le=1.0)
+    probability_low: float = Field(..., ge=0.0, le=1.0)
+    probability_high: float = Field(..., ge=0.0, le=1.0)
+    years_observed: int = Field(..., ge=1, description="Training years behind this district-month.")
+    positive_years: int = Field(..., ge=0, description="Years in which this district-month was an outbreak month.")
+    method: Literal["DISTRICT_MONTH_CLIMATOLOGY"] = "DISTRICT_MONTH_CLIMATOLOGY"
+    method_version: str
+    source_artifact_version: str
+    source_artifact_hash: str
+    data_cutoff: str = Field(..., description="Last month of the training data (YYYY-MM).")
+    issue_date: str = Field(..., description="Real UTC issue date (YYYY-MM-DD).")
+    generated_at: str
+    lead_days: int = Field(..., description="Days from the issue date to the first day of the target month.")
+    status: Literal["ACTIVE", "VOIDED", "CORRECTED"] = "ACTIVE"
+    replaces_outlook_id: Optional[str] = None
+    disclaimer_version: str = "seasonal_outlook_v1"
+    idempotency_key: str
+
+    @model_validator(mode="after")
+    def _interval_brackets_probability(self):
+        if not (self.probability_low <= self.probability <= self.probability_high):
+            raise ValueError("probability must lie within [probability_low, probability_high]")
+        if self.positive_years > self.years_observed:
+            raise ValueError("positive_years cannot exceed years_observed")
+        return self
+
+    @computed_field
+    @property
+    def probability_pct(self) -> float:
+        return round(self.probability * 100, 1)

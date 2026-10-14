@@ -1478,3 +1478,56 @@ def get_v2_performance(service=Depends(get_forecast_v2_service)):
     except RuntimeError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                             detail="Forecast record storage is temporarily unavailable.")
+
+
+_outlook_repository = None
+
+
+def get_outlook_repository():
+    global _outlook_repository
+    if _outlook_repository is None:
+        from components.risk_forecasting.repositories.outlook_repository import MongoOutlookRepository
+        _outlook_repository = MongoOutlookRepository()
+    return _outlook_repository
+
+
+def get_seasonal_outlook_service():
+    from components.risk_forecasting.services.seasonal_outlook_service import SeasonalOutlookService
+    return SeasonalOutlookService(repository_getter=get_outlook_repository)
+
+
+@router.get("/v2/outlooks", summary="Issued Seasonal Outlooks (read-only; never creates a collection or index)")
+def list_seasonal_outlooks(
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None),
+    district: Optional[str] = Query(None),
+    target_year: Optional[int] = Query(None, ge=2017, le=2030),
+    target_month: Optional[int] = Query(None, ge=1, le=12),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    try:
+        records, total = get_outlook_repository().list(
+            disease=disease, district=district, target_year=target_year, target_month=target_month,
+            limit=limit, offset=offset)
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Outlook storage is temporarily unavailable.")
+    return {"total_count": total, "limit": limit, "offset": offset, "records": [r.model_dump() for r in records]}
+
+
+@router.get("/v2/outlooks/preview", summary="Computed (not stored) Seasonal Outlook for the next month, labelled as a preview")
+def preview_seasonal_outlooks(
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None),
+    district: Optional[str] = Query(None),
+):
+    from components.risk_forecasting.services.seasonal_outlook_service import (
+        OutlookDataError, OutlookTargetError, next_month)
+    service = get_seasonal_outlook_service()
+    year, month = next_month(service.clock().date())
+    try:
+        planned = service.plan(year, month, [disease] if disease else ("FMD", "LSD"))
+    except (OutlookTargetError, OutlookDataError) as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if district:
+        planned = [r for r in planned if r.district.lower() == district.lower()]
+    return {"preview": True, "stored": False, "target_period": f"{year:04d}-{month:02d}",
+            "records": [r.model_dump() for r in planned]}
