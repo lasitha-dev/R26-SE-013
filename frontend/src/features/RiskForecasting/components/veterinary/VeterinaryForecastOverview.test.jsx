@@ -158,7 +158,8 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.queryByText('about 50%')).not.toBeInTheDocument();
     const select = screen.getByLabelText('Month:');
     expect(select.value).toBe('2025-1');
-    expect(Array.from(select.options).map((o) => o.text)).toEqual(['December 2026', 'January 2025']);   // still selectable
+    expect(Array.from(select.options).map((o) => o.text)).toEqual(['January 2025', 'December 2026']);   // still selectable, grouped under "Other months"
+    expect(Array.from(select.querySelectorAll('optgroup')).map((g) => g.label)).toEqual(['Other months']);
   });
 
   it('keeps the exact figures, the reason and the stored explanation behind "More details", with no live call', async () => {
@@ -269,5 +270,20 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
       expect(screen.getByText('about 31%')).toBeInTheDocument();          // the forecast remains the main figure
       expect(screen.queryByRole('heading', { name: /Looking ahead/ })).not.toBeInTheDocument();
     });
+  });
+
+  it('lists the outlook month as a choice and shows its outlook when picked', async () => {
+    workflowApi.listForecastRecords.mockResolvedValue(respond([forecast('FMD')]));
+    workflowApi.listOutlooks.mockResolvedValue({ records: [outlook('FMD')] });
+    render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+    const select = await screen.findByLabelText('Month:');
+    await waitFor(() => expect(Array.from(select.options).some((o) => /\(outlook\)$/.test(o.text))).toBe(true));
+    const outlookOption = Array.from(select.options).find((o) => /\(outlook\)$/.test(o.text));
+    expect(select.value).toBe('2025-1');   // opens on the forecast, not on the outlook
+
+    fireEvent.change(select, { target: { value: outlookOption.value } });
+    await waitFor(() => expect(screen.getByRole('heading', { name: /^Outlook for / })).toBeInTheDocument());
+    expect(screen.queryByText(/Chance of an outbreak in/)).not.toBeInTheDocument();
   });
 });

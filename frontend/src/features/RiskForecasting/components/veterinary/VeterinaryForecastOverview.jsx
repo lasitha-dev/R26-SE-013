@@ -97,6 +97,8 @@ function formatDataAgeMonths(months) {
   return `${months} ${unit}`;
 }
 
+const periodKey = (p) => p.year * 12 + p.month;
+
 const samePeriod = (a, b) => Boolean(a && b) && a.year === b.year && a.month === b.month;
 
 /**
@@ -106,8 +108,8 @@ const samePeriod = (a, b) => Boolean(a && b) && a.year === b.year && a.month ===
 function pickDefaultPeriod(available) {
   if (available.length === 0) return null;
   const target = getDefaultTargetPeriod();
-  const key = (p) => p.year * 12 + p.month;
-  return available.find((p) => key(p) <= key(target)) || available[available.length - 1];   // `available` is newest first
+  const withForecast = available.filter((p) => !p.outlook);
+  return withForecast.find((p) => periodKey(p) <= periodKey(target)) || withForecast[withForecast.length - 1] || available[0];   // newest first
 }
 
 /**
@@ -156,6 +158,15 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
         const period = { year: r.target_year ?? r.targetYear, month: r.target_month ?? r.targetMonth };
         return [`${period.year}-${period.month}`, period];
       })).values()].sort((a, b) => (b.year - a.year) || (b.month - a.month));
+      // The month after the forecast month is offered too, when its seasonal outlook exists.
+      const target = getDefaultTargetPeriod();
+      const outlookMonth = nextPeriod(target.year, target.month);
+      if (!available.some((p) => samePeriod(p, outlookMonth))) {
+        const outlookResult = await loadOutlooks({ year: outlookMonth.year, month: outlookMonth.month, district: assignedDistrict });
+        if (['FMD', 'LSD'].some((d) => outlookFor(outlookResult, assignedDistrict, d))) {
+          available.unshift({ ...outlookMonth, outlook: true });
+        }
+      }
       setRecords(official);
       setPeriods(available);
       setSelected((current) => (current && available.some((p) => samePeriod(p, current)) ? current : pickDefaultPeriod(available)));
@@ -177,7 +188,9 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   // 4. The outlook is for the month after the one on screen (or the default next month when nothing is issued yet)
   useEffect(() => {
     if (!isAccessAllowed || loading) return undefined;
-    const target = selected ? nextPeriod(selected.year, selected.month) : getDefaultTargetPeriod();
+    const target = selected
+      ? (selected.outlook ? selected : nextPeriod(selected.year, selected.month))
+      : getDefaultTargetPeriod();
     let active = true;
     loadOutlooks({ year: target.year, month: target.month, district: assignedDistrict }).then((result) => {
       if (active) {
@@ -228,6 +241,25 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
       && (r.target_year ?? r.targetYear) === selected.year
       && (r.target_month ?? r.targetMonth) === selected.month) || null
     : null);
+
+  // Recent months first (up to three months before the forecast month, plus the outlook month); older or stray months are grouped apart.
+  const renderPeriodOptions = () => {
+    const target = getDefaultTargetPeriod();
+    const isRecent = (p) => p.outlook || (periodKey(p) <= periodKey(target) && periodKey(p) >= periodKey(target) - 3);
+    const option = (p) => (
+      <option key={`${p.year}-${p.month}`} value={`${p.year}-${p.month}`} className="bg-surface-container text-on-surface">
+        {periodLabel(p.year, p.month)}{p.outlook ? ' (outlook)' : ''}
+      </option>
+    );
+    const recent = periods.filter(isRecent);
+    const other = periods.filter((p) => !isRecent(p));
+    return (
+      <>
+        {recent.map(option)}
+        {other.length > 0 && <optgroup label="Other months">{other.map(option)}</optgroup>}
+      </>
+    );
+  };
 
   const diseaseTitle = { FMD: 'Foot-and-Mouth Disease (FMD)', LSD: 'Lumpy Skin Disease (LSD)' };
 
@@ -396,17 +428,13 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 value={selected ? `${selected.year}-${selected.month}` : ''}
                 onChange={(e) => {
                   const [year, month] = e.target.value.split('-').map(Number);
-                  setSelected({ year, month });
+                  setSelected(periods.find((p) => p.year === year && p.month === month) || { year, month });
                   setExplanationData(null);
                   setExplanationError(null);
                 }}
                 className="bg-transparent text-xs text-on-surface font-semibold focus:outline-none"
               >
-                {periods.map((period) => (
-                  <option key={`${period.year}-${period.month}`} value={`${period.year}-${period.month}`} className="bg-surface-container text-on-surface">
-                    {periodLabel(period.year, period.month)}
-                  </option>
-                ))}
+                {renderPeriodOptions()}
               </select>
             </div>
           )}
