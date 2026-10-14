@@ -1101,3 +1101,28 @@ export async function getActiveSurveillance({ disease, year, month } = {}, optio
 export async function getV2Performance(options = {}) {
   return requestWorkflowApi('/api/v1/risk-forecasting/v2/performance', { method: 'GET', signal: options.signal });
 }
+
+/**
+ * Issued Seasonal Outlooks (read-only).
+ * GET /api/v1/risk-forecasting/v2/outlooks
+ */
+export async function listOutlooks(filters = {}, options = {}) {
+  const queryString = buildQueryString({
+    disease: filters.disease,
+    district: filters.district,
+    target_year: filters.target_year,
+    target_month: filters.target_month,
+    limit: filters.limit,
+    offset: filters.offset,
+  });
+  return requestWorkflowApi(`/api/v1/risk-forecasting/v2/outlooks${queryString}`, { method: 'GET', signal: options.signal });
+}
+
+/**
+ * Computed (not stored) outlook for the next month, labelled as a preview by the server.
+ * GET /api/v1/risk-forecasting/v2/outlooks/preview
+ */
+export async function previewOutlooks(filters = {}, options = {}) {
+  const queryString = buildQueryString({ disease: filters.disease, district: filters.district });
+  return requestWorkflowApi(`/api/v1/risk-forecasting/v2/outlooks/preview${queryString}`, { method: 'GET', signal: options.signal });
+}

@@ -7,6 +7,8 @@ import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 
 vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listForecastRecords: vi.fn(),
+  listOutlooks: vi.fn(),
+  previewOutlooks: vi.fn(),
 }));
 
 describe('VeterinaryForecastOverview Component Unit Tests', () => {
@@ -268,5 +270,45 @@ describe('VeterinaryForecastOverview Component Unit Tests', () => {
     expect(screen.getByText('BASELINE')).toBeInTheDocument();
     expect(screen.queryByText(/^LOW$/)).not.toBeInTheDocument();
     expect(screen.getByText('Historical baseline')).toBeInTheDocument();
+  });
+
+  describe('Seasonal Outlook', () => {
+    const outlook = (disease, overrides) => ({
+      disease, district: 'Anuradhapura', status: 'ACTIVE', probability: 0.033, probability_low: 0.0,
+      probability_high: 0.097, interval_level: 0.8, years_observed: 7, positive_years: 0,
+      issue_date: '2026-10-15', lead_days: 17, ...overrides,
+    });
+
+    it('shows the outlook, labelled as a preview, when no forecast exists for the month', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ total_count: 0, limit: 50, offset: 0, records: [] });
+      workflowApi.listOutlooks.mockResolvedValue({ records: [] });
+      workflowApi.previewOutlooks.mockResolvedValue({ target_period: '2025-01', records: [outlook('FMD'), outlook('LSD', { probability: 0.027 })] });
+
+      render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+      await waitFor(() => expect(screen.getAllByText('SEASONAL OUTLOOK').length).toBe(2));
+      expect(screen.getAllByText('PREVIEW · not yet issued').length).toBe(2);
+      expect(screen.getByText('3.3%')).toBeInTheDocument();
+      expect(screen.getAllByText(/No official stored forecast decision record exists/).length).toBe(2);
+    });
+
+    it('keeps the early-month forecast as the main figure and adds a one-line issued-earlier reminder', async () => {
+      const forecast = {
+        forecast_id: 'fdr_x', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+        risk_level: 'MEDIUM', probability: 0.31, probability_pct: 31.0, predicted_severity: null, status: 'GENERATED',
+        generated_at: '2026-10-13T00:00:00Z', model_variant: 'fmd_v2.1:O', model_version: 'fmd_v2.1', forecaster: 'O',
+        deployment_status: 'back_tested', relative_risk: 2.4, data_quality: 'V2_MODEL', fallback_applied: false,
+      };
+      workflowApi.listForecastRecords.mockImplementation(({ disease }) => Promise.resolve({
+        total_count: disease === 'FMD' ? 1 : 0, limit: 50, offset: 0, records: disease === 'FMD' ? [forecast] : [],
+      }));
+      workflowApi.listOutlooks.mockResolvedValue({ records: [outlook('FMD')] });
+
+      render(<VeterinaryForecastOverview viewerContext={validVetContext} />);
+
+      await waitFor(() => expect(screen.getByText('31.0%')).toBeInTheDocument());
+      expect(screen.getByTestId('outlook-compact')).toHaveTextContent('Outlook issued earlier: 3.3%');
+      expect(screen.queryByText('SEASONAL OUTLOOK')).not.toBeInTheDocument();   // the LSD slot has no outlook here
+    });
   });
 });

@@ -10,6 +10,8 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
+import { OutlookCard } from '../OutlookCard';
+import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import {
   BASELINE_BADGE,
   describePreviousMonth,
@@ -134,6 +136,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
   const [apiError, setApiError] = useState(null);
   const [fmdRecord, setFmdRecord] = useState(null);
   const [lsdRecord, setLsdRecord] = useState(null);
+  const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
 
   const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
   const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
@@ -168,6 +171,9 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
 
       setFmdRecord(foundFmd);
       setLsdRecord(foundLsd);
+
+      // Seasonal Outlook for the same month (stored, or the next month's server-computed preview)
+      setOutlooks(await loadOutlooks({ year: selectedYear, month: selectedMonth, district: assignedDistrict }));
 
       if (fmdRes.status === 'rejected' && lsdRes.status === 'rejected') {
         setApiError(fmdRes.reason?.message || lsdRes.reason?.message || 'Failed to load official forecast records.');
@@ -240,6 +246,7 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
           <p className="text-xs text-on-surface-variant leading-relaxed">
             No official stored forecast decision record exists for {diseaseCode} in {assignedDistrict} District.
           </p>
+          <OutlookCard outlook={outlookFor(outlooks, assignedDistrict, diseaseCode)} preview={outlooks.source === 'preview'} />
         </article>
       );
     }
@@ -298,6 +305,9 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 </span>
               )}
               <TierBasisNote record={record} />
+              {outlooks.source === 'stored' && (
+                <OutlookCard compact outlook={outlookFor(outlooks, assignedDistrict, record.disease || 'FMD')} />
+              )}
             </div>
             <div>
               <span className="text-[11px] font-medium text-on-surface-variant block uppercase tracking-wider">

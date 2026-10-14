@@ -13,6 +13,8 @@ vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   listNotificationBatches: vi.fn(),
   generateV2Forecasts: vi.fn(),
   getActiveSurveillance: vi.fn(),
+  listOutlooks: vi.fn(),
+  previewOutlooks: vi.fn(),
 }));
 
 describe('DaphNationalForecastOverview Component', () => {
@@ -870,6 +872,43 @@ describe('DaphNationalForecastOverview Component', () => {
       const rows = screen.getAllByRole('row').filter((r) => cellTexts(r).includes('Anuradhapura') && cellTexts(r).includes('FMD'));
       expect(rows).toHaveLength(1);
       expect(within(rows[0]).getByText('APPROVED')).toBeInTheDocument();
+    });
+  });
+
+  describe('Seasonal Outlook for months without an early-month forecast', () => {
+    const outlook = (district, disease, probability) => ({
+      disease, district, status: 'ACTIVE', probability, probability_low: 0.0, probability_high: 0.1,
+      interval_level: 0.8, years_observed: 7, positive_years: 1, issue_date: '2026-10-15', lead_days: 17,
+    });
+
+    it('shows OUTLOOK instead of No Record, keeps the KPI counts untouched and opens the outlook in the drawer', async () => {
+      api.listForecastRecords.mockResolvedValue({ total: 0, records: [] });
+      api.listOutlooks.mockResolvedValue({ records: [] });
+      api.previewOutlooks.mockResolvedValue({
+        target_period: '2025-01',
+        records: [outlook('Colombo', 'FMD', 0.033), outlook('Colombo', 'LSD', 0.027)],
+      });
+
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+
+      await waitFor(() => expect(screen.getAllByText('OUTLOOK').length).toBe(2));
+      expect(screen.getByText('3.3%')).toBeInTheDocument();
+      expect(screen.getAllByText('Outlook (preview)').length).toBe(2);
+      // Outlooks are not forecasts: they are not counted as HIGH/MEDIUM/LOW districts.
+      expect(screen.queryByText(/LOW Risk Districts/i)?.closest('div')?.textContent ?? '').not.toMatch(/[1-9]/);
+
+      fireEvent.click(screen.getAllByRole('button', { name: /View outlook for Colombo FMD/i })[0]);
+      expect(await screen.findByTestId('outlook-card')).toBeInTheDocument();
+      expect(screen.getByText(/seasonal outlook below was prepared from historical patterns/i)).toBeInTheDocument();
+    });
+
+    it('falls back to No Record when no outlook exists', async () => {
+      api.listForecastRecords.mockResolvedValue({ total: 0, records: [] });
+      api.listOutlooks.mockResolvedValue({ records: [] });
+      api.previewOutlooks.mockResolvedValue({ target_period: '2030-05', records: [] });
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getAllByText('No Record').length).toBeGreaterThan(0));
+      expect(screen.queryByText('OUTLOOK')).not.toBeInTheDocument();
     });
   });
 });

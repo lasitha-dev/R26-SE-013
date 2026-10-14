@@ -20,6 +20,8 @@ import {
 import { DaphFollowUpComposer } from './DaphFollowUpComposer';
 import { ForecastSourceBadge } from '../ForecastSourceBadge';
 import { TierBasisNote } from '../TierBasisNote';
+import { OutlookCard } from '../OutlookCard';
+import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, selectOfficialRecords } from '../forecastPresentation';
 
 const RISK_TIER_RANK = Object.freeze({
@@ -88,6 +90,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [districtList, setDistrictList] = useState([]);
   const [monthNamesList, setMonthNamesList] = useState([]);
   const [allRecords, setAllRecords] = useState([]);
+  const [outlooks, setOutlooks] = useState(NO_OUTLOOK);
   const [advisories, setAdvisories] = useState([]);
   const [notificationBatches, setNotificationBatches] = useState([]);
 
@@ -169,6 +172,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       // Only persisted forecast records are displayed. Periods without stored records
       // are shown as "No Record"; no client-side substitute predictions are generated.
       setAllRecords(fetchedRecords);
+
+      // Seasonal Outlook for the same month (stored, or the next month's server-computed preview)
+      const outlookResult = await loadOutlooks({ year: Number(selectedYear), month: Number(selectedMonth), signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setOutlooks(outlookResult);
 
       // Real-time signal, separate from the forecast: verified cases/deaths recorded this month.
       try {
@@ -398,6 +406,8 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             source_month: null,
             data_age_months: null,
             record: null,
+            outlook: outlookFor(outlooks, dist, dis),
+            outlookPreview: outlooks.source === 'preview',
             linkedAdvisories: [],
             advisoryStatusSummary: 'No Advisory',
             requiresFollowUp: false,
@@ -444,6 +454,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     districtList,
     selectedDisease,
     periodFilteredRecords,
+    outlooks,
     advisoriesByForecastId,
     batchesByAdvisoryId,
     selectedYear,
@@ -1005,6 +1016,13 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                               <span className="block text-[10px] font-medium text-slate-500" title="Uncertainty of the probability estimate">{formatProbabilityInterval(row.record)}</span>
                             )}
                           </span>
+                        ) : row.outlook ? (
+                          <span className="text-slate-300">
+                            {(row.outlook.probability * 100).toFixed(1)}%
+                            <span className="block text-[10px] font-medium text-sky-300">
+                              Outlook{row.outlookPreview ? ' (preview)' : ''}
+                            </span>
+                          </span>
                         ) : (
                           <span className="text-slate-500">N/A</span>
                         )}
@@ -1025,6 +1043,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                         ) : isLow ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                             LOW
+                          </span>
+                        ) : isMissing && row.outlook ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-950/80 text-sky-300 border border-sky-600/40" title="Seasonal outlook: no early-month forecast has been issued yet">
+                            OUTLOOK
                           </span>
                         ) : isMissing ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
@@ -1092,7 +1114,16 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
                       {/* View Details Action */}
                       <td className="py-3 px-3 text-center">
-                        {isMissing ? (
+                        {isMissing && row.outlook ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailRow(row)}
+                            className="text-[11px] text-sky-300 hover:text-sky-200 font-medium underline"
+                            aria-label={`View outlook for ${row.district} ${row.disease}`}
+                          >
+                            View outlook
+                          </button>
+                        ) : isMissing ? (
                           <span className="text-[11px] text-slate-500 font-medium">No record</span>
                         ) : (
                           <div className="flex items-center justify-center gap-1">
@@ -1175,7 +1206,15 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                 </button>
               </div>
 
-              {selectedDetailRow.isMissingRecord ? (
+              {selectedDetailRow.isMissingRecord && selectedDetailRow.outlook ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-400">
+                    No early-month forecast has been issued for {selectedDetailRow.district} ({selectedDetailRow.disease}) yet.
+                    The seasonal outlook below was prepared from historical patterns.
+                  </p>
+                  <OutlookCard outlook={selectedDetailRow.outlook} preview={selectedDetailRow.outlookPreview} />
+                </div>
+              ) : selectedDetailRow.isMissingRecord ? (
                 <div className="p-6 bg-slate-800/40 rounded-xl border border-slate-800 text-center space-y-2">
                   <span className="material-symbols-outlined text-4xl text-slate-600">hide_source</span>
                   <h4 className="text-sm font-semibold text-slate-300">No Official Forecast Decision Record</h4>
