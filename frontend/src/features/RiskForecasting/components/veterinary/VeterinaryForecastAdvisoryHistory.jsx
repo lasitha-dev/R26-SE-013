@@ -829,7 +829,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                           </strong></div>
                           <div>Targeted: <strong className="text-slate-200">{adv.recipient_summary?.selected_count ?? 0}</strong></div>
                           <div>Created By: <strong className="text-slate-200" title={adv.created_by}>{adv.created_by ? 'Veterinary Officer (You)' : 'N/A'}</strong></div>
-                          <div>Approved By: <strong className="text-slate-200" title={adv.approved_by}>{adv.approved_by ? 'DAPH Official' : 'Pending'}</strong></div>
+                          <div>Approved By: <strong className="text-slate-200" title={adv.approved_by}>{adv.approved_by ? (adv.approved_by === adv.created_by ? 'Veterinary Officer (You)' : 'Approving Officer') : 'Pending'}</strong></div>
                         </div>
                       </div>
                     );
@@ -838,6 +838,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
               </div>
 
               {/* 3. Linked Simulated-Delivery History Section */}
+              {(loadingBatches || batchError || linkedBatches.length > 0) && (
               <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-md space-y-4">
                 <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
@@ -1020,6 +1021,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                   </div>
                 )}
               </div>
+              )}
             </>
           )}
         </section>

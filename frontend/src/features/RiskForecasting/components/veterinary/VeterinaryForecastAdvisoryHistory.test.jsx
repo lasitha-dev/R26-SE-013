@@ -555,6 +555,23 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
     });
   });
 
+  describe('Approval and delivery wording', () => {
+    it('shows the approving officer as the veterinary officer, never as DAPH', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findByText(/Batch ID: batch_anu_001/i);
+      expect(screen.queryByText('DAPH Official')).not.toBeInTheDocument();
+    });
+
+    it('hides the delivery history box when the advisory has no delivery batches', async () => {
+      workflowApi.listNotificationBatches.mockResolvedValue({ batches: [], total_count: 0 });
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findByText(/Linked Advisory History/i);
+      await waitFor(() => expect(screen.queryByText(/Loading batches/i)).not.toBeInTheDocument());
+      expect(screen.queryByText(/Simulated Delivery History/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/No notification batches enqueued/i)).not.toBeInTheDocument();
+    });
+  });
+
   // 6. Filters & Pagination
   describe('Filters & Pagination Controls', () => {
     it('supports district, disease, year, month, record-status, and advisory-status filtering', async () => {
