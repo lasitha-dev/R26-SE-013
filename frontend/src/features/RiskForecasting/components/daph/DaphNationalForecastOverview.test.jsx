@@ -734,7 +734,7 @@ describe('DaphNationalForecastOverview Component', () => {
     const openPreview = async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
-      fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts \(January 2025\)/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Generate forecasts · January 2025/i }));
       return screen.findByRole('dialog');
     };
 
@@ -776,7 +776,7 @@ describe('DaphNationalForecastOverview Component', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and store' }));
 
       await waitFor(() => {
-        expect(screen.getByText(/Stored 50 v2 forecast records for 2025-01; 49 older records marked superseded; 1 protected records left unchanged/)).toBeInTheDocument();
+        expect(screen.getByText(/50 forecasts saved for January 2025\. 49 earlier versions were replaced\. 1 was kept as it is because it already has a follow-up or advisory\./)).toBeInTheDocument();
       });
       expect(api.generateV2Forecasts).toHaveBeenCalledTimes(2);
       expect(api.generateV2Forecasts).toHaveBeenLastCalledWith({ year: 2025, month: 1, expectedSupersedeCount: 49 });
@@ -791,7 +791,7 @@ describe('DaphNationalForecastOverview Component', () => {
       const generate = (await (async () => {
         render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
         await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
-        return screen.getByRole('button', { name: /Generate v2 forecasts \(January 2025\)/i });
+        return screen.getByRole('button', { name: /Generate forecasts · January 2025/i });
       })());
       fireEvent.click(generate);
       fireEvent.click(generate);
@@ -830,7 +830,7 @@ describe('DaphNationalForecastOverview Component', () => {
       api.generateV2Forecasts.mockRejectedValue(Object.assign(new Error('API Error 403'), { status: 403 }));
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
-      fireEvent.click(screen.getByRole('button', { name: /Generate v2 forecasts/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Generate forecasts/i }));
       await waitFor(() => expect(screen.getByText('Only DAPH officials can generate forecasts.')).toBeInTheDocument());
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(api.generateV2Forecasts).toHaveBeenCalledTimes(1);
@@ -839,7 +839,7 @@ describe('DaphNationalForecastOverview Component', () => {
     it('non-DAPH viewers get no generate control at all', () => {
       const vetContext = { ...validDaphContext, role: ROLES.VETERINARY_OFFICER };
       render(<DaphNationalForecastOverview viewerContext={vetContext} />);
-      expect(screen.queryByRole('button', { name: /Generate v2 forecasts/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Generate forecasts/i })).not.toBeInTheDocument();
       expect(api.generateV2Forecasts).not.toHaveBeenCalled();
     });
 

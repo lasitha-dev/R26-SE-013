@@ -112,6 +112,12 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   const [generationPreview, setGenerationPreview] = useState(null);
   const generationInFlight = useRef(false);
   const [generationMessage, setGenerationMessage] = useState(null);
+
+  useEffect(() => {
+    if (generationMessage?.tone !== 'success') return undefined;
+    const timer = setTimeout(() => setGenerationMessage(null), 10000);
+    return () => clearTimeout(timer);
+  }, [generationMessage]);
   const [activeAlerts, setActiveAlerts] = useState([]);
 
   // Active AbortController ref for race-condition safeguarding
@@ -631,10 +637,16 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           text: `Partly stored: ${summary.saved ?? 0} of ${summary.records ?? 0} records saved, ${failed} step(s) failed and no older records were superseded. Running it again is safe and will complete the rest.`,
         });
       } else {
-        setGenerationMessage({
-          tone: 'success',
-          text: `Stored ${summary.records ?? 0} v2 forecast records for ${summary.target_period}; ${summary.superseded ?? 0} older records marked superseded; ${summary.protected ?? 0} protected records left unchanged.`,
-        });
+        const [savedYear, savedMonth] = String(summary.target_period || '').split('-').map(Number);
+        const savedLabel = savedYear && savedMonth ? periodLabel(savedYear, savedMonth) : 'the selected month';
+        const replaced = summary.superseded ?? 0;
+        const kept = summary.protected ?? 0;
+        const text = [
+          `${summary.records ?? 0} forecasts saved for ${savedLabel}.`,
+          replaced > 0 ? `${replaced} earlier ${replaced === 1 ? 'version was' : 'versions were'} replaced.` : null,
+          kept > 0 ? `${kept} ${kept === 1 ? 'was' : 'were'} kept as it is because ${kept === 1 ? 'it already has' : 'they already have'} a follow-up or advisory.` : null,
+        ].filter(Boolean).join(' ');
+        setGenerationMessage({ tone: 'success', title: 'Forecasts saved', text });
       }
       await fetchData();
     } catch (err) {
@@ -668,57 +680,60 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
   return (
     <div className="w-full min-w-0 space-y-6 bg-slate-900 text-slate-100 p-6 rounded-xl border border-slate-800 shadow-2xl">
-      {/* 1. Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-800 pb-4 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-emerald-400 text-3xl">travel_explore</span>
-            <h1 className="text-2xl font-bold tracking-tight text-white">National Forecast Overview</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-              Scope: NATIONAL
-            </span>
+      {/* 1. Header */}
+      <div className="flex flex-col gap-5 border-b border-slate-800 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-emerald-900/40 shadow-[0_0_24px_rgba(16,185,129,0.25)]">
+            <span className="material-symbols-outlined text-3xl text-emerald-300" aria-hidden="true">travel_explore</span>
+          </span>
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-white">National Forecast Overview</h1>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">public</span>
+                All districts
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-400">
+              See the outbreak risk of every district for the month, and what has been done about it.
+            </p>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Departmental Disease Forecasting & Operational Advisory Oversight Workspace
-          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {lastLoadedAt && (
-            <span className="text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
-              Loaded: {lastLoadedAt}
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs text-slate-300">
+              <span className="material-symbols-outlined text-sm text-slate-400" aria-hidden="true">schedule</span>
+              Updated {lastLoadedAt}
             </span>
           )}
           <button
             type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-lg disabled:opacity-50"
           >
-            <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span>
+            <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
             Refresh Data
           </button>
           <button
             type="button"
             onClick={handlePreviewGeneration}
             disabled={loading || generating || previewing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold border border-emerald-500/50 transition disabled:opacity-50"
-            title="Compute and store v2 forecasts for the selected month from public climate data and recorded surveillance"
+            className="flex items-center gap-2 rounded-lg border border-emerald-400/40 bg-gradient-to-r from-emerald-700 to-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(16,185,129,0.25)] transition duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-emerald-500 hover:shadow-[0_0_26px_rgba(16,185,129,0.4)] disabled:opacity-50 disabled:shadow-none"
+            title="Work out the forecasts for the selected month from public climate data and the cases recorded in the application. You can review them before anything is saved."
           >
-            <span className={`material-symbols-outlined text-sm ${generating || previewing ? 'animate-spin' : ''}`}>{generating || previewing ? 'sync' : 'model_training'}</span>
-            {previewing ? 'Preparing preview…' : generating ? 'Storing…' : `Generate v2 forecasts (${getMonthNameFallback(selectedMonth)} ${selectedYear})`}
+            <span className={`material-symbols-outlined text-base ${generating || previewing ? 'animate-spin' : ''}`} aria-hidden="true">{generating || previewing ? 'sync' : 'auto_awesome'}</span>
+            {previewing ? 'Preparing preview…' : generating ? 'Saving…' : `Generate forecasts · ${getMonthNameFallback(selectedMonth)} ${selectedYear}`}
           </button>
         </div>
       </div>
 
-      {/* 2. Operational Protection Clarification Banner */}
-      <div className="bg-slate-800/60 border border-slate-700/80 rounded-lg p-4 flex items-start gap-3 text-xs text-slate-300">
-        <span className="material-symbols-outlined text-amber-400 text-lg shrink-0 mt-0.5">shield</span>
-        <div>
-          <strong className="text-slate-100 block mb-0.5">Read-Only National Oversight Protection</strong>
-          This workspace displays official, immutable persisted forecast records, linked veterinary advisories, and aggregate simulated notification outbox statuses. No PII is exposed. Forecasts are generated only on explicit request (button above) or by the monthly job, and stored records are never edited.
-        </div>
-      </div>
+      {/* 2. One short, friendly note */}
+      <p className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-400">
+        <span className="material-symbols-outlined text-base text-emerald-400" aria-hidden="true">info</span>
+        Forecasts are saved records. New ones are created only when you press Generate, or by the monthly run.
+      </p>
 
       {/* 3. Operational Warning Banner (Amendment 8) */}
       {operationalWarning && (
@@ -787,9 +802,25 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       {generationMessage && (
         <div
           role="status"
-          className={`rounded-lg p-3 text-xs border ${generationMessage.tone === 'success' ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200' : 'bg-rose-950/50 border-rose-500/40 text-rose-200'}`}
+          className={`flex items-start gap-3 rounded-xl border p-4 text-sm shadow-lg transition ${generationMessage.tone === 'success'
+            ? 'border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 to-emerald-950/30 text-emerald-100'
+            : 'border-rose-500/40 bg-gradient-to-r from-rose-950/70 to-rose-950/30 text-rose-100'}`}
         >
-          {generationMessage.text}
+          <span className={`material-symbols-outlined mt-0.5 text-2xl ${generationMessage.tone === 'success' ? 'text-emerald-400' : 'text-rose-400'}`} aria-hidden="true">
+            {generationMessage.tone === 'success' ? 'check_circle' : 'error'}
+          </span>
+          <div className="flex-1">
+            {generationMessage.title && <strong className="mb-0.5 block text-sm font-semibold text-white">{generationMessage.title}</strong>}
+            <span className="text-xs leading-relaxed">{generationMessage.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setGenerationMessage(null)}
+            aria-label="Dismiss message"
+            className="rounded-full p-1 text-slate-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
+          </button>
         </div>
       )}
 
@@ -812,9 +843,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Month */}
           <div>
-            <label htmlFor="national-month-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Month
-            </label>
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm text-emerald-400" aria-hidden="true">calendar_month</span>
+              <label htmlFor="national-month-select" className="text-xs font-medium text-slate-400">Month</label>
+            </div>
             <select
               id="national-month-select"
               value={`${selectedYear}-${selectedMonth}`}
@@ -843,9 +875,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
           {/* Disease Selector */}
           <div>
-            <label htmlFor="disease-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Disease Filter
-            </label>
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm text-emerald-400" aria-hidden="true">coronavirus</span>
+              <label htmlFor="disease-filter-select" className="text-xs font-medium text-slate-400">Disease Filter</label>
+            </div>
             <select
               id="disease-filter-select"
               value={selectedDisease}
@@ -863,9 +896,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
           {/* Risk Level Filter */}
           <div>
-            <label htmlFor="risk-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Risk Tier
-            </label>
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm text-emerald-400" aria-hidden="true">shield</span>
+              <label htmlFor="risk-filter-select" className="text-xs font-medium text-slate-400">Risk Tier</label>
+            </div>
             <select
               id="risk-filter-select"
               value={riskFilter}
@@ -885,9 +919,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
           {/* Advisory Coverage Filter */}
           <div>
-            <label htmlFor="advisory-filter-select" className="block text-xs font-medium text-slate-400 mb-1">
-              Advisory Coverage
-            </label>
+            <div className="mb-1 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm text-emerald-400" aria-hidden="true">campaign</span>
+              <label htmlFor="advisory-filter-select" className="text-xs font-medium text-slate-400">Advisory Coverage</label>
+            </div>
             <select
               id="advisory-filter-select"
               value={advisoryFilter}
@@ -907,19 +942,24 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
 
         {/* Operational Follow-Up Toggle */}
-        <div className="flex items-start sm:items-center gap-2 pt-2 border-t border-slate-800">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3 border-t border-slate-800 pt-3">
+          <button
+            type="button"
+            role="switch"
             id="follow-up-checkbox"
-            checked={followUpOnly}
-            onChange={(e) => {
-              setFollowUpOnly(e.target.checked);
+            aria-checked={followUpOnly}
+            aria-label="Follow-up required only"
+            onClick={() => {
+              setFollowUpOnly(!followUpOnly);
               setOffset(0);
             }}
-            className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500 mt-0.5 sm:mt-0 shrink-0"
-          />
-          <label htmlFor="follow-up-checkbox" className="text-xs text-amber-300 font-medium cursor-pointer whitespace-normal break-words">
-            Follow-up required only
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${followUpOnly ? 'border-amber-400/60 bg-amber-500/80' : 'border-slate-600 bg-slate-700'}`}
+          >
+            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${followUpOnly ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <label htmlFor="follow-up-checkbox" className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-amber-300">
+            <span className="material-symbols-outlined text-base" aria-hidden="true">assignment_late</span>
+            Show only districts that need a follow-up
           </label>
         </div>
       </div>

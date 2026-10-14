@@ -23,7 +23,7 @@ For the presenter. Everything below was checked in the running application on 20
 **Live input (the key moment).** In the application used for case recording, record one verified case or a disease death for a Colombo farm, then refresh the Vet page: "October 2026 so far" now shows the new count and the severity watch changes (for example 12 cases and 2 deaths gives HIGH). "Nothing was typed into the forecasting screen; it reads the records."
 (If you do not want to add a record on stage, show the September line, which comes from records entered earlier.)
 
-**DAPH window (national).** District Priority Assessment Matrix: 25 districts x 2 diseases, Colombo FMD first; the new column "Severity if outbreak". Month list: October and "November (outlook)". Open "Generate v2 forecasts" and show the **preview** dialog ("Nothing has been written yet"), then Cancel. Say: "the monthly forecast is issued by the DAPH official after a preview; in deployment this is a scheduled job."
+**DAPH window (national).** District Priority Assessment Matrix: 25 districts x 2 diseases, Colombo FMD first; the new column "Severity if outbreak". Month list: October and "November (outlook)". Open "Generate forecasts" and show the **preview** dialog ("Nothing has been written yet"), then Cancel. Say: "the monthly forecast is issued by the DAPH official after a preview; in deployment this is a scheduled job."
 
 **DAPH window (action).** Follow-Up Monitoring: the Colombo FMD follow-up that was issued to the Colombo veterinary officer. **Vet window:** Assigned Follow-Ups, status ACKNOWLEDGED; Advisory Centre: the approved advisory. "Forecast, follow-up and advisory are linked to the same stored forecast record."
 
@@ -47,7 +47,7 @@ For the presenter. Everything below was checked in the running application on 20
 ## 5. If something fails
 - A page shows no data: refresh; check `http://127.0.0.1:8000/api/v1/risk-forecasting/health`; restart the backend command in section 1.
 - Atlas unreachable: play the screen recording.
-- Do not click "Notify Assigned Farmers" or "Confirm and store" during the demonstration (they write data).
+- Do not click "Notify Assigned Farmers" or "Confirm and store" during the demonstration (they write data; October 2026 was already regenerated with ranges on 2026-10-15).
 
 ## 6. Facts you can quote (verified 2026-10-14)
-50 stored forecasts for October 2026 (25 districts x FMD and LSD); Colombo FMD about 30% (HIGH); 50 issued November outlooks (Colombo FMD about 3%, likely 0% to 10%); severity history from 115 FMD and 56 LSD annual district-year records; monthly severity pipeline read-only, state INSUFFICIENT_DATA (FMD 8 of 100 outbreak district-months, 5 of 12 months).
+50 current forecasts for October 2026 (25 districts x FMD and LSD; the earlier versions are kept as replaced records); Colombo FMD about 30% (HIGH); 50 issued November outlooks (Colombo FMD about 3%, likely 0% to 10%); severity history from 115 FMD and 56 LSD annual district-year records; monthly severity pipeline read-only, state INSUFFICIENT_DATA (FMD 8 of 100 outbreak district-months, 5 of 12 months).
