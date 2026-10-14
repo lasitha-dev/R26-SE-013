@@ -136,3 +136,29 @@ A model is *considered for use* only if, in the forward-chaining evaluation of i
 It does not promise that a model will beat the baseline. With 115 / 56 annual, correlated, partly design-defined
 labels the most likely honest outcome is that no model clearly does. The value is in testing that properly and
 saying so.
+
+## 10. Results (run 2026-10-14; `scripts/v2/stage2_experiment.py`, numbers in `stage2_experiment_results.json`)
+
+**No candidate met the decision rule in section 6, for either disease. No severity model is deployed.**
+
+| Forward chaining | Test rows (years) | RPS (lower is better) N / B / M1 / M2 | Ordinal MAE N / B / M1 / M2 |
+|---|---|---|---|
+| FMD | 85 (2019-2024) | 0.165 / 0.171 / 0.210 / 0.183 | 0.471 / 0.482 / 0.553 / 0.518 |
+| LSD | 31 (2022-2024) | 0.236 / 0.260 / 0.414 / 0.332 | 1.290 / 1.032 / 1.097 / 0.935 |
+
+N = national class frequency, B = district history, M1 = penalised ordinal logistic, M2 = hierarchical on log1p(score).
+
+- FMD: the national class frequency alone has a lower RPS than every other candidate, including both models.
+  M1 and M2 had a lower RPS than B in 3 of 6 years (a majority was required). M2's balanced accuracy is higher
+  (0.42 vs 0.35) but its probabilities are worse. The tertile-threshold and "without 2024" sensitivities give the
+  same conclusion.
+- LSD: both models have a higher RPS than B and N. Only M2's ordinal MAE is lower than B's. The test set is 31 rows,
+  so this is not a stable result either way.
+- **Deviation from the plan:** the first LSD test year (2021) could not be used because fewer than 15 earlier rows
+  exist (2020 has 13). LSD was therefore tested on 2022-2024. The LSD "without 2023" sensitivity leaves 7 rows and
+  is not interpretable.
+- Leave-one-year-out numbers are in the results file and are descriptive only.
+
+Decision: the application shows the district's historical severity pattern (not a forecast for the selected
+month) and the previous month's observed cases and deaths. Re-evaluate with the same rule when monthly app counts
+reach the `stage2_readiness` gate.

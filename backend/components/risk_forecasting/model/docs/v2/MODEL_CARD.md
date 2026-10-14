@@ -254,6 +254,12 @@ issued on or after day 5 with `v2.1`.
     -0.06 to +0.24 forward); logistic regression is worse.
   - LSD (classes balanced, 19/18/19; chance is about 33%): district history 35.7% accuracy, no model clearly above it
     (all intervals against district history include 0, or are below it).
+  - A second, pre-registered experiment (`STAGE2_EXPERIMENT_PLAN.md`, `scripts/v2/stage2_experiment.py`, results in
+    `stage2_experiment_results.json`) used only information available before the target year and probabilistic
+    scoring (Ranked Probability Score). It tested a penalised ordinal logistic model and a hierarchical model against
+    district history and the national class frequency with forward chaining. No candidate met the pre-set decision
+    rule for FMD or LSD (for FMD even the national class frequency had a lower RPS than both models). The bootstrap
+    intervals quoted above rest on 5-8 years and are descriptive only.
   - Conclusion: with annual labels, weather and density features add no demonstrated skill over a district's own
     history, so no severity forecast is deployed (the same deployment rule as Stage 1: not better than the
     baseline means the baseline is shown). The severity score formula (`cases * months/12 + 10 * deaths`) and its
