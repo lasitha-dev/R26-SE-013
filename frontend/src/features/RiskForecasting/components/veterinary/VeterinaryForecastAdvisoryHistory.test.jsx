@@ -373,7 +373,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       expect(naElements.length).toBeGreaterThan(0);
     });
 
-    it('ensures missing predicted severity is displayed as N/A', async () => {
+    it('shows a missing severity as "Not predicted" and never invents a value', async () => {
       const recordMissingSev = {
         ...mockForecastRecord,
         forecast_id: 'fdr_anu_001',
@@ -387,8 +387,8 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       }));
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      const naElements = await screen.findAllByText(/N\/A/i);
-      expect(naElements.length).toBeGreaterThan(0);
+      const notPredicted = await screen.findAllByText('Not predicted');
+      expect(notPredicted.length).toBeGreaterThan(0);
     });
 
     it('displays target period clearly distinct from generated timestamp', async () => {

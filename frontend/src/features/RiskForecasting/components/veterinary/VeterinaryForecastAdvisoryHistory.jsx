@@ -714,9 +714,9 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                     </strong>
                   </div>
                   <div className="bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                    <span className="text-slate-400 block text-[11px]">Predicted Severity</span>
+                    <span className="text-slate-400 block text-[11px]">Severity</span>
                     <strong className="text-slate-200 font-semibold">
-                      {selectedForecastRecord.predicted_severity || 'N/A'}
+                      {selectedForecastRecord.predicted_severity || 'Not predicted'}
                     </strong>
                   </div>
                 </div>

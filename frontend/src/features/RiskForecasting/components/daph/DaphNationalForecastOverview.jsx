@@ -174,9 +174,10 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       setAllRecords(fetchedRecords);
 
       // Seasonal Outlook for the same month (stored, or the next month's server-computed preview)
-      const outlookResult = await loadOutlooks({ year: Number(selectedYear), month: Number(selectedMonth), signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setOutlooks(outlookResult);
+      // (not awaited: the table must not wait for the outlook)
+      loadOutlooks({ year: Number(selectedYear), month: Number(selectedMonth), signal: controller.signal }).then((outlookResult) => {
+        if (!controller.signal.aborted) setOutlooks(outlookResult);
+      });
 
       // Real-time signal, separate from the forecast: verified cases/deaths recorded this month.
       try {
@@ -835,7 +836,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
               <option value="HIGH">HIGH Risk Only</option>
               <option value="MEDIUM">MEDIUM Risk Only</option>
               <option value="LOW">LOW Risk Only</option>
-              <option value="NO_RECORD">No Record Only</option>
+              <option value="NO_RECORD">Not issued yet</option>
             </select>
           </div>
 
@@ -881,6 +882,17 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       </div>
 
       {/* 5. Summary Metric Cards (Complete-Collection Summary, Amendment 2 & 3 & 1) */}
+      {summaryMetrics.totalRecords === 0 && outlooks.records.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-sky-950/30 border border-sky-500/30 rounded-xl p-3.5" data-testid="outlook-summary-tile">
+            <span className="text-xs text-sky-300 font-medium block">Outlook available</span>
+            <span className="text-2xl font-bold text-sky-300 mt-1 block">{outlooks.records.length}</span>
+            <span className="text-[10px] text-sky-400">
+              {outlooks.source === 'preview' ? 'Preview from past years' : `Prepared ${outlooks.records[0].issue_date}`}
+            </span>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
           <span className="text-xs text-slate-400 font-medium block">Total Forecast Records</span>
@@ -918,24 +930,15 @@ export function DaphNationalForecastOverview({ viewerContext }) {
 
         </div>
 
-        {summaryMetrics.totalRecords === 0 && outlooks.records.length > 0 ? (
-          <div className="bg-sky-950/30 border border-sky-500/30 rounded-xl p-3.5" data-testid="outlook-summary-tile">
-            <span className="text-xs text-sky-300 font-medium block">Outlook available</span>
-            <span className="text-2xl font-bold text-sky-300 mt-1 block">{outlooks.records.length}</span>
-            <span className="text-[10px] text-sky-400">
-              {outlooks.source === 'preview' ? 'Preview from past years' : `Prepared ${outlooks.records[0].issue_date}`}
-            </span>
-          </div>
-        ) : (
-          <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
-            <span className="text-xs text-slate-400 font-medium block whitespace-normal break-words" title={summaryMetrics.missingLabel}>
-              {summaryMetrics.missingLabel}
-            </span>
-            <span className="text-2xl font-bold text-slate-300 mt-1 block">{summaryMetrics.missingCount}</span>
-            <span className="text-[10px] text-slate-500">Not issued yet</span>
-          </div>
-        )}
+        <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-3.5">
+          <span className="text-xs text-slate-400 font-medium block whitespace-normal break-words" title={summaryMetrics.missingLabel}>
+            {summaryMetrics.missingLabel}
+          </span>
+          <span className="text-2xl font-bold text-slate-300 mt-1 block">{summaryMetrics.missingCount}</span>
+          <span className="text-[10px] text-slate-500">Not issued yet</span>
+        </div>
       </div>
+      )}
 
       {/* 6. Deterministic Priority District Table */}
       <div className="bg-slate-800/30 border border-slate-800 rounded-xl overflow-hidden">

@@ -359,7 +359,7 @@ describe('DaphNationalForecastOverview Component', () => {
       fetchSpy.mockRestore();
     });
 
-    it('"No Record Only" risk filter lists only slots without persisted records', async () => {
+    it('"Not issued yet" risk filter lists only slots without persisted records', async () => {
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       await waitFor(() => {
         expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument();
@@ -932,7 +932,9 @@ describe('DaphNationalForecastOverview Component', () => {
       const tile = await screen.findByTestId('outlook-summary-tile');
       expect(tile).toHaveTextContent('Outlook available');
       expect(tile).toHaveTextContent('Prepared 2026-10-14');
-      expect(screen.queryByText('Not issued yet')).not.toBeInTheDocument();
+      // an outlook-only month has no forecast counts, so the empty 0 tiles are not shown
+      expect(screen.queryByText('Total Forecast Records')).not.toBeInTheDocument();
+      expect(screen.queryByText('HIGH Risk Districts')).not.toBeInTheDocument();
     });
   });
 });
