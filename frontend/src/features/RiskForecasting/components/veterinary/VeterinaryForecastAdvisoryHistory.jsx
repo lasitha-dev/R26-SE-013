@@ -775,57 +775,88 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                             setSelectedAdvisoryId(adv.advisory_id);
                           }
                         }}
-                        className={`p-4 rounded-lg border transition-all cursor-pointer space-y-3 ${
+                        className={`group relative overflow-hidden rounded-xl border p-5 pl-6 space-y-4 cursor-pointer transition duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                           isAdvSelected
-                            ? 'bg-slate-800/90 border-emerald-500/80 ring-1 ring-emerald-500/40'
-                            : 'bg-slate-950/60 border-slate-800 hover:bg-slate-800/40'
+                            ? 'bg-slate-800/90 border-emerald-500/70 shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_10px_30px_-12px_rgba(16,185,129,0.35)]'
+                            : 'bg-slate-950/60 border-slate-800 hover:border-slate-600 hover:bg-slate-900/80'
                         }`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-mono text-slate-300 font-semibold">
-                            {adv.advisory_id}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
-                              v{adv.version}
-                            </span>
+                        <span
+                          className={`absolute inset-y-0 left-0 w-1 ${
+                            adv.status === 'APPROVED' ? 'bg-emerald-500' : adv.status === 'CANCELLED' ? 'bg-red-500' : 'bg-amber-500'
+                          }`}
+                          aria-hidden="true"
+                        />
+
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
                             <span
-                              className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${
                                 adv.status === 'APPROVED'
-                                  ? 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                                  ? 'border-emerald-700/60 bg-emerald-950/60 text-emerald-300'
                                   : adv.status === 'CANCELLED'
-                                  ? 'bg-red-950 border-red-800 text-red-300'
-                                  : 'bg-amber-950 border-amber-800 text-amber-300'
+                                  ? 'border-red-800/60 bg-red-950/60 text-red-300'
+                                  : 'border-amber-800/60 bg-amber-950/60 text-amber-300'
                               }`}
                             >
-                              {adv.status === 'APPROVED' ? 'APPROVED (Frozen)' : adv.status}
+                              <span className="material-symbols-outlined text-xl" aria-hidden="true">campaign</span>
                             </span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-snug text-white">{adv.title}</p>
+                              <p className="mt-0.5 text-[11px] font-mono text-slate-500" title={adv.advisory_id}>
+                                {adv.advisory_id} &middot; v{adv.version}
+                              </p>
+                            </div>
                           </div>
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${
+                              adv.status === 'APPROVED'
+                                ? 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                                : adv.status === 'CANCELLED'
+                                ? 'bg-red-950 border-red-800 text-red-300'
+                                : 'bg-amber-950 border-amber-800 text-amber-300'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm" aria-hidden="true">
+                              {adv.status === 'APPROVED' ? 'lock' : adv.status === 'CANCELLED' ? 'cancel' : 'hourglass_top'}
+                            </span>
+                            {adv.status === 'APPROVED' ? 'APPROVED (Frozen)' : adv.status}
+                          </span>
                         </div>
 
-                        <div className="text-xs space-y-1.5">
-                          <p className="font-semibold text-slate-200">{adv.title}</p>
-                          <div className="p-2.5 bg-slate-950 rounded border border-slate-800/80 text-slate-300 whitespace-pre-wrap font-sans text-xs">
-                            {adv.standard_message}
-                          </div>
-                          {adv.vet_custom_note && (
-                            <div className="p-2.5 bg-emerald-950/30 rounded border border-emerald-800/40 text-emerald-200 text-xs">
-                              <strong className="block text-[10px] text-emerald-400 mb-0.5">Vet Custom Advice Note:</strong>
+                        <blockquote className="border-l-2 border-slate-600 pl-4 text-sm leading-relaxed text-slate-200 whitespace-pre-wrap">
+                          {adv.standard_message}
+                        </blockquote>
+
+                        {adv.vet_custom_note && (
+                          <div className="flex items-start gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/30 p-3">
+                            <span className="material-symbols-outlined mt-0.5 text-base text-emerald-400" aria-hidden="true">edit_note</span>
+                            <div className="text-sm text-emerald-100">
+                              <strong className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Vet Custom Advice Note</strong>
                               {adv.vet_custom_note}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                          <div>Scope: <strong className="text-slate-200">
-                            {adv.recipient_scope === 'ALL_ASSIGNED' ? 'All Assigned Farmers' : 
-                             adv.recipient_scope === 'DISTRICT_WIDE' ? 'Entire District' : 
-                             adv.recipient_scope}
-                          </strong></div>
-                          <div>Targeted: <strong className="text-slate-200">{adv.recipient_summary?.selected_count ?? 0}</strong></div>
-                          <div>Created By: <strong className="text-slate-200" title={adv.created_by}>{adv.created_by ? 'Veterinary Officer (You)' : 'N/A'}</strong></div>
-                          <div>Approved By: <strong className="text-slate-200" title={adv.approved_by}>{adv.approved_by ? (adv.approved_by === adv.created_by ? 'Veterinary Officer (You)' : 'Approving Officer') : 'Pending'}</strong></div>
-                        </div>
+                        <dl className="grid grid-cols-2 gap-3 border-t border-slate-800/80 pt-4 text-[11px]">
+                          {[
+                            { icon: 'groups', label: 'Scope', value: adv.recipient_scope === 'ALL_ASSIGNED' ? 'All Assigned Farmers' : adv.recipient_scope === 'DISTRICT_WIDE' ? 'Entire District' : adv.recipient_scope },
+                            { icon: 'person_pin_circle', label: 'Targeted', value: adv.recipient_summary?.selected_count ?? 0, title: undefined },
+                            { icon: 'edit', label: 'Created By', value: adv.created_by ? 'Veterinary Officer (You)' : 'N/A', title: adv.created_by },
+                            { icon: 'verified_user', label: 'Approved By', value: adv.approved_by ? (adv.approved_by === adv.created_by ? 'Veterinary Officer (You)' : 'Approving Officer') : 'Pending', title: adv.approved_by },
+                          ].map((item) => (
+                            <div
+                              key={item.label}
+                              className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 transition duration-200 group-hover:border-slate-700 hover:border-emerald-700/60 hover:bg-slate-900"
+                            >
+                              <dt className="flex items-center gap-1.5 text-slate-500">
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">{item.icon}</span>
+                                {item.label}
+                              </dt>
+                              <dd className="mt-0.5 font-semibold text-slate-100" title={item.title}>{item.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
                       </div>
                     );
                   })}
