@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VeterinaryForecastOverview } from './VeterinaryForecastOverview';
 import * as workflowApi from '../../services/riskForecastingWorkflowApi';
+import { resetSeverityHistoryCache } from '../../services/severityHistoryLoader';
 import { ROLES, SCOPE_LEVELS } from '../../contracts/viewerContext';
 
 vi.mock('../../services/riskForecastingWorkflowApi', () => ({
@@ -43,6 +44,7 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    resetSeverityHistoryCache();
     workflowApi.listOutlooks.mockResolvedValue({ records: [] });
     workflowApi.previewOutlooks.mockResolvedValue({ target_period: '1900-01', records: [] });
   });
