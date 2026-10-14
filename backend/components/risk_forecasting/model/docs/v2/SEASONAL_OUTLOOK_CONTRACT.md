@@ -177,3 +177,15 @@ explicitly instead.
    window is a target, not a validity rule, and an issuance on Oct 19 would be 13 days ahead and recorded as such.
 3. `years_observed` and `positive_years` were added to the exported climatology block (re-export done; rates and
    every other field are unchanged).
+4. **Month lists as time passes (Vet, DAPH).** The lists follow the date: "recent" months and the outlook month move with
+   the forecast reference month (pinned to 2026-09 for the demo through `VITE_FORECAST_REFERENCE_PERIOD`; unset it
+   afterwards). Nothing is issued automatically, because there is no scheduler yet:
+   - about Nov 5: the DAPH official issues the November early-month forecast (preview, then confirm); the
+     "(outlook)" tag on November goes away and the earlier outlook stays under "More details" ("Outlook given earlier");
+   - during November: the December outlook is issued by the outlook job (explicit approval); only then does
+     "December 2026 (outlook)" appear on the Vet list (the DAPH list always offers the month after the forecast month);
+   - the same pattern repeats for January 2027 and later.
+   A scheduler stays deferred until the manual routine has run for a few months.
+5. **Old-method records in `forecast_records`** (70 v1 records, none with a `model_version`): removal or hiding is waiting
+   for your decision; some are referenced by advisories and follow-ups (see the owner's message of 2026-10-14).
+
