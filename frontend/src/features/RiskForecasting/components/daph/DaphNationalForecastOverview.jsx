@@ -687,7 +687,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     <div className="w-full min-w-0 space-y-6 bg-slate-900 text-slate-100 p-6 rounded-xl border border-slate-800 shadow-2xl">
       {/* 1. Header */}
       <div className="flex flex-col gap-5 border-b border-slate-800 pb-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4 lg:flex-1">
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-emerald-900/40 shadow-[0_0_24px_rgba(16,185,129,0.25)]">
             <span className="material-symbols-outlined text-3xl text-emerald-300" aria-hidden="true">travel_explore</span>
           </span>
@@ -705,7 +705,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:flex-nowrap lg:justify-end">
           {lastLoadedAt && (
             <span className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 text-xs text-slate-300">
               <span className="material-symbols-outlined text-sm text-slate-400" aria-hidden="true">schedule</span>
