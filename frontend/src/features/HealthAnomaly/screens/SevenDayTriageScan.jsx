@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 export default function SevenDayTriageScan() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [cattleList, setCattleList] = useState([])
   const [imageFile, setImageFile] = useState(null)
@@ -24,6 +25,117 @@ export default function SevenDayTriageScan() {
   const [bcsUploading, setBcsUploading] = useState(false)
   const [bcsScore, setBcsScore] = useState('')
   const [dragActive, setDragActive] = useState(false)
+
+  // Auto-detect cattle_id from query params or route state (e.g. from Bulk Upload report)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const paramId = params.get('cattle_id') || location.state?.cattle_id
+    if (paramId) {
+      setSelectedCattleId(paramId)
+    }
+  }, [location.search, location.state])
+
+  // Auto-populate 7-day logs from database when a cow is selected
+  useEffect(() => {
+    if (!selectedCattleId) return
+
+    const fetchCattleLogs = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const headers = { Authorization: token ? `Bearer ${token}` : '' }
+        const res = await fetch(`http://127.0.0.1:8000/api/cattle/${selectedCattleId}/daily-logs`, { headers })
+        if (!res.ok) return
+        const logs = await res.json()
+        if (!Array.isArray(logs) || logs.length === 0) return
+
+        // Sort ascending by date
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date))
+
+        // Target dates for the 7 slots (Day 1 = currentDate - 6 days, Day 7 = currentDate)
+        const curDate = new Date(currentDate)
+        const days7Dates = []
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(curDate)
+          d.setDate(d.getDate() - i)
+          days7Dates.push(d.toISOString().split('T')[0])
+        }
+
+        const dateMap = {}
+        sortedLogs.forEach((l) => {
+          dateMap[l.date] = l
+        })
+
+        const exactMatches = days7Dates.filter(d => dateMap[d])
+
+        setLogsData((prev) => {
+          const newYields = [...prev.yields]
+          const newWeight = [...prev.weight]
+          const newWater = [...prev.water]
+          const newFeed = [...prev.feed]
+          const newTemp = [...prev.temp]
+
+          if (exactMatches.length >= 1) {
+            // Populate by exact date match
+            days7Dates.forEach((dateStr, idx) => {
+              const matchedLog = dateMap[dateStr]
+              if (matchedLog) {
+                if (matchedLog.milk_yield !== undefined && matchedLog.milk_yield !== null) {
+                  newYields[idx] = parseFloat(matchedLog.milk_yield)
+                }
+                if (matchedLog.weight !== undefined && matchedLog.weight !== null) {
+                  newWeight[idx] = parseFloat(matchedLog.weight)
+                }
+                if (matchedLog.water_intake !== undefined && matchedLog.water_intake !== null) {
+                  newWater[idx] = parseFloat(matchedLog.water_intake)
+                }
+                if (matchedLog.feed_intake !== undefined && matchedLog.feed_intake !== null) {
+                  newFeed[idx] = parseFloat(matchedLog.feed_intake)
+                }
+                if (matchedLog.body_temp !== undefined && matchedLog.body_temp !== null) {
+                  newTemp[idx] = parseFloat(matchedLog.body_temp)
+                }
+              }
+            })
+          } else {
+            // Fallback for cattle with historical logs not aligned with today:
+            // map the latest up to 7 logs into the 7 slots (ending at Day 7)
+            const recentLogs = sortedLogs.slice(-7)
+            const startIndex = 7 - recentLogs.length
+            recentLogs.forEach((l, i) => {
+              const targetIdx = startIndex + i
+              if (l.milk_yield !== undefined && l.milk_yield !== null) {
+                newYields[targetIdx] = parseFloat(l.milk_yield)
+              }
+              if (l.weight !== undefined && l.weight !== null) {
+                newWeight[targetIdx] = parseFloat(l.weight)
+              }
+              if (l.water_intake !== undefined && l.water_intake !== null) {
+                newWater[targetIdx] = parseFloat(l.water_intake)
+              }
+              if (l.feed_intake !== undefined && l.feed_intake !== null) {
+                newFeed[targetIdx] = parseFloat(l.feed_intake)
+              }
+              if (l.body_temp !== undefined && l.body_temp !== null) {
+                newTemp[targetIdx] = parseFloat(l.body_temp)
+              }
+            })
+          }
+
+          return {
+            yields: newYields,
+            weight: newWeight,
+            water: newWater,
+            feed: newFeed,
+            temp: newTemp
+          }
+        })
+      } catch (err) {
+        console.error('Error fetching cattle daily logs for 7-day intake:', err)
+      }
+    }
+
+    fetchCattleLogs()
+  }, [selectedCattleId, currentDate])
 
   useEffect(() => {
     const fetchCattle = async () => {

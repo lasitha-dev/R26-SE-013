@@ -152,6 +152,16 @@ class DailyLogCreate(BaseModel):
     milk_yield: float = Field(..., ge=0.0)
     weight: float = Field(..., ge=0.1)
 
+class DailyLogBulkItem(BaseModel):
+    cattle_id: Optional[str] = None
+    identifier: Optional[str] = None
+    date: str = Field(..., min_length=1)
+    milk_yield: float = Field(..., ge=0.0)
+    weight: float = Field(..., ge=0.1)
+    water_intake: Optional[float] = None
+    feed_intake: Optional[float] = None
+    body_temp: Optional[float] = None
+
 class DailyLogResponse(BaseModel):
     id: str
     cattle_id: str

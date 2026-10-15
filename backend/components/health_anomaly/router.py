@@ -1,11 +1,15 @@
 from fastapi import APIRouter, HTTPException, status, Header, File, UploadFile, Form
 from typing import Optional, Union
+import asyncio
 import jwt
 import os
+import re
 import numpy as np
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
+import joblib
+import pandas as pd
 
 try:
     import cv2
@@ -29,7 +33,7 @@ from components.health_anomaly.schemas import (
     FarmRegister, FarmLogin, TokenResponse, FarmProfileUpdate, FarmProfileResponse,
     VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
-    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
+    CattleCreate, CattleResponse, DailyLogCreate, DailyLogBulkItem, DailyLogResponse, TriagePredictPayload,
     DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest,
     CattleDeathLog, CattleDeathLogResponse, DeclareDeceasedRequest, OutbreakStatusResponse,
     VetNotificationResponse
@@ -1435,24 +1439,378 @@ async def create_daily_log(log_data: DailyLogCreate):
             detail=f"Database error while saving daily log: {str(e)}"
         )
 
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
+loaded_model = None
+
+def get_predict_model():
+    global loaded_model
+    if loaded_model is None:
+        if not os.path.exists(MODEL_PATH):
+            raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
+        loaded_model = joblib.load(MODEL_PATH)
+    return loaded_model
+
+BREED_DEFAULTS = {
+    'Holstein-Friesian': {'milk': 25.0, 'weight': 600.0},
+    'Jersey': {'milk': 16.0, 'weight': 410.0},
+    'Ayrshire': {'milk': 19.0, 'weight': 480.0},
+    'Brown_Swiss': {'milk': 21.0, 'weight': 550.0},
+    'Guernsey': {'milk': 17.0, 'weight': 450.0},
+    'Fleckvieh': {'milk': 22.0, 'weight': 650.0},
+    'Montbeliarde': {'milk': 20.0, 'weight': 600.0},
+    'Simmental': {'milk': 20.0, 'weight': 650.0},
+    'Milking_Shorthorn': {'milk': 18.0, 'weight': 550.0},
+    'Normande': {'milk': 18.0, 'weight': 600.0},
+    'Danish_Red': {'milk': 19.0, 'weight': 550.0},
+    'Norwegian_Red': {'milk': 19.0, 'weight': 550.0},
+    'Illawarra_Shorthorn': {'milk': 18.0, 'weight': 550.0},
+    'Sahiwal': {'milk': 10.0, 'weight': 380.0},
+    'Gir': {'milk': 12.0, 'weight': 400.0},
+    'Tharparkar': {'milk': 9.0, 'weight': 380.0},
+    'Red_Sindhi': {'milk': 10.0, 'weight': 350.0},
+    'Kankrej': {'milk': 8.0, 'weight': 450.0},
+    'Hariana': {'milk': 7.0, 'weight': 400.0},
+    'Ongole': {'milk': 6.0, 'weight': 450.0},
+    'Deoni': {'milk': 7.0, 'weight': 400.0},
+    'Gangatiri': {'milk': 6.0, 'weight': 350.0},
+    'Krishna_Valley': {'milk': 6.0, 'weight': 400.0},
+    'Rathi': {'milk': 8.0, 'weight': 380.0},
+    'Ankole': {'milk': 5.0, 'weight': 450.0},
+    'Boran': {'milk': 6.0, 'weight': 400.0},
+    'Africander': {'milk': 5.0, 'weight': 450.0},
+    'NDama': {'milk': 3.0, 'weight': 250.0},
+    'White_Fulani': {'milk': 5.0, 'weight': 350.0},
+    'Butana': {'milk': 7.0, 'weight': 350.0},
+    'Kenana': {'milk': 7.0, 'weight': 350.0},
+    'Red_Poll_Africa': {'milk': 8.0, 'weight': 450.0},
+    'Exotic_Local_Cross': {'milk': 12.0, 'weight': 400.0},
+    'Girolando': {'milk': 15.0, 'weight': 450.0},
+    'Holstein_Zebu_Cross': {'milk': 18.0, 'weight': 480.0},
+    'Jersey_Zebu_Cross': {'milk': 14.0, 'weight': 400.0},
+    'Australian_Friesian_Sahiwal': {'milk': 15.0, 'weight': 450.0},
+    'Australian_Milking_Zebu': {'milk': 12.0, 'weight': 420.0},
+    'Zebu_Cross_Brazil': {'milk': 14.0, 'weight': 450.0},
+    'Tipo_Carora': {'milk': 14.0, 'weight': 450.0}
+}
+
+MONITOR_FEATURE_NAMES = [
+    'Age_Months', 'Weight_kg', 'Milk_Yield_L', 'Days_in_Milk',
+    'Previous_Week_Avg_Yield', 'Breed_Avg_Milk', 'Breed_Avg_Weight',
+    'Day_Minus_3_Milk', 'Day_Minus_3_Weight', 'Milk_Drop_Percent',
+    'Weight_Drop_Percent', 'Baseline_Milk_Drop_Percent',
+    'Baseline_Weight_Drop_Percent', 'Breed_Ankole',
+    'Breed_Australian_Friesian_Sahiwal', 'Breed_Australian_Milking_Zebu',
+    'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss', 'Breed_Butana',
+    'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
+    'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando',
+    'Breed_Guernsey', 'Breed_Hariana', 'Breed_Holstein-Friesian',
+    'Breed_Holstein_Zebu_Cross', 'Breed_Illawarra_Shorthorn', 'Breed_Jersey',
+    'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej', 'Breed_Kenana',
+    'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
+    'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole',
+    'Breed_Rathi', 'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal',
+    'Breed_Simmental', 'Breed_Tharparkar', 'Breed_Tipo_Carora',
+    'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil', 'Lactation_Stage_Late',
+    'Lactation_Stage_Mid'
+]
+
+def evaluate_cow_persistent_monitoring(
+    cow: dict,
+    latest_log: dict,
+    historical_logs: list[dict],
+    custom_milk: Optional[float] = None,
+    custom_weight: Optional[float] = None
+) -> dict:
+    model = get_predict_model()
+
+    try:
+        log_date = datetime.strptime(str(latest_log["date"])[:10], "%Y-%m-%d")
+    except Exception:
+        log_date = datetime.now()
+
+    age_months = 36
+    if cow.get("dob"):
+        try:
+            dob_dt = datetime.strptime(str(cow["dob"])[:10], "%Y-%m-%d")
+            age_months = max(0, (log_date.year - dob_dt.year) * 12 + (log_date.month - dob_dt.month))
+        except Exception:
+            pass
+
+    days_in_milk = 100
+    if cow.get("calving_date"):
+        try:
+            calv_dt = datetime.strptime(str(cow["calving_date"])[:10], "%Y-%m-%d")
+            days_in_milk = max(0, (log_date - calv_dt).days)
+        except Exception:
+            pass
+
+    if days_in_milk <= 100:
+        lactation_stage = "Early"
+    elif days_in_milk <= 200:
+        lactation_stage = "Mid"
+    else:
+        lactation_stage = "Late"
+
+    breed = cow.get("breed", "Jersey")
+    breed_info = BREED_DEFAULTS.get(breed, {"milk": 15.0, "weight": 450.0})
+    breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
+    breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
+
+    current_milk = float(latest_log["milk_yield"])
+    current_weight = float(latest_log["weight"])
+
+    log_date_str = str(latest_log["date"])[:10]
+    seven_days_ago_str = (log_date - timedelta(days=7)).strftime("%Y-%m-%d")
+    week_logs = [l for l in historical_logs if seven_days_ago_str <= str(l.get("date", ""))[:10] < log_date_str]
+    if week_logs:
+        prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in week_logs) / len(week_logs)
+    else:
+        prior_logs = [l for l in historical_logs if str(l.get("date", ""))[:10] < log_date_str]
+        if prior_logs:
+            recent_priors = prior_logs[-6:]
+            prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in recent_priors) / len(recent_priors)
+        else:
+            prev_week_avg = float(breed_avg_milk)
+
+    three_days_ago_str = (log_date - timedelta(days=3)).strftime("%Y-%m-%d")
+    day3_log = next((l for l in historical_logs if str(l.get("date", ""))[:10] == three_days_ago_str), None)
+    if not day3_log:
+        prior_and_current = [l for l in historical_logs if str(l.get("date", ""))[:10] <= log_date_str]
+        if len(prior_and_current) >= 4:
+            day3_log = prior_and_current[-4]
+
+    if day3_log:
+        day_minus_3_milk = float(day3_log.get("milk_yield", current_milk))
+        day_minus_3_weight = float(day3_log.get("weight", current_weight))
+    else:
+        day_minus_3_milk = current_milk
+        day_minus_3_weight = current_weight
+
+    prev_milk_3d = day_minus_3_milk if day_minus_3_milk > 0 else current_milk
+    milk_drop = ((prev_milk_3d - current_milk) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
+
+    prev_wt = day_minus_3_weight if day_minus_3_weight > 0 else current_weight
+    weight_drop = ((prev_wt - current_weight) / prev_wt) * 100.0 if prev_wt > 0 else 0.0
+
+    baseline_milk_drop = ((breed_avg_milk - current_milk) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
+    baseline_weight_drop = ((breed_avg_weight - current_weight) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
+
+    row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
+    row['Age_Months'] = float(age_months)
+    row['Weight_kg'] = float(current_weight)
+    row['Milk_Yield_L'] = float(current_milk)
+    row['Days_in_Milk'] = float(days_in_milk)
+    row['Previous_Week_Avg_Yield'] = float(prev_week_avg)
+    row['Breed_Avg_Milk'] = float(breed_avg_milk)
+    row['Breed_Avg_Weight'] = float(breed_avg_weight)
+    row['Day_Minus_3_Milk'] = float(day_minus_3_milk)
+    row['Day_Minus_3_Weight'] = float(day_minus_3_weight)
+    row['Milk_Drop_Percent'] = float(milk_drop)
+    row['Weight_Drop_Percent'] = float(weight_drop)
+    row['Baseline_Milk_Drop_Percent'] = float(baseline_milk_drop)
+    row['Baseline_Weight_Drop_Percent'] = float(baseline_weight_drop)
+
+    breed_col = f"Breed_{breed}"
+    if breed_col in row:
+        row[breed_col] = 1.0
+
+    stage_col = f"Lactation_Stage_{lactation_stage}"
+    if stage_col in row:
+        row[stage_col] = 1.0
+
+    df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
+    prediction = model.predict(df)[0]
+    is_anomaly = bool(prediction == 1 or prediction == "1")
+    new_status = "Alert" if is_anomaly else "Healthy"
+
+    return {
+        "is_anomaly": is_anomaly,
+        "new_status": new_status,
+        "milk_yield": current_milk,
+        "weight": current_weight,
+        "date": latest_log["date"]
+    }
+
 @router.post("/daily-logs/bulk", status_code=status.HTTP_201_CREATED)
-async def create_daily_logs_bulk(logs_data: list[DailyLogCreate]):
+async def create_daily_logs_bulk(
+    logs_data: list[DailyLogBulkItem],
+    authorization: Optional[str] = Header(None)
+):
     try:
         from bson import ObjectId
         if not logs_data:
-            return {"message": "No logs provided.", "count": 0}
-        
-        docs = [log.model_dump() for log in logs_data]
-        result = await daily_logs_collection.insert_many(docs)
-        
-        # Update weights for all affected cattle
-        affected_cattle = set(log.cattle_id for log in logs_data)
-        for cattle_id in affected_cattle:
-            await propagate_latest_weight(cattle_id)
-                
+            return {
+                "status": "success",
+                "message": "No logs provided.",
+                "inserted_count": 0,
+                "evaluated_count": 0,
+                "alerts_triggered": 0,
+                "results": []
+            }
+
+        email = None
+        if authorization:
+            try:
+                email = await get_current_user_email(authorization)
+            except Exception:
+                pass
+
+        # 1. Preload candidate cattle in ONE single query for high-speed in-memory lookup
+        cow_filter = {}
+        if email:
+            cow_filter = {"$or": [{"owner_email": email}, {"farm_email": email}]}
+        all_cows = await cattles_collection.find(cow_filter).to_list(1000)
+        if not all_cows and email:
+            all_cows = await cattles_collection.find({}).to_list(1000)
+
+        cows_by_oid = {str(c["_id"]): c for c in all_cows}
+        cows_by_ident_exact = {c.get("identifier"): c for c in all_cows if c.get("identifier")}
+        cows_by_ident_lower = {c.get("identifier", "").lower(): c for c in all_cows if c.get("identifier")}
+
+        processed_docs = []
+        for log in logs_data:
+            cow = None
+            if log.cattle_id and log.cattle_id in cows_by_oid:
+                cow = cows_by_oid[log.cattle_id]
+
+            if not cow:
+                target_ident = (log.identifier or log.cattle_id or "").strip()
+                if target_ident in cows_by_ident_exact:
+                    cow = cows_by_ident_exact[target_ident]
+                elif target_ident.lower() in cows_by_ident_lower:
+                    cow = cows_by_ident_lower[target_ident.lower()]
+
+            if not cow and log.cattle_id and ObjectId.is_valid(log.cattle_id):
+                cow = await cattles_collection.find_one({"_id": ObjectId(log.cattle_id)})
+
+            resolved_id = str(cow["_id"]) if cow else (log.cattle_id or "")
+
+            doc = {
+                "cattle_id": resolved_id,
+                "date": log.date,
+                "milk_yield": float(log.milk_yield),
+                "weight": float(log.weight),
+            }
+            if log.water_intake is not None:
+                doc["water_intake"] = float(log.water_intake)
+            if log.feed_intake is not None:
+                doc["feed_intake"] = float(log.feed_intake)
+            if log.body_temp is not None:
+                doc["body_temp"] = float(log.body_temp)
+
+            processed_docs.append((cow, doc))
+
+        # 2. Chronological Batch Insertion
+        processed_docs.sort(key=lambda item: str(item[1]["date"]))
+
+        # Fast bulk delete of existing (cattle_id, date) pairs in ONE operation
+        delete_queries = [
+            {"cattle_id": doc["cattle_id"], "date": doc["date"]}
+            for _, doc in processed_docs if doc.get("cattle_id")
+        ]
+        if delete_queries:
+            await daily_logs_collection.delete_many({"$or": delete_queries})
+
+        # Fast batch insert in ONE operation
+        insert_docs = [doc for _, doc in processed_docs]
+        if insert_docs:
+            await daily_logs_collection.insert_many(insert_docs)
+
+        # 3. Automated Batch ML Inference & Concurrent Status + Weight Updates
+        cows_by_id = {}
+        logs_by_cow = {}
+        for cow, doc in processed_docs:
+            cid = doc["cattle_id"]
+            if cow:
+                cows_by_id[cid] = cow
+            if cid not in logs_by_cow:
+                logs_by_cow[cid] = []
+            logs_by_cow[cid].append(doc)
+
+        unique_cids = list(logs_by_cow.keys())
+
+        # Pre-fetch historical daily logs and custom breed settings concurrently
+        fetch_tasks = [
+            daily_logs_collection.find({"cattle_id": {"$in": unique_cids}}).sort("date", 1).to_list(5000)
+        ]
+        if email:
+            fetch_tasks.append(breed_settings_collection.find({"farm_email": email}).to_list(100))
+
+        fetch_results = await asyncio.gather(*fetch_tasks)
+        all_hist = fetch_results[0]
+        b_settings = fetch_results[1] if len(fetch_results) > 1 else []
+
+        hist_by_cow = {}
+        for hl in all_hist:
+            c_key = hl.get("cattle_id")
+            if c_key not in hist_by_cow:
+                hist_by_cow[c_key] = []
+            hist_by_cow[c_key].append(hl)
+
+        custom_settings_map = {s.get("breed"): s for s in b_settings if s.get("breed")}
+
+        results = []
+        cattle_update_coros = []
+        for cid, batch_logs in logs_by_cow.items():
+            cow = cows_by_id.get(cid)
+            if not cow and ObjectId.is_valid(cid):
+                cow = cows_by_oid.get(cid)
+            if not cow:
+                continue
+
+            latest_batch_log = batch_logs[-1]
+            hist_logs = hist_by_cow.get(cid, batch_logs)
+
+            breed_val = cow.get("breed")
+            custom_setting = custom_settings_map.get(breed_val)
+            custom_milk = custom_setting.get("avg_milk") if custom_setting else None
+            custom_weight = custom_setting.get("avg_weight") if custom_setting else None
+
+            inf_res = evaluate_cow_persistent_monitoring(
+                cow=cow,
+                latest_log=latest_batch_log,
+                historical_logs=hist_logs,
+                custom_milk=custom_milk,
+                custom_weight=custom_weight
+            )
+
+            new_status = inf_res["new_status"]
+            update_fields = {
+                "health_status": new_status,
+                "status": new_status,
+                "last_monitored_date": latest_batch_log["date"]
+            }
+            if inf_res.get("weight") is not None:
+                update_fields["weight"] = inf_res["weight"]
+
+            cattle_update_coros.append(
+                cattles_collection.update_one(
+                    {"_id": cow["_id"]},
+                    {"$set": update_fields}
+                )
+            )
+
+            results.append({
+                "cattle_id": cid,
+                "identifier": cow.get("identifier", "Unknown"),
+                "breed": cow.get("breed", "Unknown"),
+                "date": latest_batch_log["date"],
+                "milk_yield": inf_res["milk_yield"],
+                "weight": inf_res["weight"],
+                "is_anomaly": inf_res["is_anomaly"],
+                "new_status": new_status
+            })
+
+        if cattle_update_coros:
+            await asyncio.gather(*cattle_update_coros)
+
         return {
-            "message": f"Successfully imported {len(result.inserted_ids)} logs and updated cattle weights.",
-            "count": len(result.inserted_ids)
+            "status": "success",
+            "message": f"Successfully imported {len(processed_docs)} logs and evaluated {len(results)} cattle.",
+            "inserted_count": len(processed_docs),
+            "evaluated_count": len(results),
+            "alerts_triggered": sum(1 for r in results if r["is_anomaly"]),
+            "results": results
         }
     except Exception as e:
         raise HTTPException(
@@ -1477,9 +1835,23 @@ async def get_cattle_daily_logs(id: str):
         )
 
 @router.get("/daily-logs", response_model=list[DailyLogResponse])
-async def list_daily_logs():
+async def list_daily_logs(authorization: Optional[str] = Header(None)):
     try:
-        cursor = daily_logs_collection.find({}).sort("date", -1)
+        query = {}
+        if authorization:
+            try:
+                owner_email = await get_current_user_email(authorization)
+                if owner_email:
+                    farm_cows = await cattles_collection.find({
+                        "$or": [{"owner_email": owner_email}, {"farm_email": owner_email}]
+                    }).to_list(1000)
+                    if farm_cows:
+                        cow_ids = [str(c["_id"]) for c in farm_cows]
+                        query = {"cattle_id": {"$in": cow_ids}}
+            except Exception:
+                pass
+
+        cursor = daily_logs_collection.find(query).sort("date", -1)
         logs = []
         async for doc in cursor:
             doc["id"] = str(doc["_id"])
@@ -1883,22 +2255,7 @@ async def change_password(pass_data: dict, authorization: Optional[str] = Header
 
 # ─── AI Anomaly Detection Prediction & Breed Settings Endpoints ──────────────
 
-import os
-import joblib
-import pandas as pd
-from bson import ObjectId
 from components.health_anomaly.schemas import PredictPayload, PredictResponse
-
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
-loaded_model = None
-
-def get_predict_model():
-    global loaded_model
-    if loaded_model is None:
-        if not os.path.exists(MODEL_PATH):
-            raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
-        loaded_model = joblib.load(MODEL_PATH)
-    return loaded_model
 
 @router.post("/monitor/predict", response_model=PredictResponse)
 async def predict_health_anomaly(payload: PredictPayload, authorization: Optional[str] = Header(None)):
@@ -1921,51 +2278,7 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
                 custom_milk = custom_setting.get("avg_milk")
                 custom_weight = custom_setting.get("avg_weight")
         
-        # Determine Breed defaults if manual values are null
-        breed_defaults = {
-            'Holstein-Friesian': {'milk': 25.0, 'weight': 600.0},
-            'Jersey': {'milk': 16.0, 'weight': 410.0},
-            'Ayrshire': {'milk': 19.0, 'weight': 480.0},
-            'Brown_Swiss': {'milk': 21.0, 'weight': 550.0},
-            'Guernsey': {'milk': 17.0, 'weight': 450.0},
-            'Fleckvieh': {'milk': 22.0, 'weight': 650.0},
-            'Montbeliarde': {'milk': 20.0, 'weight': 600.0},
-            'Simmental': {'milk': 20.0, 'weight': 650.0},
-            'Milking_Shorthorn': {'milk': 18.0, 'weight': 550.0},
-            'Normande': {'milk': 18.0, 'weight': 600.0},
-            'Danish_Red': {'milk': 19.0, 'weight': 550.0},
-            'Norwegian_Red': {'milk': 19.0, 'weight': 550.0},
-            'Illawarra_Shorthorn': {'milk': 18.0, 'weight': 550.0},
-            'Sahiwal': {'milk': 10.0, 'weight': 380.0},
-            'Gir': {'milk': 12.0, 'weight': 400.0},
-            'Tharparkar': {'milk': 9.0, 'weight': 380.0},
-            'Red_Sindhi': {'milk': 10.0, 'weight': 350.0},
-            'Kankrej': {'milk': 8.0, 'weight': 450.0},
-            'Hariana': {'milk': 7.0, 'weight': 400.0},
-            'Ongole': {'milk': 6.0, 'weight': 450.0},
-            'Deoni': {'milk': 7.0, 'weight': 400.0},
-            'Gangatiri': {'milk': 6.0, 'weight': 350.0},
-            'Krishna_Valley': {'milk': 6.0, 'weight': 400.0},
-            'Rathi': {'milk': 8.0, 'weight': 380.0},
-            'Ankole': {'milk': 5.0, 'weight': 450.0},
-            'Boran': {'milk': 6.0, 'weight': 400.0},
-            'Africander': {'milk': 5.0, 'weight': 450.0},
-            'NDama': {'milk': 3.0, 'weight': 250.0},
-            'White_Fulani': {'milk': 5.0, 'weight': 350.0},
-            'Butana': {'milk': 7.0, 'weight': 350.0},
-            'Kenana': {'milk': 7.0, 'weight': 350.0},
-            'Red_Poll_Africa': {'milk': 8.0, 'weight': 450.0},
-            'Exotic_Local_Cross': {'milk': 12.0, 'weight': 400.0},
-            'Girolando': {'milk': 15.0, 'weight': 450.0},
-            'Holstein_Zebu_Cross': {'milk': 18.0, 'weight': 480.0},
-            'Jersey_Zebu_Cross': {'milk': 14.0, 'weight': 400.0},
-            'Australian_Friesian_Sahiwal': {'milk': 15.0, 'weight': 450.0},
-            'Australian_Milking_Zebu': {'milk': 12.0, 'weight': 420.0},
-            'Zebu_Cross_Brazil': {'milk': 14.0, 'weight': 450.0},
-            'Tipo_Carora': {'milk': 14.0, 'weight': 450.0}
-        }
-        
-        breed_info = breed_defaults.get(payload.Breed, {"milk": 15.0, "weight": 450.0})
+        breed_info = BREED_DEFAULTS.get(payload.Breed, {"milk": 15.0, "weight": 450.0})
         breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
         breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
         
@@ -1979,29 +2292,7 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         baseline_milk_drop = ((breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
         baseline_weight_drop = ((breed_avg_weight - payload.Weight_kg) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
         
-        # 3. Construct input feature row matching exactly model's expectations (54 features)
-        feature_names = [
-            'Age_Months', 'Weight_kg', 'Milk_Yield_L', 'Days_in_Milk',
-            'Previous_Week_Avg_Yield', 'Breed_Avg_Milk', 'Breed_Avg_Weight',
-            'Day_Minus_3_Milk', 'Day_Minus_3_Weight', 'Milk_Drop_Percent',
-            'Weight_Drop_Percent', 'Baseline_Milk_Drop_Percent',
-            'Baseline_Weight_Drop_Percent', 'Breed_Ankole',
-            'Breed_Australian_Friesian_Sahiwal', 'Breed_Australian_Milking_Zebu',
-            'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss', 'Breed_Butana',
-            'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
-            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando',
-            'Breed_Guernsey', 'Breed_Hariana', 'Breed_Holstein-Friesian',
-            'Breed_Holstein_Zebu_Cross', 'Breed_Illawarra_Shorthorn', 'Breed_Jersey',
-            'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej', 'Breed_Kenana',
-            'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
-            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole',
-            'Breed_Rathi', 'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal',
-            'Breed_Simmental', 'Breed_Tharparkar', 'Breed_Tipo_Carora',
-            'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil', 'Lactation_Stage_Late',
-            'Lactation_Stage_Mid'
-        ]
-        
-        row = {f: 0.0 for f in feature_names}
+        row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
         row['Age_Months'] = float(payload.Age_Months)
         row['Weight_kg'] = float(payload.Weight_kg)
         row['Milk_Yield_L'] = float(payload.Milk_Yield_L)

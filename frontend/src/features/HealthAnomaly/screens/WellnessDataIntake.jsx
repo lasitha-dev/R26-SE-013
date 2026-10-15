@@ -22,6 +22,7 @@ export default function WellnessDataIntake() {
   // CSV states
   const [csvFileName, setCsvFileName] = useState('')
   const [parsedLogs, setParsedLogs] = useState([])
+  const [bulkReportResults, setBulkReportResults] = useState(null)
 
   // Modal warning triggers (kept for legacy support or bulk modal, but single uses predictionResult)
   const [showAnomalyModal, setShowAnomalyModal] = useState(false)
@@ -88,6 +89,33 @@ export default function WellnessDataIntake() {
     setPredictionResult(null) // reset prediction banner on subject change
   }
 
+  // ─── Dynamic Sample CSV Generator ─────────────────────────────────────────
+  const downloadSampleCSV = () => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    let sampleCows = lactationActiveCattle.length > 0 ? lactationActiveCattle : cattleList
+    if (sampleCows.length === 0) {
+      sampleCows = [
+        { identifier: 'kiri katiya', breed: 'Jersey' },
+        { identifier: 'sudu putha', breed: 'Holstein-Friesian' }
+      ]
+    }
+
+    const headers = 'identifier,date,milk_yield,weight\n'
+    const rows = sampleCows.slice(0, 5).map((cow) => {
+      const defaultMilk = cow.breed === 'Jersey' ? 14.5 : (cow.breed === 'Holstein-Friesian' ? 22.0 : 12.0)
+      const defaultWeight = cow.breed === 'Jersey' ? 410.0 : 550.0
+      return `${cow.identifier},${todayStr},${defaultMilk},${defaultWeight}`
+    }).join('\n')
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + rows + '\n')
+    const downloadAnchor = document.createElement('a')
+    downloadAnchor.setAttribute('href', csvContent)
+    downloadAnchor.setAttribute('download', `sample_dairy_intake_${todayStr}.csv`)
+    document.body.appendChild(downloadAnchor)
+    downloadAnchor.click()
+    downloadAnchor.remove()
+  }
+
   // ─── Native CSV Parser ───────────────────────────────────────────────────
   const handleCSVUpload = (e) => {
     const file = e.target.files[0]
@@ -96,6 +124,7 @@ export default function WellnessDataIntake() {
     setCsvFileName(file.name)
     setErrorMessage('')
     setSuccessMessage('')
+    setBulkReportResults(null)
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -107,21 +136,33 @@ export default function WellnessDataIntake() {
           throw new Error('CSV file is empty or has no data rows.')
         }
 
-        // Headers check
-        const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-        const cattleIdIdx = headers.indexOf('cattle_id')
-        const dateIdx = headers.indexOf('date')
-        const milkYieldIdx = headers.indexOf('milk_yield')
-        const weightIdx = headers.indexOf('weight')
-
-        if (cattleIdIdx === -1 || dateIdx === -1 || milkYieldIdx === -1 || weightIdx === -1) {
-          throw new Error('Invalid CSV headers. Required: cattle_id, date, milk_yield, weight')
+        // Headers check (case-insensitive and trimmed)
+        const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/['"]+/g, ''))
+        
+        const cattleIdIdx = headers.findIndex((h) => ['cattle_id', 'cattleid', 'id'].includes(h))
+        const identifierIdx = headers.findIndex((h) => ['identifier', 'tag', 'cow', 'name', 'cow_id'].includes(h))
+        
+        if (cattleIdIdx === -1 && identifierIdx === -1) {
+          throw new Error('Invalid CSV headers. Either "identifier" (cow tag/name) or "cattle_id" column is required.')
         }
+
+        const dateIdx = headers.findIndex((h) => ['date', 'log_date', 'logging_date'].includes(h))
+        const milkYieldIdx = headers.findIndex((h) => ['milk_yield', 'milk', 'yield', 'milk_yield_l'].includes(h))
+        const weightIdx = headers.findIndex((h) => ['weight', 'wt', 'weight_kg', 'body_weight'].includes(h))
+
+        if (dateIdx === -1 || milkYieldIdx === -1 || weightIdx === -1) {
+          throw new Error('Invalid CSV headers. Required: (identifier or cattle_id), date, milk_yield, weight')
+        }
+
+        // Optional headers
+        const waterIdx = headers.findIndex((h) => ['water_intake', 'water'].includes(h))
+        const feedIdx = headers.findIndex((h) => ['feed_intake', 'feed'].includes(h))
+        const tempIdx = headers.findIndex((h) => ['body_temp', 'temp', 'temperature'].includes(h))
 
         const logs = []
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map((c) => c.trim())
-          if (cols.length < headers.length) continue
+          const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''))
+          if (cols.length < 3 || cols.every((c) => c === '')) continue
 
           const milkYield = parseFloat(cols[milkYieldIdx])
           const weight = parseFloat(cols[weightIdx])
@@ -130,12 +171,37 @@ export default function WellnessDataIntake() {
             throw new Error(`Data validation error at row ${i + 1}. Weight (min 0.1) and Milk (min 0) must be positive values.`)
           }
 
-          logs.push({
-            cattle_id: cols[cattleIdIdx],
+          const logItem = {
             date: cols[dateIdx],
             milk_yield: milkYield,
             weight: weight
-          })
+          }
+
+          if (identifierIdx !== -1 && cols[identifierIdx]) {
+            logItem.identifier = cols[identifierIdx]
+          }
+          if (cattleIdIdx !== -1 && cols[cattleIdIdx]) {
+            logItem.cattle_id = cols[cattleIdIdx]
+          }
+
+          if (!logItem.cattle_id && !logItem.identifier) {
+            throw new Error(`Row ${i + 1} is missing both cattle identifier and cattle_id.`)
+          }
+
+          if (waterIdx !== -1 && cols[waterIdx]) {
+            const w = parseFloat(cols[waterIdx])
+            if (!isNaN(w)) logItem.water_intake = w
+          }
+          if (feedIdx !== -1 && cols[feedIdx]) {
+            const f = parseFloat(cols[feedIdx])
+            if (!isNaN(f)) logItem.feed_intake = f
+          }
+          if (tempIdx !== -1 && cols[tempIdx]) {
+            const t = parseFloat(cols[tempIdx])
+            if (!isNaN(t)) logItem.body_temp = t
+          }
+
+          logs.push(logItem)
         }
 
         setParsedLogs(logs)
@@ -336,6 +402,7 @@ export default function WellnessDataIntake() {
     setLoading(true)
     setErrorMessage('')
     setSuccessMessage('')
+    setBulkReportResults(null)
 
     const token = localStorage.getItem('token')
     try {
@@ -350,9 +417,15 @@ export default function WellnessDataIntake() {
       const data = await response.json()
       if (response.ok) {
         setSuccessMessage(data.message || `Bulk upload completed successfully.`)
+        if (data.results && Array.isArray(data.results)) {
+          setBulkReportResults(data)
+        }
         setParsedLogs([])
         setCsvFileName('')
-        fetchData() // Refresh logs list
+        if (checkAlertsStatus) {
+          await checkAlertsStatus()
+        }
+        fetchData() // Refresh logs list and cattle
       } else {
         setErrorMessage(data.detail || 'Bulk upload failed.')
       }
@@ -668,6 +741,128 @@ export default function WellnessDataIntake() {
             {/* Bulk Upload CSV Tab */}
             {activeTab === 'bulk' && (
               <div className="space-y-6">
+                {/* Automated Batch Monitoring Report (Rendered at the Top) */}
+                {bulkReportResults && (
+                  <div className="bg-surface-container-low border border-primary/25 rounded-xl p-6 space-y-5 animate-fadeIn shadow-2xl">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="p-2.5 rounded-xl bg-primary/15 text-primary material-symbols-outlined text-2xl">
+                          analytics
+                        </span>
+                        <div>
+                          <h4 className="text-base font-black text-white tracking-tight uppercase font-headline">
+                            Automated Batch Monitoring Report
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            Random Forest persistent monitoring predictions & updated MongoDB herd health statuses
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1.5 bg-surface-container-lowest text-slate-300 rounded-lg text-xs font-semibold border border-white/5">
+                          Ingested: <strong className="text-white font-mono">{bulkReportResults.inserted_count}</strong>
+                        </span>
+                        <span className="px-3 py-1.5 bg-surface-container-lowest text-slate-300 rounded-lg text-xs font-semibold border border-white/5">
+                          Evaluated: <strong className="text-white font-mono">{bulkReportResults.evaluated_count}</strong>
+                        </span>
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-black border uppercase tracking-wider ${
+                          bulkReportResults.alerts_triggered > 0 
+                            ? 'bg-error/20 text-error border-error/30' 
+                            : 'bg-[#4edea3]/20 text-[#4edea3] border-[#4edea3]/30'
+                        }`}>
+                          Alerts: <strong className="font-mono">{bulkReportResults.alerts_triggered}</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-surface-container-lowest/60 text-slate-400 text-[10px] uppercase tracking-[0.15em] font-bold">
+                            <th className="px-4 py-3">Cow Identifier</th>
+                            <th className="px-4 py-3">Breed</th>
+                            <th className="px-4 py-3">Latest Date</th>
+                            <th className="px-4 py-3 text-right">Milk (L)</th>
+                            <th className="px-4 py-3 text-right">Weight (KG)</th>
+                            <th className="px-4 py-3 text-center">Prediction</th>
+                            <th className="px-4 py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-xs">
+                          {bulkReportResults.results && bulkReportResults.results.map((res, idx) => (
+                            <tr key={idx} className="hover:bg-surface-container-high/30 transition-colors">
+                              <td className="px-4 py-3.5 font-bold text-white">
+                                {res.identifier || res.cattle_id}
+                                {res.identifier && res.cattle_id && (
+                                  <span className="block text-[10px] text-slate-500 font-mono font-normal">
+                                    {res.cattle_id}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-slate-300">{res.breed}</td>
+                              <td className="px-4 py-3.5 font-mono text-slate-400">{res.date}</td>
+                              <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                                {typeof res.milk_yield === 'number' ? res.milk_yield.toFixed(1) : res.milk_yield} L
+                              </td>
+                              <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                                {typeof res.weight === 'number' ? res.weight.toFixed(1) : res.weight} KG
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                {res.is_anomaly ? (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-error/20 text-error border border-error/30 animate-pulse">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                    • ALERT
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#4edea3]/20 text-[#4edea3] border border-[#4edea3]/30">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
+                                    • HEALTHY
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                {res.is_anomaly ? (
+                                  <Link
+                                    to={`/health/7-day-triage-scan?cattle_id=${res.cattle_id}`}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-error text-on-error hover:bg-error/90 font-black text-[11px] uppercase tracking-wider rounded-lg transition-all shadow-lg hover:scale-105 active:scale-95"
+                                  >
+                                    <span>Start 7-Day Diagnosis</span>
+                                    <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                                  </Link>
+                                ) : (
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Optimal
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-container-low p-4 rounded-xl border border-white/5">
+                  <div>
+                    <h4 className="text-xs font-black text-white tracking-widest uppercase">
+                      Batch Cattle Dairy Intake
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Ingest daily records for your herd. Anomaly detection model automatically evaluates every cow.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={downloadSampleCSV}
+                    id="download-sample-csv-btn"
+                    className="px-4 py-2 bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-sm">download</span>
+                    Download Sample CSV
+                  </button>
+                </div>
+
                 <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-surface-container-lowest/50 hover:border-primary/30 transition-colors relative group">
                   <span className="material-symbols-outlined text-5xl text-slate-500 group-hover:text-primary transition-colors mb-3">
                     upload_file
@@ -676,7 +871,7 @@ export default function WellnessDataIntake() {
                     {csvFileName || 'Select or Drag CSV File'}
                   </p>
                   <p className="text-xs text-slate-500 max-w-sm mb-4 leading-relaxed">
-                    Ensure your file contains these columns: <code className="text-primary font-mono font-bold">cattle_id</code>, <code className="text-primary font-mono font-bold">date</code>, <code className="text-primary font-mono font-bold">milk_yield</code>, <code className="text-primary font-mono font-bold">weight</code>
+                    Supported columns: <code className="text-primary font-mono font-bold">identifier</code> (or <code className="text-primary font-mono font-bold">cattle_id</code>), <code className="text-primary font-mono font-bold">date</code>, <code className="text-primary font-mono font-bold">milk_yield</code>, <code className="text-primary font-mono font-bold">weight</code>
                   </p>
                   
                   <input
@@ -695,10 +890,13 @@ export default function WellnessDataIntake() {
                 </div>
 
                 <div className="bg-surface-container-low p-5 rounded-lg border border-white/5 space-y-2">
-                  <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase">CSV File Schema Format</h4>
-                  <pre className="text-xs font-mono text-slate-500 overflow-x-auto bg-surface-container-lowest p-3 rounded border border-white/5">
-                    {"cattle_id,date,milk_yield,weight\n6a525de0a16...,2026-07-11,28.5,340.2\nmock-8842,2026-07-11,4.2,650.0"}
+                  <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase">CSV Schema Reference</h4>
+                  <pre className="text-xs font-mono text-slate-400 overflow-x-auto bg-surface-container-lowest p-3 rounded border border-white/5">
+                    {"identifier,date,milk_yield,weight\nkiri katiya,2026-10-14,9.5,380.0\nsudu putha,2026-10-14,15.2,420.0"}
                   </pre>
+                  <p className="text-[11px] text-slate-500 italic">
+                    Note: Multi-day records in a single CSV are automatically sorted and stored in chronological order.
+                  </p>
                 </div>
 
                 <button
@@ -707,7 +905,7 @@ export default function WellnessDataIntake() {
                   disabled={loading || parsedLogs.length === 0}
                   type="button"
                 >
-                  <span>{loading ? 'Uploading Data...' : 'Import Bulk Data'}</span>
+                  <span>{loading ? 'Processing Batch Inference...' : 'Import Bulk Data'}</span>
                   <span className="material-symbols-outlined">cloud_upload</span>
                 </button>
               </div>
@@ -741,11 +939,11 @@ export default function WellnessDataIntake() {
                   </tr>
                 ) : (
                   dailyLogsList.map((log) => {
-                    const animal = cattleList.find((c) => c.id === log.cattle_id)
+                    const animal = cattleList.find((c) => String(c.id) === String(log.cattle_id) || String(c._id) === String(log.cattle_id))
                     return (
                       <tr key={log.id} className="hover:bg-surface-container-high/30 transition-colors">
                         <td className="px-8 py-4 font-bold text-white text-sm">
-                          {animal ? animal.identifier : log.cattle_id}
+                          {animal ? animal.identifier : (log.identifier || 'Registered Cattle')}
                         </td>
                         <td className="px-8 py-4 font-mono text-sm text-slate-400">{log.date}</td>
                         <td className="px-8 py-4 text-sm text-primary font-semibold">{log.milk_yield} L</td>
