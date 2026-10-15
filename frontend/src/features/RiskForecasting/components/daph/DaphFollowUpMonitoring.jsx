@@ -365,16 +365,6 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
         </button>
       </div>
 
-      {/* Operational Disclaimer */}
-      <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-slate-400 leading-relaxed space-y-1">
-        <p className="font-semibold text-slate-200">
-          Operational Boundary & Scientific Transparency Notice:
-        </p>
-        <p>
-          This workspace displays operational status metrics for issued follow-ups. Completion or cancellation of a follow-up represents standalone task management within DAPH operations and does not guarantee physical field action reversal, farmer notification receipt, or disease elimination.
-        </p>
-      </div>
-
       {/* Error & Conflict Banners */}
       {error && (
         <div className="p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex items-start justify-between text-sm text-red-300">
