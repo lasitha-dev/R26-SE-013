@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -65,6 +65,31 @@ export function sanitizeErrorMessage(
   return raw;
 }
 
+// Several stored versions can exist for the same disease, district and month (a forecast that was issued again).
+// The current version comes first; replaced versions and older versions follow.
+function orderVersions(records) {
+  const rank = (r) => (r.status === 'SUPERSEDED' ? 1 : 0);
+  return [...records].sort((a, b) => {
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    const v2 = Number(Boolean(b.model_version)) - Number(Boolean(a.model_version));
+    if (v2 !== 0) return v2;
+    return new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime();
+  });
+}
+
+function groupVersions(records) {
+  const groups = new Map();
+  records.forEach((record) => {
+    const key = [record.disease, String(record.district || '').toLowerCase(), record.target_year, record.target_month].join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  });
+  return [...groups.entries()].map(([key, versions]) => {
+    const [latest, ...earlier] = orderVersions(versions);
+    return { key, latest, earlier };
+  });
+}
+
 /**
  * VeterinaryForecastAdvisoryHistory
  * Read-only Veterinary Officer workspace for auditing historical forecast decision records,
@@ -107,6 +132,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
 
   // Selected Forecast & Linked Items State
   const [selectedForecastId, setSelectedForecastId] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
   const [linkedAdvisories, setLinkedAdvisories] = useState([]);
   const [loadingAdvisories, setLoadingAdvisories] = useState(false);
   const [advisoryError, setAdvisoryError] = useState(null);
@@ -189,8 +215,16 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
     fetchForecasts();
   }, [fetchForecasts]);
 
+  const versionGroups = useMemo(() => groupVersions(forecastRecords), [forecastRecords]);
+  const advisoryIdsKey = useMemo(() => {
+    const group = versionGroups.find((g) => g.latest.forecast_id === selectedForecastId);
+    return (group ? [group.latest, ...group.earlier] : [{ forecast_id: selectedForecastId }]).map((r) => r.forecast_id).filter(Boolean).join(',');
+  }, [versionGroups, selectedForecastId]);
+
   // 4. Fetch Linked Advisories when Selected Forecast Changes
-  const fetchAdvisories = useCallback(async (forecastId) => {
+  const fetchAdvisories = useCallback(async (forecastIds) => {
+    const ids = Array.isArray(forecastIds) ? forecastIds : [forecastIds];
+    const forecastId = ids[0];
     if (!forecastId) {
       setLinkedAdvisories([]);
       setSelectedAdvisoryId(null);
@@ -202,17 +236,20 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
     setAdvisoryError(null);
 
     try {
-      const filters = {
-        forecast_id: forecastId,
+      const responses = await Promise.all(ids.map((id) => listAdvisories({
+        forecast_id: id,
         status: advisoryStatusFilter !== 'ALL' ? advisoryStatusFilter : undefined,
-      };
-
-      const response = await listAdvisories(filters);
+      })));
       if (advisoryReqIdRef.current !== currentReqId) return;
 
-      const advisories = response?.advisories || [];
-      // Defensive authorization check: retain advisories matching forecast_id
-      const authorizedAdvisories = advisories.filter((adv) => adv.forecast_id === forecastId);
+      const advisories = responses.flatMap((response) => response?.advisories || []);
+      // Defensive authorization check: retain advisories matching one of the versions of this forecast, once each
+      const seen = new Set();
+      const authorizedAdvisories = advisories.filter((adv) => {
+        if (!ids.includes(adv.forecast_id) || seen.has(adv.advisory_id)) return false;
+        seen.add(adv.advisory_id);
+        return true;
+      });
       setLinkedAdvisories(authorizedAdvisories);
 
       setSelectedAdvisoryId((prevId) => {
@@ -237,8 +274,8 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
   }, [advisoryStatusFilter]);
 
   useEffect(() => {
-    fetchAdvisories(selectedForecastId);
-  }, [selectedForecastId, fetchAdvisories]);
+    fetchAdvisories(advisoryIdsKey ? advisoryIdsKey.split(',') : null);
+  }, [advisoryIdsKey, fetchAdvisories]);
 
   // 5. Fetch Linked Notification Batches when Selected Advisory Changes
   const fetchBatches = useCallback(async (advisoryId) => {
@@ -548,71 +585,112 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
 
           {/* Forecast Record Cards */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-            {forecastRecords.map((record) => {
-              const isSelected = record.forecast_id === selectedForecastId;
-              const probVal = record.probability_pct ?? (typeof record.probability === 'number' ? record.probability * 100 : null);
-
-              return (
+            {versionGroups.map((group) => {
+              const open = expandedGroups.has(group.key);
+              const renderCard = (record, { latest, earlierCount }) => {
+                const isSelected = record.forecast_id === selectedForecastId;
+                const probVal = record.probability_pct ?? (typeof record.probability === 'number' ? record.probability * 100 : null);
+                const replaced = record.status === 'SUPERSEDED';
+                return (
                 <div
-                  key={record.forecast_id}
-                  onClick={() => setSelectedForecastId(record.forecast_id)}
-                  aria-current={isSelected ? 'true' : undefined}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedForecastId(record.forecast_id);
-                    }
-                  }}
-                  className={`p-3.5 rounded-lg border transition-all cursor-pointer text-left space-y-2 ${
-                    isSelected
-                      ? 'bg-slate-800 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-md'
-                      : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-emerald-950/80 border border-emerald-800/80 text-emerald-300">
-                      {record.disease}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-400">
-                      {record.district}
-                    </span>
-                  </div>
+                    key={record.forecast_id}
+                    onClick={() => setSelectedForecastId(record.forecast_id)}
+                    aria-current={isSelected ? 'true' : undefined}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedForecastId(record.forecast_id);
+                      }
+                    }}
+                    className={`p-3.5 rounded-lg border transition-all cursor-pointer text-left space-y-2 ${
+                      isSelected
+                        ? 'bg-slate-800 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-md'
+                        : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-emerald-950/80 border border-emerald-800/80 text-emerald-300">
+                        {record.disease}
+                      </span>
+                      <span className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+                        {latest && earlierCount > 0 && (
+                          <span className="rounded-full border border-emerald-700/60 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Latest</span>
+                        )}
+                        {!latest && (
+                          <span
+                            className="whitespace-nowrap rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300"
+                            title={replaced ? 'A newer version replaced this one.' : 'Kept because it already has an advisory or follow-up.'}
+                          >
+                            {replaced ? 'Earlier \u00b7 replaced' : 'Earlier \u00b7 has advisory'}
+                          </span>
+                        )}
+                        {record.district}
+                      </span>
+                    </div>
 
-                  <div className="flex items-baseline justify-between text-xs">
-                    <span className="font-semibold text-slate-200">
-                      Target: {MONTH_NAMES[record.target_month - 1] || record.target_month} {record.target_year}
-                    </span>
-                    <span className="font-semibold text-slate-300">
-                      {probVal !== null ? `${probVal.toFixed(1)}%` : 'N/A'}
-                    </span>
-                  </div>
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-semibold text-slate-200">
+                        Target: {MONTH_NAMES[record.target_month - 1] || record.target_month} {record.target_year}
+                      </span>
+                      <span className="font-semibold text-slate-300">
+                        {probVal !== null ? `${probVal.toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>
-                      Risk:{' '}
-                      <strong
-                        className={
-                          record.risk_level === 'HIGH'
-                            ? 'text-red-400 font-semibold'
-                            : record.risk_level === 'MEDIUM'
-                            ? 'text-amber-400 font-semibold'
-                            : record.risk_level === 'LOW'
-                            ? 'text-emerald-400 font-semibold'
-                            : 'text-slate-400 font-semibold'
-                        }
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>
+                        Risk:{' '}
+                        <strong
+                          className={
+                            record.risk_level === 'HIGH'
+                              ? 'text-red-400 font-semibold'
+                              : record.risk_level === 'MEDIUM'
+                              ? 'text-amber-400 font-semibold'
+                              : record.risk_level === 'LOW'
+                              ? 'text-emerald-400 font-semibold'
+                              : 'text-slate-400 font-semibold'
+                          }
+                        >
+                          {record.risk_level || 'N/A'}
+                        </strong>
+                      </span>
+                      <span>Status: <strong className="text-slate-300">{record.status}</strong></span>
+                    </div>
+
+                    <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
+                      <span>Quality: {DATA_QUALITY_LABELS[record.data_quality] || record.data_quality}</span>
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <div key={group.key} className="space-y-2">
+                  {renderCard(group.latest, { latest: true, earlierCount: group.earlier.length })}
+                  {group.earlier.length > 0 && (
+                    <div className="pl-3">
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setExpandedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
+                          return next;
+                        })}
+                        className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-slate-800/60 hover:text-emerald-300"
                       >
-                        {record.risk_level || 'N/A'}
-                      </strong>
-                    </span>
-                    <span>Status: <strong className="text-slate-300">{record.status}</strong></span>
-                  </div>
-
-                  <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-                    <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
-                    <span>Quality: {DATA_QUALITY_LABELS[record.data_quality] || record.data_quality}</span>
-                  </div>
+                        <span className={`material-symbols-outlined text-sm transition-transform duration-200 ${open ? 'rotate-90' : ''}`} aria-hidden="true">chevron_right</span>
+                        Earlier versions ({group.earlier.length})
+                      </button>
+                      {open && (
+                        <div className="mt-2 space-y-2 border-l border-slate-800 pl-3">
+                          {group.earlier.map((record) => renderCard(record, { latest: false, earlierCount: 0 }))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

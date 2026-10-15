@@ -573,6 +573,47 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
     });
   });
 
+  describe('Several versions of the same forecast', () => {
+    const newer = { ...mockForecastRecord, forecast_id: 'fdr_new_v21', model_version: 'fmd_v2.1', generated_at: '2026-10-15T02:41:20Z', status: 'GENERATED' };
+    const older = { ...mockForecastRecord, forecast_id: 'fdr_old_v20', model_version: 'fmd_v2.0', generated_at: '2026-10-14T08:50:20Z', status: 'GENERATED' };
+    const replaced = { ...mockForecastRecord, forecast_id: 'fdr_lsd_old', disease: 'LSD', model_version: 'lsd_v2.0', generated_at: '2026-10-14T08:50:20Z', status: 'SUPERSEDED' };
+    const lsdNew = { ...mockForecastRecord, forecast_id: 'fdr_lsd_new', disease: 'LSD', model_version: 'lsd_v2.1', generated_at: '2026-10-15T02:41:20Z', status: 'GENERATED' };
+
+    beforeEach(() => {
+      workflowApi.listForecastRecords.mockImplementation(async () => ({ total_count: 4, limit: 10, offset: 0, records: [older, replaced, newer, lsdNew] }));
+      workflowApi.listAdvisories.mockImplementation(async ({ forecast_id }) => ({
+        total_count: forecast_id === 'fdr_old_v20' ? 1 : 0, limit: 50, offset: 0,
+        advisories: forecast_id === 'fdr_old_v20' ? [{ ...mockAdvisoryRecord, advisory_id: 'adv_on_old', forecast_id: 'fdr_old_v20' }] : [],
+      }));
+    });
+
+    it('lists one record per disease and month, with the earlier versions tucked under it', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findAllByText(/Target: .* 2024|Target: /i);
+      expect(screen.getAllByText('Latest').length).toBe(2);                         // FMD and LSD each have an earlier version
+      expect(screen.getAllByRole('button', { name: /Earlier versions \(1\)/ }).length).toBe(2);
+      expect(screen.queryByText(/Earlier \u00b7 (replaced|has advisory)/)).not.toBeInTheDocument();  // collapsed by default
+    });
+
+    it('opens the earlier versions and says whether each was replaced or kept for an advisory', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      const toggles = await screen.findAllByRole('button', { name: /Earlier versions \(1\)/ });
+      toggles.forEach((button) => fireEvent.click(button));
+      expect(screen.getByText('Earlier \u00b7 replaced')).toBeInTheDocument();
+      expect(screen.getByText('Earlier \u00b7 has advisory')).toBeInTheDocument();
+    });
+
+    it('shows the advisories written against an earlier version on the latest one', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      fireEvent.click((await screen.findAllByText('FMD'))[0]);                      // the FMD record that has the older version
+      expect(await screen.findByText(/Linked Advisory History \(1\)/)).toBeInTheDocument();
+      await screen.findByText(/adv_on_old/);
+      expect(screen.queryByText(/No advisory created for this forecast/)).not.toBeInTheDocument();
+      const asked = workflowApi.listAdvisories.mock.calls.map((call) => call[0].forecast_id);
+      expect(asked).toEqual(expect.arrayContaining(['fdr_new_v21', 'fdr_old_v20']));
+    });
+  });
+
   // 6. Filters & Pagination
   describe('Filters & Pagination Controls', () => {
     it('supports district, disease, year, month, record-status, and advisory-status filtering', async () => {
