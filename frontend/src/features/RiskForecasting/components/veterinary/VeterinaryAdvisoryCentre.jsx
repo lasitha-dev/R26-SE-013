@@ -19,10 +19,10 @@ import {
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
 import { getReferencePeriod, shiftPeriod, isSamePeriod } from '../../config/forecastPeriod';
-import { describeRiskPlain, selectOfficialRecords } from '../forecastPresentation';
+import { describeRiskPlain, periodLabel, selectOfficialRecords } from '../forecastPresentation';
 
 const TAB_ORDER = ['PREVIOUS', 'CURRENT', 'NEXT'];
-const TAB_BUTTON_LABELS = Object.freeze({ PREVIOUS: 'Previous Months', CURRENT: 'Current Month', NEXT: 'Next Month (Forecast)' });
+const TAB_BUTTON_LABELS = Object.freeze({ PREVIOUS: 'Earlier months', CURRENT: 'This month', NEXT: 'Next month' });
 const TAB_ACTIVE_CLASS = Object.freeze({
   PREVIOUS: 'bg-slate-800 text-white shadow',
   CURRENT: 'bg-emerald-900/60 text-emerald-300 shadow',
@@ -517,18 +517,39 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               </p>
             </div>
             
-            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-              {TAB_ORDER.filter((tab) => forecastRecords.some((rec) => periodMatchesTab(rec, tab))).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setTimeframeTab(tab)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === tab ? TAB_ACTIVE_CLASS[tab] : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                  {TAB_BUTTON_LABELS[tab]}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              // The label of a tab is the month it holds when it holds exactly one; one tab alone is just a label.
+              const labelFor = (tab) => {
+                const periods = [...new Set(forecastRecords.filter((rec) => periodMatchesTab(rec, tab)).map((rec) => `${rec.target_year}-${rec.target_month}`))];
+                if (periods.length === 1) {
+                  const [year, month] = periods[0].split('-').map(Number);
+                  return periodLabel(year, month);
+                }
+                return TAB_BUTTON_LABELS[tab];
+              };
+              if (tabsWithForecasts.length === 1) {
+                return (
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-amber-300" data-testid="advisory-period">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">calendar_month</span>
+                    {labelFor(tabsWithForecasts[0])}
+                  </span>
+                );
+              }
+              return (
+                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                  {tabsWithForecasts.map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setTimeframeTab(tab)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === tab ? TAB_ACTIVE_CLASS[tab] : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      {labelFor(tab)}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {loadingForecasts ? (

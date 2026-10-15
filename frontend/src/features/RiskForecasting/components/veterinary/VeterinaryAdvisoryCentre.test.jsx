@@ -884,4 +884,19 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(workflowApi.approveAdvisory).not.toHaveBeenCalled();
     });
   });
+
+  describe('Period label', () => {
+    it('shows the real month as a plain label (not a button) when all forecasts are for one month', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [{
+        forecast_id: 'fdr_p1', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+        risk_level: 'HIGH', probability_pct: 50, probability: 0.5, status: 'GENERATED',
+      }] });
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+      await screen.findByText(/FMD — Anuradhapura/i);
+      const label = await screen.findByTestId('advisory-period');
+      expect(label).toHaveTextContent('January 2025');
+      expect(screen.queryByRole('button', { name: /Next month|Next Month|This month|Earlier months/i })).not.toBeInTheDocument();
+    });
+  });
 });
+
