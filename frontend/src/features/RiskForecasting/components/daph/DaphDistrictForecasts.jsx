@@ -11,6 +11,7 @@ import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityPanel } from '../SeverityPanel';
 import { ForecastDetails } from '../ForecastDetails';
+import { RiskReasonBulb } from '../GuideCards';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { buildRecentObservations } from '../forecastPresentation';
 import { BASELINE_BADGE, describeRiskPlain, isActiveRecord, isBaselineRecord, selectOfficialRecords } from '../forecastPresentation';
@@ -360,9 +361,12 @@ export function DaphDistrictForecasts({ viewerContext }) {
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-lg text-on-surface">{r.district} District &middot; {r.disease}</h3>
-                      <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
-                        {badge.label}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <RiskReasonBulb record={r} district={r.district} />
+                        <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
+                          {badge.label}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex gap-4 items-baseline">
                       <div className="text-3xl font-extrabold text-on-surface">

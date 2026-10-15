@@ -10,6 +10,7 @@ import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
 import { OutlookCard, OUTLOOK_NOTE } from '../OutlookCard';
 import { ForecastDetails } from '../ForecastDetails';
+import { RiskReasonBulb } from '../GuideCards';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityPanel } from '../SeverityPanel';
@@ -325,12 +326,15 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
               {assignedDistrict} District · {periodLabel(record.target_year, record.target_month)}
             </p>
           </div>
-          <span
-            className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold tracking-wide shrink-0 ${plain.class}`}
-            aria-label={`Risk level: ${plain.label}`}
-          >
-            {plain.label}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <RiskReasonBulb record={record} district={assignedDistrict} />
+            <span
+              className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold tracking-wide ${plain.class}`}
+              aria-label={`Risk level: ${plain.label}`}
+            >
+              {plain.label}
+            </span>
+          </div>
         </div>
 
         <div>

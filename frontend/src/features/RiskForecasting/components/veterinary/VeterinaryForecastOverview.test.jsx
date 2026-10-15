@@ -190,8 +190,9 @@ describe('VeterinaryForecastOverview (plain-language overview)', () => {
     expect(screen.getByText('the usual rate for Anuradhapura and month')).toBeInTheDocument();
     expect(screen.getByText('Compared with usual')).toBeInTheDocument();
     expect(screen.getByText('80% range 18–47%')).toBeInTheDocument();
-    expect(screen.getByTestId('risk-reason')).toHaveTextContent('Why the risk is MEDIUM');
-    expect(screen.getByTestId('risk-reason')).toHaveTextContent('2.4 times higher than usual for Anuradhapura');
+    fireEvent.mouseEnter(screen.getByLabelText('Why is the risk this level?'));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Why the risk is MEDIUM');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('2.4 times higher than usual for Anuradhapura');
     expect(screen.getByText('Back-tested candidate')).toBeInTheDocument();
     expect(screen.getByText('31.0%')).toBeInTheDocument();
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { GlossaryTerm } from './GlossaryTerm';
-import { RISK_TIER_GUIDE, SEVERITY_GUIDE } from './forecastPresentation';
+import { RISK_TIER_GUIDE, SEVERITY_GUIDE, describeRiskReason } from './forecastPresentation';
 
 const DOT = {
   usual: 'bg-slate-400',
@@ -95,11 +95,15 @@ export function FollowUpTerm({ label = 'Follow-up', align }) {
 }
 FollowUpTerm.propTypes = { label: PropTypes.string, align: PropTypes.string };
 
-/** The numbered calculation behind a MEDIUM or HIGH risk, shown when hovering the light bulb. */
-export function RiskCalculationCard({ reason }) {
+/** The plain reason a risk is MEDIUM or HIGH, then the numbered calculation behind it. */
+export function RiskReasonCard({ reason }) {
   return (
     <>
-      <Heading>How this risk was worked out</Heading>
+      <Heading>{reason.headline}</Heading>
+      <p className="text-[13px] leading-relaxed text-slate-100">{reason.sentence}</p>
+      {reason.evidence && <p className="mt-1.5 text-slate-400">{reason.evidence}</p>}
+      <div className="my-3 border-t border-slate-700/70" />
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-300">How it was worked out</p>
       <ol className="space-y-2.5">
         {reason.steps.map((step, index) => (
           <li key={step.title} className="flex items-start gap-2.5">
@@ -114,4 +118,21 @@ export function RiskCalculationCard({ reason }) {
     </>
   );
 }
-RiskCalculationCard.propTypes = { reason: PropTypes.object.isRequired };
+RiskReasonCard.propTypes = { reason: PropTypes.object.isRequired };
+
+/** A small light bulb beside the risk badge; hovering it explains why the risk is MEDIUM or HIGH. Nothing for usual-level records. */
+export function RiskReasonBulb({ record, district }) {
+  const reason = describeRiskReason(record, district);
+  if (!reason) return null;
+  return (
+    <GlossaryTerm
+      plain
+      label="Why is the risk this level?"
+      term={<span className="material-symbols-outlined flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-base leading-none text-emerald-300 transition hover:bg-emerald-500/20" aria-hidden="true">lightbulb</span>}
+      align="left"
+    >
+      <RiskReasonCard reason={reason} />
+    </GlossaryTerm>
+  );
+}
+RiskReasonBulb.propTypes = { record: PropTypes.object, district: PropTypes.string };
