@@ -705,9 +705,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {lastLoadedAt && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs text-slate-300">
+            <span className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 text-xs text-slate-300">
               <span className="material-symbols-outlined text-sm text-slate-400" aria-hidden="true">schedule</span>
               Updated {lastLoadedAt}
             </span>
@@ -716,7 +716,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-lg disabled:opacity-50"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 text-xs font-medium text-slate-200 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-lg disabled:opacity-50"
           >
             <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`} aria-hidden="true">refresh</span>
             Refresh Data
@@ -725,7 +725,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
             type="button"
             onClick={handlePreviewGeneration}
             disabled={loading || generating || previewing}
-            className="flex items-center gap-2 rounded-lg border border-emerald-400/40 bg-gradient-to-r from-emerald-700 to-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-[0_0_18px_rgba(16,185,129,0.25)] transition duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-emerald-500 hover:shadow-[0_0_26px_rgba(16,185,129,0.4)] disabled:opacity-50 disabled:shadow-none"
+            className="flex h-9 items-center gap-2 rounded-lg border border-emerald-400/40 bg-gradient-to-r from-emerald-700 to-emerald-600 px-4 text-xs font-semibold text-white shadow-[0_0_18px_rgba(16,185,129,0.25)] transition duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-emerald-500 hover:shadow-[0_0_26px_rgba(16,185,129,0.4)] disabled:opacity-50 disabled:shadow-none"
             title="Work out the forecasts for the selected month from public climate data and the cases recorded in the application. You can review them before anything is saved."
           >
             <span className={`material-symbols-outlined text-base ${generating || previewing ? 'animate-spin' : ''}`} aria-hidden="true">{generating || previewing ? 'sync' : 'auto_awesome'}</span>
@@ -956,7 +956,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                 : 'border-slate-700 bg-slate-900 text-slate-300 hover:-translate-y-0.5 hover:border-amber-500/50 hover:text-amber-200 hover:shadow-lg'}`}
             >
               <span className="flex items-center gap-2 whitespace-nowrap">
-                <span className={`material-symbols-outlined text-base ${followUpOnly ? 'text-amber-300' : 'text-amber-400/80'}`} aria-hidden="true">assignment_late</span>
                 Needs follow-up
               </span>
               <span className="flex items-center gap-2">
