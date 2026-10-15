@@ -988,7 +988,9 @@ export default function WellnessDataIntake() {
                     </td>
                   </tr>
                 ) : (
-                  dailyLogsList.map((log) => {
+                  [...dailyLogsList]
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .map((log) => {
                     const animal = cattleList.find((c) => String(c.id) === String(log.cattle_id) || String(c._id) === String(log.cattle_id))
                     return (
                       <tr key={log.id} className="hover:bg-surface-container-high/30 transition-colors">

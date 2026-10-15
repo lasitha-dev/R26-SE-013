@@ -740,7 +740,9 @@ export default function AnimalProfile() {
                   </td>
                 </tr>
               ) : (
-                dailyLogs.map((log) => (
+                [...dailyLogs]
+                  .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                  .map((log) => (
                   <tr key={log.id} className="hover:bg-surface-container-high/40 transition-colors">
                     <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">{log.date}</td>
                     <td className="px-8 py-4 text-sm font-semibold text-primary">{log.milk_yield} L</td>
@@ -800,7 +802,9 @@ export default function AnimalProfile() {
                   </td>
                 </tr>
               ) : (
-                bcsLogs.map((log, idx) => (
+                [...bcsLogs]
+                  .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                  .map((log, idx) => (
                   <tr key={log.id || idx} className="hover:bg-surface-container-high/40 transition-colors">
                     <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">
                       {log.date || 'Unknown'}
