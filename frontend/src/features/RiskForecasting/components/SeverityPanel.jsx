@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { describeSeverityPanel } from './forecastPresentation';
+import { SeverityTerm } from './GuideCards';
 
 const LEVELS = ['LOW', 'MEDIUM', 'HIGH'];
 
@@ -59,35 +60,14 @@ export function SeverityPanel({ recent, entry }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Icon name="monitor_heart" className="text-lg text-primary" />
-          <h4 className="text-sm font-semibold text-on-surface">Severity</h4>
-          <span className="group relative inline-flex">
-            <button
-              type="button"
-              aria-label="How is severity decided?"
-              className="rounded-full p-0.5 text-on-surface-variant transition hover:text-primary focus:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <Icon name="info" className="text-base" />
-            </button>
-            <span
-              role="tooltip"
-              className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-72 -translate-x-1/2 translate-y-1 rounded-xl border border-outline-variant/50 bg-surface-container-highest p-3 text-left text-xs text-on-surface opacity-0 shadow-2xl transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100"
-            >
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-primary">How this is decided</span>
-              <span className="block space-y-1.5 text-on-surface-variant">
-                <span className="block">&bull; Cases and deaths recorded in the application are used first (one death counts as much as ten cases).</span>
-                <span className="block">&bull; If none are recorded, the district&apos;s past outbreaks are used.</span>
-                <span className="block">&bull; It is an early-warning indicator, not a prediction of future severity.</span>
-                {panel.historyCounts && <span className="block text-on-surface">Past outbreaks here: {panel.historyCounts}</span>}
-              </span>
-            </span>
-          </span>
+          <h4 className="text-sm font-semibold text-on-surface"><SeverityTerm /></h4>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-extrabold tracking-wide ${theme.badge}`}
           data-testid="severity-level"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-current motion-reduce:animate-none" aria-hidden="true" />
-          {panel.level === 'NONE' ? 'NONE RECORDED' : panel.level}
+          {panel.level === 'NONE' ? 'NO CASES' : panel.level}
         </span>
       </div>
 
@@ -135,12 +115,12 @@ export function SeverityBadge({ recent, entry }) {
   const facts = (panel.items || []).map((i) => `${i.label}: ${i.text}`).join('; ');
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${theme.badge}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold ${theme.badge}`}
       title={[panel.basisText, facts, panel.historyLine].filter(Boolean).join(' ')}
       data-testid="severity-badge"
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-      {panel.level === 'NONE' ? 'NONE' : panel.level}
+      {panel.level === 'NONE' ? 'No cases' : panel.level}
     </span>
   );
 }

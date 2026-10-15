@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { SeverityBadge, SeverityPanel } from './SeverityPanel';
 import { describeSeverityPanel } from './forecastPresentation';
 
@@ -54,14 +54,18 @@ describe('SeverityPanel', () => {
     expect(screen.getByTestId('severity-history')).toHaveTextContent('Past outbreaks in Colombo: usually HIGH');
   });
 
-  it('explains how the level is decided in a tooltip and keeps the percentages out of the main view', () => {
+  it('explains how the level is decided in a hover card on the word Severity, and keeps the percentages out of the main view', () => {
     render(<SeverityPanel recent={[september]} entry={history} />);
-    expect(screen.getByRole('button', { name: 'How is severity decided?' })).toBeInTheDocument();
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    fireEvent.mouseEnter(screen.getByText('Severity'));
     const tip = screen.getByRole('tooltip');
-    expect(tip).toHaveTextContent('one death counts as much as ten cases');
-    expect(tip).toHaveTextContent('not a prediction of future severity');
-    expect(tip).toHaveTextContent('1 low · 0 medium · 2 high');
+    expect(tip).toHaveTextContent('How Severity is decided');
+    expect(tip).toHaveTextContent('One death counts as much as 10 cases');
+    expect(tip).toHaveTextContent('No cases');
+    expect(tip).toHaveTextContent('No data');
     expect(screen.queryByText(/45%|44%/)).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('renders nothing without any information, and the compact badge shows a dash', () => {

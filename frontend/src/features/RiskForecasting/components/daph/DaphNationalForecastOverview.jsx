@@ -24,6 +24,7 @@ import { OutlookCard } from '../OutlookCard';
 import { loadOutlooks, outlookFor, NO_OUTLOOK } from '../../services/outlookLoader';
 import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
 import { SeverityBadge, SeverityPanel } from '../SeverityPanel';
+import { FollowUpTerm, RiskTierTerm, SeverityTerm } from '../GuideCards';
 import { buildRecentObservations } from '../forecastPresentation';
 import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
 import { BASELINE_BADGE, describePreviousMonth, formatProbabilityInterval, formatRelativeRisk, isActiveRecord, isBaselineRecord, isV2Record, nextPeriod, periodLabel, selectOfficialRecords } from '../forecastPresentation';
@@ -1063,11 +1064,11 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   <th className="py-3 px-3">Disease</th>
                   <th className="py-3 px-3">Target Period</th>
                   <th className="py-3 px-[#10b981] text-right">Probability</th>
-                  <th className="py-3 px-3 text-center">Risk Tier</th>
-                  <th className="py-3 px-3 text-center" title="From recorded cases and deaths; if none are recorded, from the district's past outbreaks">Severity</th>
+                  <th className="py-3 px-3 text-center"><RiskTierTerm /></th>
+                  <th className="py-3 px-3 text-center"><SeverityTerm /></th>
                   <th className="py-3 px-3 text-center">Advisory Coverage</th>
                   <th className="py-3 px-3 text-center">Simulated Batch</th>
-                  <th className="py-3 px-3 text-center">Follow-up</th>
+                  <th className="py-3 px-3 text-center"><FollowUpTerm /></th>
                   <th className="py-3 px-3 text-center">Data Provenance</th>
                   <th className="py-3 px-3 text-center">Details</th>
                 </tr>

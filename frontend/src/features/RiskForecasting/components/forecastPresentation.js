@@ -424,3 +424,7 @@ export function describeSeverityPanel({ recent, entry } = {}) {
     historyCounts: entry?.counts ? `${entry.counts.LOW} low \u00b7 ${entry.counts.MEDIUM} medium \u00b7 ${entry.counts.HIGH} high${years ? ` (${years})` : ''}` : null,
   };
 }
+
+/** The thresholds quoted in the guide cards. They mirror the backend tier rule (2x, 4x, 50%) and the severity rule. */
+export const RISK_TIER_GUIDE = Object.freeze({ medium: 2, high: 4, highChancePercent: 50 });
+export const SEVERITY_GUIDE = Object.freeze({ medium: 10, high: 30, deathWeight: 10 });
