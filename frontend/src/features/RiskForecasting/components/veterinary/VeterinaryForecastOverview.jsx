@@ -322,9 +322,6 @@ export function VeterinaryForecastOverview({ viewerContext, referenceDate = new 
                 {diseaseTitle[diseaseCode]}
               </h3>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium">
-              {assignedDistrict} District · {periodLabel(record.target_year, record.target_month)}
-            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <RiskReasonBulb record={record} district={assignedDistrict} />
