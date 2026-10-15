@@ -954,4 +954,28 @@ describe('DaphNationalForecastOverview Component', () => {
       expect(select.value).toBe('2025-1');
     });
   });
+
+  describe('Follow-up filter', () => {
+    it('shows how many districts need a follow-up and filters the matrix to exactly those when switched on', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+      const count = Number(screen.getByTestId('follow-up-count').textContent);
+      expect(count).toBeGreaterThan(0);
+
+      const toggle = screen.getByRole('switch', { name: /Follow-up required only/i });
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBe(count));
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('no longer shows the "saved records" note', async () => {
+      render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
+      await waitFor(() => expect(screen.getByText('District Priority Assessment Matrix')).toBeInTheDocument());
+      expect(screen.queryByText(/Forecasts are saved records/i)).not.toBeInTheDocument();
+    });
+  });
 });
+

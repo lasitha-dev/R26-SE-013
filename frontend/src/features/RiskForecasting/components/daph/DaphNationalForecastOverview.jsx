@@ -360,7 +360,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
   }, [allRecords, selectedYear, selectedMonth, selectedDisease]);
 
   // 6. Dynamic Table Rows Construction
-  const sortedTableRows = useMemo(() => {
+  const tableModel = useMemo(() => {
     const rows = [];
     const effectiveDistricts = districtList.length > 0 ? districtList : [
       'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
@@ -485,7 +485,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       filtered = filtered.filter((r) => r.requiresFollowUp);
     }
 
-    return filtered.sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       if (Boolean(a.isMissingRecord) !== Boolean(b.isMissingRecord)) {
         return a.isMissingRecord ? 1 : -1;
       }
@@ -499,6 +499,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
       }
       return a.district.localeCompare(b.district);
     });
+    return { rows: sorted, followUpCount: rows.filter((r) => r.requiresFollowUp).length };
   }, [
     districtList,
     selectedDisease,
@@ -512,6 +513,9 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     advisoryFilter,
     followUpOnly,
   ]);
+
+  const sortedTableRows = tableModel.rows;
+  const followUpCount = tableModel.followUpCount;
 
   // 7. Complete-Collection Filtering & National Summary Metrics
   const summaryMetrics = useMemo(() => {
@@ -730,12 +734,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
       </div>
 
-      {/* 2. One short, friendly note */}
-      <p className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-400">
-        <span className="material-symbols-outlined text-base text-emerald-400" aria-hidden="true">info</span>
-        Forecasts are saved records. New ones are created only when you press Generate, or by the monthly run.
-      </p>
-
       {/* 3. Operational Warning Banner (Amendment 8) */}
       {operationalWarning && (
         <div className="bg-amber-950/50 border border-amber-500/40 rounded-lg p-4 flex items-start gap-3 text-xs text-amber-200">
@@ -940,28 +938,35 @@ export function DaphNationalForecastOverview({ viewerContext }) {
               <option value="NO_ADVISORY">No Advisory Linked</option>
             </select>
           </div>
-        </div>
 
-        {/* Operational Follow-Up Toggle */}
-        <div className="flex items-center gap-3 border-t border-slate-800 pt-3">
-          <button
-            type="button"
-            role="switch"
-            id="follow-up-checkbox"
-            aria-checked={followUpOnly}
-            aria-label="Follow-up required only"
-            onClick={() => {
-              setFollowUpOnly(!followUpOnly);
-              setOffset(0);
-            }}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${followUpOnly ? 'border-amber-400/60 bg-amber-500/80' : 'border-slate-600 bg-slate-700'}`}
-          >
-            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${followUpOnly ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
-          <label htmlFor="follow-up-checkbox" className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-amber-300">
-            <span className="material-symbols-outlined text-base" aria-hidden="true">assignment_late</span>
-            Show only districts that need a follow-up
-          </label>
+          {/* Operational Follow-Up filter */}
+          <div className="flex items-end">
+            <button
+              type="button"
+              role="switch"
+              id="follow-up-checkbox"
+              aria-checked={followUpOnly}
+              aria-label="Follow-up required only"
+              onClick={() => {
+                setFollowUpOnly(!followUpOnly);
+                setOffset(0);
+              }}
+              className={`group flex h-[38px] w-full items-center justify-between gap-3 rounded-xl border px-3.5 text-xs font-semibold transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${followUpOnly
+                ? 'border-amber-400/60 bg-gradient-to-r from-amber-500/25 to-amber-600/10 text-amber-200 shadow-[0_0_18px_rgba(245,158,11,0.25)]'
+                : 'border-slate-700 bg-slate-900 text-slate-300 hover:-translate-y-0.5 hover:border-amber-500/50 hover:text-amber-200 hover:shadow-lg'}`}
+            >
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <span className={`material-symbols-outlined text-base ${followUpOnly ? 'text-amber-300' : 'text-amber-400/80'}`} aria-hidden="true">assignment_late</span>
+                Needs follow-up
+              </span>
+              <span className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${followUpOnly ? 'bg-amber-400/90 text-slate-900' : 'bg-amber-500/15 text-amber-300'}`} data-testid="follow-up-count">{followUpCount}</span>
+                <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 ${followUpOnly ? 'bg-amber-400' : 'bg-slate-600'}`} aria-hidden="true">
+                  <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200 ${followUpOnly ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
