@@ -1,0 +1,11 @@
+{
+  "protocol.json": "f7731c85757dcbdc94fa60ec9561f9e71ae0c4664ceb21351305d3349be28a87",
+  "content_review.json": "ae454b02e6143db751a69e659007e72fd851c013681b34a46baa593863b550a6",
+  "audit.py": "3c4b05ebd24ef15dc9d2c6aab6262f909d406672a26a7ad7993e450c9106ed95",
+  "train.py": "d622271c017cd2fd391a212fadc048f7527fc9782d895b33200aae9384701f50",
+  "model.py": "a8616e8ba16de740c83afaf763076d8b2cedea7c58aa2407addca64efce08d4c",
+  "predict.py": "41c29e1030b434f3dd9e6c3ea9c712de454dffee2b60fb5ea8d0e4f1a692fae9",
+  "download_data.py": "2bc8f430330eec20216d853b8d7a958b752278be1cfb91510f7b619cf86cc66f",
+  "verify_export.py": "94a906f59da2f9764cbd22ec61f8530863c093db9087ba18fd341271b34075b8",
+  "test_research.py": "40fec4630117ec73c59bcf3af5dcfda94ffcea0ce4586883e87b62fb8bb39994"
+}

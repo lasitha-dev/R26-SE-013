@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SYMPTOM_OVERLAY_LABEL } from '../../SmartDiagnostics/modelInfo';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function FarmerCaseHistory() {
   const [cases, setCases] = useState([]);
@@ -245,7 +246,7 @@ export default function FarmerCaseHistory() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                          {rec.severity || 'Moderate'}
+                          {rec.severity || 'Not assessed'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -357,7 +358,7 @@ export default function FarmerCaseHistory() {
                           onClick={() => setActiveImageTab('symptoms')}
                           className={`px-2 py-1 rounded transition-all ${activeImageTab === 'symptoms' ? 'bg-primary text-black font-bold' : 'text-slate-400 hover:text-white'}`}
                         >
-                          Pathology
+                          Symptom Overlay
                         </button>
                         {selectedCase.cropped_image && (
                           <button
@@ -379,7 +380,7 @@ export default function FarmerCaseHistory() {
                     />
                     <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/70 backdrop-blur-sm text-[10px] font-mono text-primary font-bold border border-white/10 flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                      <span>{activeImageTab === 'symptoms' ? 'Mask R-CNN Segment' : 'Bovine ROI Detection'}</span>
+                      <span>{selectedCase.symptoms_image && displayModalImage === selectedCase.symptoms_image ? SYMPTOM_OVERLAY_LABEL : 'Bovine ROI Detection'}</span>
                     </div>
                   </div>
                 </div>
@@ -398,10 +399,10 @@ export default function FarmerCaseHistory() {
                       <h3 className="text-xl font-extrabold text-white tracking-tight">{selectedCase.disease_name}</h3>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <span className="px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-3xs font-mono font-bold border border-amber-500/30 uppercase">
-                          Severity: {selectedCase.severity || 'Moderate'}
+                          Severity: {selectedCase.severity || 'Not assessed'}
                         </span>
                         <span className="px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 text-3xs font-mono font-bold border border-cyan-500/30 uppercase">
-                          Stage: {selectedCase.stage || 'Acute Phase'}
+                          Stage: {selectedCase.stage || 'Not assessed'}
                         </span>
                         <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-3xs font-mono font-bold border border-emerald-500/30 uppercase">
                           Prognosis: {selectedCase.prognosis || 'Favorable'}

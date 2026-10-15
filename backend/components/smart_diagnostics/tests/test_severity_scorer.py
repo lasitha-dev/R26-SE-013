@@ -67,8 +67,8 @@ class TestCompositeSeverityScorer:
             "top2_margin": 60.0,             # 0.6 * 0.10 = 0.06
             "yolo_detection_count": 2,       # 0.4 * 0.10 = 0.04
             "yolo_max_bbox_area_pct": 40.0,  # 0.4 * 0.10 = 0.04 -> total = 0.51
-            "predicted_class": "foot_and_mouth",
-            "predicted_display": "Foot and Mouth Disease",
+            "predicted_class": "lumpy_skin",
+            "predicted_display": "Lumpy Skin Disease",
         }
         sev = compute_composite_severity(signals)
 
@@ -87,8 +87,8 @@ class TestCompositeSeverityScorer:
             "top2_margin": 40.0,             # 0.4 * 0.10 = 0.04
             "yolo_detection_count": 1,       # 0.2 * 0.10 = 0.02
             "yolo_max_bbox_area_pct": 10.0,  # 0.1 * 0.10 = 0.01 -> total = 0.284
-            "predicted_class": "mastitis",
-            "predicted_display": "Mastitis",
+            "predicted_class": "lumpy_skin",
+            "predicted_display": "Lumpy Skin Disease",
         }
         sev = compute_composite_severity(signals)
 
@@ -130,8 +130,8 @@ class TestCompositeSeverityScorer:
             "top2_margin": 50.0,             # 0.5 * 0.10 = 0.05
             "yolo_detection_count": 1,       # 0.2 * 0.10 = 0.02
             "yolo_max_bbox_area_pct": 30.0,  # 0.3 * 0.10 = 0.03 -> total = 0.36
-            "predicted_class": "foot_and_mouth",
-            "predicted_display": "Foot and Mouth Disease",
+            "predicted_class": "lumpy_skin",
+            "predicted_display": "Lumpy Skin Disease",
         }
         sev = compute_composite_severity(signals)
 

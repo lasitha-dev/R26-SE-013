@@ -1,0 +1,125 @@
+{
+  "checks_passed": true,
+  "test_images": 189,
+  "cpu_test_metrics": {
+    "n": 189,
+    "accuracy": 0.9047619047619048,
+    "balanced_accuracy": 0.8783988629189867,
+    "macro_f1": 0.8775148311455462,
+    "weighted_kappa": 0.8846623270951993,
+    "ordinal_mae": 0.09523809523809523,
+    "nll": 0.2780482298908317,
+    "multiclass_brier": 0.15218308494351945,
+    "confusion_matrix": [
+      [
+        124,
+        9,
+        0
+      ],
+      [
+        6,
+        32,
+        1
+      ],
+      [
+        0,
+        2,
+        15
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.9538461538461539,
+        "recall": 0.9323308270676691,
+        "f1-score": 0.9429657794676806,
+        "support": 133.0
+      },
+      "mild": {
+        "precision": 0.7441860465116279,
+        "recall": 0.8205128205128205,
+        "f1-score": 0.7804878048780488,
+        "support": 39.0
+      },
+      "severe": {
+        "precision": 0.9375,
+        "recall": 0.8823529411764706,
+        "f1-score": 0.9090909090909091,
+        "support": 17.0
+      },
+      "accuracy": 0.9047619047619048,
+      "macro avg": {
+        "precision": 0.878510733452594,
+        "recall": 0.8783988629189867,
+        "f1-score": 0.8775148311455462,
+        "support": 189.0
+      },
+      "weighted avg": {
+        "precision": 0.9091126681242961,
+        "recall": 0.9047619047619048,
+        "f1-score": 0.9063916323491581,
+        "support": 189.0
+      }
+    }
+  },
+  "cpu_evaluation_seconds": 1.3924165000207722,
+  "cpu_gpu_prediction_disagreements": 0,
+  "max_probability_difference_cpu_gpu": 0.0019521713256835938,
+  "selection": "First stored test example in each class; no model selection or tuning",
+  "cli_checks": [
+    {
+      "source_name": "lumpy/Normal_Skin.png",
+      "inherited_label": "normal",
+      "output": {
+        "visual_lsd_lesion_grade": "normal",
+        "probabilities": {
+          "normal": 0.9090485572814941,
+          "mild": 0.09089713543653488,
+          "severe": 5.425712515716441e-05
+        },
+        "target": "visual_lsd_lesion_grade",
+        "clinical_severity": null,
+        "clinical_stage": null,
+        "veterinary_review_required": true,
+        "scope": "Research prototype for in-scope DataHub-like images; not validated for arbitrary crops or non-cattle images.",
+        "model_candidate": "neural_best"
+      }
+    },
+    {
+      "source_name": "lumpy/Mild_111.png",
+      "inherited_label": "mild",
+      "output": {
+        "visual_lsd_lesion_grade": "mild",
+        "probabilities": {
+          "normal": 0.264508992433548,
+          "mild": 0.711284339427948,
+          "severe": 0.024206647649407387
+        },
+        "target": "visual_lsd_lesion_grade",
+        "clinical_severity": null,
+        "clinical_stage": null,
+        "veterinary_review_required": true,
+        "scope": "Research prototype for in-scope DataHub-like images; not validated for arbitrary crops or non-cattle images.",
+        "model_candidate": "neural_best"
+      }
+    },
+    {
+      "source_name": "lumpy/Severe_13.png",
+      "inherited_label": "severe",
+      "output": {
+        "visual_lsd_lesion_grade": "severe",
+        "probabilities": {
+          "normal": 0.01887010596692562,
+          "mild": 0.1857488751411438,
+          "severe": 0.7953810691833496
+        },
+        "target": "visual_lsd_lesion_grade",
+        "clinical_severity": null,
+        "clinical_stage": null,
+        "veterinary_review_required": true,
+        "scope": "Research prototype for in-scope DataHub-like images; not validated for arbitrary crops or non-cattle images.",
+        "model_candidate": "neural_best"
+      }
+    }
+  ],
+  "mistakes": 18
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { detectImage, fetchReasoning } from '../services/api';
 
 /**
@@ -21,8 +21,57 @@ export default function useDetection() {
   const [reasoningStatus, setReasoningStatus] = useState('idle');
   const [reasoningError, setReasoningError] = useState(null);
   const [severityAssessment, setSeverityAssessment] = useState(null);
+  const imageRevision = useRef(0);
+  const reasoningRevision = useRef(0);
+  const previewRef = useRef(null);
+  const lastReasoningInput = useRef(null);
+  useEffect(() => () => {
+    ++imageRevision.current;
+    ++reasoningRevision.current;
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+  }, []);
 
-  const detect = useCallback(async (file) => {
+  const requestReasoning = useCallback(async (data, imageToken) => {
+    lastReasoningInput.current = data;
+    const token = ++reasoningRevision.current;
+    const current = () => imageToken === imageRevision.current && token === reasoningRevision.current;
+    setReasoningStatus('loading');
+    setReasoningError(null);
+    setReasoning(null);
+    setSeverityAssessment(null);
+    try {
+      const reasoningData = await fetchReasoning(data);
+      if (!current()) return;
+      setReasoning(reasoningData.reasoning_report || null);
+      setSeverityAssessment(reasoningData.severity_assessment || null);
+      setReasoningStatus(reasoningData.status === 'ok' ? 'done' : ['fallback', 'unavailable'].includes(reasoningData.status) ? reasoningData.status : 'error');
+      if (reasoningData.status !== 'ok') setReasoningError(reasoningData.reasoning_report);
+    } catch (reasonErr) {
+      if (!current()) return;
+      setReasoningError(reasonErr.message || String(reasonErr));
+      setReasoningStatus('error');
+    }
+  }, []);
+
+  const invalidateClinicalAssessment = useCallback(() => {
+    lastReasoningInput.current = null;
+    ++reasoningRevision.current;
+    setReasoning(null);
+    setReasoningStatus('idle');
+    setReasoningError(null);
+    setSeverityAssessment(null);
+  }, []);
+
+  const assessClinicalObservations = useCallback(async (observations) => {
+    if (!result || status !== 'done') return;
+    await requestReasoning({ ...result, clinical_observations: observations }, imageRevision.current);
+  }, [result, status, requestReasoning]);
+
+  const detect = useCallback(async (file, context) => {
+    lastReasoningInput.current = null;
+    const imageToken = ++imageRevision.current;
+    ++reasoningRevision.current;
+    setResult(null);
     setStatus('processing');
     setError(null);
     setReasoning(null);
@@ -32,40 +81,36 @@ export default function useDetection() {
 
     // Create a local preview URL so we can display the uploaded image
     const previewUrl = URL.createObjectURL(file);
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = previewUrl;
     setImagePreview(previewUrl);
 
     try {
-      const data = await detectImage(file);
+      const data = await (context ? detectImage(file, context) : detectImage(file));
+      if (imageToken !== imageRevision.current) return;
       setResult(data);
       setStatus('done');
 
       // Auto-trigger Tier 3 reasoning if cattle was detected
       if (data.cattle_detected) {
-        setReasoningStatus('loading');
-        try {
-          const reasoningData = await fetchReasoning(data);
-          setReasoning(reasoningData.reasoning_report || null);
-          setSeverityAssessment(reasoningData.severity_assessment || null);
-          setReasoningStatus(reasoningData.status === 'ok' ? 'done' : 'error');
-          if (reasoningData.status !== 'ok') {
-            setReasoningError(reasoningData.reasoning_report);
-          }
-        } catch (reasonErr) {
-          setReasoningError(reasonErr.message || String(reasonErr));
-          setReasoningStatus('error');
-        }
+        await requestReasoning(data, imageToken);
       }
     } catch (err) {
+      if (imageToken !== imageRevision.current) return;
       setError(err.message || String(err));
       setStatus('error');
     }
-  }, []);
+  }, [requestReasoning]);
 
   const reset = useCallback(() => {
+    lastReasoningInput.current = null;
+    ++imageRevision.current;
+    ++reasoningRevision.current;
     // Revoke the preview URL to free memory
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview);
     }
+    previewRef.current = null;
     setStatus('idle');
     setResult(null);
     setError(null);
@@ -87,5 +132,8 @@ export default function useDetection() {
     reasoningStatus,
     reasoningError,
     severityAssessment,
+    assessClinicalObservations,
+    invalidateClinicalAssessment,
+    retryReasoning: () => result && requestReasoning(lastReasoningInput.current || result, imageRevision.current),
   };
 }

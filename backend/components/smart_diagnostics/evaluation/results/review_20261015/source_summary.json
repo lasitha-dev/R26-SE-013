@@ -1,0 +1,212 @@
+{
+  "version": "local_source_review_v2",
+  "baseline_manifest_sha256": "d138786e378c7f0aa5a2712835a75eb80312ca247b73e124729cd8bbca451677",
+  "config_sha256": "c9d98523f9f8446c7c14adf3619fce75cf43d639a7dfa256601500891ceeca5f",
+  "frames": 9030,
+  "matching": "same basename, exact image SHA256, original annotation coordinates and notebook remapping",
+  "provenance_status_counts": {
+    "unique_export_match": 8515,
+    "unresolved": 515
+  },
+  "annotation_review_flags": {
+    "disease_or_symptom_label_requires_review": 4290,
+    "behaviour_does_not_establish_clinical_health": 4924,
+    "healthy_or_normal_annotation_not_lesion_foreground": 1874,
+    "abnormal_defaulted_to_cattle": 330
+  },
+  "flags_by_split": {
+    "train": {
+      "disease_or_symptom_label_requires_review": 3195,
+      "behaviour_does_not_establish_clinical_health": 3542,
+      "healthy_or_normal_annotation_not_lesion_foreground": 1538,
+      "abnormal_defaulted_to_cattle": 300
+    },
+    "val": {
+      "disease_or_symptom_label_requires_review": 595,
+      "behaviour_does_not_establish_clinical_health": 739,
+      "healthy_or_normal_annotation_not_lesion_foreground": 207,
+      "abnormal_defaulted_to_cattle": 24
+    },
+    "test": {
+      "disease_or_symptom_label_requires_review": 500,
+      "behaviour_does_not_establish_clinical_health": 643,
+      "healthy_or_normal_annotation_not_lesion_foreground": 129,
+      "abnormal_defaulted_to_cattle": 6
+    }
+  },
+  "source_exports": [
+    {
+      "id": "atc_lumpy_v2",
+      "status": "available",
+      "images": 1098,
+      "source_metadata": {
+        "license": "CC BY 4.0",
+        "project": "lumpy-skin-mdtsn",
+        "url": "https://universe.roboflow.com/atc-gyqoh/lumpy-skin-mdtsn/dataset/2",
+        "version": 2,
+        "workspace": "atc-gyqoh"
+      },
+      "class_names": [
+        "lumpyskin",
+        "normal"
+      ],
+      "metadata_sha256": "6cc3814f106d78ac0d174279fa7029eb50fa97c87bf02c282af412da9f488f86",
+      "mapping": {
+        "lumpyskin": {
+          "merged_class": "lumpy_skin",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        "normal": {
+          "merged_class": "cattle",
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        }
+      }
+    },
+    {
+      "id": "yuossef_lumpy_v6",
+      "status": "available",
+      "images": 739,
+      "source_metadata": {
+        "license": "Public Domain",
+        "project": "lumpy-skin-diesease",
+        "url": "https://universe.roboflow.com/yuossef/lumpy-skin-diesease/dataset/6",
+        "version": 6,
+        "workspace": "yuossef"
+      },
+      "class_names": [
+        "lumpy skin diesease"
+      ],
+      "metadata_sha256": "0cfdf9c8b8c0f6474b36e27b348811728275a8a855f79431ced54f095f4f5cd9",
+      "mapping": {
+        "lumpy skin diesease": {
+          "merged_class": "lumpy_skin",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      }
+    },
+    {
+      "id": "moaz_fmd_v1",
+      "status": "available",
+      "images": 520,
+      "source_metadata": {
+        "license": "CC BY 4.0",
+        "project": "foot-and-mouth-disease-mfuiw",
+        "url": "https://universe.roboflow.com/moaz-ahmen/foot-and-mouth-disease-mfuiw/dataset/1",
+        "version": 1,
+        "workspace": "moaz-ahmen"
+      },
+      "class_names": [
+        "Foot-and-mouth disease"
+      ],
+      "metadata_sha256": "07f4cec7f34462d3d3adc9e9bed690dd370b33a7b19348a13ec17f92eb906440",
+      "mapping": {
+        "Foot-and-mouth disease": {
+          "merged_class": "foot_and_mouth",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      }
+    },
+    {
+      "id": "non_fmd_v1",
+      "status": "available",
+      "images": 520,
+      "source_metadata": {
+        "license": "CC BY 4.0",
+        "project": "name1-mb7nq",
+        "url": "https://universe.roboflow.com/non-fmzye/name1-mb7nq/dataset/1",
+        "version": 1,
+        "workspace": "non-fmzye"
+      },
+      "class_names": [
+        "Foot-and-mouth disease - v1 2024-05-25 2-00am"
+      ],
+      "metadata_sha256": "e970219699222ac9625b2e22cff648df01d60ee437e8529b6f4f9bf5d09d3927",
+      "mapping": {
+        "Foot-and-mouth disease - v1 2024-05-25 2-00am": {
+          "merged_class": "foot_and_mouth",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      }
+    },
+    {
+      "id": "cow_udder_v3",
+      "status": "available",
+      "images": 741,
+      "source_metadata": {
+        "license": "CC BY 4.0",
+        "project": "deteksi-mastitis-sapi",
+        "url": "https://universe.roboflow.com/cow-udder/deteksi-mastitis-sapi/dataset/3",
+        "version": 3,
+        "workspace": "cow-udder"
+      },
+      "class_names": [
+        "abnormal",
+        "normal"
+      ],
+      "metadata_sha256": "3925e7d85c447a10ea4c8260728c3bdda84b428b46a7a0293c66ca2e9a8d63d9",
+      "mapping": {
+        "abnormal": {
+          "merged_class": "cattle",
+          "review_flag": "abnormal_defaulted_to_cattle"
+        },
+        "normal": {
+          "merged_class": "cattle",
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        }
+      }
+    },
+    {
+      "id": "kirubel_cow_mastitis_v18",
+      "status": "available",
+      "images": 4897,
+      "source_metadata": {
+        "license": "CC BY 4.0",
+        "project": "cow-and-mastitis-detection",
+        "url": "https://universe.roboflow.com/kirubel-yemane/cow-and-mastitis-detection/dataset/18",
+        "version": 18,
+        "workspace": "kirubel-yemane"
+      },
+      "class_names": [
+        "Cow_Feeding",
+        "Cow_drinking_water",
+        "Cow_lying",
+        "Cow_standing",
+        "Healthy_udder",
+        "Lumpy_infected_cow",
+        "Mastitis_infected_udder"
+      ],
+      "metadata_sha256": "d89ef21d9439f2749069a13745ac0ba58aea68357fd2f0e36309ab8d97c34041",
+      "mapping": {
+        "Cow_Feeding": {
+          "merged_class": "cattle",
+          "review_flag": "behaviour_does_not_establish_clinical_health"
+        },
+        "Cow_drinking_water": {
+          "merged_class": "cattle",
+          "review_flag": "behaviour_does_not_establish_clinical_health"
+        },
+        "Cow_lying": {
+          "merged_class": "cattle",
+          "review_flag": "behaviour_does_not_establish_clinical_health"
+        },
+        "Cow_standing": {
+          "merged_class": "cattle",
+          "review_flag": "behaviour_does_not_establish_clinical_health"
+        },
+        "Healthy_udder": {
+          "merged_class": "cattle",
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        },
+        "Lumpy_infected_cow": {
+          "merged_class": "lumpy_skin",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        "Mastitis_infected_udder": {
+          "merged_class": "mastitis",
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      }
+    }
+  ],
+  "independence": "not established; matches identify exported artifacts, not animals/farms or checkpoint training exposure"
+}

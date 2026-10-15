@@ -14,7 +14,7 @@ import uvicorn
 from components.smart_diagnostics.config import settings
 from components.smart_diagnostics.implementations.yolo_detector import YOLODetector
 from components.smart_diagnostics.implementations.vit_classifier import ViTClassifier
-from components.smart_diagnostics.implementations.mask_rcnn_segmenter import MaskRCNNSegmenter
+from components.smart_diagnostics.implementations.lesion_segmenter import LesionSegmenter
 from components.smart_diagnostics.routes import router as sd_router
 
 from components.risk_forecasting.routes import router as risk_forecasting_router, setup_production_services
@@ -136,9 +136,11 @@ def create_app() -> FastAPI:
         class_names=settings.CLASS_NAMES,
         display_names=settings.CLASS_DISPLAY_NAMES,
     )
-    app.state.segmenter = MaskRCNNSegmenter(
-        settings.MASK_RCNN_MODEL_PATH,
-        image_size=224
+    app.state.segmenter = LesionSegmenter(
+        settings.SEGMENTER_MODEL_PATH,
+        image_size=224, threshold=settings.SEGMENTER_THRESHOLD,
+        min_region_fraction=settings.SEGMENTER_MIN_REGION_FRACTION,
+        manifest_path=settings.SEGMENTER_MANIFEST_PATH,
     )
 
     @app.get("/")

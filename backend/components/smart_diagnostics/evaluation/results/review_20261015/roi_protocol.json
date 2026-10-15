@@ -1,0 +1,17 @@
+{
+  "version": "validation_roi_envelopes_v1",
+  "partition": "val",
+  "baseline_manifest_sha256": "d138786e378c7f0aa5a2712835a75eb80312ca247b73e124729cd8bbca451677",
+  "baseline_predictions_sha256": "150589959acca8ee21eaa2b21d97b5ea22bea535fb7fc29dc0fcc2824ac1f877",
+  "baseline_checkpoint_sha256": {
+    "vit": "ee684b699363193f04184299b2586e5e03f05ba801fa0103caa8e3f2528e2f41",
+    "yolo": "b7269367dc0dc54575e11f2e8fa513ecdc562c9a60137d5515fbe237f1169d57"
+  },
+  "intervention": "polygon-derived validation crops use the full annotation envelope; box-derived crops retain original bytes",
+  "encoding": "Pillow JPEG quality=95 subsampling=2 for regenerated crops; decoder/encoder differences may contribute",
+  "labels": "inherited, unchanged, not veterinarian-reviewed",
+  "independent": false,
+  "thresholds": "unchanged; no threshold selection in this experiment",
+  "test_partition": "not regenerated or rescored",
+  "code_sha256": "b1559d1c7af8009b4f76f56d7626d39396ccda714d531316d3673063ce3421ec"
+}

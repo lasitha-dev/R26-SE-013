@@ -4,6 +4,7 @@ from typing import Dict, List
 from PIL.Image import Image
 
 from ..interfaces.classifier import ClassifierInterface
+from ..model_errors import ModelUnavailable, InvalidModelOutput
 
 logger = logging.getLogger("smart_diagnostics.vit")
 
@@ -32,6 +33,7 @@ class ViTClassifier(ClassifierInterface):
         self._model = None
         self._transform = None
         self._device = None
+        self.load_state = "not_loaded"
 
     @property
     def is_loaded(self) -> bool:
@@ -41,6 +43,11 @@ class ViTClassifier(ClassifierInterface):
     def _ensure_loaded(self):
         if self._model is not None:
             return
+        from pathlib import Path
+        if not Path(self.model_path).is_file():
+            self.load_state = "unavailable"
+            raise ModelUnavailable("The trained disease classifier checkpoint is unavailable.")
+        self.load_state = "loading"
         logger.info("Loading ViT classifier from '%s' ...", self.model_path)
         t0 = time.perf_counter()
         try:
@@ -48,7 +55,8 @@ class ViTClassifier(ClassifierInterface):
             from torchvision import models, transforms
         except Exception as e:
             logger.error("Failed to import torch/torchvision: %s", e)
-            raise RuntimeError("torch and torchvision are required for ViTClassifier") from e
+            self.load_state = "unavailable"
+            raise ModelUnavailable("torch and torchvision are required for the trained classifier.") from e
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._device = device
@@ -79,16 +87,14 @@ class ViTClassifier(ClassifierInterface):
             vit.load_state_dict(state_dict)
             logger.info("ViT weights loaded successfully from checkpoint.")
         except Exception as e:
-            # Log a warning instead of silently ignoring — the model will run with random weights!
-            logger.warning(
-                "Failed to load ViT weights from '%s': %s  — model will use RANDOM weights!",
-                self.model_path,
-                e,
-            )
+            self.load_state = "unavailable"
+            logger.error("Trained ViT checkpoint could not be loaded: %s", e)
+            raise ModelUnavailable("The trained disease classifier checkpoint is incompatible or unreadable.") from e
 
         vit.to(device)
         vit.eval()
         self._model = vit
+        self.load_state = "loaded"
         self._transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
             transforms.ToTensor(),
@@ -109,6 +115,8 @@ class ViTClassifier(ClassifierInterface):
         tensor = self._transform(image).unsqueeze(0).to(self._device)
         with torch.no_grad():
             outputs = self._model(tensor)
+            if outputs.shape != (1, len(self.class_names)) or not torch.isfinite(outputs).all():
+                raise InvalidModelOutput("The disease classifier returned invalid logits.")
             probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             top_conf, top_idx = torch.max(probabilities, dim=0)
 
@@ -140,6 +148,8 @@ class ViTClassifier(ClassifierInterface):
         tensor = self._transform(image).unsqueeze(0).to(self._device)
         with torch.no_grad():
             outputs = self._model(tensor)
+            if outputs.shape != (1, len(self.class_names)) or not torch.isfinite(outputs).all():
+                raise InvalidModelOutput("The disease classifier returned invalid logits.")
             probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             top_conf, top_idx = torch.max(probabilities, dim=0)
 
@@ -174,12 +184,14 @@ class ViTClassifier(ClassifierInterface):
             cluster_count = attn_data["attention_cluster_count"]
             attn_map = attn_data["attention_map"]
             overlay_img = attn_data.get("attention_overlay_image")
+            attention_status = "completed"
         except Exception as e:
             logger.warning("Failed to extract attention rollout: %s", e)
             coverage_pct = 0.0
             cluster_count = 0
             attn_map = None
             overlay_img = None
+            attention_status = "failed"
 
         return {
             "name": top_display,
@@ -190,4 +202,5 @@ class ViTClassifier(ClassifierInterface):
             "attention_cluster_count": cluster_count,
             "attention_map": attn_map,
             "attention_overlay_image": overlay_img,
+            "attention_status": attention_status,
         }

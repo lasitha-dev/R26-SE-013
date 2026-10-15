@@ -26,3 +26,13 @@ def test_settings_validates_declared_fields():
         Settings()
         
     del os.environ["YOLO_CONF_THRESHOLD"]
+
+
+def test_segmenter_configuration_alias_and_validation(monkeypatch):
+    monkeypatch.setenv('MASK_RCNN_MODEL_PATH', 'legacy.keras')
+    assert Settings(_env_file=None).SEGMENTER_MODEL_PATH.endswith('legacy.keras')
+    monkeypatch.setenv('SEGMENTER_MODEL_PATH', 'current.keras')
+    assert Settings(_env_file=None).SEGMENTER_MODEL_PATH.endswith('current.keras')
+    assert Settings(_env_file=None).MASK_RCNN_MODEL_PATH.endswith('current.keras')
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, SEGMENTER_THRESHOLD=1.2)

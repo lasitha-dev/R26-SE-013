@@ -1,0 +1,9 @@
+data/
+artifacts/weights/
+artifacts/runs/
+artifacts/audit_*.jpg
+artifacts/content_*.jpg
+artifacts/candidates_*.jpg
+artifacts/test_examples.jpg
+__pycache__/
+.pytest_cache/

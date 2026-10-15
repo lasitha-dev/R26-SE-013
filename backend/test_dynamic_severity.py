@@ -42,8 +42,8 @@ def test_clinical_fallback_severity_generation():
     sev = create_clinical_fallback_severity(vision_results)
     
     assert sev.grade == "Severe"
-    assert sev.stage == "Acute Eruptive / Advanced"
-    assert sev.prognosis == "Guarded"
+    assert "stage" not in sev.model_dump()
+    assert sev.prognosis is None
     assert "Lumpy Skin Disease" in sev.description
     assert sev.composite_score is not None
     assert sev.composite_score >= 0.65
@@ -69,7 +69,7 @@ def test_healthy_baseline_severity():
     }
     sev = create_clinical_fallback_severity(vision_results)
     assert sev.grade == "Healthy Baseline"
-    assert sev.prognosis == "Excellent"
+    assert sev.prognosis is None
     assert sev.confidence_level == "High"
     assert sev.needs_review is False
     print("Healthy baseline severity verified.")
@@ -96,7 +96,7 @@ def test_llm_severity_metadata_parsing():
     cleaned_report, sev = parse_llm_severity_assessment(raw_llm_output, vision_results)
 
     assert sev.grade == "Severe"
-    assert sev.stage == "Acute Coalescent Phase"
+    assert "stage" not in sev.model_dump()
     assert sev.prognosis == "Guarded"
     assert "Extensive multifocal cutaneous eruptions" in sev.description
     assert "[SEVERITY_META:" not in cleaned_report
@@ -128,16 +128,15 @@ def test_markdown_severity_metadata_parsing():
     }
     cleaned_report, sev = parse_llm_severity_assessment(raw_llm_output, vision_results)
 
-    assert sev.grade == "Mild"
-    assert sev.stage == "Early Acute"
-    assert sev.prognosis == "Guarded"
-    assert "Minimal lesions detected" in sev.description
-    assert sev.diagnostic_rationale is not None
-    assert "Vesicular erosion morphology" in sev.diagnostic_rationale
-    assert "Distal Locomotor" in sev.spatial_correlation
+    assert sev.grade == "Unassessable"
+    assert "stage" not in sev.model_dump()
+    assert sev.prognosis == "Not assessed"
+    assert sev.source == "clinical_rules" and sev.needs_review
+    assert "Minimal lesions detected" not in sev.description
+    assert "Vesicular erosion morphology" not in cleaned_report
+    assert sev.spatial_correlation is None
     assert "### SEVERITY META" not in cleaned_report
-    assert cleaned_report.startswith("## 1. Clinical Severity Assessment & Pathological Stage")
-    print("Markdown format `### SEVERITY META` extraction and report cleaning verified.")
+    assert cleaned_report.startswith("## 1. Clinical Checklist Assessment")
 
 
 if __name__ == "__main__":

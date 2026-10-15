@@ -168,7 +168,7 @@ class TestGenerateVeterinaryReport:
         mock_client.chat.completions.create.return_value = mock_response
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
@@ -192,14 +192,13 @@ class TestGenerateVeterinaryReport:
         mock_client.chat.completions.create.return_value = mock_response
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
         report, sev = generate_veterinary_report(vision_results)
 
-        assert "⚠" in report
-        assert "empty" in report.lower()
+        assert "returned no report" in report.lower()
         assert sev is not None
 
     @patch("openai.OpenAI")
@@ -219,7 +218,7 @@ class TestGenerateVeterinaryReport:
         )
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
@@ -227,8 +226,7 @@ class TestGenerateVeterinaryReport:
         report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
-        assert "⚠" in report
-        assert "LM Studio" in report or "Unreachable" in report or "Error" in report or "Standby" in report
+        assert "Explanation unavailable" in report
         assert sev is not None
 
     @patch("openai.OpenAI")
@@ -243,12 +241,12 @@ class TestGenerateVeterinaryReport:
         )
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
         report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
-        assert "⚠" in report
+        assert "original image assessment" in report.lower()
         assert sev is not None

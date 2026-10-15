@@ -1,0 +1,14 @@
+{
+  "records": 20346,
+  "review_manifest_sha256": "c94ba45e175ff6a643fa61232368428f739fd759232e84e3c607bcbca4e75c28",
+  "cross_split_lineages_pending": 250,
+  "cross_split_lineage_frames": 1201,
+  "source_mask_examples": 16,
+  "crop_examples": 6,
+  "mask_images_pending": 4644,
+  "clinical_labels_approved": 0,
+  "lesion_masks_approved": 0,
+  "independent": false,
+  "html_sha256": "d7bd81773b2988e788fd069180dedc81d24a26ac20f538d5326079432842f3c1",
+  "baseline_manifest_sha256": "d138786e378c7f0aa5a2712835a75eb80312ca247b73e124729cd8bbca451677"
+}

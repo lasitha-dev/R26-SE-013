@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "polygon_parent_saved_crops": 1994,
+    "class_cattle": 1428,
+    "split_train": 1597,
+    "saved_size_matches_notebook_polygon_misparse": 1994,
+    "saved_size_matches_polygon_envelope": 0,
+    "class_lumpy_skin": 566,
+    "split_val": 246,
+    "split_test": 151
+  },
+  "examples": [
+    {
+      "filename": "00000002_jpg.rf.c3d99c9b71e2abd076904886bda5a0fc_crop0.jpg",
+      "actual_size": [
+        97,
+        93
+      ],
+      "notebook_misparsed_size": [
+        97,
+        93
+      ],
+      "polygon_envelope_size": [
+        363,
+        468
+      ]
+    },
+    {
+      "filename": "00000002_jpg.rf.c3d99c9b71e2abd076904886bda5a0fc_crop1.jpg",
+      "actual_size": [
+        396,
+        283
+      ],
+      "notebook_misparsed_size": [
+        396,
+        283
+      ],
+      "polygon_envelope_size": [
+        47,
+        62
+      ]
+    },
+    {
+      "filename": "00000049_jpg.rf.87fa2d8174d7691bc0a0f94d89d010af_crop0.jpg",
+      "actual_size": [
+        284,
+        335
+      ],
+      "notebook_misparsed_size": [
+        284,
+        335
+      ],
+      "polygon_envelope_size": [
+        243,
+        271
+      ]
+    }
+  ],
+  "interpretation": "Dimension agreement confirms the notebook parsing issue for these crops; no labels/images were modified."
+}

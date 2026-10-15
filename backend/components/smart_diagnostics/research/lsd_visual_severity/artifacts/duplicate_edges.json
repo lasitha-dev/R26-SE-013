@@ -1,0 +1,1881 @@
+[
+  {
+    "a": "lumpy/Mild_12.png",
+    "b": "lumpy/Mild_106.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_147.png",
+    "b": "lumpy/Mild_10.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_17.png",
+    "b": "lumpy/Mild_122.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_187.png",
+    "b": "lumpy/Mild_157.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_206.png",
+    "b": "lumpy/Mild_194.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": true,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_208.png",
+    "b": "lumpy/Mild_178.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_212.png",
+    "b": "lumpy/Mild_198.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_213.png",
+    "b": "lumpy/Mild_157.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_213.png",
+    "b": "lumpy/Mild_187.png",
+    "phash_distance": 4,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_215.png",
+    "b": "lumpy/Mild_191.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_216.png",
+    "b": "lumpy/Mild_161.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_218.png",
+    "b": "lumpy/Mild_156.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_222.png",
+    "b": "lumpy/Mild_167.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_224.png",
+    "b": "lumpy/Mild_186.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_228.png",
+    "b": "lumpy/Mild_100.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_27.png",
+    "b": "lumpy/Mild_16.png",
+    "phash_distance": 6,
+    "dhash_distance": 4,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_29.png",
+    "b": "lumpy/Mild_179.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_32.png",
+    "b": "lumpy/Mild_105.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_33.png",
+    "b": "lumpy/Mild_190.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_40.png",
+    "b": "lumpy/Mild_16.png",
+    "phash_distance": 6,
+    "dhash_distance": 4,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_40.png",
+    "b": "lumpy/Mild_27.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_43.png",
+    "b": "lumpy/Mild_211.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_54.png",
+    "b": "lumpy/Mild_100.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_54.png",
+    "b": "lumpy/Mild_228.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_57.png",
+    "b": "lumpy/Mild_19.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_58.png",
+    "b": "lumpy/Mild_3.png",
+    "phash_distance": 0,
+    "dhash_distance": 3,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_68.png",
+    "b": "lumpy/Mild_210.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_7.png",
+    "b": "lumpy/Mild_123.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_71.png",
+    "b": "lumpy/Mild_20.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_76.png",
+    "b": "lumpy/Mild_220.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_84.png",
+    "b": "lumpy/Mild_15.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_97.png",
+    "b": "lumpy/Mild_30.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_158.png",
+    "b": "lumpy/Normal_Skin_100.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_159.png",
+    "b": "lumpy/Normal_Skin_143.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_166.png",
+    "b": "lumpy/Normal_Skin_127.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_168.png",
+    "b": "lumpy/Normal_Skin_125.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_170.png",
+    "b": "lumpy/Normal_Skin_135.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_172.png",
+    "b": "lumpy/Normal_Skin_133.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_178.png",
+    "b": "lumpy/Normal_Skin_118.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_242.png",
+    "b": "lumpy/Mild_56.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": true,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_263.png",
+    "b": "lumpy/Normal_Skin_122.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_30.png",
+    "b": "lumpy/Normal_Skin_156.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_303.png",
+    "b": "lumpy/Normal_Skin_3.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_304.png",
+    "b": "lumpy/Normal_Skin_105.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_340.png",
+    "b": "lumpy/Normal_Skin_202.png",
+    "phash_distance": 4,
+    "dhash_distance": 3,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_347.png",
+    "b": "lumpy/Mild_209.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_400.png",
+    "b": "lumpy/Normal_Skin_114.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_405.png",
+    "b": "lumpy/Normal_Skin_121.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_415.png",
+    "b": "lumpy/Normal_Skin_149.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_429.png",
+    "b": "lumpy/Mild_106.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": true,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_429.png",
+    "b": "lumpy/Mild_12.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_44.png",
+    "b": "lumpy/Normal_Skin_240.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_475.png",
+    "b": "lumpy/Normal_Skin_101.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_505.png",
+    "b": "lumpy/Normal_Skin_142.png",
+    "phash_distance": 2,
+    "dhash_distance": 4,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_510.png",
+    "b": "lumpy/Normal_Skin_5.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_54.png",
+    "b": "lumpy/Normal_Skin_171.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_541.png",
+    "b": "lumpy/Normal_Skin_132.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_57.png",
+    "b": "lumpy/Normal_Skin_473.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_577.png",
+    "b": "lumpy/Normal_Skin_148.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_588.png",
+    "b": "lumpy/Mild_161.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": true,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_588.png",
+    "b": "lumpy/Mild_216.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_59.png",
+    "b": "lumpy/Normal_Skin_267.png",
+    "phash_distance": 6,
+    "dhash_distance": 4,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_598.png",
+    "b": "lumpy/Normal_Skin_27.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_60.png",
+    "b": "lumpy/Normal_Skin_531.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_61.png",
+    "b": "lumpy/Normal_Skin_575.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_626.png",
+    "b": "lumpy/Normal_Skin_138.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_64.png",
+    "b": "lumpy/Normal_Skin_294.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_648.png",
+    "b": "lumpy/Normal_Skin_530.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_652.png",
+    "b": "lumpy/Normal_Skin_231.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_656.png",
+    "b": "lumpy/Normal_Skin_157.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_659.png",
+    "b": "lumpy/Normal_Skin_175.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_66.png",
+    "b": "lumpy/Normal_Skin_590.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_662.png",
+    "b": "lumpy/Normal_Skin_512.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_685.png",
+    "b": "lumpy/Normal_Skin_621.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_69.png",
+    "b": "lumpy/Normal_Skin_162.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_698.png",
+    "b": "lumpy/Normal_Skin_630.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_7.png",
+    "b": "lumpy/Normal_Skin_160.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_707.png",
+    "b": "lumpy/Normal_Skin_632.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_708.png",
+    "b": "lumpy/Normal_Skin_153.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_712.png",
+    "b": "lumpy/Normal_Skin_565.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_713.png",
+    "b": "lumpy/Normal_Skin_163.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_715.png",
+    "b": "lumpy/Normal_Skin_174.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_73.png",
+    "b": "lumpy/Normal_Skin_509.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_74.png",
+    "b": "lumpy/Normal_Skin_628.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_78.png",
+    "b": "lumpy/Normal_Skin_173.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_79.png",
+    "b": "lumpy/Normal_Skin_176.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_82.png",
+    "b": "lumpy/Normal_Skin_401.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_83.png",
+    "b": "lumpy/Normal_Skin_373.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_84.png",
+    "b": "lumpy/Normal_Skin_164.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_87.png",
+    "b": "lumpy/Normal_Skin_207.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_89.png",
+    "b": "lumpy/Normal_Skin_221.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_9.png",
+    "b": "lumpy/Normal_Skin_543.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_90.png",
+    "b": "lumpy/Normal_Skin_249.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_91.png",
+    "b": "lumpy/Normal_Skin_154.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_98.png",
+    "b": "lumpy/Normal_Skin_155.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_11.png",
+    "b": "lumpy/Normal_Skin_5.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_11.png",
+    "b": "lumpy/Normal_Skin_510.png",
+    "phash_distance": 0,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_16.png",
+    "b": "lumpy/Mild_214.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_2.png",
+    "b": "lumpy/Severe_18.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_21.png",
+    "b": "lumpy/Normal_Skin_489.png",
+    "phash_distance": 6,
+    "dhash_distance": 8,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_3.png",
+    "b": "lumpy/Severe_20.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_31.png",
+    "b": "lumpy/Mild_25.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_4.png",
+    "b": "lumpy/Severe_13.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_48.png",
+    "b": "lumpy/Severe_1.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_5.png",
+    "b": "lumpy/Severe_14.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_60.png",
+    "b": "lumpy/Severe_37.png",
+    "phash_distance": 4,
+    "dhash_distance": 8,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_61.png",
+    "b": "lumpy/Mild_128.png",
+    "phash_distance": 4,
+    "dhash_distance": 6,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_7.png",
+    "b": "lumpy/Severe_67.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_70.png",
+    "b": "lumpy/Severe_6.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_71.png",
+    "b": "lumpy/Severe_43.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_76.png",
+    "b": "lumpy/Severe_15.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_77.png",
+    "b": "lumpy/Mild_92.png",
+    "phash_distance": 2,
+    "dhash_distance": 2,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_78.png",
+    "b": "lumpy/Severe_17.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_79.png",
+    "b": "lumpy/Mild_80.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_80.png",
+    "b": "lumpy/Severe_51.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_81.png",
+    "b": "lumpy/Severe_19.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_83.png",
+    "b": "lumpy/Severe_36.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_84.png",
+    "b": "lumpy/Mild_102.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_85.png",
+    "b": "lumpy/Severe_39.png",
+    "phash_distance": 0,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_88.png",
+    "b": "lumpy/Severe_37.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_88.png",
+    "b": "lumpy/Severe_60.png",
+    "phash_distance": 6,
+    "dhash_distance": 8,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_89.png",
+    "b": "lumpy/Severe_72.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_90.png",
+    "b": "lumpy/Severe_72.png",
+    "phash_distance": 2,
+    "dhash_distance": 1,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_90.png",
+    "b": "lumpy/Severe_89.png",
+    "phash_distance": 0,
+    "dhash_distance": 0,
+    "exact_pixels": true,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_91.png",
+    "b": "lumpy/Severe_64.png",
+    "phash_distance": 2,
+    "dhash_distance": 0,
+    "exact_pixels": false,
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_297.png",
+    "b": "lumpy/Mild_41.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_524.png",
+    "b": "lumpy/Mild_98.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_96.png",
+    "b": "lumpy/Mild_6.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_83.png",
+    "b": "lumpy/Severe_50.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_83.png",
+    "b": "lumpy/Severe_36.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_161.png",
+    "b": "lumpy/Normal_Skin_141.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_6.png",
+    "b": "lumpy/Normal_Skin_472.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_87.png",
+    "b": "lumpy/Severe_62.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_78.png",
+    "b": "lumpy/Mild_167.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_78.png",
+    "b": "lumpy/Mild_222.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_489.png",
+    "b": "lumpy/Normal_Skin_180.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_489.png",
+    "b": "lumpy/Severe_15.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_489.png",
+    "b": "lumpy/Severe_21.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_489.png",
+    "b": "lumpy/Severe_76.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_489.png",
+    "b": "lumpy/Mild_182.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_68.png",
+    "b": "lumpy/Severe_10.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_36.png",
+    "b": "lumpy/Mild_201.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_102.png",
+    "b": "lumpy/Mild_63.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_102.png",
+    "b": "lumpy/Severe_17.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_102.png",
+    "b": "lumpy/Severe_78.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_102.png",
+    "b": "lumpy/Severe_84.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_196.png",
+    "b": "lumpy/Mild_210.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_196.png",
+    "b": "lumpy/Mild_69.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_10.png",
+    "b": "lumpy/Mild_147.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_100.png",
+    "b": "lumpy/Mild_228.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_100.png",
+    "b": "lumpy/Mild_54.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_100.png",
+    "b": "lumpy/Mild_23.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_194.png",
+    "b": "lumpy/Mild_206.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_208.png",
+    "b": "lumpy/Mild_178.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_208.png",
+    "b": "lumpy/Mild_66.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Mild_138.png",
+    "b": "lumpy/Mild_221.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "mild",
+      "mild"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_1.png",
+    "b": "lumpy/Severe_48.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_20.png",
+    "b": "lumpy/Severe_3.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_13.png",
+    "b": "lumpy/Severe_39.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_13.png",
+    "b": "lumpy/Severe_4.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_13.png",
+    "b": "lumpy/Severe_85.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_37.png",
+    "b": "lumpy/Severe_60.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_37.png",
+    "b": "lumpy/Severe_88.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_6.png",
+    "b": "lumpy/Severe_70.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_6.png",
+    "b": "lumpy/Severe_9.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_43.png",
+    "b": "lumpy/Severe_71.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_66.png",
+    "b": "lumpy/Severe_59.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_12.png",
+    "b": "lumpy/Severe_62.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_12.png",
+    "b": "lumpy/Severe_87.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_64.png",
+    "b": "lumpy/Severe_91.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_67.png",
+    "b": "lumpy/Severe_7.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_72.png",
+    "b": "lumpy/Severe_89.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Severe_72.png",
+    "b": "lumpy/Severe_90.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "severe",
+      "severe"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_101.png",
+    "b": "lumpy/Normal_Skin_475.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_303.png",
+    "b": "lumpy/Normal_Skin_3.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_30.png",
+    "b": "lumpy/Normal_Skin_198.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_129.png",
+    "b": "lumpy/Normal_Skin_114.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_129.png",
+    "b": "lumpy/Normal_Skin_400.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_158.png",
+    "b": "lumpy/Normal_Skin_100.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_158.png",
+    "b": "lumpy/Normal_Skin_301.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  },
+  {
+    "a": "lumpy/Normal_Skin_61.png",
+    "b": "lumpy/Normal_Skin_575.png",
+    "method": "pretraining_visual_content_audit",
+    "labels": [
+      "normal",
+      "normal"
+    ]
+  }
+]

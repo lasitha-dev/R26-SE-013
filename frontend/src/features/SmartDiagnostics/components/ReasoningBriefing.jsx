@@ -97,6 +97,9 @@ function parseMarkdownContent(text) {
 /** Convert inline Markdown (**bold**, `code`) to HTML. */
 function formatInline(text) {
   return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-on-surface font-bold">$1</strong>')
     .replace(/`([^`]+)`/g, '<code class="text-primary bg-primary/10 px-1.5 py-0.5 rounded text-2xs font-mono">$1</code>');
 }
@@ -271,6 +274,33 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
   // Don't render anything in idle state
   if (reasoningStatus === 'idle') return null;
 
+  if (['fallback', 'unavailable'].includes(reasoningStatus)) {
+    return <div role="status" className="p-4 rounded-xl border border-amber-500/30 text-sm text-on-surface-variant" data-testid="reasoning-briefing">
+      <p>Explanation {reasoningStatus === 'fallback' ? 'unavailable; original assessment retained' : 'service unavailable'}.</p>
+      <p>{reasoningError || reasoning}</p>
+      <p>Existing assessment: {severityAssessment?.formatted || severityAssessment?.grade || 'Not assessed'}. Review the measured evidence above.</p>
+    </div>;
+  }
+
+  if (severityAssessment?.source === 'clinical_rules') {
+    return <div className="rounded-2xl p-5 border border-amber-500/30 bg-surface-container-low space-y-3" data-testid="reasoning-briefing">
+      <h3 className="font-bold text-on-surface">Clinical checklist briefing</h3>
+      <p className="text-sm text-amber-300" data-testid="briefing-severity-grade">{severityAssessment.formatted || severityAssessment.grade}</p>
+      {reasoningStatus === 'loading' ? <p role="status">Assessing clinical observations...</p>
+        : reasoningStatus === 'error' ? <p role="alert">Clinical assessment unavailable. {reasoningError}</p>
+          : <>
+            <p className="text-sm text-on-surface-variant">{severityAssessment.description}</p>
+            {severityAssessment.evidence?.length > 0 && <ul className="list-disc pl-5 text-xs text-on-surface-variant">
+              {severityAssessment.evidence.map((item) => <li key={item}>{item}</li>)}
+            </ul>}
+            <p className="text-xs text-on-surface-variant">{severityAssessment.diagnostic_rationale}</p>
+          </>}
+      {severityAssessment.references?.map((reference) => <a key={reference.url} href={reference.url} target="_blank" rel="noreferrer"
+        className="block text-xs text-primary underline">{reference.title}</a>)}
+      <p className="text-xs text-amber-300">Provisional decision support requiring veterinary review. Clinical accuracy in this application has not been validated.</p>
+    </div>;
+  }
+
   return (
     <div
       className="bg-surface-container-low rounded-2xl p-5 md:p-8 border border-outline-variant/15 shadow-card-subtle transition-all duration-700"
@@ -286,7 +316,7 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
           </div>
           <div>
             <h3 className="text-base md:text-lg font-bold text-on-surface tracking-tight">
-              AI Clinical Briefing
+              Model Explanation
             </h3>
             <span className="text-2xs font-bold text-primary tracking-widest uppercase font-mono">
               04 Tier 3 — LLM Reasoning Engine
@@ -296,7 +326,7 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
 
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full bg-surface-container text-tertiary border border-outline-variant/20 text-3xs font-mono font-medium">
-            Capripox / Bovine Clinical Protocol
+            Image evidence review
           </span>
         </div>
       </div>
@@ -319,7 +349,7 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-mono font-bold text-primary uppercase tracking-wider">
-                    Synthesized Severity Grade &amp; Prognosis
+                    Preserved image assessment
                   </p>
                   <p className="text-xs text-on-surface font-medium truncate">
                     {severityAssessment.description || `Clinical condition evaluated as ${severityAssessment.grade}.`}
@@ -417,7 +447,7 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
 
 ReasoningBriefing.propTypes = {
   reasoning: PropTypes.string,
-  reasoningStatus: PropTypes.oneOf(['idle', 'loading', 'done', 'error']).isRequired,
+  reasoningStatus: PropTypes.oneOf(['idle', 'loading', 'done', 'error', 'fallback', 'unavailable']).isRequired,
   reasoningError: PropTypes.string,
   severityAssessment: PropTypes.object,
 };

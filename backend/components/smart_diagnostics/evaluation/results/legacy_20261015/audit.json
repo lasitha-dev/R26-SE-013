@@ -1,0 +1,93 @@
+{
+  "status": "legacy_split_audit_not_independent_validation",
+  "manifest_sha256": "d138786e378c7f0aa5a2712835a75eb80312ca247b73e124729cd8bbca451677",
+  "records": 20346,
+  "cross_split_links": {
+    "lineage": 681
+  },
+  "cross_split_dhash_candidates": 374,
+  "limitations": [
+    "No verified animal/farm IDs or source holdout.",
+    "Filename lineage can overgroup unrelated generic names; exclusions are conservative.",
+    "Exact dHash matches need review; transformed near-duplicates can remain undetected.",
+    "Notebook label remapping defaults unmatched names to cattle; labels need semantic review.",
+    "YOLO polygons exist but their foreground semantics are unreviewed; they are NOT accepted as lesion masks.",
+    "ViT creation notebook treats the first four polygon coordinates as xywh boxes; affected crops require review.",
+    "Audit cannot establish which examples the final checkpoint saw, or whether test results influenced its selection."
+  ],
+  "partitions": {
+    "frame_train": {
+      "total": 6958,
+      "cross_split_group_excluded": 854,
+      "clean_without_dhash_flag": 5900,
+      "class_counts": {
+        "foot_and_mouth": 724,
+        "lumpy_skin": 1782,
+        "cattle": 3506,
+        "mastitis": 399,
+        "ambiguous_or_unlabelled": 547
+      }
+    },
+    "frame_val": {
+      "total": 1130,
+      "cross_split_group_excluded": 143,
+      "clean_without_dhash_flag": 903,
+      "class_counts": {
+        "foot_and_mouth": 206,
+        "ambiguous_or_unlabelled": 7,
+        "cattle": 574,
+        "mastitis": 48,
+        "lumpy_skin": 295
+      }
+    },
+    "frame_test": {
+      "total": 942,
+      "cross_split_group_excluded": 204,
+      "clean_without_dhash_flag": 635,
+      "class_counts": {
+        "foot_and_mouth": 104,
+        "cattle": 478,
+        "ambiguous_or_unlabelled": 4,
+        "lumpy_skin": 207,
+        "mastitis": 149
+      }
+    },
+    "roi_train": {
+      "total": 8485,
+      "cross_split_group_excluded": 1046,
+      "clean_without_dhash_flag": 7372,
+      "class_counts": {
+        "cattle": 5336,
+        "foot_and_mouth": 738,
+        "lumpy_skin": 2012,
+        "mastitis": 399
+      }
+    },
+    "roi_val": {
+      "total": 1557,
+      "cross_split_group_excluded": 158,
+      "clean_without_dhash_flag": 1375,
+      "class_counts": {
+        "cattle": 964,
+        "foot_and_mouth": 208,
+        "lumpy_skin": 337,
+        "mastitis": 48
+      }
+    },
+    "roi_test": {
+      "total": 1274,
+      "cross_split_group_excluded": 243,
+      "clean_without_dhash_flag": 988,
+      "class_counts": {
+        "cattle": 776,
+        "foot_and_mouth": 106,
+        "lumpy_skin": 242,
+        "mastitis": 150
+      }
+    }
+  },
+  "annotation_types": {
+    "box": 9327,
+    "polygon_envelope": 2091
+  }
+}

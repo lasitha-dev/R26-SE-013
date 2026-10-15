@@ -1,0 +1,82 @@
+{
+  "manifest_version": 1,
+  "artifact": {
+    "filename": "mask_rcnn_cow_symptoms_refined.keras",
+    "sha256": "e7682f89f408f5707d84eb07643a74cc134a62f47b1a2715aae5f7b087511f56",
+    "bytes": 391300806,
+    "keras_version": "3.15.0"
+  },
+  "architecture": {
+    "type": "binary_semantic_segmentation",
+    "encoder": "ResNet50-compatible residual encoder",
+    "decoder": "U-Net",
+    "verification": "archive structure; exact training export not recovered"
+  },
+  "input": {
+    "shape": [
+      null,
+      224,
+      224,
+      3
+    ],
+    "color_order": "RGB",
+    "resize": "direct stretch; Pillow default RGB resize",
+    "runtime_normalization": "divide_by_255",
+    "training_preprocessing_verified": false,
+    "padding": false
+  },
+  "output": {
+    "shape": [
+      null,
+      224,
+      224,
+      1
+    ],
+    "name": "sigmoid",
+    "semantics": "candidate lesion pixels; lesion definition across disease classes unverified",
+    "semantics_verified": false,
+    "intended_foreground": "Visible symptom regions for FMD, LSD and mastitis",
+    "intended_disease_scope": [
+      "foot_and_mouth",
+      "lumpy_skin",
+      "mastitis"
+    ],
+    "scope_source": "User confirmation, 15 October 2026; training annotation audit remains pending"
+  },
+  "measurements": {
+    "policy_version": "crop_mask_v1",
+    "threshold": 0.5,
+    "min_region_fraction": 0.00029894770408163266,
+    "connectivity": 8,
+    "denominator": "analyzed_crop_pixels",
+    "threshold_validation": "unvalidated operating default; select on independent validation data"
+  },
+  "lineage": {
+    "training_notebook": "Tier_3_Disease_Segmentation.ipynb (older dual-output architecture; not verified as export source)",
+    "source_split": null,
+    "lesion_label_definition": null,
+    "status": "training_lineage_unverified"
+  },
+  "limits": [
+    "Not an instance detector; connected regions are not counted clinical nodules.",
+    "Mask coverage is not animal body-surface coverage or clinical severity."
+  ],
+  "tested_runtime": {
+    "tensorflow": "2.21.0",
+    "keras": "3.15.0",
+    "numpy": "2.4.1",
+    "Pillow": "12.1.0",
+    "scipy": "1.17.1"
+  },
+  "runtime_class_mappings": {
+    "vit_configured_order": [
+      "cattle",
+      "foot_and_mouth",
+      "lumpy_skin",
+      "mastitis"
+    ],
+    "segmenter_channels": {
+      "0": "binary symptom foreground (intended scope; annotation provenance unverified)"
+    }
+  }
+}

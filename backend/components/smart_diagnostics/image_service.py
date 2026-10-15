@@ -1,11 +1,13 @@
 import io
 import base64
 from typing import List
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 def open_image_from_bytes(raw: bytes) -> Image.Image:
-    return Image.open(io.BytesIO(raw)).convert("RGB")
+    # Normalize phone-photo orientation before calculating any crop coordinates.
+    with Image.open(io.BytesIO(raw)) as image:
+        return ImageOps.exif_transpose(image).convert("RGB")
 
 
 def crop_image(image: Image.Image, bbox: List[float]) -> Image.Image:

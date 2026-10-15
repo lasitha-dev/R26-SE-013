@@ -1,0 +1,78 @@
+{
+  "dataset": "10.5281/zenodo.11003967",
+  "license": "CC-BY-4.0",
+  "seed": 20261014,
+  "labels": [
+    "normal",
+    "mild",
+    "severe"
+  ],
+  "raw_counts": {
+    "mild": 231,
+    "normal": 697,
+    "severe": 91
+  },
+  "included_counts": {
+    "mild": 184,
+    "normal": 636,
+    "severe": 73
+  },
+  "excluded_counts": {
+    "conflicting_duplicate_group": 38,
+    "microscopy_not_cattle_photograph": 2,
+    "illustration": 5,
+    "multi_panel_figure": 21,
+    "embedded_figure_with_caption": 2,
+    "news_or_promotional_graphic": 7,
+    "product_not_cattle_photograph": 1,
+    "exact_pixel_duplicate": 2,
+    "illustration_toy_or_art": 32,
+    "promotional_graphic": 4,
+    "website_screenshot": 3,
+    "instructional_graphic": 5,
+    "graphic_composite": 2,
+    "instructional_annotation": 2
+  },
+  "conflicting_group_count": 14,
+  "duplicate_edge_count": 181,
+  "group_counts": {
+    "mild": 154,
+    "normal": 578,
+    "severe": 50
+  },
+  "split_counts": {
+    "train": {
+      "mild": 110,
+      "normal": 377,
+      "severe": 40
+    },
+    "validation": {
+      "mild": 35,
+      "normal": 126,
+      "severe": 16
+    },
+    "test": {
+      "mild": 39,
+      "normal": 133,
+      "severe": 17
+    }
+  },
+  "dimensions": {
+    "256x256": 1019
+  },
+  "corrupt_images": [],
+  "non_image_files": [],
+  "manifest_sha256": "e4715c4d6c8d68b6fb544d6d8dc9ddde5da0b3024cb1c0590876a0668a84e4dc",
+  "content_review_sha256": "ae454b02e6143db751a69e659007e72fd851c013681b34a46baa593863b550a6",
+  "content_review": "Review all 1019 thumbnails and 13 relaxed-hash candidate pairs before training. Exclude obvious non-photographs, multi-panel figures, screenshots and large instructional/news graphics. Do not relabel uncertain photographs. Group confidently matching source photographs/crops; do not claim all same-animal images were recovered.",
+  "near_duplicate_rule": "Exact decoded RGB pixels OR pHash<=6 AND dHash<=8, including reflections, plus visually reviewed same-source links; transitive components stay in one split.",
+  "split_rule": "Stratified 60/20/20 by image-similarity group. No oversampling or augmentation before splitting.",
+  "scope": "LSD visual lesion severity only; clinical severity/stage remain veterinary assessments.",
+  "limitations": [
+    "No animal/farm identifiers; image-group separation is not proof of animal independence.",
+    "Filename labels are inherited, not independently regraded by a veterinarian.",
+    "Near-duplicate hashes can miss crops or same-animal photos and can merge similar scenes.",
+    "Normal means this dataset's normal-skin class, not freedom from all diseases.",
+    "No pixel lesion masks, temporal stages, or case-level clinical observations are provided."
+  ]
+}

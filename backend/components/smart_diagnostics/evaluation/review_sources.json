@@ -1,0 +1,21 @@
+{
+  "version": "local_source_review_v2",
+  "yolo_sources": [
+    {"id": "atc_lumpy_v2", "root": "C:/Users/lasit/lumpy-skin-2"},
+    {"id": "yuossef_lumpy_v6", "root": "C:/Users/lasit/lumpy-skin-diesease--6"},
+    {"id": "moaz_fmd_v1", "root": "C:/Users/lasit/foot-and-mouth-disease-1"},
+    {"id": "non_fmd_v1", "root": "C:/Users/lasit/name1-1"},
+    {"id": "cow_udder_v3", "root": "C:/Users/lasit/deteksi-mastitis-sapi-3"},
+    {"id": "kirubel_cow_mastitis_v18", "root": "C:/Users/lasit/cow-and-mastitis-detection-18"}
+  ],
+  "coco_sources": [
+    {"id": "murtaza_lumpy_v2", "root": "C:/Users/lasit/Lumpy_skin_instance_seg-2"},
+    {"id": "gune_lsd_v1", "root": "C:/Users/lasit/lsd_project-1"},
+    {"id": "bubt_lumpy_v1", "root": "C:/Users/lasit/Lumpy-Skin-Disease--1"},
+    {"id": "anatomy_v1", "root": "C:/Users/lasit/My-First-Project-1"},
+    {"id": "yield_mastitis_v1", "root": "C:/Users/lasit/Mastitis-1"},
+    {"id": "local_fmd_symptoms", "root": "C:/Users/lasit/OneDrive - Sri Lanka Institute of Information Technology/SLIIT/Research/Datasets/fmd cnn annotated"},
+    {"id": "local_fmd_boxes_1", "root": "C:/Users/lasit/OneDrive - Sri Lanka Institute of Information Technology/SLIIT/Research/Datasets/Foot and Mouth"},
+    {"id": "local_fmd_boxes_2", "root": "C:/Users/lasit/OneDrive - Sri Lanka Institute of Information Technology/SLIIT/Research/Datasets/Foot and Mouth 2"}
+  ]
+}

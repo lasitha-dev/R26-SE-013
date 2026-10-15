@@ -1,0 +1,224 @@
+[
+  {
+    "group": "08442194f8bb7b0c",
+    "members": [
+      {
+        "file": "lumpy/Mild_161.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Mild_216.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_588.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "305ef5dc1f4a4b3c",
+    "members": [
+      {
+        "file": "lumpy/Normal_Skin_5.png",
+        "label": "normal"
+      },
+      {
+        "file": "lumpy/Normal_Skin_510.png",
+        "label": "normal"
+      },
+      {
+        "file": "lumpy/Severe_11.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "3970d526c33145c3",
+    "members": [
+      {
+        "file": "lumpy/Mild_41.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_297.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "48b0430ab1230bae",
+    "members": [
+      {
+        "file": "lumpy/Mild_92.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_77.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "48fe07453af76b14",
+    "members": [
+      {
+        "file": "lumpy/Mild_80.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_79.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "5b8256a48ae4dd57",
+    "members": [
+      {
+        "file": "lumpy/Mild_98.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_524.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "5cf0199fa8f7c94e",
+    "members": [
+      {
+        "file": "lumpy/Mild_128.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_61.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "7147b64648725033",
+    "members": [
+      {
+        "file": "lumpy/Mild_106.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Mild_12.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_429.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "85bfdcb41559f0d1",
+    "members": [
+      {
+        "file": "lumpy/Mild_209.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_347.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "8dbf865397848ec4",
+    "members": [
+      {
+        "file": "lumpy/Mild_56.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_242.png",
+        "label": "normal"
+      }
+    ]
+  },
+  {
+    "group": "a16bb349962ae4fd",
+    "members": [
+      {
+        "file": "lumpy/Mild_214.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_16.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "a5d8c282ac55bf1b",
+    "members": [
+      {
+        "file": "lumpy/Mild_182.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Normal_Skin_180.png",
+        "label": "normal"
+      },
+      {
+        "file": "lumpy/Normal_Skin_489.png",
+        "label": "normal"
+      },
+      {
+        "file": "lumpy/Severe_15.png",
+        "label": "severe"
+      },
+      {
+        "file": "lumpy/Severe_21.png",
+        "label": "severe"
+      },
+      {
+        "file": "lumpy/Severe_76.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "f14576e9a600e810",
+    "members": [
+      {
+        "file": "lumpy/Mild_25.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_31.png",
+        "label": "severe"
+      }
+    ]
+  },
+  {
+    "group": "ff05ed0f5c7cfb34",
+    "members": [
+      {
+        "file": "lumpy/Mild_102.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Mild_63.png",
+        "label": "mild"
+      },
+      {
+        "file": "lumpy/Severe_17.png",
+        "label": "severe"
+      },
+      {
+        "file": "lumpy/Severe_78.png",
+        "label": "severe"
+      },
+      {
+        "file": "lumpy/Severe_84.png",
+        "label": "severe"
+      }
+    ]
+  }
+]

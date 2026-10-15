@@ -177,9 +177,9 @@ class DiagnosticCaseCreate(BaseModel):
     breed: Optional[str] = None
     disease_name: str
     confidence: float
-    severity: Optional[str] = "Moderate"
-    stage: Optional[str] = "Acute"
-    prognosis: Optional[str] = "Good"
+    severity: Optional[str] = None
+    stage: Optional[str] = None
+    prognosis: Optional[str] = None
     rationale: Optional[str] = None
     spatial_correlation: Optional[str] = None
     symptoms_image: Optional[str] = None

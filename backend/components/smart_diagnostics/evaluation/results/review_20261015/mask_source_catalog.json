@@ -1,0 +1,538 @@
+{
+  "sources": [
+    {
+      "source_id": "murtaza_lumpy_v2",
+      "partition": "test",
+      "annotations_sha256": "4cea97fb8390761c7318dea25eae73a59604b98a4d5e7ad48f68e267d14f2ad4",
+      "images": 190,
+      "annotations": 265,
+      "annotations_with_masks": 265,
+      "categories": [
+        {
+          "id": 0,
+          "name": "normal_lumpy",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "lumpy",
+          "annotation_count": 83,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "normal",
+          "annotation_count": 182,
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "murtaza_lumpy_v2",
+      "partition": "train",
+      "annotations_sha256": "2b8b468a20f50b52988f9fa7e1649e9ff29812397e9161b7b04f41c89273af8b",
+      "images": 2282,
+      "annotations": 2863,
+      "annotations_with_masks": 2863,
+      "categories": [
+        {
+          "id": 0,
+          "name": "normal_lumpy",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "lumpy",
+          "annotation_count": 941,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "normal",
+          "annotation_count": 1922,
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "gune_lsd_v1",
+      "partition": "test",
+      "annotations_sha256": "19c121fefa738ebf5212887a3f50d81f301079a31cbbd84e6ff6842ef38b9246",
+      "images": 21,
+      "annotations": 25,
+      "annotations_with_masks": 25,
+      "categories": [
+        {
+          "id": 0,
+          "name": "lumpy-skin",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "lumpy-skin",
+          "annotation_count": 25,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "gune_lsd_v1",
+      "partition": "train",
+      "annotations_sha256": "d87d5b4086a02f9d882fcff170bf7b51da53d80c9093f47830a15457b831a1e3",
+      "images": 150,
+      "annotations": 200,
+      "annotations_with_masks": 200,
+      "categories": [
+        {
+          "id": 0,
+          "name": "lumpy-skin",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "lumpy-skin",
+          "annotation_count": 200,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "gune_lsd_v1",
+      "partition": "valid",
+      "annotations_sha256": "35fe1f229d193b095234e4c4c38339d176a02b306516a4402a7a4f6bbbc73d91",
+      "images": 43,
+      "annotations": 47,
+      "annotations_with_masks": 47,
+      "categories": [
+        {
+          "id": 0,
+          "name": "lumpy-skin",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "lumpy-skin",
+          "annotation_count": 47,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "bubt_lumpy_v1",
+      "partition": "test",
+      "annotations_sha256": "42a4a096219311d3bf2dae5eaf544aa2b99d8401ef325115900ea0fe911c2b70",
+      "images": 24,
+      "annotations": 23,
+      "annotations_with_masks": 23,
+      "categories": [
+        {
+          "id": 0,
+          "name": "Cow",
+          "annotation_count": 0,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 1,
+          "name": "Lumpy Skin Disease Infected Image",
+          "annotation_count": 23,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "bubt_lumpy_v1",
+      "partition": "train",
+      "annotations_sha256": "13efcbe1985c87125f6bbb716b4f4af42b5a8d8c67e96cbdd2a3c3799940e548",
+      "images": 513,
+      "annotations": 495,
+      "annotations_with_masks": 495,
+      "categories": [
+        {
+          "id": 0,
+          "name": "Cow",
+          "annotation_count": 0,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 1,
+          "name": "Lumpy Skin Disease Infected Image",
+          "annotation_count": 495,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "bubt_lumpy_v1",
+      "partition": "valid",
+      "annotations_sha256": "11a3f95d85b13912fb96f893d96bf821099d806a9fea94443fc464df29451669",
+      "images": 49,
+      "annotations": 41,
+      "annotations_with_masks": 41,
+      "categories": [
+        {
+          "id": 0,
+          "name": "Cow",
+          "annotation_count": 0,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 1,
+          "name": "Lumpy Skin Disease Infected Image",
+          "annotation_count": 41,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "anatomy_v1",
+      "partition": "train",
+      "annotations_sha256": "bc3425aed45c8a9b3ae05ea2cbf2cec8404a2c683cffdcca77c6dcabd3aa834c",
+      "images": 770,
+      "annotations": 1951,
+      "annotations_with_masks": 1951,
+      "categories": [
+        {
+          "id": 0,
+          "name": "object",
+          "annotation_count": 0,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 1,
+          "name": "Foot",
+          "annotation_count": 629,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 2,
+          "name": "Head",
+          "annotation_count": 570,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 3,
+          "name": "Mouth",
+          "annotation_count": 36,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 4,
+          "name": "Torso",
+          "annotation_count": 387,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 5,
+          "name": "Udder",
+          "annotation_count": 329,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "yield_mastitis_v1",
+      "partition": "train",
+      "annotations_sha256": "50f75f63f5273815d8d8814e918d96c078e81ff1d72c22bb2aa68cace19bf2b6",
+      "images": 124,
+      "annotations": 127,
+      "annotations_with_masks": 127,
+      "categories": [
+        {
+          "id": 0,
+          "name": "Udder",
+          "annotation_count": 0,
+          "review_flag": "anatomical_or_object_target_not_verified_lesion"
+        },
+        {
+          "id": 1,
+          "name": "Mastitis-High",
+          "annotation_count": 20,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "Mastitis-Low",
+          "annotation_count": 15,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 3,
+          "name": "Mastitis-Moderate",
+          "annotation_count": 31,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 4,
+          "name": "Mastitis-No",
+          "annotation_count": 61,
+          "review_flag": "healthy_or_normal_annotation_not_lesion_foreground"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_symptoms",
+      "partition": "fmd cnn annotated",
+      "annotations_sha256": "9f9f238dc7ddeb1eef5f931f15b21c30f15189ea98f745494b18bac88a5836e8",
+      "images": 273,
+      "annotations": 403,
+      "annotations_with_masks": 403,
+      "categories": [
+        {
+          "id": 0,
+          "name": "fmdblisters",
+          "annotation_count": 96,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "fmddrooling",
+          "annotation_count": 192,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "fmderosions",
+          "annotation_count": 115,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_boxes_1",
+      "partition": "train",
+      "annotations_sha256": "f7ffa8acf26323c313ec1fbb4741fa5efe4eee9c8be5539fc774da485d36da0f",
+      "images": 96,
+      "annotations": 112,
+      "annotations_with_masks": 0,
+      "categories": [
+        {
+          "id": 0,
+          "name": "cow-and-cattle",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "153",
+          "annotation_count": 26,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "193",
+          "annotation_count": 19,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 3,
+          "name": "257",
+          "annotation_count": 14,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 4,
+          "name": "261",
+          "annotation_count": 14,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 5,
+          "name": "264",
+          "annotation_count": 13,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 6,
+          "name": "267",
+          "annotation_count": 14,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 7,
+          "name": "099",
+          "annotation_count": 12,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_boxes_1",
+      "partition": "valid",
+      "annotations_sha256": "a1dbdc52b6e6465c4218cce0e0490cdee037a6bfd00efef442367c32e5340264",
+      "images": 29,
+      "annotations": 33,
+      "annotations_with_masks": 0,
+      "categories": [
+        {
+          "id": 0,
+          "name": "cow-and-cattle",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "153",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 2,
+          "name": "193",
+          "annotation_count": 3,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 3,
+          "name": "257",
+          "annotation_count": 6,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 4,
+          "name": "261",
+          "annotation_count": 4,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 5,
+          "name": "264",
+          "annotation_count": 5,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 6,
+          "name": "267",
+          "annotation_count": 9,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 7,
+          "name": "099",
+          "annotation_count": 6,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_boxes_2",
+      "partition": "test",
+      "annotations_sha256": "f5a57385575156937125636969ddd58a0e3bbb933815727f54d46e9cb7493dbb",
+      "images": 8,
+      "annotations": 8,
+      "annotations_with_masks": 0,
+      "categories": [
+        {
+          "id": 0,
+          "name": "cow-4tt4",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "foot and mougth",
+          "annotation_count": 8,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_boxes_2",
+      "partition": "train",
+      "annotations_sha256": "211a38890bf4dd90678c0095190f620ab84fee2eccd083b840620d40a0b3ff69",
+      "images": 56,
+      "annotations": 57,
+      "annotations_with_masks": 0,
+      "categories": [
+        {
+          "id": 0,
+          "name": "cow-4tt4",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "foot and mougth",
+          "annotation_count": 57,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    },
+    {
+      "source_id": "local_fmd_boxes_2",
+      "partition": "valid",
+      "annotations_sha256": "68ccc40fd96c6dccc4681b0a465462627e3a4ac80a2d8191f6294c0e0d635188",
+      "images": 16,
+      "annotations": 16,
+      "annotations_with_masks": 0,
+      "categories": [
+        {
+          "id": 0,
+          "name": "cow-4tt4",
+          "annotation_count": 0,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        },
+        {
+          "id": 1,
+          "name": "foot and mougth",
+          "annotation_count": 16,
+          "review_flag": "disease_or_symptom_label_requires_review"
+        }
+      ],
+      "training_exposure": "referenced_by_historical_notebook; exact replacement-checkpoint exposure unknown",
+      "independent": false,
+      "lesion_foreground_approved": false
+    }
+  ],
+  "images_pending_review": 4644,
+  "warning": "Category names and polygons do not establish clinical severity or lesion foreground. No masks are approved or exported."
+}

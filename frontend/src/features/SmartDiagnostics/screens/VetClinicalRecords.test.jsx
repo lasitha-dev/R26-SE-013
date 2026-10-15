@@ -8,6 +8,20 @@ import VetClinicalRecords from './VetClinicalRecords';
 const renderWithRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe('VetClinicalRecords Component Tests', () => {
+  it('retains the record and shows an error when deletion fails', async () => {
+    const record = { id:'case-1',case_number:'REC-TEST-1',animal_identifier:'COW-A',
+      disease_name:'Mastitis',confidence:90,reported_by:'farmer',created_at:'2026-10-15',status:'Pending Verification' };
+    global.fetch = vi.fn().mockImplementation((url, options = {}) => {
+      if (options.method === 'DELETE') return Promise.resolve({ok:false,status:403,text:async ()=>'Not assigned to this farm'});
+      return Promise.resolve({ok:true,json:async () => url.includes('my-farms') ? [] : [record]});
+    });
+    renderWithRouter(<VetClinicalRecords />);
+    fireEvent.click(await screen.findByTitle('Delete Case Record'));
+    fireEvent.click(screen.getByRole('button',{name:/Delete Case$/}));
+    await screen.findByText(/Not assigned to this farm/);
+    expect(screen.getByText('REC-TEST-1')).toBeInTheDocument();
+    expect(screen.queryByText(/deleted from view/)).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     vi.restoreAllMocks();
     global.localStorage.setItem('token', 'mock-token');

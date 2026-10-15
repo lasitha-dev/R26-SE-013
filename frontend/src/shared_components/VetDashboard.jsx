@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { SEGMENTER_NAME } from '../features/SmartDiagnostics/modelInfo'
 
 export default function VetDashboard() {
   const navigate = useNavigate()
@@ -251,7 +252,7 @@ export default function VetDashboard() {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Automated YOLOv8 cattle detection, ViT disease classification, and Mask R-CNN lesion segmentation. Select an assigned cattle to initiate diagnostics.
+              Automated YOLOv8 cattle detection, ViT disease classification, and {SEGMENTER_NAME} symptom segmentation. Select an assigned cattle to initiate diagnostics.
             </p>
 
             <Link

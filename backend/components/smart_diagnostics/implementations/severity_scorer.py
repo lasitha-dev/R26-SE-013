@@ -22,7 +22,7 @@ BOUNDARY_MARGIN = 0.05  # ±0.05 uncertainty band around threshold boundaries
 
 
 def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
-    """Compute a multi-signal composite score, severity grade, stage, and review flag.
+    """Use clinical rules for FMD/mastitis; retain the existing LSD/healthy score.
 
     Parameters
     ----------
@@ -39,12 +39,20 @@ def compute_composite_severity(signals: Dict[str, Any]) -> SeverityMetrics:
         - lesion_coverage_pct (float, optional): Overlay lesion coverage for display
         - cluster_count (int, optional): Overlay cluster count for display
         - mean_intensity (float, optional): Overlay intensity for display
+        - clinical_observations (dict, optional): Veterinary-confirmed clinical findings
 
     Returns
     -------
     SeverityMetrics
-        Structured severity evaluation instance with source="composite_scoring".
+        Structured evaluation with source="clinical_rules" or "composite_scoring".
     """
+    from .clinical_severity import assess_clinical_severity, clinical_disease_key
+    predicted = (signals.get("predicted_class") if clinical_disease_key(signals.get("predicted_class"))
+                 else signals.get("predicted_display"))
+    if clinical_disease_key(predicted):
+        return assess_clinical_severity(predicted, signals.get("clinical_observations"), signals)
+
+    # LSD and healthy paths retain their existing calculations.
     # Extract & normalize signals to [0, 1]
     attn_cov_raw = float(signals.get("attention_coverage_pct", 0.0))
     a_cov = min(max(attn_cov_raw / 100.0, 0.0), 1.0)

@@ -789,47 +789,28 @@ async def get_assigned_farm_cattle(
 
 # ─── Diagnostic Case Reporting & Verification Endpoints ──────────────────────
 
+def _diagnostic_access():
+    from .diagnostic_access import DiagnosticAccess
+    return DiagnosticAccess(farms_collection, vets_collection, cattles_collection, get_current_user_email)
+
+
 @router.post("/vet/cases", response_model=DiagnosticCaseResponse, status_code=status.HTTP_201_CREATED)
 async def report_diagnostic_case(
     payload: DiagnosticCaseCreate,
     authorization: Optional[str] = Header(None)
 ):
     """Report a new AI diagnostic case by veterinarian or farmer for a selected animal."""
-    user_email = None
-    vet = None
-    farm = None
-    user_role = "farmer"
-
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            user_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": user_email})
-            if vet:
-                user_role = "vet"
-            else:
-                farm = await farms_collection.find_one({"email": user_email})
-                if farm:
-                    user_role = "farmer"
-        except Exception:
-            pass
-
-    cattle = None
-    if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
-        cattle = await cattles_collection.find_one({"_id": ObjectId(payload.cattle_id)})
-        if cattle and cattle.get("status") == "Deceased":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot create diagnostic case for deceased cattle. Disease reporting is locked for deceased subjects."
-            )
-        if cattle and not farm:
-            owner_email = cattle.get("owner_email")
-            if owner_email:
-                farm = await farms_collection.find_one({"email": owner_email})
-
-    animal_id_str = payload.animal_identifier or (cattle.get("identifier") if cattle else "COW-UNASSIGNED")
-    farm_name_str = payload.farm_name or ((farm.get("owner_name") + "'s Farm") if farm else "Regional Agro Estate")
-    farm_id_str = payload.farm_id or (str(farm["_id"]) if farm else None)
-    breed_str = payload.breed or (cattle.get("breed") if cattle else "Dairy Breed")
+    access = _diagnostic_access()
+    actor = await access.actor(authorization)
+    user_email, vet = actor['email'], actor['vet']
+    user_role = "vet" if vet else "farmer"
+    cattle, farm = await access.creation(actor, payload.cattle_id, payload.farm_id)
+    if cattle and (cattle.get('status') == 'Deceased' or cattle.get('health_status') == 'Deceased'):
+        raise HTTPException(400, 'Cannot report disease for deceased cattle.')
+    animal_id_str = cattle.get('identifier') if cattle else payload.animal_identifier or 'COW-UNASSIGNED'
+    farm_name_str = (farm.get('owner_name', 'Farm') + "'s Farm") if farm else None
+    farm_id_str = str(farm['_id']) if farm else None
+    breed_str = cattle.get('breed') if cattle else payload.breed
 
     now = datetime.utcnow()
     
@@ -878,9 +859,9 @@ async def report_diagnostic_case(
         "breed": breed_str,
         "disease_name": payload.disease_name,
         "confidence": round(payload.confidence, 2),
-        "severity": payload.severity or "Moderate",
-        "stage": payload.stage or "Acute",
-        "prognosis": payload.prognosis or "Good",
+        "severity": payload.severity,
+        "stage": payload.stage,
+        "prognosis": payload.prognosis,
         "rationale": payload.rationale,
         "spatial_correlation": payload.spatial_correlation,
         "symptoms_image": payload.symptoms_image,
@@ -904,7 +885,7 @@ async def report_diagnostic_case(
     case_id_str = str(result.inserted_id)
 
     # When a farmer reports a case, create a notification for the assigned veterinarian
-    if reported_by == "farmer":
+    if reported_by == "farmer" and assigned_vet:
         notif_doc = {
             "vet_id": assigned_vet_id,
             "vet_email": assigned_vet.get("email") if assigned_vet else None,
@@ -914,7 +895,7 @@ async def report_diagnostic_case(
             "farm_name": farm_name_str,
             "animal_identifier": animal_id_str,
             "disease_name": payload.disease_name,
-            "severity": payload.severity or "Moderate",
+            "severity": payload.severity,
             "message": f"New disease report from {farm_name_str} for cattle {animal_id_str}: {payload.disease_name} ({payload.severity or 'Moderate'}). Awaiting clinical verification.",
             "read": False,
             "created_at": now.strftime("%Y-%m-%d %H:%M:%S")
@@ -980,94 +961,28 @@ async def list_diagnostic_cases(
     authorization: Optional[str] = Header(None)
 ):
     """List diagnostic cases. Allows filtering by cattle, farm, or reported_by."""
-    query = {}
+    access = _diagnostic_access()
+    actor = await access.actor(authorization)
+    scope = await access.list_scope(actor)
+    filters = {}
+    if farm_id:
+        farm = await access.farm(farm_id)
+        access.authorize(actor, farm)
+        filters['farm_id'] = {'$in': [str(farm['_id']), farm.get('email')]}
     if cattle_id:
-        query["cattle_id"] = cattle_id
-
+        await access.creation(actor, cattle_id, farm_id)
+        filters['cattle_id'] = cattle_id
     if reported_by:
-        query["reported_by"] = reported_by
-
-    # Resolve assigned farms if authorized
-    email = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            email = await get_current_user_email(authorization)
-        except Exception:
-            pass
-
-    if email:
-        # Check if user is a veterinarian
-        vet = await vets_collection.find_one({"email": email})
-        if vet:
-            vet_id_str = str(vet["_id"])
-            assigned_f_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
-            assigned_f_emails = vet.get("assigned_farms", [])
-            
-            farms_query = {
-                "$or": [
-                    {"_id": {"$in": assigned_f_ids}},
-                    {"email": {"$in": assigned_f_emails}},
-                    {"assigned_vet_ids": vet_id_str},
-                    {"assigned_vet_emails": vet["email"]}
-                ]
-            }
-            
-            assigned_farm_ids_str = []
-            assigned_farm_names = []
-            async for f_doc in farms_collection.find(farms_query):
-                assigned_farm_ids_str.append(str(f_doc["_id"]))
-                if f_doc.get("owner_name"):
-                    assigned_farm_names.append(f_doc["owner_name"])
-                    assigned_farm_names.append(f_doc["owner_name"] + "'s Farm")
-                if f_doc.get("email"):
-                    assigned_farm_ids_str.append(f_doc["email"])
-
-            # Filter by matching farm_id or farm_name
-            if farm_id:
-                if farm_id in assigned_farm_ids_str:
-                    query["farm_id"] = farm_id
-                else:
-                    # Explicit farm requested and not in assigned farms
-                    return []
-            else:
-                # No specific farm_id provided, default to all assigned farms
-                if not assigned_farm_ids_str:
-                    return []
-                query["$or"] = [
-                    {"farm_id": {"$in": assigned_farm_ids_str}},
-                    {"farm_name": {"$in": assigned_farm_names}}
-                ]
-        else:
-            # Check if user is a farmer
-            farm = await farms_collection.find_one({"email": email})
-            if farm:
-                farm_id_str = str(farm["_id"])
-                farm_email = farm.get("email")
-                farm_name = farm.get("owner_name")
-                
-                allowed_ids = [farm_id_str]
-                if farm_email:
-                    allowed_ids.append(farm_email)
-                
-                if farm_id:
-                    if farm_id in allowed_ids:
-                        query["farm_id"] = farm_id
-                    else:
-                        return []
-                else:
-                    query["$or"] = [
-                        {"farm_id": {"$in": allowed_ids}},
-                        {"farm_name": farm_name if farm_name else "NO_MATCH"}
-                    ]
-            else:
-                return []
-    else:
-        if farm_id:
-            query["farm_id"] = farm_id
+        filters['reported_by'] = reported_by
+    query = {'$and': [scope, filters]}
 
     cursor = diagnostic_cases_collection.find(query).sort("_id", -1).limit(100)
     cases = []
     async for doc in cursor:
+        try:
+            await access.case(actor, doc)
+        except HTTPException:
+            continue  # Legacy records with inconsistent ownership are not exposed.
         cases.append(DiagnosticCaseResponse(
             id=str(doc["_id"]),
             case_number=doc.get("case_number", f"REC-2026-{str(doc['_id'])[-4:]}"),
@@ -1109,19 +1024,9 @@ async def verify_diagnostic_case(
     authorization: Optional[str] = Header(None)
 ):
     """Verify and approve an AI diagnostic report. Strictly restricted to veterinarians."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can verify diagnostic cases."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     if not ObjectId.is_valid(case_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Case ID format.")
@@ -1129,6 +1034,8 @@ async def verify_diagnostic_case(
     case_doc = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
     if not case_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case not found.")
+
+    await access.case(actor, case_doc)
 
     now_dt = datetime.utcnow()
     now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -1209,19 +1116,9 @@ async def delete_diagnostic_case(
     authorization: Optional[str] = Header(None)
 ):
     """Delete a clinical diagnostic case record. Strictly restricted to veterinarians."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can delete diagnostic cases."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     query = {}
     if ObjectId.is_valid(case_id):
@@ -1233,7 +1130,9 @@ async def delete_diagnostic_case(
     if not case_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case record not found.")
 
-    delete_result = await diagnostic_cases_collection.delete_one(query)
+    await access.case(actor, case_doc)
+
+    delete_result = await diagnostic_cases_collection.delete_one({"_id": case_doc["_id"]})
     if delete_result.deleted_count == 0:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete diagnostic case.")
 
@@ -1251,31 +1150,28 @@ async def list_vet_notifications(
     authorization: Optional[str] = Header(None)
 ):
     """List clinical notifications for the authenticated veterinarian."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can access clinical notifications."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     vet_id_str = str(vet["_id"])
     query = {
         "$or": [
             {"vet_id": vet_id_str},
-            {"vet_email": vet.get("email")},
-            {"vet_id": None}
+            {"vet_email": vet.get("email")}
         ]
     }
     cursor = vet_notifications_collection.find(query).sort("created_at", -1).limit(50)
     notifications = []
     async for doc in cursor:
+        if doc.get('case_id') and ObjectId.is_valid(doc['case_id']):
+            case = await diagnostic_cases_collection.find_one({'_id': ObjectId(doc['case_id'])})
+            if not case:
+                continue
+            try:
+                await access.case(actor, case)
+            except HTTPException:
+                continue
         notifications.append(VetNotificationResponse(
             id=str(doc["_id"]),
             vet_id=doc.get("vet_id"),
@@ -1300,9 +1196,21 @@ async def mark_notification_read(
     authorization: Optional[str] = Header(None)
 ):
     """Mark a clinical notification as read."""
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
     if not ObjectId.is_valid(notification_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid notification ID.")
 
+    notification = await vet_notifications_collection.find_one({'_id': ObjectId(notification_id)})
+    if not notification:
+        raise HTTPException(404, 'Notification not found.')
+    if notification.get('vet_id') != str(actor['vet']['_id']) and notification.get('vet_email') != actor['email']:
+        raise HTTPException(403, 'This notification is outside your account scope.')
+    if notification.get('case_id') and ObjectId.is_valid(notification['case_id']):
+        case = await diagnostic_cases_collection.find_one({'_id': ObjectId(notification['case_id'])})
+        if not case:
+            raise HTTPException(404, 'Case not found.')
+        await access.case(actor, case)
     await vet_notifications_collection.update_one(
         {"_id": ObjectId(notification_id)},
         {"$set": {"read": True}}
@@ -1315,16 +1223,8 @@ async def mark_all_notifications_read(
     authorization: Optional[str] = Header(None)
 ):
     """Mark all clinical notifications as read for current veterinarian."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized")
+    actor = await _diagnostic_access().actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     vet_id_str = str(vet["_id"])
     await vet_notifications_collection.update_many(

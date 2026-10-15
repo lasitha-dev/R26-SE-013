@@ -100,6 +100,25 @@ describe('detectImage', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('fetchReasoning', () => {
+  it('preserves zero scores, measurements, stage availability and review flags', async () => {
+    mockFetch.mockResolvedValue(okResponse({ status:'fallback' }));
+    const severity = { grade:'Mild', composite_score:0, lesion_coverage_pct:0, needs_review:true };
+    await fetchReasoning({ cattle_detected:true, severity, spatial_correlation:'Reported site: flank',
+      segmentation:{status:'completed_no_regions'}, review:{required:true,reasons:['small_analyzed_region']} });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.severity).toEqual(severity);
+    expect(body.segmentation.status).toBe('completed_no_regions');
+    expect(body.review.reasons).toEqual(['small_analyzed_region']);
+    expect(body.spatial_correlation).toBe('Reported site: flank');
+  });
+  it('includes clinical observations without inventing missing findings', async () => {
+    mockFetch.mockResolvedValue(okResponse({ status: 'ok' }));
+    const observations = { disease: 'mastitis', vet_confirmed: true, milk_abnormal: true };
+    await fetchReasoning({ cattle_detected: true, disease: { name: 'Mastitis' }, clinical_observations: observations });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.clinical_observations).toEqual(observations);
+    expect(body.clinical_observations).not.toHaveProperty('systemic_illness');
+  });
   const mockDetectionResult = {
     cattle_detected: true,
     detections: [{ bbox: [10, 20, 100, 200], confidence: 0.95, class_name: 'cattle' }],
