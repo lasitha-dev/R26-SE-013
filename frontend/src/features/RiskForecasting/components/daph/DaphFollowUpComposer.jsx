@@ -361,91 +361,106 @@ export function DaphFollowUpComposer({ forecastRecord, viewerContext, onClose, o
             </div>
           </div>
 
-          {/* 1. IMMUTABLE OFFICIAL FORECAST SNAPSHOT */}
+          {/* 1. THE OFFICIAL FORECAST THIS FOLLOW-UP IS BASED ON (read-only) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm">lock</span>
-                Authoritative Forecast Snapshot (Read-Only)
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                <span className="material-symbols-outlined text-lg text-emerald-400" aria-hidden="true">fact_check</span>
+                The forecast this follow-up is based on
               </h3>
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-400">
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">lock</span>
+                Read-only
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-800/50 p-4 rounded-xl border border-slate-800">
-              <div>
-                <span className="text-slate-500 block">District</span>
-                <span className="font-semibold text-white">{district || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Disease</span>
-                <span className="font-mono font-medium text-slate-200">{disease || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Target Period</span>
-                <span className="font-medium text-slate-200">
-                  {targetMonth ? getMonthName(targetMonth) : 'N/A'} {targetYear || ''}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Risk Tier</span>
-                <span className={`font-bold ${riskLevel === 'HIGH' ? 'text-rose-400' : riskLevel === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}`}>
-                  {riskLevel}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Outbreak Probability</span>
-                <span className="font-mono font-bold text-emerald-400">
-                  {probability !== null && probability !== undefined ? `${(probability * 100).toFixed(1)}%` : 'N/A'}
-                </span>
-              </div>
-              <div>
-                <SeverityPanel entry={severityFor(severityHistory, disease, district)} recent={buildRecentObservations(storedRecord, liveObservation)} />
-              </div>
-              <div>
-                <span className="text-slate-500 block">Operational Priority</span>
-                <span className="font-bold text-amber-300">{operationalPriority}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Data Quality</span>
-                <span className="font-mono text-slate-300">{isV2Record(storedRecord) ? 'Current model' : dataQuality}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Provenance</span>
-                <span className="font-medium text-slate-300">
-                  {describeProvenance(storedRecord)}
-                </span>
-              </div>
-            </div>
-
-            {fallbackApplied && (
-              <div className="text-xs text-slate-400 italic mt-2">
-                Historical proxy data used
-              </div>
-            )}
-          </div>
-
-          {/* 2. EXISTING FOLLOW-UP AWARENESS WARNING */}
-          {activeExistingFollowUps.length > 0 && (
-            <div className="bg-amber-950/50 border border-amber-500/50 rounded-xl p-4 space-y-2 text-xs text-amber-200" aria-live="polite">
-              <div className="flex items-center gap-2 text-amber-400 font-bold">
-                <span className="material-symbols-outlined text-base">warning</span>
-                <span>Active Follow-Up Warning ({activeExistingFollowUps.length} Active)</span>
-              </div>
-              <p>
-                An active follow-up instruction is already registered for this forecast record. Please review existing operational activity before issuing an additional follow-up.
-              </p>
-              <div className="space-y-1.5 pt-1">
-                {activeExistingFollowUps.map((f) => (
-                  <div key={f.follow_up_id} className="bg-slate-900/80 p-2.5 rounded-lg border border-amber-500/30 flex items-center justify-between text-[11px]">
-                    <div>
-                      <span className="font-mono text-slate-300 block">ID: {f.follow_up_id}</span>
-                      <span className="text-slate-400">Assigned Vet: {f.assigned_vet_id}</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                      {f.status}
+            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-800/40 p-4">
+              <div className="grid grid-cols-2 gap-2.5 text-xs sm:grid-cols-3">
+                {[
+                  { icon: 'location_on', label: 'District', value: district || 'N/A' },
+                  { icon: 'coronavirus', label: 'Disease', value: disease || 'N/A' },
+                  { icon: 'calendar_month', label: 'Month', value: `${targetMonth ? getMonthName(targetMonth) : 'N/A'} ${targetYear || ''}`.trim() },
+                ].map((tile) => (
+                  <div key={tile.label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-slate-500">
+                      <span className="material-symbols-outlined text-sm" aria-hidden="true">{tile.icon}</span>{tile.label}
                     </span>
+                    <span className="mt-0.5 block font-semibold text-white">{tile.value}</span>
                   </div>
                 ))}
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">shield</span>Risk Tier
+                  </span>
+                  <span className={`mt-0.5 block font-bold ${riskLevel === 'HIGH' ? 'text-rose-400' : riskLevel === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {riskLevel}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">percent</span>Outbreak chance
+                  </span>
+                  <span className="mt-0.5 block font-bold text-emerald-400">
+                    {probability !== null && probability !== undefined ? `${(probability * 100).toFixed(1)}%` : 'N/A'}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">priority_high</span>Priority
+                  </span>
+                  <span className="mt-0.5 block font-bold text-amber-300">{operationalPriority}</span>
+                </div>
               </div>
+
+              <SeverityPanel entry={severityFor(severityHistory, disease, district)} recent={buildRecentObservations(storedRecord, liveObservation)} />
+
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">verified</span>
+                  {describeProvenance(storedRecord)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">memory</span>
+                  {isV2Record(storedRecord) ? 'Current model' : dataQuality}
+                </span>
+                {fallbackApplied && <span className="italic">Historical proxy data used</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. A follow-up is already in progress for this forecast */}
+          {activeExistingFollowUps.length > 0 && (
+            <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-transparent p-4" aria-live="polite">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10">
+                  <span className="material-symbols-outlined text-xl text-amber-300" aria-hidden="true">assignment_turned_in</span>
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-100">
+                    {activeExistingFollowUps.length === 1 ? 'A follow-up is already in progress' : `${activeExistingFollowUps.length} follow-ups are already in progress`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-400">Check {activeExistingFollowUps.length === 1 ? 'it' : 'them'} before sending another one for this forecast.</p>
+                </div>
+              </div>
+              <ul className="space-y-2">
+                {activeExistingFollowUps.map((f) => {
+                  const officer = vets.find((v) => v.vet_id === f.assigned_vet_id)?.display_name || 'Veterinary officer';
+                  const ref = String(f.follow_up_id || '').replace(/^ffu_|^fu_/i, '').slice(0, 8).toUpperCase();
+                  const statusLabel = { ISSUED: 'Issued', ACKNOWLEDGED: 'Acknowledged', ACTION_IN_PROGRESS: 'In progress' }[f.status] || f.status;
+                  return (
+                    <li key={f.follow_up_id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2.5 text-xs transition hover:border-amber-500/40">
+                      <div className="flex items-center gap-2.5">
+                        <span className="material-symbols-outlined text-base text-slate-400" aria-hidden="true">person</span>
+                        <div>
+                          <span className="block font-semibold text-white">{officer}</span>
+                          <span className="font-mono text-[10px] text-slate-500" title={f.follow_up_id}>Ref {ref}</span>
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-amber-200">{statusLabel}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
