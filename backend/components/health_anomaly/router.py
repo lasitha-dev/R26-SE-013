@@ -1409,22 +1409,52 @@ async def get_cattle(id: str):
             detail=f"Database error while retrieving cattle details: {str(e)}"
         )
 
+def normalize_date_str(raw_date: Union[str, datetime, None]) -> str:
+    if not raw_date:
+        return datetime.now().strftime("%Y-%m-%d")
+    s = str(raw_date).strip()
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+        return s
+    parts = re.split(r"[-/.]", s)
+    if len(parts) == 3:
+        p1, p2, p3 = parts
+        try:
+            if len(p1) == 4 and p1.isdigit():
+                return f"{int(p1):04d}-{int(p2):02d}-{int(p3):02d}"
+            else:
+                year = int(p3)
+                if year < 100:
+                    year += 2000
+                month = int(p1)
+                day = int(p2)
+                return f"{year:04d}-{month:02d}-{day:02d}"
+        except Exception:
+            pass
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y", "%d/%m/%y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(s[:10], fmt).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return s[:10]
+
 @router.post("/daily-logs", response_model=DailyLogResponse, status_code=status.HTTP_201_CREATED)
 async def create_daily_log(log_data: DailyLogCreate):
+    norm_date = normalize_date_str(log_data.date)
     # Check for duplicate daily log entry
     existing_log = await daily_logs_collection.find_one({
         "cattle_id": log_data.cattle_id,
-        "date": log_data.date
+        "date": norm_date
     })
     if existing_log:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"A daily log entry already exists for this cattle on date {log_data.date}. Please delete the existing entry from the Daily Logs Registry below before re-entering."
+            detail=f"A daily log entry already exists for this cattle on date {norm_date}. Please delete the existing entry from the Daily Logs Registry below before re-entering."
         )
 
     try:
         from bson import ObjectId
         doc = log_data.model_dump()
+        doc["date"] = norm_date
         result = await daily_logs_collection.insert_one(doc)
         
         # Propagate latest weight
@@ -1434,7 +1464,7 @@ async def create_daily_log(log_data: DailyLogCreate):
         if ObjectId.is_valid(log_data.cattle_id):
             await cattles_collection.update_one(
                 {"_id": ObjectId(log_data.cattle_id)},
-                {"$set": {"last_monitored_date": log_data.date}}
+                {"$set": {"last_monitored_date": norm_date}}
             )
         
         doc["id"] = str(result.inserted_id)
@@ -1530,8 +1560,9 @@ def evaluate_cow_persistent_monitoring(
 ) -> dict:
     model = get_predict_model()
 
+    norm_latest_date = normalize_date_str(latest_log.get("date"))
     try:
-        log_date = datetime.strptime(str(latest_log["date"])[:10], "%Y-%m-%d")
+        log_date = datetime.strptime(norm_latest_date, "%Y-%m-%d")
     except Exception:
         log_date = datetime.now()
 
@@ -1566,13 +1597,13 @@ def evaluate_cow_persistent_monitoring(
     current_milk = float(latest_log["milk_yield"])
     current_weight = float(latest_log["weight"])
 
-    log_date_str = str(latest_log["date"])[:10]
+    log_date_str = norm_latest_date
     seven_days_ago_str = (log_date - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_logs = [l for l in historical_logs if seven_days_ago_str <= str(l.get("date", ""))[:10] < log_date_str]
+    week_logs = [l for l in historical_logs if seven_days_ago_str <= normalize_date_str(l.get("date", "")) < log_date_str]
     if week_logs:
         prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in week_logs) / len(week_logs)
     else:
-        prior_logs = [l for l in historical_logs if str(l.get("date", ""))[:10] < log_date_str]
+        prior_logs = [l for l in historical_logs if normalize_date_str(l.get("date", "")) < log_date_str]
         if prior_logs:
             recent_priors = prior_logs[-6:]
             prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in recent_priors) / len(recent_priors)
@@ -1580,9 +1611,9 @@ def evaluate_cow_persistent_monitoring(
             prev_week_avg = float(breed_avg_milk)
 
     three_days_ago_str = (log_date - timedelta(days=3)).strftime("%Y-%m-%d")
-    day3_log = next((l for l in historical_logs if str(l.get("date", ""))[:10] == three_days_ago_str), None)
+    day3_log = next((l for l in historical_logs if normalize_date_str(l.get("date", "")) == three_days_ago_str), None)
     if not day3_log:
-        prior_and_current = [l for l in historical_logs if str(l.get("date", ""))[:10] <= log_date_str]
+        prior_and_current = [l for l in historical_logs if normalize_date_str(l.get("date", "")) <= log_date_str]
         if len(prior_and_current) >= 4:
             day3_log = prior_and_current[-4]
 
@@ -1635,7 +1666,7 @@ def evaluate_cow_persistent_monitoring(
         "new_status": new_status,
         "milk_yield": current_milk,
         "weight": current_weight,
-        "date": latest_log["date"]
+        "date": norm_latest_date
     }
 
 @router.post("/daily-logs/bulk", status_code=status.HTTP_201_CREATED)
@@ -1691,10 +1722,11 @@ async def create_daily_logs_bulk(
                 cow = await cattles_collection.find_one({"_id": ObjectId(log.cattle_id)})
 
             resolved_id = str(cow["_id"]) if cow else (log.cattle_id or "")
+            norm_date = normalize_date_str(log.date)
 
             doc = {
                 "cattle_id": resolved_id,
-                "date": log.date,
+                "date": norm_date,
                 "milk_yield": float(log.milk_yield),
                 "weight": float(log.weight),
             }
@@ -1708,7 +1740,7 @@ async def create_daily_logs_bulk(
             processed_docs.append((cow, doc))
 
         # 2. Chronological Batch Insertion
-        processed_docs.sort(key=lambda item: str(item[1]["date"]))
+        processed_docs.sort(key=lambda item: normalize_date_str(item[1]["date"]))
 
         # Fast bulk delete of existing (cattle_id, date) pairs in ONE operation
         delete_queries = [

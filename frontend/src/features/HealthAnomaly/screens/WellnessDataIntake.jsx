@@ -88,9 +88,50 @@ export default function WellnessDataIntake() {
     setPredictionResult(null) // reset prediction banner on subject change
   }
 
-  // ─── Dynamic Sample CSV Generator ─────────────────────────────────────────
+  // ─── Date Normalizer (Supports YYYY-MM-DD, M/D/YY, MM/DD/YYYY, etc.) ───────
+  const normalizeDateString = (rawDate) => {
+    if (!rawDate) return ''
+    const trimmed = String(rawDate).trim()
+
+    // 1. If already in standard YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed
+    }
+
+    // 2. Format with slashes or dashes: e.g. 10/9/26, 10/15/26, 10/09/2026
+    const parts = trimmed.split(/[-/.]/)
+    if (parts.length === 3) {
+      let [p1, p2, p3] = parts
+      if (p1.length === 4) {
+        const year = p1
+        const month = String(parseInt(p2, 10)).padStart(2, '0')
+        const day = String(parseInt(p3, 10)).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+      let year = p3
+      if (year.length === 2) {
+        year = '20' + year
+      }
+      const month = String(parseInt(p1, 10)).padStart(2, '0')
+      const day = String(parseInt(p2, 10)).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    const parsed = new Date(trimmed)
+    if (!isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear()
+      const year = y < 100 ? 2000 + y : (y < 2000 && y >= 1900 && trimmed.includes('/26') ? 2026 : y)
+      const m = String(parsed.getMonth() + 1).padStart(2, '0')
+      const d = String(parsed.getDate()).padStart(2, '0')
+      return `${year}-${m}-${d}`
+    }
+
+    return trimmed
+  }
+
+  // ─── Dynamic Sample CSV Generator (4-column standard format) ─────────────
   const downloadSampleCSV = () => {
-    const todayStr = new Date().toISOString().split('T')[0]
+    const today = new Date()
     let sampleCows = lactationActiveCattle.length > 0 ? lactationActiveCattle : cattleList
     if (sampleCows.length === 0) {
       sampleCows = [
@@ -100,16 +141,25 @@ export default function WellnessDataIntake() {
     }
 
     const headers = 'identifier,date,milk_yield,weight\n'
-    const rows = sampleCows.slice(0, 5).map((cow) => {
-      const defaultMilk = cow.breed === 'Jersey' ? 14.5 : (cow.breed === 'Holstein-Friesian' ? 22.0 : 12.0)
-      const defaultWeight = cow.breed === 'Jersey' ? 410.0 : 550.0
-      return `${cow.identifier},${todayStr},${defaultMilk},${defaultWeight}`
-    }).join('\n')
+    const rows = []
+    const sampleCattleToUse = sampleCows.slice(0, 6)
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + rows + '\n')
+    for (const cow of sampleCattleToUse) {
+      const defaultMilk = cow.breed === 'Jersey' ? 16.5 : (cow.breed === 'Fleckvieh' ? 22.5 : (cow.breed === 'Ayrshire' ? 19.5 : 15.0))
+      const defaultWeight = cow.breed === 'Jersey' ? 412.0 : (cow.breed === 'Fleckvieh' ? 652.0 : 450.0)
+
+      for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
+        const d = new Date(today)
+        d.setDate(d.getDate() - dayOffset)
+        const dateStr = d.toISOString().split('T')[0]
+        rows.push(`${cow.identifier},${dateStr},${defaultMilk},${defaultWeight}`)
+      }
+    }
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + rows.join('\n') + '\n')
     const downloadAnchor = document.createElement('a')
     downloadAnchor.setAttribute('href', csvContent)
-    downloadAnchor.setAttribute('download', `sample_dairy_intake_${todayStr}.csv`)
+    downloadAnchor.setAttribute('download', `sample_daily_logs.csv`)
     document.body.appendChild(downloadAnchor)
     downloadAnchor.click()
     downloadAnchor.remove()
@@ -170,8 +220,11 @@ export default function WellnessDataIntake() {
             throw new Error(`Data validation error at row ${i + 1}. Weight (min 0.1) and Milk (min 0) must be positive values.`)
           }
 
+          const rawDate = cols[dateIdx]
+          const normalizedDate = normalizeDateString(rawDate)
+
           const logItem = {
-            date: cols[dateIdx],
+            date: normalizedDate,
             milk_yield: milkYield,
             weight: weight
           }
