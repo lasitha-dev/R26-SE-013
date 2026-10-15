@@ -39,7 +39,8 @@ contract is also shown. Confidence gates themselves remain unvalidated defaults.
 
 LSD, FMD and mastitis all return an **automatic visual estimate** as the primary
 `severity`, without requiring veterinary input. It is available immediately from
-`/api/detect`; FMD/mastitis explanations do not require an LLM. The full visual
+`/api/detect`. All diseases use the shared grounded explanation service, with a
+reference-summary fallback when the LLM is unavailable. See [REASONING.md](pipeline/REASONING.md). The full visual
 evidence remains in `severity.visual_assessment`.
 
 FMD and mastitis clinical checklists are optional, under "Optional clinical

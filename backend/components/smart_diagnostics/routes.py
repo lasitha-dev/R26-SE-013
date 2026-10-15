@@ -196,21 +196,18 @@ async def detect(request: Request, image: UploadFile = File(...),
 
 @router.post("/api/reason", response_model=ReasoningResponse)
 async def reason(body: ReasoningRequest):
-    """Explain automatic estimates; assess optional FMD/mastitis observations.
-
-    FMD/mastitis estimates and optional findings are explained deterministically. Other
-    predictions follow the existing LM Studio reasoner in a threadpool.
-    """
-    from .implementations.clinical_severity import assess_clinical_severity, clinical_disease_key, clinical_report
+    """Keep assessments deterministic; explain all diseases through one grounded path."""
+    from .implementations.clinical_severity import assess_clinical_severity, clinical_disease_key
+    sev = body.severity
     if body.cattle_detected and body.disease and clinical_disease_key(body.disease.name):
         if body.clinical_observations is None:
-            from .implementations.severity_scorer import compute_composite_severity, visual_severity_report
+            from .implementations.severity_scorer import compute_composite_severity
             # Rebuild from the supplied model measurements, rather than accepting a
             # client-provided grade or retaining the former mandatory checklist.
             probabilities = sorted(body.disease.all_probabilities.values(), reverse=True)
             margin = (probabilities[0] - probabilities[1] if len(probabilities) >= 2
                       else body.severity.top2_margin if body.severity else None)
-            visual = compute_composite_severity(dict(predicted_class=body.disease.name,
+            sev = compute_composite_severity(dict(predicted_class=body.disease.name,
                 vit_confidence_pct=body.disease.confidence, top2_margin=margin,
                 yolo_confidence=body.best_detection.confidence if body.best_detection else None,
                 segmentation_status=body.segmentation.status if body.segmentation else None,
@@ -219,23 +216,18 @@ async def reason(body: ReasoningRequest):
                 cluster_count=body.segmentation.cluster_count if body.segmentation else None,
                 mean_intensity=body.segmentation.mean_intensity if body.segmentation else None,
                 spatial_correlation=body.spatial_correlation))
-            return ReasoningResponse(status="ok", reasoning_report=visual_severity_report(body.disease.name, visual),
-                model_name="Automatic visual thresholds", severity_assessment=visual)
-        try:
-            clinical = assess_clinical_severity(body.disease.name, body.clinical_observations,
-                body.severity.model_dump() if body.severity else None)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return ReasoningResponse(status="ok", reasoning_report=clinical_report(body.disease.name, clinical),
-                                 model_name="Clinical checklist rules v1", severity_assessment=clinical)
+        else:
+            try:
+                sev = assess_clinical_severity(body.disease.name, body.clinical_observations,
+                    body.severity.model_dump() if body.severity else None)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     from .pipeline.llm_reasoner import generate_report_result
-    from .pipeline import config as pipeline_cfg
 
     # Transform the detection result into the shape expected by the reasoner.
     best = body.best_detection
     disease = body.disease
-    sev = body.severity
 
     detections_for_llm = []
     if best and disease:
@@ -253,7 +245,7 @@ async def reason(body: ReasoningRequest):
             "bbox_width_px": bbox_w,
             "bbox_height_px": bbox_h,
             "bbox_area_pct": area_pct,
-            "yolo_class": body.detections[0].class_name if body.detections else "cattle",
+            "yolo_class": max(body.detections, key=lambda item: item.confidence).class_name if body.detections else "unknown",
             "yolo_confidence": best.confidence,
             "vit_predicted_class": disease.name,
             "vit_predicted_display": disease.name,
@@ -263,7 +255,8 @@ async def reason(body: ReasoningRequest):
         if sev:
             det_dict.update({
                 "severity_grade": sev.grade,
-                "composite_score": sev.composite_score if sev.composite_score is not None else sev.score,
+                "score": sev.score,
+                "composite_score": sev.composite_score,
                 "confidence_level": sev.confidence_level,
                 "needs_review": sev.needs_review,
                 "attention_coverage_pct": sev.attention_coverage_pct,
@@ -287,9 +280,14 @@ async def reason(body: ReasoningRequest):
 
     vision_results = {
         "status": "PROCESSED",
-        "upstream_severity": body.severity.model_dump() if body.severity else None,
+        "upstream_severity": sev.model_dump() if sev else None,
         "image_size": body.image_size or {},
         "detections": detections_for_llm,
+        "clinical_observations": body.clinical_observations.model_dump() if body.clinical_observations else None,
+        "segmentation": body.segmentation.model_dump() if body.segmentation else None,
+        "review": body.review.model_dump() if body.review else None,
+        "model_metadata": body.model_metadata,
+        "crop_transform": body.crop_transform,
     }
 
     # Convert optional farm metadata.
@@ -302,6 +300,13 @@ async def reason(body: ReasoningRequest):
                                       timeout=settings.REASONING_TIMEOUT_SECONDS + 1)
     except Exception:
         logger.exception("Explanation failed or timed out")
+        if sev and detections_for_llm:
+            from .pipeline.grounded_reasoning import build_context, default_selection, assemble_explanation, render_report
+            context = build_context(vision_results, sev, farm_metadata)
+            explanation = assemble_explanation(context, default_selection(context), "template")
+            return ReasoningResponse(status="fallback", error_code="reasoning_failed_or_timed_out",
+                reasoning_report="Explanation unavailable. A reference summary is shown; the original assessment is retained.\n\n" + render_report(explanation),
+                severity_assessment=sev, explanation=explanation)
         return ReasoningResponse(status="fallback", error_code="reasoning_failed_or_timed_out",
             reasoning_report="Explanation unavailable. The original image assessment is retained.",
-            severity_assessment=body.severity)
+            severity_assessment=sev)

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import GroundedBriefing from './GroundedBriefing';
 
 /**
  * Section configuration — maps each of the 6 LLM briefing sections
@@ -211,7 +212,7 @@ function ErrorFallback({ error }) {
         </p>
         <p className="text-xs text-on-surface-variant leading-relaxed mb-3">
           The LLM reasoning engine (LM Studio) could not be reached. The Tier 1 &amp; 2
-          detection and classification results above remain fully valid and clinically usable.
+          measurements and assessment above remain available for veterinary review.
         </p>
         {error && (
           <details className="text-2xs text-on-surface-variant">
@@ -250,7 +251,7 @@ function ErrorFallback({ error }) {
  * @param {string|null} props.reasoningError     - Error message if status === 'error'
  * @param {object|null} [props.severityAssessment] - Parsed LLM severity metadata
  */
-export default function ReasoningBriefing({ reasoning, reasoningStatus, reasoningError, severityAssessment }) {
+export default function ReasoningBriefing({ reasoning, reasoningStatus, reasoningError, severityAssessment, explanation }) {
   const [visibleCards, setVisibleCards] = useState(0);
 
   // Parse sections from the Markdown report
@@ -273,6 +274,10 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
 
   // Don't render anything in idle state
   if (reasoningStatus === 'idle') return null;
+
+  if (explanation && reasoningStatus !== 'loading') {
+    return <GroundedBriefing explanation={explanation} assessment={severityAssessment} status={reasoningStatus} />;
+  }
 
   if (['fallback', 'unavailable'].includes(reasoningStatus)) {
     return <div role="status" className="p-4 rounded-xl border border-amber-500/30 text-sm text-on-surface-variant" data-testid="reasoning-briefing">
@@ -460,4 +465,5 @@ ReasoningBriefing.propTypes = {
   reasoningStatus: PropTypes.oneOf(['idle', 'loading', 'done', 'error', 'fallback', 'unavailable']).isRequired,
   reasoningError: PropTypes.string,
   severityAssessment: PropTypes.object,
+  explanation: PropTypes.object,
 };

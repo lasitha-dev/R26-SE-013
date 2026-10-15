@@ -1,0 +1,47 @@
+{
+  "version": "veterinary_explanations_v1",
+  "source_review_date": "2026-10-15",
+  "review_status": "Source-checked project summaries; veterinary review and clinical validation pending.",
+  "sources": {
+    "woah_lsd": {"title": "WOAH: Lumpy Skin Disease", "url": "https://www.woah.org/en/disease/lumpy-skin-disease/"},
+    "woah_fmd": {"title": "WOAH: Foot and mouth disease", "url": "https://www.woah.org/en/disease/foot-and-mouth-disease/"},
+    "krebs_mastitis_2023": {"title": "Krebs et al. (2023): Severity of Clinical Mastitis and Bacterial Shedding", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10537990/"}
+  },
+  "diseases": {
+    "lumpy_skin": {
+      "facts": {
+        "lsd_signs": {"text": "General reference context: LSD can involve skin nodules, fever, enlarged lymph nodes and oedema. These are described disease signs, not findings established in this animal by the classifier or mask.", "reference_ids": ["woah_lsd"]},
+        "lsd_production": {"text": "General reference context: LSD can reduce milk production and affect animal welfare. Neither production loss nor systemic involvement has been measured by this image pipeline.", "reference_ids": ["woah_lsd"]}
+      },
+      "checks": {
+        "lsd_exam": {"text": "If examination findings are available, review the distribution of skin lesions, temperature, lymph nodes and oedema with the veterinarian.", "reference_ids": ["woah_lsd"]},
+        "lsd_history": {"text": "Review the reported course of the lesions and any change in milk production; neither is inferred from this crop.", "reference_ids": ["woah_lsd"]}
+      },
+      "required_facts": ["lsd_signs"],
+      "required_checks": ["lsd_exam"]
+    },
+    "foot_and_mouth": {
+      "facts": {
+        "fmd_confirmation": {"text": "General reference context: clinical suspicion of FMD requires prompt laboratory confirmation because other vesicular diseases can resemble it. A classifier prediction does not confirm infection.", "reference_ids": ["woah_fmd"]},
+        "fmd_signs": {"text": "General reference context: FMD can involve oral or foot vesicles, lameness, salivation and reduced appetite. These findings are not established merely by a disease label or foreground mask.", "reference_ids": ["woah_fmd"]}
+      },
+      "checks": {
+        "fmd_confirmation_check": {"text": "Discuss prompt veterinary examination and appropriate confirmatory laboratory testing for suspected FMD, regardless of the visual-burden band.", "reference_ids": ["woah_fmd"]},
+        "fmd_exam": {"text": "If findings are available, review oral and foot lesions, mobility, salivation and appetite with the veterinarian.", "reference_ids": ["woah_fmd"]}
+      },
+      "required_facts": ["fmd_confirmation"],
+      "required_checks": ["fmd_confirmation_check"]
+    },
+    "mastitis": {
+      "facts": {
+        "mastitis_hierarchy": {"text": "General reference context: clinical mastitis grading distinguishes abnormal milk, additional local udder inflammation, and systemic illness. Crop-mask coverage does not establish that clinical hierarchy.", "reference_ids": ["krebs_mastitis_2023"]}
+      },
+      "checks": {
+        "mastitis_local": {"text": "If available, review milk appearance and local udder inflammation with the veterinarian; these findings are not supplied by a classifier probability.", "reference_ids": ["krebs_mastitis_2023"]},
+        "mastitis_systemic": {"text": "Review measured temperature and behaviour for systemic involvement when assessed. A small predicted mask does not exclude systemic illness.", "reference_ids": ["krebs_mastitis_2023"]}
+      },
+      "required_facts": ["mastitis_hierarchy"],
+      "required_checks": ["mastitis_local", "mastitis_systemic"]
+    }
+  }
+}

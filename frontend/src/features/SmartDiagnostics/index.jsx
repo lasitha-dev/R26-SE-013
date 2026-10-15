@@ -40,7 +40,7 @@ const SmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment, retryReasoning,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, retryReasoning,
     assessClinicalObservations, invalidateClinicalAssessment,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
@@ -129,7 +129,7 @@ const SmartDiagnostics = () => {
   const effectiveSeverity = resolveSeverity(result, severityAssessment);
   const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
   const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
-  const clinicalReady = !usesClinicalChecklist || (effectiveSeverity?.assessment_status === 'provisional' && reasoningStatus === 'done');
+  const clinicalReady = !usesClinicalChecklist || (effectiveSeverity?.assessment_status === 'provisional' && ['done', 'fallback', 'unavailable'].includes(reasoningStatus));
   const dynamicSeverity = effectiveSeverity;
   const dynamicSpatialCorrelation = result?.spatial_correlation || effectiveSeverity?.spatial_correlation;
 
@@ -800,6 +800,7 @@ const SmartDiagnostics = () => {
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
               severityAssessment={effectiveSeverity}
+              explanation={explanation}
             />
           </div>
         )}

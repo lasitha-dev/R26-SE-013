@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     SEGMENTER_MIN_REGION_FRACTION: float = Field(15 / (224 * 224), ge=0, lt=1)
     REASONING_TIMEOUT_SECONDS: float = Field(30, gt=0, le=120)
     REASONING_MAX_RETRIES: int = Field(0, ge=0, le=2)
+    REASONING_MODEL_NAME: str = Field("qwen2.5-vl-3b-instruct", min_length=1)
     SEVERITY_POLICY_PATH: str = str(Path(__file__).parent / "severity_policy.json")
 
     @property

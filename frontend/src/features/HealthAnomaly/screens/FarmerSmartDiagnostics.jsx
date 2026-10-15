@@ -48,7 +48,7 @@ const FarmerSmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment, retryReasoning,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, retryReasoning,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
@@ -992,6 +992,7 @@ const FarmerSmartDiagnostics = () => {
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
               severityAssessment={effectiveSeverity}
+              explanation={explanation}
             />
           </div>
         )}

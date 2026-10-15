@@ -74,6 +74,27 @@ const MOCK_FILE = new File(['test-image-data'], 'cow.jpg', { type: 'image/jpeg' 
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('useDetection', () => {
+  it('retains structured fallback evidence and clears it before a new image completes', async () => {
+    const { detectImage, fetchReasoning } = await getApi();
+    detectImage.mockResolvedValue(MOCK_DETECTION_RESULT);
+    const explanation = { origin: 'template', summary: 'Original image reference summary' };
+    fetchReasoning.mockResolvedValue({ ...MOCK_REASONING_RESULT, status: 'fallback', explanation });
+    const { result } = renderHook(() => useDetection());
+    await act(async () => { await result.current.detect(MOCK_FILE); });
+    expect(result.current.explanation).toEqual(explanation);
+    expect(result.current.reasoningStatus).toBe('fallback');
+    let resolveImage;
+    detectImage.mockImplementationOnce(() => new Promise(resolve => { resolveImage = resolve; }));
+    let next;
+    act(() => { next = result.current.detect(MOCK_FILE); });
+    expect(result.current.explanation).toBeNull();
+    fetchReasoning.mockResolvedValueOnce({ ...MOCK_REASONING_RESULT, explanation: { origin: 'llm_selected', summary: 'New image' } });
+    await act(async () => { resolveImage(MOCK_DETECTION_RESULT); await next; });
+    expect(result.current.explanation.summary).toBe('New image');
+    act(() => result.current.reset());
+    expect(result.current.explanation).toBeNull();
+  });
+
   it('retains clinical observations when explanation is retried', async () => {
     const { detectImage, fetchReasoning } = await getApi();
     detectImage.mockResolvedValue({ ...MOCK_DETECTION_RESULT, disease: {name:'Mastitis'} });

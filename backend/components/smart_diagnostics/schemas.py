@@ -161,6 +161,33 @@ class ReasoningRequest(BaseModel):
     review: Optional[ReviewAssessment] = None
     body_site: Optional[str] = None
     observed_symptoms: Optional[str] = None
+    model_metadata: Optional[Dict] = None
+    crop_transform: Optional[Dict] = None
+
+
+class ExplanationPoint(BaseModel):
+    id: str
+    text: str
+    evidence_ids: List[str] = Field(default_factory=list)
+    reference_ids: List[str] = Field(default_factory=list)
+
+
+class GroundedExplanation(BaseModel):
+    version: str = "grounded_explanation_v1"
+    origin: Literal["llm_selected", "template"]
+    summary: str
+    supporting_evidence: List[ExplanationPoint]
+    reference_context: List[ExplanationPoint]
+    limitations: List[ExplanationPoint]
+    next_checks: List[ExplanationPoint]
+    references: List[Dict[str, str]]
+    reference_pack_version: str
+    reference_pack_sha256: str
+    reference_review_status: str
+    evidence_sha256: str
+    prompt_version: str = "evidence_selection_v1"
+    severity_policy_version: Optional[str] = None
+    severity_policy_sha256: Optional[str] = None
 
 
 class ReasoningResponse(BaseModel):
@@ -170,4 +197,5 @@ class ReasoningResponse(BaseModel):
     reasoning_report: str        # Markdown clinical briefing (or error message)
     model_name: Optional[str] = None  # LLM model that produced the report
     severity_assessment: Optional[SeverityMetrics] = None  # Parsed dynamic LLM clinical severity
+    explanation: Optional[GroundedExplanation] = None
 

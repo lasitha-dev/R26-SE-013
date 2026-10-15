@@ -145,9 +145,9 @@ def test_three_model_evidence_and_thresholds_survive_api_and_explanation(
     assert explained.status_code == 200
     assert explained.json()['severity_assessment']['visual_assessment'] == visual
     assert explained.json()['severity_assessment']['grade'] == 'Severe'
-    if disease != 'Lumpy Skin Disease':
-        assert 'no clinical checklist is required' in explained.json()['reasoning_report']
-        assert explained.json()['model_name'] == 'Automatic visual thresholds'
+    assert explained.json()['status'] == 'fallback'
+    assert explained.json()['explanation']['origin'] == 'template'
+    assert 'No clinical checklist is required' in explained.json()['reasoning_report']
 
 
 def test_high_mask_coverage_cannot_bypass_low_classifier_confidence(
