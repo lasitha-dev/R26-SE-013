@@ -428,3 +428,37 @@ export function describeSeverityPanel({ recent, entry } = {}) {
 /** The thresholds quoted in the guide cards. They mirror the backend tier rule (2x, 4x, 50%) and the severity rule. */
 export const RISK_TIER_GUIDE = Object.freeze({ medium: 2, high: 4, highChancePercent: 50 });
 export const SEVERITY_GUIDE = Object.freeze({ medium: 10, high: 30, deathWeight: 10 });
+
+/**
+ * Why a v2 forecast is MEDIUM or HIGH, in ordinary words, with the calculation behind it (for the hover card).
+ * Returns null for baseline, usual-level and older records: there is nothing to explain.
+ */
+export function describeRiskReason(record, district) {
+  const basis = describeTierBasis(record);
+  if (!basis) return null;
+  const level = record.risk_level;
+  const where = district || record.district || 'this district';
+  const month = typeof record.target_month === 'number' ? monthName(record.target_month) : 'this month';
+  const chance = typeof record.probability === 'number' ? `${(record.probability * 100).toFixed(1)}%` : null;
+  const usual = typeof record.baseline_probability === 'number' ? `${(record.baseline_probability * 100).toFixed(1)}%` : null;
+  const times = typeof record.relative_risk === 'number' ? record.relative_risk.toFixed(1) : null;
+  const byProbability = !(typeof record.relative_risk === 'number' && record.relative_risk >= (level === 'HIGH' ? RISK_TIER_GUIDE.high : RISK_TIER_GUIDE.medium))
+    && level === 'HIGH' && typeof record.probability === 'number' && record.probability >= 0.5;
+
+  const sentence = byProbability
+    ? `The chance of an outbreak in ${month} is ${chance}, which is a 1 in 2 chance or more.`
+    : `The chance of an outbreak in ${month}${chance ? ` (${chance})` : ''} is ${times} times higher than usual for ${where}${usual ? ` in ${month} (${usual})` : ''}.`;
+
+  let evidence = null;
+  if (record.deployment_status === 'back_tested') evidence = 'Based on past records only. It has not been confirmed on future cases yet.';
+  else if (record.deployment_status === 'exploratory') evidence = 'An early model that is still being tested.';
+
+  const interval = formatProbabilityInterval(record);
+  const steps = [
+    { title: 'The usual chance', text: usual ? `In past years, the chance of an outbreak in ${where} in ${month} was ${usual}.` : `The usual chance for ${where} in ${month}, from past years.` },
+    { title: 'The chance this month', text: `${chance ? `${chance}` : 'The forecast'} ${chance ? 'is' : 'is worked out'} from last month's outbreak status, the weather and climate.${interval ? ` (${interval})` : ''}` },
+    { title: 'Compare the two', text: usual && chance && times ? `${chance} \u00f7 ${usual} = ${times} times the usual chance.` : 'The forecast chance divided by the usual chance.' },
+    { title: `The rule`, text: `Under ${RISK_TIER_GUIDE.medium}\u00d7 is USUAL LEVEL, ${RISK_TIER_GUIDE.medium}\u00d7 to ${RISK_TIER_GUIDE.high}\u00d7 is MEDIUM, ${RISK_TIER_GUIDE.high}\u00d7 or more (or a ${RISK_TIER_GUIDE.highChancePercent}% chance) is HIGH. This forecast is ${level}.` },
+  ];
+  return { level, headline: `Why the risk is ${level}`, sentence, evidence, steps };
+}

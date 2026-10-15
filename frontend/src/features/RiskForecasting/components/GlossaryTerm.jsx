@@ -9,7 +9,7 @@ const GAP = 10;
  * A word with a dotted underline that explains itself in a small card on hover, keyboard focus or tap.
  * The card is drawn above the page (portal, fixed position) so tables and scroll areas never clip it.
  */
-export function GlossaryTerm({ term, children, align = 'center', className = '' }) {
+export function GlossaryTerm({ term, children, align = 'center', className = '', plain = false, label, prefer = 'below' }) {
   const triggerRef = useRef(null);
   const closeTimer = useRef(null);
   const id = useId();
@@ -25,9 +25,9 @@ export function GlossaryTerm({ term, children, align = 'center', className = '' 
     const centre = align === 'left' ? rect.left : rect.left + rect.width / 2 - CARD_WIDTH / 2;
     const left = Math.max(12, Math.min(centre, viewportWidth - CARD_WIDTH - 12));
     const below = rect.bottom + GAP;
-    const above = below + 300 > window.innerHeight && rect.top > 320;
+    const above = prefer === 'above' ? rect.top > 330 : below + 300 > window.innerHeight && rect.top > 320;
     setPosition({ left, top: above ? rect.top - GAP : below, above });
-  }, [align]);
+  }, [align, prefer]);
 
   const show = useCallback(() => {
     clearTimeout(closeTimer.current);
@@ -68,7 +68,8 @@ export function GlossaryTerm({ term, children, align = 'center', className = '' 
         onClick={() => (open ? hide() : show())}
         onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (open) hide(); else show(); } }}
         aria-describedby={open ? id : undefined}
-        className={`cursor-help border-b border-dotted border-slate-500 pb-px font-[inherit] text-inherit transition-colors duration-150 hover:border-emerald-400 hover:text-emerald-300 focus:outline-none focus-visible:border-emerald-400 focus-visible:text-emerald-300 ${className}`}
+        aria-label={label}
+        className={`${plain ? 'cursor-help rounded-full transition duration-150 hover:scale-110 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60' : 'cursor-help border-b border-dotted border-slate-500 pb-px font-[inherit] text-inherit transition-colors duration-150 hover:border-emerald-400 hover:text-emerald-300 focus:outline-none focus-visible:border-emerald-400 focus-visible:text-emerald-300'} ${className}`}
       >
         {term}
       </span>
@@ -92,4 +93,7 @@ GlossaryTerm.propTypes = {
   children: PropTypes.node.isRequired,
   align: PropTypes.oneOf(['center', 'left']),
   className: PropTypes.string,
+  plain: PropTypes.bool,
+  label: PropTypes.string,
+  prefer: PropTypes.oneOf(['below', 'above']),
 };

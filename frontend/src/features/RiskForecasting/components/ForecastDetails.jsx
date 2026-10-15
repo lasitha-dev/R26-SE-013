@@ -1,9 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { ForecastSourceBadge } from './ForecastSourceBadge';
-import { TierBasisNote } from './TierBasisNote';
+import { GlossaryTerm } from './GlossaryTerm';
+import { RiskCalculationCard } from './GuideCards';
 import { OutlookCard } from './OutlookCard';
-import { formatProbabilityInterval, isV2Record } from './forecastPresentation';
+import { describeRiskReason, formatProbabilityInterval, isV2Record } from './forecastPresentation';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -55,6 +56,7 @@ export function ForecastDetails({ record, district, chance, earlierOutlook, onEx
   const dataPeriod = record.source_year && record.source_month ? `${MONTH_NAMES[record.source_month - 1]} ${record.source_year}` : null;
   const age = typeof record.data_age_months === 'number' ? `${record.data_age_months} ${record.data_age_months === 1 ? 'month' : 'months'} old` : null;
   const generated = formatGenerated(record.generated_at);
+  const reason = describeRiskReason(record, district);
 
   return (
     <details className="group rounded-xl border border-outline-variant/30 bg-surface-container-high/30 transition open:bg-surface-container-high/50">
@@ -70,19 +72,28 @@ export function ForecastDetails({ record, district, chance, earlierOutlook, onEx
           {(dataPeriod || age) && <Tile icon="database" label="Based on data from" value={dataPeriod || 'Not available'} sub={age} />}
         </div>
 
-        {isV2Record(record) ? (
-          <div className="flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <Icon name="lightbulb" className="mt-0.5 text-base text-primary" />
-            <TierBasisNote
-              record={record}
-              className="text-xs leading-relaxed text-on-surface [&>span]:mt-1 [&>span]:text-on-surface-variant"
-            />
+        {reason ? (
+          <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3.5" data-testid="risk-reason">
+            <GlossaryTerm
+              plain
+              label="How this risk was worked out"
+              term={<span className="material-symbols-outlined flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-lg leading-none text-emerald-300" aria-hidden="true">lightbulb</span>}
+              align="left"
+              prefer="above"
+            >
+              <RiskCalculationCard reason={reason} />
+            </GlossaryTerm>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-white">{reason.headline}</p>
+              <p className="text-sm leading-relaxed text-slate-200">{reason.sentence}</p>
+              {reason.evidence && <p className="text-xs text-on-surface-variant">{reason.evidence}</p>}
+            </div>
           </div>
-        ) : (
+        ) : !isV2Record(record) && record.predicted_severity ? (
           <p className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs text-on-surface">
-            Predicted severity: {record.predicted_severity || 'Not evaluated'}
+            Predicted severity: {record.predicted_severity}
           </p>
-        )}
+        ) : null}
 
         <div className="flex flex-wrap gap-2">
           <Meta icon="verified" label="Source"><ForecastSourceBadge record={record} /></Meta>

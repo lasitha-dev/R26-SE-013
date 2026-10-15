@@ -94,3 +94,24 @@ export function FollowUpTerm({ label = 'Follow-up', align }) {
   return <GlossaryTerm term={label} align={align}><FollowUpGuide /></GlossaryTerm>;
 }
 FollowUpTerm.propTypes = { label: PropTypes.string, align: PropTypes.string };
+
+/** The numbered calculation behind a MEDIUM or HIGH risk, shown when hovering the light bulb. */
+export function RiskCalculationCard({ reason }) {
+  return (
+    <>
+      <Heading>How this risk was worked out</Heading>
+      <ol className="space-y-2.5">
+        {reason.steps.map((step, index) => (
+          <li key={step.title} className="flex items-start gap-2.5">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-bold text-emerald-300">{index + 1}</span>
+            <span>
+              <strong className="block text-[12px] font-semibold text-white">{step.title}</strong>
+              <span className="text-slate-400">{step.text}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+RiskCalculationCard.propTypes = { reason: PropTypes.object.isRequired };
