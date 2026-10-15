@@ -295,8 +295,8 @@ describe('DaphFollowUpMonitoring Component', () => {
       const detailBtn = within(row).getByRole('button', { name: /Details/i });
       fireEvent.click(detailBtn);
 
-      expect(screen.getByText(/Scientific Forecast Snapshot \(Read-Only\)/i)).toBeInTheDocument();
-      expect(screen.getByText(/Lifecycle Timeline/i)).toBeInTheDocument();
+      expect(screen.getByText(/Based on the forecast/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Progress$/i)).toBeInTheDocument();
       expect(screen.getByText(/Targeted FMD ring vaccination/i)).toBeInTheDocument();
       // Probability comes from the follow-up snapshot's `probability` field (0-1)
       expect(screen.getByText('85.0%')).toBeInTheDocument();
