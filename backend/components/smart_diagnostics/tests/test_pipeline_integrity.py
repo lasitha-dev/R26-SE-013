@@ -118,3 +118,43 @@ def test_api_preserves_supplied_measurements_through_unavailable_reasoning(clien
     assert result['status'] == 'fallback'
     assert result['severity_assessment']['lesion_coverage_pct'] == 12.25
     assert result['severity_assessment']['grade'] == 'Moderate' and result['severity_assessment']['needs_review']
+
+
+@pytest.mark.parametrize('disease', ['Lumpy Skin Disease', 'Mastitis', 'Foot and Mouth Disease'])
+def test_three_model_evidence_and_thresholds_survive_api_and_explanation(
+        disease, create_app, dummy_rgb_image_bytes, mock_yolo_single_detection):
+    mask = SimpleNamespace(predict_with_metrics=lambda image: (image, dict(
+        status='completed_with_regions', lesion_coverage_pct=35, cluster_count=3,
+        contract_status='verified')))
+    client = TestClient(create_app(detector=FakeDetector(mock_yolo_single_detection),
+        classifier=FakeClassifier(dict(name=disease, confidence=90,
+            all_probabilities={disease: 90}, top2_margin=80)), segmenter=mask))
+    response = client.post('/api/detect', files={'image': ('cow.jpg', dummy_rgb_image_bytes, 'image/jpeg')})
+    assert response.status_code == 200
+    payload = response.json()
+    visual = payload['severity']['visual_assessment']
+    assert visual['grade'] == 'Severe' and visual['coverage_pct'] == 35
+    assert visual['thresholds_pct'] == dict(moderate_min_pct=10, severe_min_pct=30)
+    assert visual['evidence']['yolo_confidence'] == payload['best_detection']['confidence']
+    assert visual['evidence']['vit_confidence_pct'] == payload['disease']['confidence']
+    assert 'visual_thresholds_unvalidated' in payload['review']['reasons']
+    if disease != 'Lumpy Skin Disease':
+        assert payload['severity']['grade'] == 'Unassessable'
+    with patch('openai.OpenAI', side_effect=ConnectionError('offline')):
+        explained = client.post('/api/reason', json=payload)
+    assert explained.status_code == 200
+    assert explained.json()['severity_assessment']['visual_assessment'] == visual
+
+
+def test_high_mask_coverage_cannot_bypass_low_classifier_confidence(
+        create_app, dummy_rgb_image_bytes, mock_yolo_single_detection):
+    mask = SimpleNamespace(predict_with_metrics=lambda image: (image, dict(
+        status='completed_with_regions', lesion_coverage_pct=90, cluster_count=9)))
+    client = TestClient(create_app(detector=FakeDetector(mock_yolo_single_detection),
+        classifier=FakeClassifier(dict(name='Lumpy Skin Disease', confidence=55,
+            all_probabilities={}, top2_margin=5)), segmenter=mask))
+    payload = client.post('/api/detect', files={'image': ('cow.jpg', dummy_rgb_image_bytes, 'image/jpeg')}).json()
+    assert payload['severity']['grade'] == 'Unassessable'
+    assert payload['severity']['score'] is None
+    assert payload['severity']['visual_assessment']['coverage_pct'] == 90
+    assert 'classifier_confidence_missing_or_low' in payload['review']['reasons']

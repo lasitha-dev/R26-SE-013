@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     SEGMENTER_MIN_REGION_FRACTION: float = Field(15 / (224 * 224), ge=0, lt=1)
     REASONING_TIMEOUT_SECONDS: float = Field(30, gt=0, le=120)
     REASONING_MAX_RETRIES: int = Field(0, ge=0, le=2)
+    SEVERITY_POLICY_PATH: str = str(Path(__file__).parent / "severity_policy.json")
 
     @property
     def MASK_RCNN_MODEL_PATH(self):
@@ -39,7 +40,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def resolve_model_paths(self):
         backend = Path(__file__).resolve().parents[2]
-        for name in ('YOLO_MODEL_PATH', 'VIT_MODEL_PATH', 'SEGMENTER_MODEL_PATH', 'SEGMENTER_MANIFEST_PATH'):
+        for name in ('YOLO_MODEL_PATH', 'VIT_MODEL_PATH', 'SEGMENTER_MODEL_PATH', 'SEGMENTER_MANIFEST_PATH', 'SEVERITY_POLICY_PATH'):
             value = Path(getattr(self, name))
             if not value.is_absolute():
                 setattr(self, name, str(backend / value))

@@ -91,6 +91,7 @@ def assess_clinical_severity(name: str, observations: ClinicalObservations | dic
         rubric_id=rubric, assessment_status="provisional" if grade_number else "unassessable",
         assessment_target=target, evidence=evidence, missing_observations=missing,
         references=[MASTITIS_REFERENCE if disease == "mastitis" else FMD_REFERENCE], clinical_observations=obs,
+        visual_assessment=signals.get("visual_assessment"),
         lesion_coverage_pct=signals.get("lesion_coverage_pct"),
         cluster_count=signals.get("cluster_count"), mean_intensity=signals.get("mean_intensity"))
 

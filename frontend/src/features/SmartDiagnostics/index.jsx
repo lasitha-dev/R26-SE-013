@@ -593,7 +593,7 @@ const SmartDiagnostics = () => {
                       </div>
 
                       {/* Needs Review Alert Banner */}
-                      <p className="font-bold text-sm text-amber-300" data-testid="clinical-checklist-grade">{clinicalKey ? severityFormatted : `Existing image score: ${severityGrade}`}</p>
+                      <p className="font-bold text-sm text-amber-300" data-testid="clinical-checklist-grade">{severityFormatted}</p>
                       {needsReview && (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>

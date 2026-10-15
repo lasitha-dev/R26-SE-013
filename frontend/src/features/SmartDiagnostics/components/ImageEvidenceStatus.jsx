@@ -1,4 +1,5 @@
 import React from 'react';
+import VisualSeverity from './VisualSeverity';
 
 export default function ImageEvidenceStatus({ result }) {
   const segmentation = result?.segmentation;
@@ -12,5 +13,6 @@ export default function ImageEvidenceStatus({ result }) {
       {result.review.reasons.map((reason) => <li key={reason}>{reason.replaceAll('_', ' ')}</li>)}
     </ul>}
     <p>Image measurements and attention do not establish clinical severity. Segmentation thresholds and image-review flags require validation.</p>
+    <VisualSeverity assessment={result?.severity?.visual_assessment} />
   </div>;
 }

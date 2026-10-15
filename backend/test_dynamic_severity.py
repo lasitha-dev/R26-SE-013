@@ -30,6 +30,8 @@ def test_clinical_fallback_severity_generation():
                 "vit_predicted_class": "lumpy_skin",
                 "vit_predicted_display": "Lumpy Skin Disease",
                 "vit_confidence_pct": 94.5,
+                "yolo_confidence": 0.9,
+                "segmentation_status": "completed_with_regions",
                 "top2_margin": 90.0,
                 "attention_coverage_pct": 75.0,
                 "attention_cluster_count": 8,
@@ -41,14 +43,14 @@ def test_clinical_fallback_severity_generation():
     }
     sev = create_clinical_fallback_severity(vision_results)
     
-    assert sev.grade == "Severe"
+    assert sev.grade == "Moderate"
     assert "stage" not in sev.model_dump()
     assert sev.prognosis is None
-    assert "Lumpy Skin Disease" in sev.description
-    assert sev.composite_score is not None
-    assert sev.composite_score >= 0.65
-    assert sev.confidence_level == "High"
-    assert sev.needs_review is False
+    assert "visual burden" in sev.description
+    assert sev.composite_score is None
+    assert sev.score == 0.145
+    assert sev.confidence_level == "Not validated"
+    assert sev.needs_review is True
     print(f"Clinical fallback severity verified: {sev.grade} - {sev.description}")
 
 
@@ -68,10 +70,10 @@ def test_healthy_baseline_severity():
         ]
     }
     sev = create_clinical_fallback_severity(vision_results)
-    assert sev.grade == "Healthy Baseline"
+    assert sev.grade == "Unassessable"
     assert sev.prognosis is None
-    assert sev.confidence_level == "High"
-    assert sev.needs_review is False
+    assert sev.confidence_level == "Not validated"
+    assert sev.needs_review is True
     print("Healthy baseline severity verified.")
 
 

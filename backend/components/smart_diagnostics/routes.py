@@ -136,16 +136,13 @@ async def detect(request: Request, image: UploadFile = File(...),
     spatial += f"Body site reported by user: {body_site}." if body_site else "Body site is unknown; frame position does not identify anatomy."
     signals = dict(attention_coverage_pct=attn_cov, attention_cluster_count=attn_clusters,
         vit_confidence_pct=disease.confidence, top2_margin=margin, yolo_detection_count=len(detections),
+        yolo_confidence=best["confidence"], segmentation_status=segmentation.status,
+        segmentation_contract_status=segmentation.contract_status,
         yolo_max_bbox_area_pct=round(float((coords[2]-coords[0])*(coords[3]-coords[1]))/(pil.width*pil.height)*100, 2),
         predicted_class="cattle" if healthy else disease.name, predicted_display=disease.name,
-        lesion_coverage_pct=segmentation.lesion_coverage_pct or 0, cluster_count=segmentation.cluster_count or 0,
-        mean_intensity=segmentation.mean_intensity or 0, spatial_correlation=spatial)
+        lesion_coverage_pct=segmentation.lesion_coverage_pct, cluster_count=segmentation.cluster_count,
+        mean_intensity=segmentation.mean_intensity, spatial_correlation=spatial)
     severity = compute_composite_severity(signals)
-    # Keep LSD grade/score arithmetic unchanged; replace unsupported clinical narratives.
-    if severity.source != "clinical_rules":
-        severity.description = f"Existing image-based assessment: {severity.grade}. This score is not a validated clinical grade or disease stage."
-        severity.diagnostic_rationale = "Disease probabilities and image attention are model outputs. Attention is not a lesion mask; crop coverage is not total body-surface involvement."
-        severity.prognosis = None
     severity.spatial_correlation = spatial
     severity.lesion_coverage_pct = segmentation.lesion_coverage_pct
     severity.cluster_count = segmentation.cluster_count
@@ -154,7 +151,7 @@ async def detect(request: Request, image: UploadFile = File(...),
         severity.attention_coverage_pct = None
         severity.attention_cluster_count = None
 
-    reasons = []
+    reasons = list(severity.visual_assessment.review_reasons) if severity.visual_assessment else []
     if disease.confidence < 60:
         reasons.append("low_classification_confidence")
     if margin < 15:

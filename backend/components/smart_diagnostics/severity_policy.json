@@ -1,0 +1,14 @@
+{
+  "version": "crop_visual_burden_v1",
+  "validation_status": "unvalidated",
+  "rationale": "Engineering demonstration cutoffs only. No clinical study establishes these crop-mask percentage thresholds. Fit and freeze disease-specific cutoffs against independent veterinary reference grades before clinical use.",
+  "minimum_detector_confidence": 0.25,
+  "minimum_classifier_confidence_pct": 60.0,
+  "minimum_top_two_margin_pct": 15.0,
+  "boundary_margin_pct": 2.0,
+  "diseases": {
+    "lumpy_skin": {"moderate_min_pct": 10.0, "severe_min_pct": 30.0, "references": []},
+    "foot_and_mouth": {"moderate_min_pct": 10.0, "severe_min_pct": 30.0, "references": []},
+    "mastitis": {"moderate_min_pct": 10.0, "severe_min_pct": 30.0, "references": []}
+  }
+}

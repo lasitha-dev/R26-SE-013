@@ -168,7 +168,7 @@ def _clinical_checklist_assessment(vision_results: Dict[str, Any]):
 
 
 def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> SeverityMetrics:
-    """Generate an objective, clinically grounded severity metric from vision telemetry.
+    """Generate a provisional assessment from measured vision telemetry.
 
     Used when LLM service is offline or in test environments.
     """
@@ -186,21 +186,19 @@ def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> Severit
         "vit_confidence_pct": primary_det.get("vit_confidence_pct", 0.0),
         "top2_margin": (primary_det.get("top2_margin") or 0.0),
         "yolo_detection_count": len(detections),
+        "yolo_confidence": primary_det.get("yolo_confidence"),
+        "segmentation_status": primary_det.get("segmentation_status"),
+        "segmentation_contract_status": primary_det.get("segmentation_contract_status"),
         "yolo_max_bbox_area_pct": primary_det.get("bbox_area_pct", 0.0),
         "predicted_class": primary_det.get("vit_predicted_class", "cattle"),
         "predicted_display": primary_det.get("vit_predicted_display", primary_det.get("vit_predicted_class", "Condition")),
         "spatial_correlation": primary_det.get("spatial_correlation"),
-        "lesion_coverage_pct": float((primary_det.get("lesion_coverage_pct") or 0.0)),
-        "cluster_count": int((primary_det.get("cluster_count") or 0)),
-        "mean_intensity": float((primary_det.get("mean_intensity") or 0.0)),
+        "lesion_coverage_pct": primary_det.get("lesion_coverage_pct"),
+        "cluster_count": primary_det.get("cluster_count"),
+        "mean_intensity": primary_det.get("mean_intensity"),
     }
 
-    assessment = compute_composite_severity(signals)
-    if assessment.source != 'clinical_rules':
-        assessment.description = f"Image-model prediction: {signals.get('predicted_display')}. Existing image score: {assessment.grade}; clinical severity is unvalidated."
-        assessment.prognosis = None
-        assessment.diagnostic_rationale = "Image probabilities and saliency do not establish clinical findings or stage."
-    return assessment
+    return compute_composite_severity(signals)
 
 
 def extract_section_snippet(report_text: str, section_keyword: str) -> Optional[str]:

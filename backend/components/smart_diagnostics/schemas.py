@@ -52,6 +52,21 @@ class Disease(BaseModel):
     all_probabilities: Dict[str, float]
 
 
+class VisualSeverityAssessment(BaseModel):
+    grade: str = "Unassessable"
+    coverage_pct: Optional[float] = None
+    assessment_target: str = "predicted_lesion_burden_in_analyzed_crop"
+    validation_status: Literal["unvalidated"] = "unvalidated"
+    policy_version: str
+    policy_sha256: str
+    disease_key: Optional[str] = None
+    thresholds_pct: Dict[str, float] = Field(default_factory=dict)
+    evidence: Dict[str, Optional[float]] = Field(default_factory=dict)
+    review_reasons: List[str] = Field(default_factory=list)
+    rationale: str
+    references: List[Dict[str, str]] = Field(default_factory=list)
+
+
 class SeverityMetrics(BaseModel):
     # Clinical rules use ordinal 1/2/3 (or null); legacy image scores retain their scale.
     score: Optional[float] = 0.0
@@ -78,6 +93,7 @@ class SeverityMetrics(BaseModel):
     missing_observations: List[str] = Field(default_factory=list)
     references: List[Dict[str, str]] = Field(default_factory=list)
     clinical_observations: Optional[ClinicalObservations] = None
+    visual_assessment: Optional[VisualSeverityAssessment] = None
 
 
 class SegmentationAssessment(BaseModel):
