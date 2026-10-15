@@ -186,6 +186,7 @@ class PredictPayload(BaseModel):
 
 class PredictResponse(BaseModel):
     is_anomaly: bool
+    status: Optional[str] = None
 
 
 from typing import List

@@ -5,6 +5,15 @@ import { MemoryRouter } from 'react-router-dom'
 import WellnessDataIntake from './WellnessDataIntake'
 import { ProfileContext } from '../../../context/ProfileContext'
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
+
 describe('WellnessDataIntake - Bulk CSV Upload & Automated Monitoring', () => {
   const mockCattleList = [
     {
@@ -39,6 +48,12 @@ describe('WellnessDataIntake - Bulk CSV Upload & Automated Monitoring', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockCattleList),
+        })
+      }
+      if (url.includes('/api/monitor/predict')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ is_anomaly: true, status: 'Alert' }),
         })
       }
       if (url.includes('/api/daily-logs/bulk')) {
@@ -77,6 +92,12 @@ describe('WellnessDataIntake - Bulk CSV Upload & Automated Monitoring', () => {
         })
       }
       if (url.includes('/api/daily-logs')) {
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: 'log1', cattle_id: 'c1', date: '2026-10-15', milk_yield: 6.5, weight: 380.0 }),
+          })
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve([]),
@@ -165,5 +186,103 @@ describe('WellnessDataIntake - Bulk CSV Upload & Automated Monitoring', () => {
 
     // Verify checkAlertsStatus was called
     expect(mockProfileContext.checkAlertsStatus).toHaveBeenCalled()
+  })
+
+  it('displays Clinical Anomaly Detected modal on anomaly and closes it when Dismiss is clicked', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileContext.Provider value={mockProfileContext}>
+          <WellnessDataIntake />
+        </ProfileContext.Provider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/kiri katiya/i)).toBeInTheDocument()
+    })
+
+    // Select subject animal
+    const selectElem = screen.getByRole('combobox')
+    fireEvent.change(selectElem, { target: { value: 'c1' } })
+
+    // Fill form fields
+    const dateInput = document.querySelector('input[name="date"]')
+    const milkInput = document.querySelector('input[name="milk_yield"]')
+    const weightInput = document.querySelector('input[name="weight"]')
+
+    fireEvent.change(dateInput, { target: { value: '2026-10-15' } })
+    fireEvent.change(milkInput, { target: { value: '6.5' } })
+    fireEvent.change(weightInput, { target: { value: '380.0' } })
+
+    // Submit single log form
+    const submitBtn = screen.getByText(/Update Yield/i)
+    fireEvent.click(submitBtn)
+
+    // Verify Anomaly Warning Modal appears
+    await waitFor(() => {
+      expect(screen.getByText(/Clinical Anomaly Detected!/i)).toBeInTheDocument()
+    })
+
+    // Click Dismiss button inside modal
+    const dismissBtn = screen.getByTestId('modal-dismiss')
+    expect(dismissBtn).toBeInTheDocument()
+    fireEvent.click(dismissBtn)
+
+    // Verify modal is closed
+    await waitFor(() => {
+      expect(screen.queryByText(/Clinical Anomaly Detected!/i)).not.toBeInTheDocument()
+    })
+  })
+
+  it('navigates to 7-Day Triage Scan with selected cattle ID when Start 7-Day Diagnosis is clicked in modal', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileContext.Provider value={mockProfileContext}>
+          <WellnessDataIntake />
+        </ProfileContext.Provider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/kiri katiya/i)).toBeInTheDocument()
+    })
+
+    // Select subject animal
+    const selectElem = screen.getByRole('combobox')
+    fireEvent.change(selectElem, { target: { value: 'c1' } })
+
+    // Fill form fields
+    const dateInput = document.querySelector('input[name="date"]')
+    const milkInput = document.querySelector('input[name="milk_yield"]')
+    const weightInput = document.querySelector('input[name="weight"]')
+
+    fireEvent.change(dateInput, { target: { value: '2026-10-15' } })
+    fireEvent.change(milkInput, { target: { value: '6.5' } })
+    fireEvent.change(weightInput, { target: { value: '380.0' } })
+
+    // Submit single log form
+    const submitBtn = screen.getByText(/Update Yield/i)
+    fireEvent.click(submitBtn)
+
+    // Verify modal appears
+    await waitFor(() => {
+      expect(screen.getByText(/Clinical Anomaly Detected!/i)).toBeInTheDocument()
+    })
+
+    // Click Start 7-Day Diagnosis button in modal
+    const triageBtn = screen.getByTestId('modal-start-triage')
+    expect(triageBtn).toBeInTheDocument()
+    fireEvent.click(triageBtn)
+
+    // Verify modal is dismissed
+    await waitFor(() => {
+      expect(screen.queryByText(/Clinical Anomaly Detected!/i)).not.toBeInTheDocument()
+    })
+
+    // Verify navigation was triggered
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/health/7-day-triage-scan?cattle_id=c1',
+      { state: { cattleId: 'c1' } }
+    )
   })
 })

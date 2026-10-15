@@ -1419,7 +1419,7 @@ async def create_daily_log(log_data: DailyLogCreate):
     if existing_log:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A daily log entry already exists for this animal on this date."
+            detail=f"A daily log entry already exists for this cattle on date {log_data.date}. Please delete the existing entry from the Daily Logs Registry below before re-entering."
         )
 
     try:
@@ -1429,6 +1429,13 @@ async def create_daily_log(log_data: DailyLogCreate):
         
         # Propagate latest weight
         await propagate_latest_weight(log_data.cattle_id)
+        
+        # Update last_monitored_date on cattle
+        if ObjectId.is_valid(log_data.cattle_id):
+            await cattles_collection.update_one(
+                {"_id": ObjectId(log_data.cattle_id)},
+                {"$set": {"last_monitored_date": log_data.date}}
+            )
         
         doc["id"] = str(result.inserted_id)
         doc.pop("_id", None)
@@ -1960,6 +1967,49 @@ async def delete_daily_log(id: str):
         
         # 3. Propagate latest weight to cattle
         await propagate_latest_weight(cattle_id)
+
+        # 4. Re-evaluate cattle health status based on remaining daily logs
+        if ObjectId.is_valid(cattle_id):
+            remaining_logs = await daily_logs_collection.find(
+                {"cattle_id": cattle_id}
+            ).sort("date", 1).to_list(1000)
+            cow = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+            if cow:
+                if remaining_logs:
+                    latest_rem = remaining_logs[-1]
+                    farm_email = cow.get("owner_email")
+                    custom_setting = await breed_settings_collection.find_one({
+                        "farm_email": farm_email,
+                        "breed": cow.get("breed")
+                    }) if farm_email else None
+                    c_milk = custom_setting.get("avg_milk") if custom_setting else None
+                    c_wt = custom_setting.get("avg_weight") if custom_setting else None
+
+                    inf_res = evaluate_cow_persistent_monitoring(
+                        cow=cow,
+                        latest_log=latest_rem,
+                        historical_logs=remaining_logs,
+                        custom_milk=c_milk,
+                        custom_weight=c_wt
+                    )
+                    new_status = inf_res["new_status"]
+                    await cattles_collection.update_one(
+                        {"_id": ObjectId(cattle_id)},
+                        {"$set": {
+                            "health_status": new_status,
+                            "status": new_status,
+                            "last_monitored_date": latest_rem["date"]
+                        }}
+                    )
+                else:
+                    await cattles_collection.update_one(
+                        {"_id": ObjectId(cattle_id)},
+                        {"$set": {
+                            "health_status": "Healthy",
+                            "status": "Healthy",
+                            "last_monitored_date": None
+                        }}
+                    )
         
         return {"message": "Daily log deleted successfully."}
     except HTTPException:
@@ -2317,7 +2367,7 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         if stage_col in row:
             row[stage_col] = 1.0
             
-        df = pd.DataFrame([row], columns=feature_names)
+        df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
         prediction = model.predict(df)[0]
         
         is_anomaly = bool(prediction == 1 or prediction == "1")
@@ -2329,8 +2379,13 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
                 {"_id": ObjectId(payload.cattle_id)},
                 {"$set": {"health_status": new_status, "status": new_status}}
             )
+        else:
+            await cattles_collection.update_one(
+                {"identifier": payload.cattle_id},
+                {"$set": {"health_status": new_status, "status": new_status}}
+            )
 
-        return {"is_anomaly": is_anomaly}
+        return {"is_anomaly": is_anomaly, "status": new_status}
         
     except Exception as e:
         raise HTTPException(

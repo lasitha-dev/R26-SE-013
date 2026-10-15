@@ -24,9 +24,8 @@ export default function WellnessDataIntake() {
   const [parsedLogs, setParsedLogs] = useState([])
   const [bulkReportResults, setBulkReportResults] = useState(null)
 
-  // Modal warning triggers (kept for legacy support or bulk modal, but single uses predictionResult)
+  // Modal warning triggers (pops up when anomaly is detected upon submission)
   const [showAnomalyModal, setShowAnomalyModal] = useState(false)
-  const [pendingPayload, setPendingPayload] = useState(null)
 
   // Edit Log states
   const [showEditModal, setShowEditModal] = useState(false)
@@ -308,6 +307,25 @@ export default function WellnessDataIntake() {
       return
     }
 
+    if (!dateVal) {
+      setErrorMessage('Please select a valid intake date.')
+      return
+    }
+
+    // Duplicate Date Rule (Frontend Prevention)
+    const existingLog = dailyLogsList.find(
+      (l) =>
+        (String(l.cattle_id) === String(selectedCattleId) ||
+         (selectedCattle.identifier && String(l.identifier) === String(selectedCattle.identifier))) &&
+        String(l.date) === String(dateVal)
+    )
+    if (existingLog) {
+      setErrorMessage(
+        `A daily log already exists for "${selectedCattle.identifier}" on ${dateVal}. To enter new data for this date, please delete the existing entry from the Daily Logs Registry below first.`
+      )
+      return
+    }
+
     // Dynamic validations check (Front-end)
     if (selectedCattle && selectedCattle.calving_date && dateVal < selectedCattle.calving_date) {
       setErrorMessage(`Logging date cannot be prior to the cow's milking start date (${selectedCattle.calving_date}).`)
@@ -360,7 +378,8 @@ export default function WellnessDataIntake() {
       })
 
       if (!predictRes.ok) {
-        throw new Error('Prediction service failed to respond.')
+        const errJson = await predictRes.json().catch(() => ({}))
+        throw new Error(errJson.detail || 'Prediction service failed to respond.')
       }
 
       const predictData = await predictRes.json()
@@ -377,19 +396,51 @@ export default function WellnessDataIntake() {
       if (saveRes.ok) {
         setPredictionResult(predictData)
         if (predictData.is_anomaly) {
+          setShowAnomalyModal(true)
           setErrorMessage('Potential health issue detected. Please initiate the 7-Day Triage.')
         } else {
           setSuccessMessage('Data Updated Successfully. Health status is normal.')
         }
         await checkAlertsStatus() // Sync global alerts notification count/status
-        fetchData() // Refresh logs list
+        await fetchData() // Refresh logs list
       } else {
-        const errData = await saveRes.json()
+        const errData = await saveRes.json().catch(() => ({}))
         setErrorMessage(errData.detail || 'Failed to save daily log details.')
       }
 
     } catch (err) {
       setErrorMessage(err.message || 'Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Delete Log Handler ──────────────────────────────────────────────────
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm('Are you sure you want to delete this daily log entry?')) {
+      return
+    }
+    setLoading(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/daily-logs/${logId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      })
+      if (response.ok) {
+        setSuccessMessage('Daily log entry deleted successfully.')
+        await checkAlertsStatus()
+        await fetchData()
+      } else {
+        const errJson = await response.json().catch(() => ({}))
+        setErrorMessage(errJson.detail || 'Failed to delete daily log entry.')
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Error connecting to backend during deletion.')
     } finally {
       setLoading(false)
     }
@@ -436,23 +487,20 @@ export default function WellnessDataIntake() {
     }
   }
 
-  // ─── Anomaly Modal Actions (Bulk backup) ──────────────────────────────────
-  const handleModalTriage = async () => {
-    if (!pendingPayload) return
-    setLoading(true)
-    await postDailyLog(pendingPayload)
-    setLoading(false)
+  // ─── Anomaly Modal Actions ────────────────────────────────────────────────
+  const handleModalTriage = () => {
     setShowAnomalyModal(false)
-    navigate('/health/7-day-triage-scan')
+    if (selectedCattleId) {
+      navigate(`/health/7-day-triage-scan?cattle_id=${selectedCattleId}`, {
+        state: { cattleId: selectedCattleId }
+      })
+    } else {
+      navigate('/health/7-day-triage-scan')
+    }
   }
 
-  const handleModalDismiss = async () => {
-    if (!pendingPayload) return
-    setLoading(true)
-    await postDailyLog(pendingPayload)
-    setLoading(false)
+  const handleModalDismiss = () => {
     setShowAnomalyModal(false)
-    fetchData()
   }
 
   // ─── Edit Daily Log Actions ──────────────────────────────────────────────
@@ -722,10 +770,12 @@ export default function WellnessDataIntake() {
                           🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.
                         </p>
                         <Link
-                          to="/health/7-day-triage-scan"
-                          className="px-6 py-2.5 bg-error text-on-error text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-error/95 transition-all"
+                          to={selectedCattleId ? `/health/7-day-triage-scan?cattle_id=${selectedCattleId}` : '/health/7-day-triage-scan'}
+                          state={{ cattleId: selectedCattleId }}
+                          className="px-6 py-2.5 bg-error text-on-error text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-error/95 transition-all inline-flex items-center gap-1.5"
                         >
-                          Start 7-Day Diagnosis
+                          <span>Start 7-Day Diagnosis</span>
+                          <span className="material-symbols-outlined text-xs">arrow_forward</span>
                         </Link>
                       </div>
                     ) : (
@@ -949,12 +999,22 @@ export default function WellnessDataIntake() {
                         <td className="px-8 py-4 text-sm text-primary font-semibold">{log.milk_yield} L</td>
                         <td className="px-8 py-4 text-sm text-secondary font-semibold">{log.weight} KG</td>
                         <td className="px-8 py-4 text-right">
-                          <button
-                            onClick={() => openEditLogModal(log)}
-                            className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEditLogModal(log)}
+                              className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLog(log.id)}
+                              className="px-3 py-1.5 bg-error/10 border border-error/20 text-error text-xs font-bold rounded hover:bg-error/20 transition-all active:scale-95 flex items-center gap-1"
+                              title="Delete this daily log"
+                            >
+                              <span className="material-symbols-outlined text-xs">delete</span>
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -985,16 +1045,18 @@ export default function WellnessDataIntake() {
               </p>
               <div className="w-full flex flex-col gap-3">
                 <button
+                  data-testid="modal-start-triage"
                   onClick={handleModalTriage}
-                  className="w-full py-3.5 bg-error text-on-error font-black text-xs uppercase tracking-wider rounded-lg hover:bg-error/90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-error text-on-error font-black text-xs uppercase tracking-wider rounded-lg hover:bg-error/90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-error/20"
                   type="button"
                 >
                   <span className="material-symbols-outlined text-base">emergency_home</span>
                   Start 7-Day Diagnosis
                 </button>
                 <button
+                  data-testid="modal-dismiss"
                   onClick={handleModalDismiss}
-                  className="w-full py-3.5 bg-surface-container-high hover:bg-surface-bright text-slate-300 text-xs font-bold uppercase tracking-wider rounded-lg border border-white/5 active:scale-95 transition-all"
+                  className="w-full py-3.5 bg-surface-container-high hover:bg-surface-bright text-slate-300 hover:text-white text-xs font-bold uppercase tracking-wider rounded-lg border border-white/10 active:scale-95 transition-all cursor-pointer"
                   type="button"
                 >
                   Dismiss
