@@ -163,6 +163,12 @@ def _clinical_checklist_assessment(vision_results: Dict[str, Any]):
             else primary.get("vit_predicted_display"))
     if not clinical_disease_key(name):
         return None
+    if vision_results.get("clinical_observations") is None:
+        from ..implementations.severity_scorer import visual_severity_report
+        upstream = vision_results.get("upstream_severity")
+        assessment = (SeverityMetrics.model_validate(upstream) if upstream and upstream.get("source") == "visual_thresholds"
+                      else create_clinical_fallback_severity(vision_results))
+        return visual_severity_report(name, assessment), assessment
     assessment = assess_clinical_severity(name, vision_results.get("clinical_observations"), primary)
     return clinical_report(name, assessment), assessment
 
@@ -172,15 +178,13 @@ def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> Severit
 
     Used when LLM service is offline or in test environments.
     """
-    clinical = _clinical_checklist_assessment(vision_results)
-    if clinical is not None:
-        return clinical[1]
     from components.smart_diagnostics.implementations.severity_scorer import compute_composite_severity
 
     detections = vision_results.get("detections", [])
     primary_det = detections[0] if detections else {}
 
     signals = {
+        "clinical_observations": vision_results.get("clinical_observations"),
         "attention_coverage_pct": (primary_det.get("attention_coverage_pct") or 0.0),
         "attention_cluster_count": (primary_det.get("attention_cluster_count") or 0),
         "vit_confidence_pct": primary_det.get("vit_confidence_pct", 0.0),
@@ -350,7 +354,7 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
     if clinical is not None:
         report, assessment = clinical
         return ReasoningResponse(status="ok", reasoning_report=report, severity_assessment=assessment,
-                                 model_name="Clinical checklist rules v1")
+                                 model_name="Clinical checklist rules v1" if assessment.source == "clinical_rules" else "Automatic visual thresholds")
     upstream = vision_results.get("upstream_severity")
     if not vision_results.get("detections"):
         return ReasoningResponse(status="unavailable", error_code="no_analysis_evidence", reasoning_report="No analyzed region is available for explanation.", severity_assessment=SeverityMetrics.model_validate(upstream) if upstream else None)

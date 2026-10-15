@@ -46,19 +46,19 @@ const getFetchReasoning = async () => {
 };
 
 describe('SmartDiagnostics', () => {
-  it('requires the checklist before verification and preserves its provenance in the case', async () => {
+  it('allows an optional clinical assessment and restores the automatic estimate when findings change', async () => {
     const api = await import('./services/api');
     vi.clearAllMocks();
+    const automatic = { grade: 'Moderate', formatted: 'Moderate visual burden (provisional)', source: 'visual_thresholds', assessment_status: 'provisional' };
     api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
       disease: { name: 'Mastitis', confidence: 99 },
-      severity: { grade: 'Severe', source: 'composite_scoring' } });
-    api.fetchReasoning.mockResolvedValueOnce({ status: 'ok', severity_assessment: {
-      grade: 'Unassessable', source: 'clinical_rules', assessment_status: 'unassessable',
-    } });
+      severity: automatic });
+    api.fetchReasoning.mockResolvedValueOnce({ status: 'ok', severity_assessment: automatic });
     renderWithRouter(<SmartDiagnostics />);
     await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
     const verify = screen.getByRole('button', { name: /Vet: Verify & Report/ });
-    expect(verify).toBeDisabled();
+    expect(verify).toBeEnabled();
+    fireEvent.click(screen.getByText('Optional clinical assessment'));
     const form = screen.getByRole('form', { name: 'Veterinary clinical checklist' });
     const selects = form.querySelectorAll('select');
     selects.forEach((element, index) => fireEvent.change(element, { target: { value: index === 0 ? 'true' : 'false' } }));
@@ -76,7 +76,34 @@ describe('SmartDiagnostics', () => {
     expect(api.reportDiagnosticCase.mock.calls[0][0].clinical_notes).toContain('mastitis_idf_signs_v1');
     expect(api.reportDiagnosticCase.mock.calls[0][0].clinical_notes).toContain('clinical_observations');
     fireEvent.change(selects[0], { target: { value: '' } });
-    expect(screen.getByRole('button', { name: /Vet: Verify & Report/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Vet: Verify & Report/ })).toBeEnabled();
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate visual burden (provisional)');
+  });
+
+  it.each(['Mastitis', 'Foot and Mouth Disease'])('automatically shows and reports visual severity for %s without checklist input', async (name) => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const severity = { grade: 'Moderate', source: 'visual_thresholds',
+      formatted: 'Moderate visual burden (provisional)', assessment_status: 'provisional',
+      assessment_target: 'predicted_lesion_burden_in_analyzed_crop',
+      description: 'Provisional visual estimate from predicted lesion coverage.', needs_review: true,
+      visual_assessment: { grade: 'Moderate', coverage_pct: 20, policy_version: 'crop_visual_burden_v1',
+        policy_sha256: 'example-policy-hash', thresholds_pct: { moderate_min_pct: 10, severe_min_pct: 30 } } };
+    api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
+      disease: { name, confidence: 90 }, severity });
+    api.fetchReasoning.mockResolvedValue({ status: 'ok', severity_assessment: severity });
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate visual burden (provisional)');
+    expect(screen.getByText('Automatic visual assessment')).toBeInTheDocument();
+    expect(screen.getByText('Optional clinical assessment').closest('details')).not.toHaveAttribute('open');
+    expect(api.fetchReasoning.mock.calls[0][0].clinical_observations).toBeUndefined();
+    const verify = screen.getByRole('button', { name: /Vet: Verify & Report/ });
+    expect(verify).toBeEnabled();
+    await act(async () => { fireEvent.click(verify); });
+    expect(api.reportDiagnosticCase).toHaveBeenCalledWith(expect.objectContaining({
+      severity: 'Moderate visual burden (provisional)', clinical_notes: expect.stringContaining('example-policy-hash'),
+    }));
   });
 
   it('renders the page title and dropzone in idle state', () => {

@@ -72,7 +72,15 @@ def test_each_disease_profile_is_configurable_and_hash_bound():
     assert original.grade == "Moderate" and modified.grade == "Mild"
     assert original.visual_assessment.policy_sha256 != modified.visual_assessment.policy_sha256
     assert mastitis.visual_assessment.grade == "Moderate"
-    assert mastitis.grade == "Unassessable" and mastitis.source == "clinical_rules"
+    assert mastitis.grade == "Moderate" and mastitis.source == "visual_thresholds"
+
+
+@pytest.mark.parametrize("name", ["mastitis", "foot_and_mouth", "lumpy_skin"])
+def test_automatic_primary_grade_needs_no_clinical_observations(name):
+    result = compute_composite_severity(signals(predicted_class=name))
+    assert result.grade == "Moderate" and result.source == "visual_thresholds"
+    assert result.clinical_observations is None
+    assert result.assessment_target == "predicted_lesion_burden_in_analyzed_crop"
 
 
 @pytest.mark.parametrize("moderate,severe", [(30, 10), (10, 10), (-1, 30), (10, 101), (float("nan"), 30)])

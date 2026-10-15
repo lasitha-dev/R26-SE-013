@@ -12,4 +12,12 @@ describe('Clinical severity display', () => {
     const assessment = { grade: 'Moderate' };
     expect(resolveSeverity(result, assessment)).toBe(assessment);
   });
+  it.each(['Mastitis', 'Foot and Mouth Disease'])('uses automatic visual estimates for %s and keeps clinical grading optional', (name) => {
+    const automatic = { grade: 'Moderate', source: 'visual_thresholds' };
+    const result = { disease: { name }, severity: automatic };
+    expect(resolveSeverity(result, null)).toBe(automatic);
+    expect(resolveSeverity(result, { grade: 'Severe', source: 'llm_reasoning' })).toBe(automatic);
+    const clinical = { grade: 'Mild', source: 'clinical_rules' };
+    expect(resolveSeverity(result, clinical)).toBe(clinical);
+  });
 });

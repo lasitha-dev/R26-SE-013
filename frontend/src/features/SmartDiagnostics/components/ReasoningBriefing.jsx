@@ -282,6 +282,16 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
     </div>;
   }
 
+  if (severityAssessment?.source === 'visual_thresholds') {
+    return <div className="rounded-2xl p-5 border border-outline-variant/20 bg-surface-container-low space-y-3" data-testid="reasoning-briefing">
+      <h3 className="font-bold text-on-surface">Automatic visual assessment</h3>
+      <p className="text-sm text-amber-300" data-testid="briefing-severity-grade">{severityAssessment.formatted || severityAssessment.grade}</p>
+      <p className="text-sm text-on-surface-variant">{severityAssessment.description}</p>
+      <p className="text-xs text-on-surface-variant">{severityAssessment.diagnostic_rationale}</p>
+      <p className="text-xs text-amber-300">Generated from model outputs. No clinical checklist is required. Clinical severity remains unestablished; the visual thresholds require validation.</p>
+    </div>;
+  }
+
   if (severityAssessment?.source === 'clinical_rules') {
     return <div className="rounded-2xl p-5 border border-amber-500/30 bg-surface-container-low space-y-3" data-testid="reasoning-briefing">
       <h3 className="font-bold text-on-surface">Clinical checklist briefing</h3>

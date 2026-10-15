@@ -63,7 +63,7 @@ def test_image_metrics_never_supply_a_clinical_grade(name):
     result = compute_composite_severity(dict(predicted_class=name, vit_confidence_pct=100,
         attention_coverage_pct=100, lesion_coverage_pct=100, yolo_detection_count=5))
     assert result.grade == "Unassessable"
-    assert result.source == "clinical_rules" and result.score is None
+    assert result.source == "visual_thresholds" and result.score is None
 
 
 def test_identical_clinical_findings_ignore_image_confidence_and_coverage():
@@ -114,12 +114,14 @@ def test_reason_endpoint_recomputes_grade_and_rejects_wrong_checklist(create_app
 
 
 @pytest.mark.parametrize("name", ["Foot and Mouth Disease", "Mastitis"])
-def test_detect_requires_checklist_for_clinical_diseases(name, create_app, dummy_rgb_image_bytes, mock_yolo_single_detection):
+def test_detect_automatically_estimates_visual_severity_for_clinical_diseases(name, create_app, dummy_rgb_image_bytes, mock_yolo_single_detection):
     client = TestClient(create_app(detector=FakeDetector(mock_yolo_single_detection),
         classifier=FakeClassifier(dict(name=name, confidence=99.9, all_probabilities={name: 99.9},
                                       attention_coverage_pct=99, attention_cluster_count=10, top2_margin=99)),
         segmenter=FakeSegmenter()))
     response = client.post("/api/detect", files={"image": ("cow.jpg", dummy_rgb_image_bytes, "image/jpeg")})
     assert response.status_code == 200
-    assert response.json()["severity"]["grade"] == "Unassessable"
+    assert response.json()["severity"]["grade"] == "Mild"
+    assert response.json()["severity"]["source"] == "visual_thresholds"
+    assert response.json()["severity"]["clinical_observations"] is None
     assert response.json()["symptoms_image"]  # Existing image-model evidence is still returned.

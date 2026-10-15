@@ -113,17 +113,18 @@ def assess_visual_severity(signals: dict[str, Any], policy: SeverityPolicy | Non
 
 
 def compute_composite_severity(signals: dict[str, Any], policy: SeverityPolicy | None = None) -> SeverityMetrics:
-    """Return observation-based clinical checklists plus separate visual evidence.
+    """Return automatic visual grades, or an explicitly requested clinical checklist.
 
-    The old confidence-weighted composite is retired. For LSD, score is crop-mask
-    coverage / 100, not a clinical probability. Missing masks never mean healthy.
+    The old confidence-weighted composite is retired. Score is crop-mask
+    coverage / 100 for every disease, not a clinical probability. Missing masks
+    never mean healthy. Clinical findings are optional and never inferred.
     """
     from .clinical_severity import assess_clinical_severity, clinical_disease_key
 
     visual = assess_visual_severity(signals, policy)
     predicted = (signals.get("predicted_class") if clinical_disease_key(signals.get("predicted_class"))
                  else signals.get("predicted_display"))
-    if clinical_disease_key(predicted):
+    if clinical_disease_key(predicted) and signals.get("clinical_observations") is not None:
         assessment = assess_clinical_severity(predicted, signals.get("clinical_observations"), signals)
         assessment.visual_assessment = visual
         return assessment
@@ -140,3 +141,18 @@ def compute_composite_severity(signals: dict[str, Any], policy: SeverityPolicy |
         spatial_correlation=signals.get("spatial_correlation"), lesion_coverage_pct=visual.coverage_pct,
         cluster_count=signals.get("cluster_count"), mean_intensity=signals.get("mean_intensity"),
         top2_margin=_number(signals.get("top2_margin"), 100), visual_assessment=visual)
+
+
+def visual_severity_report(name: str, assessment: SeverityMetrics) -> str:
+    """Deterministic explanation of an automatic estimate, without invented signs."""
+    visual = assessment.visual_assessment
+    coverage = (f"{visual.coverage_pct:g}% of analyzed crop pixels" if visual and visual.coverage_pct is not None
+                else "unavailable / not measured")
+    return (f"## 1. Automatic Visual Severity Estimate\n\n"
+            f"{assessment.formatted or assessment.grade}. {assessment.description}\n\n"
+            f"## 2. Image Evidence\n\nImage-model prediction: {name}. "
+            f"Predicted lesion coverage: {coverage}. {assessment.diagnostic_rationale}\n\n"
+            "## 3. Clinical Review\n\nThis estimate is generated automatically; no clinical checklist is required. "
+            "The thresholds are unvalidated. Images do not establish milk abnormalities, systemic illness, "
+            "appetite, mobility, physical lesion measurements or whole-animal clinical severity. "
+            "A veterinarian may optionally add observed findings for a separate clinical assessment.")

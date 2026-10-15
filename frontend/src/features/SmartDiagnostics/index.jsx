@@ -127,7 +127,9 @@ const SmartDiagnostics = () => {
 
   const clinicalKey = clinicalDiseaseKey(disease?.name);
   const effectiveSeverity = resolveSeverity(result, severityAssessment);
-  const clinicalReady = !clinicalKey || (severityAssessment?.source === 'clinical_rules' && severityAssessment?.assessment_status === 'provisional' && reasoningStatus === 'done');
+  const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
+  const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
+  const clinicalReady = !usesClinicalChecklist || (effectiveSeverity?.assessment_status === 'provisional' && reasoningStatus === 'done');
   const dynamicSeverity = effectiveSeverity;
   const dynamicSpatialCorrelation = result?.spatial_correlation || effectiveSeverity?.spatial_correlation;
 
@@ -201,15 +203,17 @@ const SmartDiagnostics = () => {
         breed: cattleInfo?.breed || 'Dairy Breed',
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
-        severity: severityGrade,
+        severity: automaticVisual ? severityFormatted : severityGrade,
         prognosis: prognosis,
         rationale: rationale,
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: clinicalKey
+        clinical_notes: usesClinicalChecklist
           ? `Veterinary checklist reviewed; provisional rule-based assessment. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, rubric_id: effectiveSeverity.rubric_id, assessment_status: effectiveSeverity.assessment_status, clinical_observations: effectiveSeverity.clinical_observations, evidence: effectiveSeverity.evidence, references: effectiveSeverity.references })}`
-          : `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
+          : automaticVisual
+            ? `Automatic visual estimate reviewed for this case; clinical severity is not established. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
+            : `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
         llm_reasoning: reasoning,
         verified: true,
       };
@@ -557,10 +561,17 @@ const SmartDiagnostics = () => {
                     </div>
                   </div>
 
-                  {clinicalKey && <ClinicalChecklist key={`${clinicalKey}:${imagePreview}`}
-                    diseaseKey={clinicalKey} busy={reasoningStatus === 'loading'}
-                    onAssess={assessClinicalObservations}
-                    onEdit={() => { invalidateClinicalAssessment(); setCaseReport(null); }} />}
+                  {clinicalKey && <details className="rounded-xl border border-outline-variant/20 p-3">
+                    <summary className="cursor-pointer text-xs text-on-surface">Optional clinical assessment</summary>
+                    <p className="my-2 text-xs text-on-surface-variant">The visual severity estimate is generated automatically. Add examination findings only if you want a separate clinical assessment.</p>
+                    <ClinicalChecklist key={`${clinicalKey}:${imagePreview}`}
+                      diseaseKey={clinicalKey} busy={reasoningStatus === 'loading'}
+                      onAssess={assessClinicalObservations}
+                      onEdit={() => { invalidateClinicalAssessment(); setCaseReport(null); }} />
+                    {usesClinicalChecklist && result?.severity?.source === 'visual_thresholds' && <button type="button"
+                      className="mt-2 text-xs text-primary underline"
+                      onClick={() => { invalidateClinicalAssessment(); setCaseReport(null); }}>Use automatic visual estimate</button>}
+                  </details>}
 
                   <ImageEvidenceStatus result={result} />
                   {/* Inference Results Card */}
@@ -597,7 +608,7 @@ const SmartDiagnostics = () => {
                       {needsReview && (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
-                          <span className="font-medium">{clinicalKey ? 'Clinical checklist requires veterinary review. Application accuracy has not been validated.' : 'Review required: inspect missing evidence, model uncertainty and image quality before clinical interpretation.'}</span>
+                          <span className="font-medium">{usesClinicalChecklist ? 'Clinical checklist requires veterinary review. Application accuracy has not been validated.' : 'Review required: inspect missing evidence, model uncertainty and image quality before clinical interpretation.'}</span>
                         </div>
                       )}
 
@@ -606,7 +617,7 @@ const SmartDiagnostics = () => {
                         <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1.5 flex items-center justify-between">
                           <span className="flex items-center gap-1">
                             <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
-                            {clinicalKey ? (clinicalKey === 'foot_and_mouth' ? 'FMD field triage assessment' : 'Clinical checklist assessment') : 'Existing Image Assessment'}
+                            {usesClinicalChecklist ? (clinicalKey === 'foot_and_mouth' ? 'FMD field triage assessment' : 'Clinical checklist assessment') : automaticVisual ? 'Automatic visual severity estimate' : 'Existing Image Assessment'}
                           </span>
                           {reasoningStatus === 'loading' ? (
                             <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 animate-pulse" data-testid="synthesising-badge">
@@ -615,7 +626,7 @@ const SmartDiagnostics = () => {
                             </span>
                           ) : (
                             <span className="text-[9px] font-mono text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10">
-                              {clinicalKey ? 'CLINICAL CHECKLIST · PROVISIONAL' : severityAssessment ? 'MODEL EXPLANATION' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
+                              {usesClinicalChecklist ? 'CLINICAL CHECKLIST · PROVISIONAL' : automaticVisual ? 'AUTOMATIC · PROVISIONAL' : severityAssessment ? 'MODEL EXPLANATION' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
                             </span>
                           )}
                         </p>
@@ -725,7 +736,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {clinicalKey ? 'CLINICAL OBSERVATIONS' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
+                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="diagnostic-rationale">

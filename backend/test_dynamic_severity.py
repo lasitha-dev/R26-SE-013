@@ -132,13 +132,13 @@ def test_markdown_severity_metadata_parsing():
 
     assert sev.grade == "Unassessable"
     assert "stage" not in sev.model_dump()
-    assert sev.prognosis == "Not assessed"
-    assert sev.source == "clinical_rules" and sev.needs_review
+    assert sev.prognosis is None
+    assert sev.source == "visual_thresholds" and sev.needs_review
     assert "Minimal lesions detected" not in sev.description
     assert "Vesicular erosion morphology" not in cleaned_report
-    assert sev.spatial_correlation is None
+    assert sev.spatial_correlation == vision_results["detections"][0]["spatial_correlation"]
     assert "### SEVERITY META" not in cleaned_report
-    assert cleaned_report.startswith("## 1. Clinical Checklist Assessment")
+    assert cleaned_report.startswith("## 1. Automatic Visual Severity Estimate")
 
 
 if __name__ == "__main__":

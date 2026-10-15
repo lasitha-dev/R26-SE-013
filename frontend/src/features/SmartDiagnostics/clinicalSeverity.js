@@ -4,10 +4,12 @@ export function clinicalDiseaseKey(name) {
   return key === 'mastitis' ? 'mastitis' : null;
 }
 
-// Never fall back to an image-only grade or a static disease profile for these cases.
+// Automatic visual estimates are primary; clinical checklists are an explicit option.
 export function resolveSeverity(result, assessment) {
   if (!clinicalDiseaseKey(result?.disease?.name)) return assessment || result?.severity;
   if (assessment?.source === 'clinical_rules') return assessment;
+  if (assessment?.source === 'visual_thresholds') return assessment;
+  if (result?.severity?.source === 'visual_thresholds') return result.severity;
   if (result?.severity?.source === 'clinical_rules') return result.severity;
   return {
     source: 'clinical_rules', grade: 'Unassessable', assessment_status: 'unassessable',

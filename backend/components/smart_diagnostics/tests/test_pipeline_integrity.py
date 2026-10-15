@@ -138,12 +138,16 @@ def test_three_model_evidence_and_thresholds_survive_api_and_explanation(
     assert visual['evidence']['yolo_confidence'] == payload['best_detection']['confidence']
     assert visual['evidence']['vit_confidence_pct'] == payload['disease']['confidence']
     assert 'visual_thresholds_unvalidated' in payload['review']['reasons']
-    if disease != 'Lumpy Skin Disease':
-        assert payload['severity']['grade'] == 'Unassessable'
+    assert payload['severity']['grade'] == 'Severe'
+    assert payload['severity']['source'] == 'visual_thresholds'
     with patch('openai.OpenAI', side_effect=ConnectionError('offline')):
         explained = client.post('/api/reason', json=payload)
     assert explained.status_code == 200
     assert explained.json()['severity_assessment']['visual_assessment'] == visual
+    assert explained.json()['severity_assessment']['grade'] == 'Severe'
+    if disease != 'Lumpy Skin Disease':
+        assert 'no clinical checklist is required' in explained.json()['reasoning_report']
+        assert explained.json()['model_name'] == 'Automatic visual thresholds'
 
 
 def test_high_mask_coverage_cannot_bypass_low_classifier_confidence(

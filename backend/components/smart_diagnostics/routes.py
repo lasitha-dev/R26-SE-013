@@ -196,13 +196,31 @@ async def detect(request: Request, image: UploadFile = File(...),
 
 @router.post("/api/reason", response_model=ReasoningResponse)
 async def reason(body: ReasoningRequest):
-    """Assess clinical checklists for FMD/mastitis; use the existing LLM for LSD.
+    """Explain automatic estimates; assess optional FMD/mastitis observations.
 
-    FMD/mastitis findings are validated and graded deterministically. Other
+    FMD/mastitis estimates and optional findings are explained deterministically. Other
     predictions follow the existing LM Studio reasoner in a threadpool.
     """
     from .implementations.clinical_severity import assess_clinical_severity, clinical_disease_key, clinical_report
     if body.cattle_detected and body.disease and clinical_disease_key(body.disease.name):
+        if body.clinical_observations is None:
+            from .implementations.severity_scorer import compute_composite_severity, visual_severity_report
+            # Rebuild from the supplied model measurements, rather than accepting a
+            # client-provided grade or retaining the former mandatory checklist.
+            probabilities = sorted(body.disease.all_probabilities.values(), reverse=True)
+            margin = (probabilities[0] - probabilities[1] if len(probabilities) >= 2
+                      else body.severity.top2_margin if body.severity else None)
+            visual = compute_composite_severity(dict(predicted_class=body.disease.name,
+                vit_confidence_pct=body.disease.confidence, top2_margin=margin,
+                yolo_confidence=body.best_detection.confidence if body.best_detection else None,
+                segmentation_status=body.segmentation.status if body.segmentation else None,
+                segmentation_contract_status=body.segmentation.contract_status if body.segmentation else None,
+                lesion_coverage_pct=body.segmentation.lesion_coverage_pct if body.segmentation else None,
+                cluster_count=body.segmentation.cluster_count if body.segmentation else None,
+                mean_intensity=body.segmentation.mean_intensity if body.segmentation else None,
+                spatial_correlation=body.spatial_correlation))
+            return ReasoningResponse(status="ok", reasoning_report=visual_severity_report(body.disease.name, visual),
+                model_name="Automatic visual thresholds", severity_assessment=visual)
         try:
             clinical = assess_clinical_severity(body.disease.name, body.clinical_observations,
                 body.severity.model_dump() if body.severity else None)

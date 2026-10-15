@@ -171,11 +171,14 @@ const FarmerSmartDiagnostics = () => {
 
   const clinicalKey = clinicalDiseaseKey(diseaseName);
   const effectiveSeverity = clinicalKey ? resolveSeverity(result, severityAssessment) : result?.severity;
+  const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
+  const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
   const dynamicSeverity = effectiveSeverity;
   const dynamicStage = result?.stage || result?.severity?.stage;
   const dynamicSpatialCorrelation = result?.spatial_correlation || result?.severity?.spatial_correlation;
 
   const severityGrade = effectiveSeverity?.grade || 'Unassessable';
+  const severityFormatted = effectiveSeverity?.formatted || severityGrade;
   const severityDescription = effectiveSeverity?.description || 'No severity assessment is available.';
   const confidenceLevel = effectiveSeverity?.confidence_level || 'Unknown';
   const needsReview = Boolean(effectiveSeverity?.needs_review || result?.review?.required);
@@ -240,14 +243,16 @@ const FarmerSmartDiagnostics = () => {
         breed: cattleInfo?.breed || 'Dairy Breed',
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
-        severity: severityGrade,
+        severity: automaticVisual ? severityFormatted : severityGrade,
         stage: stage,
         prognosis: prognosis,
         rationale: rationale,
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: `Farmer-submitted AI diagnostic report. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Awaiting veterinary verification.`,
+        clinical_notes: automaticVisual
+          ? `Farmer-submitted automatic visual estimate; clinical severity is not established. Awaiting veterinary verification. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
+          : `Farmer-submitted AI diagnostic report. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Awaiting veterinary verification.`,
         llm_reasoning: reasoning,
         verified: false, // Farmers create pending verification reports
       };
@@ -788,9 +793,9 @@ const FarmerSmartDiagnostics = () => {
                       {/* Step 3: Clinical Metrics */}
                       <div className={`p-2.5 rounded-xl border transition-all duration-300 ${visibleSteps >= 3 ? 'bg-surface-container border-primary/30 opacity-100' : 'bg-surface-container/30 border-transparent opacity-30'}`}>
                         <div className="flex items-center justify-between text-2xs mb-0.5">
-                          <span className="text-outline uppercase font-bold">{clinicalKey ? 'Step 3 · Clinical review required' : 'Step 3 • Severity & AI Confidence'}</span>
+                          <span className="text-outline uppercase font-bold">{automaticVisual ? 'Step 3 · Automatic visual estimate' : clinicalKey ? 'Step 3 · Clinical review required' : 'Step 3 • Severity & AI Confidence'}</span>
                           <div className="flex items-center gap-1.5">
-                            <span className={`font-bold ${severityColor}`}>{severityGrade}</span>
+                            <span className={`font-bold ${severityColor}`}>{severityFormatted}</span>
                             {confidenceLevel && (
                               <span className={`px-1 py-0.2 rounded text-[9px] font-mono font-bold ${
                                 confidenceLevel === 'High'
@@ -927,7 +932,7 @@ const FarmerSmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {clinicalKey ? 'CLINICAL OBSERVATIONS' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
+                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">

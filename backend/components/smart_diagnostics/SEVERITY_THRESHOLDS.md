@@ -37,10 +37,19 @@ is skipped. All outputs require review; scores within two percentage points of a
 cutoff receive an additional boundary flag. An unverified segmentation training
 contract is also shown. Confidence gates themselves remain unvalidated defaults.
 
-FMD and mastitis clinical grades continue to use veterinary observations. Their
-visual grade is returned separately in `severity.visual_assessment`. The existing
-clinical checklist never obtains a clinical grade from mask percentages. LSD's
-`severity.score` now holds crop coverage / 100 when assessable; the obsolete
+LSD, FMD and mastitis all return an **automatic visual estimate** as the primary
+`severity`, without requiring veterinary input. It is available immediately from
+`/api/detect`; FMD/mastitis explanations do not require an LLM. The full visual
+evidence remains in `severity.visual_assessment`.
+
+FMD and mastitis clinical checklists are optional, under "Optional clinical
+assessment" in the UI. Explicitly submitting clinical observations requests that
+separate assessment via `/api/reason`. It does not turn visual cutoffs into clinical
+grades. Editing or clearing the clinical assessment restores the original automatic
+estimate. Cases recorded from visual estimates retain the provisional visual label
+and threshold evidence, without claiming a clinical grade was established.
+
+For automatic visual estimates, `severity.score` holds crop coverage / 100 when assessable; the obsolete
 `composite_score` is null. Consumers must inspect `source`, `assessment_target`
 and `formatted`, rather than treating all numeric scores as comparable. LLM
 explanations retain the supplied assessment.
