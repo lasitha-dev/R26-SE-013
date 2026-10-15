@@ -108,9 +108,26 @@ export function RiskReasonCard({ reason }) {
         {reason.steps.map((step, index) => (
           <li key={step.title} className="flex items-start gap-2.5">
             <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[11px] font-bold text-emerald-300">{index + 1}</span>
-            <span>
+            <span className="min-w-0 flex-1">
               <strong className="block text-[12px] font-semibold text-white">{step.title}</strong>
-              <span className="text-slate-400">{step.text}</span>
+              {step.points ? (
+                <>
+                  <ul className="mt-1 space-y-1">
+                    {step.points.map((point) => (
+                      <li
+                        key={point.key}
+                        className={`flex items-start gap-2 rounded-md px-2 py-1 ${point.key === step.current ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30' : ''}`}
+                      >
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[point.key === 'USUAL' ? 'usual' : point.key.toLowerCase()]}`} aria-hidden="true" />
+                        <span><strong className="font-semibold text-white">{point.label}</strong> <span className="text-slate-400">&mdash; {point.text}</span></span>
+                      </li>
+                    ))}
+                  </ul>
+                  <span className="mt-1.5 block font-semibold text-emerald-300">{step.text}</span>
+                </>
+              ) : (
+                <span className="text-slate-400">{step.text}</span>
+              )}
             </span>
           </li>
         ))}

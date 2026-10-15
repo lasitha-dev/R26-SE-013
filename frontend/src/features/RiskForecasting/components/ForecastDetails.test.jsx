@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ForecastDetails } from './ForecastDetails';
 import { RiskReasonBulb } from './GuideCards';
 
@@ -24,6 +24,13 @@ describe('Risk reason bulb', () => {
     expect(card).toHaveTextContent('In past years, the chance of an outbreak in Colombo in October was 3.1%.');
     expect(card).toHaveTextContent('29.5% \u00f7 3.1% = 9.6 times the usual chance.');
     expect(card).toHaveTextContent('This forecast is HIGH.');
+    const rule = within(card).getByText('The rule').closest('li');
+    const points = within(rule).getAllByRole('listitem');
+    expect(points.map((li) => li.textContent)).toEqual([
+      'USUAL LEVEL \u2014 under 2\u00d7 the usual chance',
+      'MEDIUM \u2014 2\u00d7 to 4\u00d7 the usual chance',
+      'HIGH \u2014 4\u00d7 or more, or a 50% chance or more',
+    ]);
   });
 
   it('shows no bulb for a usual-level (baseline) record', () => {

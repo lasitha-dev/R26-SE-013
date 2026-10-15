@@ -458,7 +458,16 @@ export function describeRiskReason(record, district) {
     { title: 'The usual chance', text: usual ? `In past years, the chance of an outbreak in ${where} in ${month} was ${usual}.` : `The usual chance for ${where} in ${month}, from past years.` },
     { title: 'The chance this month', text: `${chance ? `${chance}` : 'The forecast'} ${chance ? 'is' : 'is worked out'} from last month's outbreak status, the weather and climate.${interval ? ` (${interval})` : ''}` },
     { title: 'Compare the two', text: usual && chance && times ? `${chance} \u00f7 ${usual} = ${times} times the usual chance.` : 'The forecast chance divided by the usual chance.' },
-    { title: `The rule`, text: `Under ${RISK_TIER_GUIDE.medium}\u00d7 is USUAL LEVEL, ${RISK_TIER_GUIDE.medium}\u00d7 to ${RISK_TIER_GUIDE.high}\u00d7 is MEDIUM, ${RISK_TIER_GUIDE.high}\u00d7 or more (or a ${RISK_TIER_GUIDE.highChancePercent}% chance) is HIGH. This forecast is ${level}.` },
+    {
+      title: 'The rule',
+      points: [
+        { key: 'USUAL', label: 'USUAL LEVEL', text: `under ${RISK_TIER_GUIDE.medium}\u00d7 the usual chance` },
+        { key: 'MEDIUM', label: 'MEDIUM', text: `${RISK_TIER_GUIDE.medium}\u00d7 to ${RISK_TIER_GUIDE.high}\u00d7 the usual chance` },
+        { key: 'HIGH', label: 'HIGH', text: `${RISK_TIER_GUIDE.high}\u00d7 or more, or a ${RISK_TIER_GUIDE.highChancePercent}% chance or more` },
+      ],
+      current: level,
+      text: `This forecast is ${level}.`,
+    },
   ];
   return { level, headline: `Why the risk is ${level}`, sentence, evidence, steps };
 }
