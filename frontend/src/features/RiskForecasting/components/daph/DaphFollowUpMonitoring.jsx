@@ -8,6 +8,7 @@ import {
   listFollowUps,
   getFollowUp,
   cancelFollowUp,
+  listEligibleFollowUpVets,
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
   RiskForecastingWorkflowApiError,
@@ -179,6 +180,23 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
     },
     [isAuthorized, actorContext, filters]
   );
+
+  // Officer names for the ids on the records (the directory is queried once per district)
+  const [vetNames, setVetNames] = useState({});
+  useEffect(() => {
+    if (!actorContext || followUps.length === 0) return undefined;
+    let active = true;
+    const districts = [...new Set(followUps.map((f) => f.district).filter(Boolean))];
+    Promise.all(districts.map((district) => listEligibleFollowUpVets({ district }, { actorContext }).catch(() => null)))
+      .then((results) => {
+        if (!active) return;
+        const names = {};
+        results.forEach((res) => (res?.veterinary_officers || []).forEach((v) => { names[v.vet_id] = v.display_name; }));
+        setVetNames((prev) => ({ ...prev, ...names }));
+      });
+    return () => { active = false; };
+  }, [followUps, actorContext]);
+  const officerName = (id) => (id ? vetNames[id] || 'Veterinary officer' : 'N/A');
 
   useEffect(() => {
     fetchFollowUps();
@@ -525,8 +543,8 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                           <span className="font-semibold text-slate-200">{record.disease}</span>
                           <span className="text-slate-500 block">{record.district}</span>
                         </td>
-                        <td className="p-3 font-mono text-slate-400">
-                          {record.assigned_vet_id || 'N/A'}
+                        <td className="p-3 text-slate-200" title={record.assigned_vet_id || ''}>
+                          {officerName(record.assigned_vet_id)}
                         </td>
                         <td className="p-3 font-semibold">
                           {record.operational_priority || 'N/A'}
@@ -639,12 +657,14 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
               {/* Personnel Assignment */}
               <div className="grid grid-cols-2 gap-2 text-slate-300">
                 <div>
-                  <span className="text-slate-500 block">Assigned Vet ID:</span>
-                  <span className="font-mono font-semibold text-white">{selectedRecord.assigned_vet_id || 'N/A'}</span>
+                  <span className="text-slate-500 block">Assigned Vet:</span>
+                  <span className="font-semibold text-white" title={selectedRecord.assigned_vet_id || ''}>{officerName(selectedRecord.assigned_vet_id)}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Issued By DAPH:</span>
-                  <span className="font-mono font-semibold text-white">{selectedRecord.issued_by_daph_id || 'N/A'}</span>
+                  <span className="font-semibold text-white" title={selectedRecord.issued_by_daph_id || ''}>
+                    {selectedRecord.issued_by_daph_id ? (selectedRecord.issued_by_daph_id === userId ? 'DAPH Official (You)' : 'DAPH Official') : 'N/A'}
+                  </span>
                 </div>
               </div>
 
@@ -747,7 +767,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
             <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800 space-y-1 text-xs text-slate-300">
               <p><strong>Disease / District:</strong> {cancelModalRecord.disease} ({cancelModalRecord.district})</p>
-              <p><strong>Assigned Vet:</strong> {cancelModalRecord.assigned_vet_id || 'N/A'}</p>
+              <p><strong>Assigned Vet:</strong> {officerName(cancelModalRecord.assigned_vet_id)}</p>
               <p><strong>Current Status:</strong> {cancelModalRecord.status} (v{cancelModalRecord.version})</p>
             </div>
 
