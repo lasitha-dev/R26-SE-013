@@ -205,6 +205,25 @@ records are kept as issued and are not re-written; they are late-issued (day 14)
 they should not be counted as prospective validation evidence. The first prospective run is the next month,
 issued on or after day 5 with `v2.1`.
 
+## 6d. Does the forecast respond to recorded cases? (synthetic what-if)
+
+`scripts/v2/counterfactual_cases_test.py` computes the October 2026 forecast twice for one district, once with no
+verified cases in September 2026 and once with 3 verified cases, everything else identical. The surveillance
+input is synthetic, nothing is read from or written to the database, and the forecasts are not saved. It shows how
+the deployed forecasters react; it is not an outbreak prediction.
+
+| Disease, district | Surveillance known | Forecaster | No cases | 3 cases |
+|---|---|---|---|---|
+| LSD, Gampaha | district and neighbours | A | 5.3% (1.6x usual) | 16.1% (4.9x usual, HIGH) |
+| LSD, Gampaha | district only | climatology | 3.3% | 3.3% |
+| FMD, Colombo | district and neighbours | climatology | 3.1% | 3.1% |
+| FMD, Colombo | district only | O | 5.7% (1.9x usual) | 27.3% (8.8x usual, HIGH) |
+
+Reading: where a fitted forecaster is deployed (section 6), recorded cases raise the probability, and for LSD variant A
+the neighbouring districts rise too (Colombo, Kegalle, Kurunegala, Puttalam 4.7-5.7% to 7.0-8.3%). Where the deployed
+forecaster is the climatology baseline, cases do not change the forecast. One recorded month moves a probability a lot
+(5% to 16-27%); both forecasters are weak back-tested candidates, so read the result as "x times the usual rate".
+
 ## 7. Protocol history (all evaluation runs, for transparency)
 
 1. **Run 1:** variants A and B, C chosen on the first backtest year. FMD: A passed. LSD: nothing
