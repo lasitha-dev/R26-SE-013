@@ -822,116 +822,86 @@ describe('FarmerDiseaseRisk Component', () => {
     });
   });
 
-  describe('Farmer Authenticated Demo Mode Direct UI Tests', () => {
-    it('uses protected demo forecast API and not legacy public API when rendered under authenticated DemoForecastingAuthContext', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      const mockFetchCombined = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: {
-            disease: 'FMD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Jaffna', probability_pct: 55, risk_level: 'MEDIUM' }],
-          },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: {
-            disease: 'LSD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Jaffna', probability_pct: 35, risk_level: 'LOW' }],
-          },
-          error: null,
-        },
-      });
-
-      const legacyApiSpy = vi.fn();
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validFarmerContext,
-        logout: vi.fn(),
-      };
-
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2024} initialMonth={1} predictionService={legacyApiSpy} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      await waitFor(() => {
-        expect(mockFetchCombined).toHaveBeenCalledOnce();
-      });
-
-      expect(legacyApiSpy).not.toHaveBeenCalled();
-      const callArgs = mockFetchCombined.mock.calls[0][0];
-      expect(callArgs.district).toBe('Jaffna');
-      expect(callArgs.year).toBe(2024);
-      expect(callArgs.targetMonth).toBe(1);
-
-      // Verify district selector does not exist
-      expect(screen.queryByLabelText(/select district/i)).not.toBeInTheDocument();
-      expect(screen.getByText('Jaffna')).toBeInTheDocument();
-
-      // Verify non-diagnostic disclaimer and statistical risk statement
-      expect(screen.getAllByText(/early-warning forecast/i).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText(/Seasonal forecasts provide statistical risk estimates/i)).toBeInTheDocument();
+  describe('One official result: the stored forecast', () => {
+    const v2Record = (overrides) => ({
+      forecast_id: 'fdr_x', disease: 'FMD', district: 'Jaffna', target_year: 2026, target_month: 10,
+      probability: 0.31, probability_pct: 31.0, risk_level: 'MEDIUM', predicted_severity: null,
+      status: 'GENERATED', model_version: 'fmd_v2.0', forecaster: 'O', deployment_status: 'back_tested',
+      relative_risk: 2.4, probability_low: 0.18, probability_high: 0.47, interval_level: 0.8,
+      fallback_applied: false, input_quality: 'COMPLETE', generated_at: '2026-10-13T00:00:00Z',
+      ...overrides,
+    });
+    const asResult = (record) => ({
+      status: 'success',
+      data: {
+        stage1: { probability_pct: record.probability_pct, risk_level: record.risk_level, predicted_severity: null },
+        provenance: { fallback_applied: record.fallback_applied, data_quality_status: 'OK' },
+        record,
+      },
+      error: null,
     });
 
-    it('makes 0 requests on month/year dropdown change and 1 combined request on Update Forecast form submission', async () => {
+    it('reads the stored forecast even under demo authentication and never calls the live demo prediction API', async () => {
       const demoApi = await import('../../services/demoForecastingApi.js');
-      const mockFetchCombined = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
+      const liveSpy = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts');
+      const stored = vi.fn().mockResolvedValue({
         overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: { disease: 'FMD', target_year: 2024, target_month: 1, districts: [{ district: 'Jaffna', probability_pct: 50, risk_level: 'MEDIUM' }] },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: { disease: 'LSD', target_year: 2024, target_month: 1, districts: [{ district: 'Jaffna', probability_pct: 30, risk_level: 'LOW' }] },
-          error: null,
-        },
+        fmd: asResult(v2Record({})),
+        lsd: asResult(v2Record({ disease: 'LSD', probability_pct: 12, risk_level: 'LOW', forecaster: 'climatology', deployment_status: 'baseline' })),
       });
-
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validFarmerContext,
-        logout: vi.fn(),
-      };
-
       const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
+      const authValue = { isDemoEnabled: true, isDemoAuthenticated: true, viewerContext: validFarmerContext, logout: vi.fn() };
 
       render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2024} initialMonth={1} />
+        <DemoForecastingAuthContext.Provider value={authValue}>
+          <FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2026} initialMonth={10} predictionService={stored} />
         </DemoForecastingAuthContext.Provider>
       );
 
-      await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(stored).toHaveBeenCalledOnce());
+      expect(stored).toHaveBeenCalledWith({ district: 'Jaffna', year: 2026, month: 10 });
+      expect(liveSpy).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByText('31.0%')).toBeInTheDocument());
+      expect(screen.getByText('MEDIUM RISK')).toBeInTheDocument();
+      expect(screen.getAllByText('80% range 18–47%').length).toBeGreaterThanOrEqual(1);
+      liveSpy.mockRestore();
+    });
 
-      // Change dropdown values
-      const monthSelect = screen.getByLabelText('Forecast month');
-      const yearSelect = screen.getByLabelText('Forecast year');
+    it('shows a seasonal baseline as such, never as an assessed LOW RISK', async () => {
+      const baseline = v2Record({ probability_pct: 12.0, risk_level: 'LOW', forecaster: 'climatology', deployment_status: 'baseline', relative_risk: 1.0, probability_low: 0.05, probability_high: 0.25, fallback_applied: true });
+      const stored = vi.fn().mockResolvedValue({
+        overallStatus: 'success',
+        fmd: asResult(baseline),
+        lsd: asResult({ ...baseline, disease: 'LSD' }),
+      });
+      render(<FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2026} initialMonth={10} predictionService={stored} />);
 
-      fireEvent.change(monthSelect, { target: { value: 5 } });
-      fireEvent.change(yearSelect, { target: { value: 2025 } });
+      await waitFor(() => expect(screen.getAllByText('USUAL LEVEL').length).toBe(2));
+      expect(screen.queryByText('LOW RISK')).not.toBeInTheDocument();
+      expect(screen.getAllByText(/historical pattern for the month/i).length).toBe(2);
+    });
 
-      expect(mockFetchCombined).toHaveBeenCalledTimes(1); // 0 additional calls
+    it('says plainly when no forecast has been issued, instead of inventing one', async () => {
+      const none = { status: 'error', data: null, error: { category: 'NO_RECORD' } };
+      const stored = vi.fn().mockResolvedValue({ overallStatus: 'error', fmd: none, lsd: none });
+      render(<FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2026} initialMonth={11} predictionService={stored} />);
 
-      // Submit form
-      const updateBtn = screen.getByRole('button', { name: /update forecast/i });
-      fireEvent.click(updateBtn);
+      await waitFor(() => expect(screen.getAllByText('No forecast has been issued for this month yet.').length).toBe(2));
+      expect(screen.queryByText(/% range/)).not.toBeInTheDocument();
+    });
 
-      await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(2));
-      expect(mockFetchCombined).toHaveBeenLastCalledWith(expect.objectContaining({ year: 2025, targetMonth: 5, district: 'Jaffna' }));
+    it('makes 0 requests on dropdown change and 1 on Update Forecast', async () => {
+      const stored = vi.fn().mockResolvedValue({ overallStatus: 'success', fmd: asResult(v2Record({})), lsd: asResult(v2Record({ disease: 'LSD' })) });
+      render(<FarmerDiseaseRisk viewerContext={validFarmerContext} initialYear={2026} initialMonth={10} predictionService={stored} />);
+      await waitFor(() => expect(stored).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(screen.getByLabelText('Forecast month'), { target: { value: 5 } });
+      fireEvent.change(screen.getByLabelText('Forecast year'), { target: { value: 2025 } });
+      expect(stored).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole('button', { name: /update forecast/i }));
+      await waitFor(() => expect(stored).toHaveBeenCalledTimes(2));
+      expect(stored).toHaveBeenLastCalledWith({ district: 'Jaffna', year: 2025, month: 5 });
     });
   });
 });

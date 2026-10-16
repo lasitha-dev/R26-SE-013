@@ -7,6 +7,7 @@ import * as workflowApi from '../../services/riskForecastingWorkflowApi';
 
 vi.mock('../../services/riskForecastingWorkflowApi', () => ({
   createForecastRecord: vi.fn(),
+  listForecastRecords: vi.fn(),
 }));
 
 describe('VeterinaryDistrictForecasts Component', () => {
@@ -310,348 +311,113 @@ describe('VeterinaryDistrictForecasts Component', () => {
   });
 
   // 5. Interactive Demo Mode & Official Record Workflow Tests
-  describe('Veterinary Authenticated Demo Mode Direct UI Tests', () => {
-    it('renders protected forecast controls and restricts selector to authorizedDistricts in demo mode', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      const mockFetchCombined = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: {
-            disease: 'FMD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Vavuniya', probability_pct: 65, risk_level: 'HIGH' }],
-          },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: {
-            disease: 'LSD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Vavuniya', probability_pct: 25, risk_level: 'LOW' }],
-          },
-          error: null,
-        },
-      });
-
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-        logout: vi.fn(),
-      };
-
+  describe('Connected mode shows the stored (official) forecasts only', () => {
+    const rec = (disease, district, overrides) => ({
+      forecast_id: `fdr_${disease}_${district}`, disease, district, target_year: 2025, target_month: 1,
+      probability: 0.31, probability_pct: 31.0, risk_level: 'MEDIUM', predicted_severity: null,
+      status: 'GENERATED', generated_at: '2026-10-13T00:00:00Z', model_version: 'fmd_v2.0', forecaster: 'O',
+      deployment_status: 'back_tested', relative_risk: 2.4, probability_low: 0.18, probability_high: 0.47,
+      interval_level: 0.8, data_quality: 'V2_MODEL', fallback_applied: false,
+      ...overrides,
+    });
+    const authValue = {
+      isDemoEnabled: true,
+      isDemoAuthenticated: true,
+      viewerContext: validDistrictVetContext,
+      logout: vi.fn(),
+    };
+    const renderConnected = async (initialProps = {}) => {
       const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
+      return render(
+        <DemoForecastingAuthContext.Provider value={authValue}>
+          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} {...initialProps} />
         </DemoForecastingAuthContext.Provider>
       );
+    };
 
-      // Verify controls render
-      const districtSelect = screen.getByLabelText('Target district');
-      expect(districtSelect).toBeInTheDocument();
+    it('restricts the selector to authorized districts and reads the stored records of every authorized district for both diseases', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
+      await renderConnected();
 
-      // Options must include "ALL" plus Vavuniya & Mannar, but NO Colombo
-      const options = Array.from(districtSelect.querySelectorAll('option')).map((o) => o.value);
+      const options = Array.from(screen.getByLabelText('Target district').querySelectorAll('option')).map((o) => o.value);
       expect(options).toEqual(['ALL', 'Vavuniya', 'Mannar']);
-      expect(options).not.toContain('Colombo');
 
-      await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(1));
-      await waitFor(() =>
-        expect(
-          screen.getByText(
-            'Foot-and-Mouth Disease (FMD) District Forecasts'
-          )
-        ).toBeInTheDocument()
-      );
-
-      // Verify FMD and LSD sections render separately
-      expect(screen.getByText('Lumpy Skin Disease (LSD) District Forecasts')).toBeInTheDocument();
-
-      // Verify non-diagnostic disclaimer
-      expect(screen.getByText(/Disease risk forecasts are district-level early-warning estimates/i)).toBeInTheDocument();
-
-      // Verify no model variant selector exists
-      expect(screen.queryByLabelText(/model variant/i)).not.toBeInTheDocument();
+      await waitFor(() => expect(workflowApi.listForecastRecords).toHaveBeenCalledTimes(4));
+      const calls = workflowApi.listForecastRecords.mock.calls.map(([f]) => `${f.disease}:${f.district}`).sort();
+      expect(calls).toEqual(['FMD:Mannar', 'FMD:Vavuniya', 'LSD:Mannar', 'LSD:Vavuniya']);
     });
 
-    it('submits exact explicit array when "All authorized districts" is selected', async () => {
+    it('never runs a model on demand: no demo prediction API, no save-as-record action', async () => {
       const demoApi = await import('../../services/demoForecastingApi.js');
-      const mockFetchCombined = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: { status: 'success', data: { disease: 'FMD', target_year: 2024, target_month: 1, districts: [] }, error: null },
-        lsd: { status: 'success', data: { disease: 'LSD', target_year: 2024, target_month: 1, districts: [] }, error: null },
-      });
+      const liveSpy = vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      workflowApi.listForecastRecords.mockImplementation(async ({ disease, district }) => ({ records: [rec(disease, district)] }));
 
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-        logout: vi.fn(),
-      };
+      await renderConnected();
+      await waitFor(() => expect(screen.getByText('Foot-and-Mouth Disease (FMD) District Forecasts')).toBeInTheDocument());
 
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(screen.getByRole('button', { name: /update forecast/i })).not.toBeDisabled());
-
-      const updateBtn = screen.getByRole('button', { name: /update forecast/i });
-      fireEvent.click(updateBtn);
-
-      await waitFor(() => expect(mockFetchCombined).toHaveBeenCalledTimes(2));
-
-      const callArg = mockFetchCombined.mock.calls[0][0];
-      expect(callArg.districts).toEqual(['Vavuniya', 'Mannar']);
-      expect(callArg.district).toBeUndefined();
+      expect(liveSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(workflowApi.createForecastRecord).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: /save as official forecast record/i })).not.toBeInTheDocument();
+      expect(screen.getAllByText('MEDIUM RISK').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('80% range 18–47%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('2.4× usual for this district and month').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('Clicking "Save as Official Forecast Record" submits authoritative params without client probability/risk', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: {
-            disease: 'FMD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Vavuniya', probability_pct: 65.5, risk_level: 'HIGH' }],
-          },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: { disease: 'LSD', target_year: 2024, target_month: 1, districts: [] },
-          error: null,
-        },
-      });
-
-      workflowApi.createForecastRecord.mockResolvedValue({
-        forecast_id: 'fdr_saved_001',
-        disease: 'FMD',
-        district: 'Vavuniya',
-        target_year: 2024,
-        target_month: 1,
-        risk_level: 'HIGH',
-        status: 'GENERATED',
-      });
-
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-      };
-
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      const saveBtn = await screen.findByRole('button', { name: /Save as Official Forecast Record/i });
-      fireEvent.click(saveBtn);
-
-      expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
-        disease: 'FMD',
-        district: 'Vavuniya',
-        year: 2024,
-        month: 1,
-        trigger_type: 'MANUAL',
-        generated_by: 'usr_vet_district_002',
-        idempotency_key: 'usr_vet_district_002_Vavuniya_FMD_2024_1_manual_save',
-      });
-
-      const callArgs = workflowApi.createForecastRecord.mock.calls[0][0];
-      expect(callArgs.probability_pct).toBeUndefined();
-      expect(callArgs.predicted_probability).toBeUndefined();
-      expect(callArgs.risk_level).toBeUndefined();
-
-      expect(await screen.findByText('Official Record Saved')).toBeInTheDocument();
-      expect(screen.getByText('ID: fdr_saved_001')).toBeInTheDocument();
+    it('shows a baseline record as the usual level, never as an assessed LOW RISK', async () => {
+      workflowApi.listForecastRecords.mockImplementation(async ({ disease, district }) => ({
+        records: [rec(disease, district, { forecaster: 'climatology', deployment_status: 'baseline', risk_level: 'LOW', probability_pct: 12, relative_risk: 1.0, fallback_applied: true, data_quality: 'V2_BASELINE' })],
+      }));
+      await renderConnected();
+      await waitFor(() => expect(screen.getAllByText('USUAL LEVEL').length).toBeGreaterThanOrEqual(1));
+      expect(screen.queryByText('LOW RISK')).not.toBeInTheDocument();
     });
 
-    it('Clicking LSD "Save as Official Forecast Record" submits disease: "LSD" and the target card district', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: { disease: 'FMD', target_year: 2024, target_month: 1, districts: [] },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: {
-            disease: 'LSD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Mannar', probability_pct: 35.0, risk_level: 'MEDIUM' }],
-          },
-          error: null,
-        },
-      });
-
-      workflowApi.createForecastRecord.mockResolvedValue({
-        forecast_id: 'fdr_lsd_saved_002',
-        disease: 'LSD',
-        district: 'Mannar',
-        year: 2024,
-        month: 1,
-        risk_level: 'MEDIUM',
-        status: 'GENERATED',
-      });
-
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-      };
-
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      const saveBtns = await screen.findAllByRole('button', { name: /Save as Official Forecast Record/i });
-      fireEvent.click(saveBtns[0]); // First visible save button belongs to LSD section (since FMD districts array is empty)
-
-      expect(workflowApi.createForecastRecord).toHaveBeenCalledWith({
-        disease: 'LSD',
-        district: 'Mannar',
-        year: 2024,
-        month: 1,
-        trigger_type: 'MANUAL',
-        generated_by: 'usr_vet_district_002',
-        idempotency_key: 'usr_vet_district_002_Mannar_LSD_2024_1_manual_save',
-      });
-
-      expect(await screen.findByText('Official Record Saved')).toBeInTheDocument();
-      expect(screen.getByText('ID: fdr_lsd_saved_002')).toBeInTheDocument();
+    it('says so when no forecast has been issued for a district, instead of inventing one', async () => {
+      workflowApi.listForecastRecords.mockImplementation(async ({ disease, district }) => (
+        district === 'Vavuniya' ? { records: [rec(disease, district)] } : { records: [] }
+      ));
+      await renderConnected();
+      await waitFor(() => expect(screen.getByText(/No FMD forecast has been issued for/)).toBeInTheDocument());
+      expect(screen.getByText(/No LSD forecast has been issued for/)).toBeInTheDocument();
     });
 
-    it('Handles save errors and clears stale save confirmations when input parameters change', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: {
-            disease: 'FMD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Vavuniya', probability_pct: 65.5, risk_level: 'HIGH' }],
-          },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: { disease: 'LSD', target_year: 2024, target_month: 1, districts: [] },
-          error: null,
-        },
-      });
-
-      workflowApi.createForecastRecord.mockRejectedValue(new Error('Record already exists'));
-
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-      };
-
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      const saveBtn = await screen.findByRole('button', { name: /Save as Official Forecast Record/i });
-      fireEvent.click(saveBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText('Record already exists')).toBeInTheDocument();
-      });
-
-      // Change month selection -> clears error/saved state
-      const monthSelect = screen.getByLabelText('Forecast month');
-      fireEvent.change(monthSelect, { target: { value: '2' } });
-
-      expect(screen.queryByText('Record already exists')).not.toBeInTheDocument();
+    it('ignores superseded records and prefers a v2 record', async () => {
+      workflowApi.listForecastRecords.mockImplementation(async ({ disease, district }) => ({
+        records: [
+          rec(disease, district, { forecast_id: 'old_v2', status: 'SUPERSEDED', probability_pct: 99, risk_level: 'HIGH' }),
+          rec(disease, district, { forecast_id: 'v1', model_version: undefined, forecaster: undefined, probability_pct: 77, risk_level: 'HIGH', generated_at: '2026-10-20T00:00:00Z' }),
+          rec(disease, district, { forecast_id: 'v2', probability_pct: 31 }),
+        ],
+      }));
+      await renderConnected();
+      await waitFor(() => expect(screen.getAllByText('31.0%').length).toBeGreaterThanOrEqual(1));
+      expect(screen.queryByText('99.0%')).not.toBeInTheDocument();
+      expect(screen.queryByText('77.0%')).not.toBeInTheDocument();
     });
 
-    it('Blocks duplicate save click while request is pending', async () => {
-      const demoApi = await import('../../services/demoForecastingApi.js');
-      vi.spyOn(demoApi, 'fetchAuthorizedDiseaseForecasts').mockResolvedValue({
-        overallStatus: 'success',
-        fmd: {
-          status: 'success',
-          data: {
-            disease: 'FMD',
-            target_year: 2024,
-            target_month: 1,
-            districts: [{ district: 'Vavuniya', probability_pct: 65.5, risk_level: 'HIGH' }],
-          },
-          error: null,
-        },
-        lsd: {
-          status: 'success',
-          data: { disease: 'LSD', target_year: 2024, target_month: 1, districts: [] },
-          error: null,
-        },
-      });
+    it('re-reads only the chosen district when one is selected and the form is submitted', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
+      await renderConnected();
+      await waitFor(() => expect(workflowApi.listForecastRecords).toHaveBeenCalledTimes(4));
 
-      let resolveSave;
-      const pendingPromise = new Promise((resolve) => {
-        resolveSave = resolve;
-      });
-      workflowApi.createForecastRecord.mockReturnValue(pendingPromise);
+      fireEvent.change(screen.getByLabelText('Target district'), { target: { value: 'Mannar' } });
+      fireEvent.change(screen.getByLabelText('Forecast month'), { target: { value: 5 } });
+      fireEvent.change(screen.getByLabelText('Forecast year'), { target: { value: 2025 } });
+      expect(workflowApi.listForecastRecords).toHaveBeenCalledTimes(4); // dropdown changes call nothing
 
-      const mockAuthValue = {
-        isDemoEnabled: true,
-        isDemoAuthenticated: true,
-        viewerContext: validDistrictVetContext,
-      };
+      fireEvent.click(screen.getByRole('button', { name: /update forecast/i }));
+      await waitFor(() => expect(workflowApi.listForecastRecords).toHaveBeenCalledTimes(6));
+      const last = workflowApi.listForecastRecords.mock.calls.slice(-2).map(([f]) => f);
+      expect(last.every((f) => f.district === 'Mannar' && f.target_year === 2025 && f.target_month === 5)).toBe(true);
+    });
 
-      const { DemoForecastingAuthContext } = await import('../../context/DemoForecastingAuthContext.jsx');
-
-      render(
-        <DemoForecastingAuthContext.Provider value={mockAuthValue}>
-          <VeterinaryDistrictForecasts viewerContext={validDistrictVetContext} />
-        </DemoForecastingAuthContext.Provider>
-      );
-
-      const saveBtn = await screen.findByRole('button', { name: /Save as Official Forecast Record/i });
-      fireEvent.click(saveBtn);
-      fireEvent.click(saveBtn);
-
-      expect(workflowApi.createForecastRecord).toHaveBeenCalledTimes(1);
-
-      resolveSave({
-        forecast_id: 'fdr_saved_002',
-        disease: 'FMD',
-        district: 'Vavuniya',
-        target_year: 2024,
-        target_month: 1,
-        risk_level: 'HIGH',
-        status: 'GENERATED',
-      });
+    it('reports a failed read without showing stale or invented data', async () => {
+      workflowApi.listForecastRecords.mockRejectedValue(new Error('down'));
+      await renderConnected();
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not be loaded/i));
+      expect(screen.queryByText(/% range/)).not.toBeInTheDocument();
     });
   });
 });

@@ -7,5 +7,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    env: { VITE_FORECAST_REFERENCE_PERIOD: '2024-12' },
   },
 });

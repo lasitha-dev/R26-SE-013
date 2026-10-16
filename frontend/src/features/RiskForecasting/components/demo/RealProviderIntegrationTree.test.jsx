@@ -228,38 +228,20 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
     expect(screen.getByText('January 2025 District Disease Risk Outlook')).toBeInTheDocument();
   });
 
-  it('restores Farmer session, uses protected FMD/LSD endpoints, and restricts to registered farm district', async () => {
+  it('restores Farmer session, reads the stored forecast records only, and restricts to the registered farm district', async () => {
     sessionStorage.setItem(DEMO_ACCESS_TOKEN_KEY, 'valid-farmer-token');
 
     const fetchSpy = vi.fn(async (url) => {
       const urlStr = url.toString();
       if (urlStr.includes('/api/v1/demo-auth/me')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => RAW_FARMER_CONTEXT,
-        };
+        return { ok: true, status: 200, json: async () => RAW_FARMER_CONTEXT };
       }
       if (urlStr.includes('/api/v1/demo-operational/')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ status: 'success', data: [] }),
-        };
+        return { ok: true, status: 200, json: async () => ({ status: 'success', data: [] }) };
       }
-      if (urlStr.includes('/api/v1/demo-forecasting/forecast/fmd')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => FMD_FORECAST_RESPONSE,
-        };
-      }
-      if (urlStr.includes('/api/v1/demo-forecasting/forecast/lsd')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => LSD_FORECAST_RESPONSE,
-        };
+      if (urlStr.includes('/api/v1/risk-forecasting/records')) {
+        const body = JSON.stringify({ total_count: 0, limit: 50, offset: 0, records: [] });
+        return { ok: true, status: 200, text: async () => body, json: async () => JSON.parse(body) };
       }
       return { ok: false, status: 404, json: async () => ({ detail: 'Not found' }) };
     });
@@ -272,17 +254,17 @@ describe('Real-Provider Integration Tree Tests (No Context Mocking)', () => {
       expect(screen.getByText('Farmer Demonstration (Jaffna)')).toBeInTheDocument();
     });
 
-    // Verify protected endpoints called for Farmer
+    // The official stored forecast is read for the farmer's own district, for both diseases.
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/demo-forecasting/forecast/fmd'),
-        expect.any(Object)
-      );
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/demo-forecasting/forecast/lsd'),
-        expect.any(Object)
-      );
+      const calls = workflowApi.listForecastRecords.mock.calls.map(([filters]) => filters);
+      expect(calls.some((f) => f.disease === 'FMD' && f.district === 'Jaffna')).toBe(true);
+      expect(calls.some((f) => f.disease === 'LSD' && f.district === 'Jaffna')).toBe(true);
     });
+    // No model is run on demand for the farmer.
+    const allUrls = fetchSpy.mock.calls.map(([u]) => u.toString());
+    expect(allUrls.some((u) => u.includes('/demo-forecasting/forecast/') || u.includes('/risk-forecasting/predict/'))).toBe(false);
+    // With no stored record the farmer is told so rather than shown an invented forecast.
+    await waitFor(() => expect(screen.getAllByText('No forecast has been issued for this month yet.').length).toBe(2));
   });
 
   it('renders Vet standalone outside provider with blocked fallback and DAPH standalone with persisted-record UI', async () => {

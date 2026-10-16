@@ -732,9 +732,9 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Active Follow-Up Warning \(1 Active\)/i)).toBeInTheDocument();
-        expect(screen.getByText(/ID: fu_existing_01/i)).toBeInTheDocument();
-        expect(screen.getByText('ACTION_IN_PROGRESS')).toBeInTheDocument();
+        expect(screen.getByText(/A follow-up is already in progress/i)).toBeInTheDocument();
+        expect(screen.getByText(/Ref EXISTING/i)).toBeInTheDocument();
+        expect(screen.getByText('In progress')).toBeInTheDocument();
       });
     });
 
@@ -755,7 +755,7 @@ describe('DaphFollowUpComposer Component', () => {
         expect(screen.getByText(/Notice: Unable to verify existing follow-up history/i)).toBeInTheDocument();
       });
 
-      expect(screen.queryByText(/Active Follow-Up Warning/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/follow-up is already in progress/i)).not.toBeInTheDocument();
     });
 
     it('passes exact forecast_id, DAPH actor context, and AbortSignal to listFollowUps', async () => {

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
   validateViewerContext,
 } from '../../contracts/viewerContext';
 import { AccessContextUnavailable } from '../AccessContextUnavailable';
+import { describeProvenance, isV2Record } from '../forecastPresentation';
 import {
   listForecastRecords,
   listAdvisories,
@@ -28,7 +29,9 @@ const DATA_QUALITY_LABELS = {
   'EXACT_REQUESTED_PERIOD': 'Exact Period Match',
   'HISTORICAL_SAME_MONTH_PROXY': 'Historical Proxy',
   'DISTRICT_HISTORICAL_MEDIAN': 'District Median',
-  'NATIONAL_HISTORICAL_MEDIAN': 'National Baseline'
+  'NATIONAL_HISTORICAL_MEDIAN': 'National Baseline',
+  'V2_MODEL': 'v2 Model Inputs',
+  'V2_BASELINE': 'Historical Baseline'
 };
 
 function getDataQualityColor(quality) {
@@ -60,6 +63,31 @@ export function sanitizeErrorMessage(
   }
 
   return raw;
+}
+
+// Several stored versions can exist for the same disease, district and month (a forecast that was issued again).
+// The current version comes first; replaced versions and older versions follow.
+function orderVersions(records) {
+  const rank = (r) => (r.status === 'SUPERSEDED' ? 1 : 0);
+  return [...records].sort((a, b) => {
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    const v2 = Number(Boolean(b.model_version)) - Number(Boolean(a.model_version));
+    if (v2 !== 0) return v2;
+    return new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime();
+  });
+}
+
+function groupVersions(records) {
+  const groups = new Map();
+  records.forEach((record) => {
+    const key = [record.disease, String(record.district || '').toLowerCase(), record.target_year, record.target_month].join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  });
+  return [...groups.entries()].map(([key, versions]) => {
+    const [latest, ...earlier] = orderVersions(versions);
+    return { key, latest, earlier };
+  });
 }
 
 /**
@@ -104,6 +132,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
 
   // Selected Forecast & Linked Items State
   const [selectedForecastId, setSelectedForecastId] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
   const [linkedAdvisories, setLinkedAdvisories] = useState([]);
   const [loadingAdvisories, setLoadingAdvisories] = useState(false);
   const [advisoryError, setAdvisoryError] = useState(null);
@@ -186,8 +215,16 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
     fetchForecasts();
   }, [fetchForecasts]);
 
+  const versionGroups = useMemo(() => groupVersions(forecastRecords), [forecastRecords]);
+  const advisoryIdsKey = useMemo(() => {
+    const group = versionGroups.find((g) => g.latest.forecast_id === selectedForecastId);
+    return (group ? [group.latest, ...group.earlier] : [{ forecast_id: selectedForecastId }]).map((r) => r.forecast_id).filter(Boolean).join(',');
+  }, [versionGroups, selectedForecastId]);
+
   // 4. Fetch Linked Advisories when Selected Forecast Changes
-  const fetchAdvisories = useCallback(async (forecastId) => {
+  const fetchAdvisories = useCallback(async (forecastIds) => {
+    const ids = Array.isArray(forecastIds) ? forecastIds : [forecastIds];
+    const forecastId = ids[0];
     if (!forecastId) {
       setLinkedAdvisories([]);
       setSelectedAdvisoryId(null);
@@ -199,17 +236,20 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
     setAdvisoryError(null);
 
     try {
-      const filters = {
-        forecast_id: forecastId,
+      const responses = await Promise.all(ids.map((id) => listAdvisories({
+        forecast_id: id,
         status: advisoryStatusFilter !== 'ALL' ? advisoryStatusFilter : undefined,
-      };
-
-      const response = await listAdvisories(filters);
+      })));
       if (advisoryReqIdRef.current !== currentReqId) return;
 
-      const advisories = response?.advisories || [];
-      // Defensive authorization check: retain advisories matching forecast_id
-      const authorizedAdvisories = advisories.filter((adv) => adv.forecast_id === forecastId);
+      const advisories = responses.flatMap((response) => response?.advisories || []);
+      // Defensive authorization check: retain advisories matching one of the versions of this forecast, once each
+      const seen = new Set();
+      const authorizedAdvisories = advisories.filter((adv) => {
+        if (!ids.includes(adv.forecast_id) || seen.has(adv.advisory_id)) return false;
+        seen.add(adv.advisory_id);
+        return true;
+      });
       setLinkedAdvisories(authorizedAdvisories);
 
       setSelectedAdvisoryId((prevId) => {
@@ -234,8 +274,8 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
   }, [advisoryStatusFilter]);
 
   useEffect(() => {
-    fetchAdvisories(selectedForecastId);
-  }, [selectedForecastId, fetchAdvisories]);
+    fetchAdvisories(advisoryIdsKey ? advisoryIdsKey.split(',') : null);
+  }, [advisoryIdsKey, fetchAdvisories]);
 
   // 5. Fetch Linked Notification Batches when Selected Advisory Changes
   const fetchBatches = useCallback(async (advisoryId) => {
@@ -545,71 +585,112 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
 
           {/* Forecast Record Cards */}
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-            {forecastRecords.map((record) => {
-              const isSelected = record.forecast_id === selectedForecastId;
-              const probVal = record.probability_pct ?? (typeof record.probability === 'number' ? record.probability * 100 : null);
-
-              return (
+            {versionGroups.map((group) => {
+              const open = expandedGroups.has(group.key);
+              const renderCard = (record, { latest, earlierCount }) => {
+                const isSelected = record.forecast_id === selectedForecastId;
+                const probVal = record.probability_pct ?? (typeof record.probability === 'number' ? record.probability * 100 : null);
+                const replaced = record.status === 'SUPERSEDED';
+                return (
                 <div
-                  key={record.forecast_id}
-                  onClick={() => setSelectedForecastId(record.forecast_id)}
-                  aria-current={isSelected ? 'true' : undefined}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedForecastId(record.forecast_id);
-                    }
-                  }}
-                  className={`p-3.5 rounded-lg border transition-all cursor-pointer text-left space-y-2 ${
-                    isSelected
-                      ? 'bg-slate-800 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-md'
-                      : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-emerald-950/80 border border-emerald-800/80 text-emerald-300">
-                      {record.disease}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-400">
-                      {record.district}
-                    </span>
-                  </div>
+                    key={record.forecast_id}
+                    onClick={() => setSelectedForecastId(record.forecast_id)}
+                    aria-current={isSelected ? 'true' : undefined}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedForecastId(record.forecast_id);
+                      }
+                    }}
+                    className={`p-3.5 rounded-lg border transition-all cursor-pointer text-left space-y-2 ${
+                      isSelected
+                        ? 'bg-slate-800 border-emerald-500/80 ring-1 ring-emerald-500/50 shadow-md'
+                        : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-emerald-950/80 border border-emerald-800/80 text-emerald-300">
+                        {record.disease}
+                      </span>
+                      <span className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+                        {latest && earlierCount > 0 && (
+                          <span className="rounded-full border border-emerald-700/60 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Latest</span>
+                        )}
+                        {!latest && (
+                          <span
+                            className="whitespace-nowrap rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300"
+                            title={replaced ? 'A newer version replaced this one.' : 'Kept because it already has an advisory or follow-up.'}
+                          >
+                            {replaced ? 'Earlier \u00b7 replaced' : 'Earlier \u00b7 has advisory'}
+                          </span>
+                        )}
+                        {record.district}
+                      </span>
+                    </div>
 
-                  <div className="flex items-baseline justify-between text-xs">
-                    <span className="font-semibold text-slate-200">
-                      Target: {MONTH_NAMES[record.target_month - 1] || record.target_month} {record.target_year}
-                    </span>
-                    <span className="font-semibold text-slate-300">
-                      {probVal !== null ? `${probVal.toFixed(1)}%` : 'N/A'}
-                    </span>
-                  </div>
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-semibold text-slate-200">
+                        Target: {MONTH_NAMES[record.target_month - 1] || record.target_month} {record.target_year}
+                      </span>
+                      <span className="font-semibold text-slate-300">
+                        {probVal !== null ? `${probVal.toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>
-                      Risk:{' '}
-                      <strong
-                        className={
-                          record.risk_level === 'HIGH'
-                            ? 'text-red-400 font-semibold'
-                            : record.risk_level === 'MEDIUM'
-                            ? 'text-amber-400 font-semibold'
-                            : record.risk_level === 'LOW'
-                            ? 'text-emerald-400 font-semibold'
-                            : 'text-slate-400 font-semibold'
-                        }
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>
+                        Risk:{' '}
+                        <strong
+                          className={
+                            record.risk_level === 'HIGH'
+                              ? 'text-red-400 font-semibold'
+                              : record.risk_level === 'MEDIUM'
+                              ? 'text-amber-400 font-semibold'
+                              : record.risk_level === 'LOW'
+                              ? 'text-emerald-400 font-semibold'
+                              : 'text-slate-400 font-semibold'
+                          }
+                        >
+                          {record.risk_level || 'N/A'}
+                        </strong>
+                      </span>
+                      <span>Status: <strong className="text-slate-300">{record.status}</strong></span>
+                    </div>
+
+                    <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
+                      <span>Quality: {DATA_QUALITY_LABELS[record.data_quality] || record.data_quality}</span>
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <div key={group.key} className="space-y-2">
+                  {renderCard(group.latest, { latest: true, earlierCount: group.earlier.length })}
+                  {group.earlier.length > 0 && (
+                    <div className="pl-3">
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setExpandedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
+                          return next;
+                        })}
+                        className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:bg-slate-800/60 hover:text-emerald-300"
                       >
-                        {record.risk_level || 'N/A'}
-                      </strong>
-                    </span>
-                    <span>Status: <strong className="text-slate-300">{record.status}</strong></span>
-                  </div>
-
-                  <div className="pt-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-                    <span>Gen: {new Date(record.generated_at).toLocaleString()}</span>
-                    <span>Quality: {DATA_QUALITY_LABELS[record.data_quality] || record.data_quality}</span>
-                  </div>
+                        <span className={`material-symbols-outlined text-sm transition-transform duration-200 ${open ? 'rotate-90' : ''}`} aria-hidden="true">chevron_right</span>
+                        Earlier versions ({group.earlier.length})
+                      </button>
+                      {open && (
+                        <div className="mt-2 space-y-2 border-l border-slate-800 pl-3">
+                          {group.earlier.map((record) => renderCard(record, { latest: false, earlierCount: 0 }))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -711,9 +792,9 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                     </strong>
                   </div>
                   <div className="bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                    <span className="text-slate-400 block text-[11px]">Predicted Severity</span>
+                    <span className="text-slate-400 block text-[11px]">Severity</span>
                     <strong className="text-slate-200 font-semibold">
-                      {selectedForecastRecord.predicted_severity || 'N/A'}
+                      {selectedForecastRecord.predicted_severity || 'Not predicted'}
                     </strong>
                   </div>
                 </div>
@@ -723,12 +804,9 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                   <div className="flex flex-wrap items-center justify-between text-slate-400 gap-2 text-[11px]">
                     <span>Model: <strong className="text-slate-300">{MODEL_VARIANT_LABELS[selectedForecastRecord.model_variant] || selectedForecastRecord.model_variant}</strong></span>
                     <span>Data Quality: <strong className={getDataQualityColor(selectedForecastRecord.data_quality)}>{DATA_QUALITY_LABELS[selectedForecastRecord.data_quality] || selectedForecastRecord.data_quality}</strong></span>
-                    <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>
-                  </div>
-
-                  <div className="p-2.5 bg-slate-950/80 rounded border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
-                    <span className="material-symbols-outlined text-amber-400 text-sm flex-shrink-0 mt-0.5">info</span>
-                    <span>{selectedForecastRecord.disclaimer || 'Scientific decision-support output. Model forecasts do not constitute confirmed clinical diagnoses.'}</span>
+                    {isV2Record(selectedForecastRecord)
+                      ? <span>Source: <strong className="text-slate-300">{describeProvenance(selectedForecastRecord)}</strong></span>
+                      : <span>Fallback: <strong className={selectedForecastRecord.fallback_applied ? 'text-amber-400' : 'text-slate-300'}>{selectedForecastRecord.fallback_applied ? 'Yes' : 'No'}</strong></span>}
                   </div>
                 </div>
               </div>
@@ -775,57 +853,88 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                             setSelectedAdvisoryId(adv.advisory_id);
                           }
                         }}
-                        className={`p-4 rounded-lg border transition-all cursor-pointer space-y-3 ${
+                        className={`group relative overflow-hidden rounded-xl border p-5 pl-6 space-y-4 cursor-pointer transition duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                           isAdvSelected
-                            ? 'bg-slate-800/90 border-emerald-500/80 ring-1 ring-emerald-500/40'
-                            : 'bg-slate-950/60 border-slate-800 hover:bg-slate-800/40'
+                            ? 'bg-slate-800/90 border-emerald-500/70 shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_10px_30px_-12px_rgba(16,185,129,0.35)]'
+                            : 'bg-slate-950/60 border-slate-800 hover:border-slate-600 hover:bg-slate-900/80'
                         }`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-mono text-slate-300 font-semibold">
-                            {adv.advisory_id}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
-                              v{adv.version}
-                            </span>
+                        <span
+                          className={`absolute inset-y-0 left-0 w-1 ${
+                            adv.status === 'APPROVED' ? 'bg-emerald-500' : adv.status === 'CANCELLED' ? 'bg-red-500' : 'bg-amber-500'
+                          }`}
+                          aria-hidden="true"
+                        />
+
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
                             <span
-                              className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${
                                 adv.status === 'APPROVED'
-                                  ? 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                                  ? 'border-emerald-700/60 bg-emerald-950/60 text-emerald-300'
                                   : adv.status === 'CANCELLED'
-                                  ? 'bg-red-950 border-red-800 text-red-300'
-                                  : 'bg-amber-950 border-amber-800 text-amber-300'
+                                  ? 'border-red-800/60 bg-red-950/60 text-red-300'
+                                  : 'border-amber-800/60 bg-amber-950/60 text-amber-300'
                               }`}
                             >
-                              {adv.status === 'APPROVED' ? 'APPROVED (Frozen)' : adv.status}
+                              <span className="material-symbols-outlined text-xl" aria-hidden="true">campaign</span>
                             </span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-snug text-white">{adv.title}</p>
+                              <p className="mt-0.5 text-[11px] font-mono text-slate-500" title={adv.advisory_id}>
+                                {adv.advisory_id} &middot; v{adv.version}
+                              </p>
+                            </div>
                           </div>
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${
+                              adv.status === 'APPROVED'
+                                ? 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                                : adv.status === 'CANCELLED'
+                                ? 'bg-red-950 border-red-800 text-red-300'
+                                : 'bg-amber-950 border-amber-800 text-amber-300'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm" aria-hidden="true">
+                              {adv.status === 'APPROVED' ? 'lock' : adv.status === 'CANCELLED' ? 'cancel' : 'hourglass_top'}
+                            </span>
+                            {adv.status === 'APPROVED' ? 'APPROVED (Frozen)' : adv.status}
+                          </span>
                         </div>
 
-                        <div className="text-xs space-y-1.5">
-                          <p className="font-semibold text-slate-200">{adv.title}</p>
-                          <div className="p-2.5 bg-slate-950 rounded border border-slate-800/80 text-slate-300 whitespace-pre-wrap font-sans text-xs">
-                            {adv.standard_message}
-                          </div>
-                          {adv.vet_custom_note && (
-                            <div className="p-2.5 bg-emerald-950/30 rounded border border-emerald-800/40 text-emerald-200 text-xs">
-                              <strong className="block text-[10px] text-emerald-400 mb-0.5">Vet Custom Advice Note:</strong>
+                        <blockquote className="border-l-2 border-slate-600 pl-4 text-sm leading-relaxed text-slate-200 whitespace-pre-wrap">
+                          {adv.standard_message}
+                        </blockquote>
+
+                        {adv.vet_custom_note && (
+                          <div className="flex items-start gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/30 p-3">
+                            <span className="material-symbols-outlined mt-0.5 text-base text-emerald-400" aria-hidden="true">edit_note</span>
+                            <div className="text-sm text-emerald-100">
+                              <strong className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Vet Custom Advice Note</strong>
                               {adv.vet_custom_note}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                          <div>Scope: <strong className="text-slate-200">
-                            {adv.recipient_scope === 'ALL_ASSIGNED' ? 'All Assigned Farmers' : 
-                             adv.recipient_scope === 'DISTRICT_WIDE' ? 'Entire District' : 
-                             adv.recipient_scope}
-                          </strong></div>
-                          <div>Targeted: <strong className="text-slate-200">{adv.recipient_summary?.selected_count ?? 0}</strong></div>
-                          <div>Created By: <strong className="text-slate-200" title={adv.created_by}>{adv.created_by ? 'Veterinary Officer (You)' : 'N/A'}</strong></div>
-                          <div>Approved By: <strong className="text-slate-200" title={adv.approved_by}>{adv.approved_by ? 'DAPH Official' : 'Pending'}</strong></div>
-                        </div>
+                        <dl className="grid grid-cols-2 gap-3 border-t border-slate-800/80 pt-4 text-[11px]">
+                          {[
+                            { icon: 'groups', label: 'Scope', value: adv.recipient_scope === 'ALL_ASSIGNED' ? 'All Assigned Farmers' : adv.recipient_scope === 'DISTRICT_WIDE' ? 'Entire District' : adv.recipient_scope },
+                            { icon: 'person_pin_circle', label: 'Targeted', value: adv.recipient_summary?.selected_count ?? 0, title: undefined },
+                            { icon: 'edit', label: 'Created By', value: adv.created_by ? 'Veterinary Officer (You)' : 'N/A', title: adv.created_by },
+                            { icon: 'verified_user', label: 'Approved By', value: adv.approved_by ? (adv.approved_by === adv.created_by ? 'Veterinary Officer (You)' : 'Approving Officer') : 'Pending', title: adv.approved_by },
+                          ].map((item) => (
+                            <div
+                              key={item.label}
+                              className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 transition duration-200 group-hover:border-slate-700 hover:border-emerald-700/60 hover:bg-slate-900"
+                            >
+                              <dt className="flex items-center gap-1.5 text-slate-500">
+                                <span className="material-symbols-outlined text-sm" aria-hidden="true">{item.icon}</span>
+                                {item.label}
+                              </dt>
+                              <dd className="mt-0.5 font-semibold text-slate-100" title={item.title}>{item.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
                       </div>
                     );
                   })}
@@ -833,6 +942,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
               </div>
 
               {/* 3. Linked Simulated-Delivery History Section */}
+              {(loadingBatches || batchError || linkedBatches.length > 0) && (
               <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-md space-y-4">
                 <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
@@ -1015,6 +1125,7 @@ export function VeterinaryForecastAdvisoryHistory({ viewerContext }) {
                   </div>
                 )}
               </div>
+              )}
             </>
           )}
         </section>

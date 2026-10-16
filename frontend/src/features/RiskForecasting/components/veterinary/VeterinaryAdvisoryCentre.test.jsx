@@ -224,14 +224,16 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(cards.length).toBeGreaterThan(0);
     });
 
-    it('renders empty state when no official forecast records exist for district', async () => {
+    it('shows one friendly line, not an empty-state placeholder, when no forecast exists for the district', async () => {
       workflowApi.listForecastRecords.mockResolvedValue({ records: [] });
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/No Stored Forecast Available/i)).toBeInTheDocument();
+        expect(screen.getByText(/will appear here as soon as they are issued/i)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/No Stored Forecast Available/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Previous Months|Current Month|Next Month/i })).not.toBeInTheDocument();
     });
 
     it('does not automatically generate forecasts or create drafts on load', async () => {
@@ -267,7 +269,7 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(radioAll).toBeChecked();
     });
 
-    it('renders N/A for missing predicted severity without inventing values', async () => {
+    it('shows no severity line, and no invented value, when severity is missing', async () => {
       const recordsWithMissingVal = [
         {
           ...mockForecastRecords[0],
@@ -278,7 +280,8 @@ describe('VeterinaryAdvisoryCentre Component', () => {
 
       render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
 
-      expect(await screen.findByText(/Severity: N\/A/i)).toBeInTheDocument();
+      await screen.findAllByText(/FMD — Anuradhapura/i);
+      expect(screen.queryByText(/Severity:/i)).not.toBeInTheDocument();
     });
 
     it('ensures raw identifiers and mock/demo fallback notices are absent visually', async () => {
@@ -618,7 +621,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       await waitFor(() => {
@@ -655,7 +661,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       await waitFor(() => {
@@ -742,7 +751,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       // Verify "Notify Assigned Farmers" is absent before approval
       expect(screen.queryByRole('button', { name: /Notify Assigned Farmers/i })).not.toBeInTheDocument();
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -791,7 +803,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -831,7 +846,10 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       const saveBtn = await screen.findByRole('button', { name: /Save Advisory Draft/i });
       fireEvent.click(saveBtn);
 
-      const approveBtn = await screen.findByRole('button', { name: /Approve Advisory/i });
+      workflowApi.markAdvisoryReadyForReview.mockImplementation(async () => ({ ...(await workflowApi.createAdvisoryDraft.mock.results.at(-1).value), status: 'REVIEW_READY' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Mark Ready for Review/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /Approve Advisory/i })).toBeEnabled());
+      const approveBtn = screen.getByRole('button', { name: /Approve Advisory/i });
       fireEvent.click(approveBtn);
 
       const step4Tab = await screen.findByRole('button', { name: /4\. Preview/i });
@@ -843,4 +861,42 @@ describe('VeterinaryAdvisoryCentre Component', () => {
       expect(await screen.findByText(/Network error or 403/i)).toBeInTheDocument();
     });
   });
+
+  describe('Review steps (no error screen for the wrong order)', () => {
+    it('keeps Approve disabled with a hint while the advisory is a draft, and shows where it is in the review', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [{
+        forecast_id: 'fdr_x', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+        risk_level: 'HIGH', probability_pct: 50, probability: 0.5, status: 'GENERATED',
+      }] });
+      workflowApi.listAssignedRecipients.mockResolvedValue({ recipients: [{ recipient_id: 'r1', recipient_name: 'Farm 1', district: 'Anuradhapura' }] });
+      workflowApi.createAdvisoryDraft.mockResolvedValue({ advisory_id: 'adv_1', forecast_id: 'fdr_x', status: 'DRAFT', version: 1 });
+
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+      fireEvent.click(await screen.findByText(/FMD — Anuradhapura/i));
+      fireEvent.click(await screen.findByRole('button', { name: /Continue to Prepare Advice/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /Save Advisory Draft/i }));
+
+      const approve = await screen.findByRole('button', { name: /Approve Advisory/i });
+      expect(approve).toBeDisabled();
+      expect(approve).toHaveAttribute('title', 'Mark the advisory ready for review first.');
+      expect(screen.getByTestId('advisory-progress')).toHaveTextContent('Draft saved');
+      expect(screen.getByRole('button', { name: /Mark Ready for Review/i })).toBeEnabled();
+      expect(workflowApi.approveAdvisory).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Period label', () => {
+    it('shows the real month as a plain label (not a button) when all forecasts are for one month', async () => {
+      workflowApi.listForecastRecords.mockResolvedValue({ records: [{
+        forecast_id: 'fdr_p1', disease: 'FMD', district: 'Anuradhapura', target_year: 2025, target_month: 1,
+        risk_level: 'HIGH', probability_pct: 50, probability: 0.5, status: 'GENERATED',
+      }] });
+      render(<VeterinaryAdvisoryCentre viewerContext={validVetContext} />);
+      await screen.findByText(/FMD — Anuradhapura/i);
+      const label = await screen.findByTestId('advisory-period');
+      expect(label).toHaveTextContent('January 2025');
+      expect(screen.queryByRole('button', { name: /Next month|Next Month|This month|Earlier months/i })).not.toBeInTheDocument();
+    });
+  });
 });
+

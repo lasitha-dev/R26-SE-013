@@ -1339,3 +1339,201 @@ async def get_outbreak_status(disease: str, district: str, year: int, month: int
             detail=f"Error computing outbreak status: {str(e)}"
         )
 
+
+
+# ─── v2 Forecasting (public-source features, coverage-aware surveillance) ───
+
+from datetime import date as _date
+from pydantic import BaseModel as _BaseModel, Field as _Field
+
+
+class GenerateV2ForecastsRequest(_BaseModel):
+    year: Optional[int] = _Field(default=None, ge=2017, le=2030, description="Target year (default: current month).")
+    month: Optional[int] = _Field(default=None, ge=1, le=12, description="Target month (default: current month).")
+    diseases: List[Literal["FMD", "LSD"]] = _Field(default_factory=lambda: ["FMD", "LSD"])
+    dry_run: bool = _Field(default=False, description="Preview only: compute and report what would be stored, superseded and protected; writes nothing.")
+    expected_supersede_count: Optional[int] = _Field(
+        default=None, ge=0,
+        description="Number of older records the preview said would be superseded. Required for a real run when that number is above zero; a mismatch rejects the run before any write.")
+
+
+_v2_service = None
+_app_db_client = None
+
+
+def get_app_db():
+    """Synchronous handle on the application database (diagnostic_cases, death_logs, farms, cattle)."""
+    global _app_db_client
+    import pymongo
+    from core.database import MONGODB_URL, MONGODB_DB_NAME
+    if _app_db_client is None:
+        _app_db_client = pymongo.MongoClient(MONGODB_URL, serverSelectionTimeoutMS=10000, connect=False)
+    return _app_db_client[MONGODB_DB_NAME]
+
+
+def _forecast_dependency_counter(forecast_id: str):
+    """How many advisories and follow-ups reference a forecast (used to protect them from supersede)."""
+    return {
+        "advisories": advisory_service.advisory_repo.list(forecast_id=forecast_id, limit=1, offset=0)[1],
+        "follow_ups": forecast_follow_up_service.follow_up_repo.list(forecast_id=forecast_id, limit=1, offset=0)[1],
+    }
+
+
+def get_forecast_v2_service():
+    global _v2_service
+    if _v2_service is None:
+        from components.risk_forecasting.services.forecast_v2_service import ForecastV2Service
+        _v2_service = ForecastV2Service(
+            repository_getter=lambda: forecast_record_service.repository,
+            app_db_factory=get_app_db,
+            dependency_counter=_forecast_dependency_counter,
+        )
+    return _v2_service
+
+
+def _require_daph(viewer: ViewerContextResponse) -> ViewerContextResponse:
+    if viewer.role != "DAPH_OFFICIAL":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only DAPH officials can generate forecasts.")
+    return viewer
+
+
+@router.post("/v2/forecasts/generate", summary="Generate and store v2 forecasts for a target month (DAPH only)")
+def generate_v2_forecasts(
+    request: GenerateV2ForecastsRequest,
+    viewer: ViewerContextResponse = Depends(get_viewer_context),
+    service=Depends(get_forecast_v2_service),
+):
+    """Builds features from CHIRPS, NASA POWER, NOAA and coverage-aware surveillance, applies the
+    deployed v2 forecaster and stores one record per district and disease. Idempotent per period
+    and model version; earlier records for the period are marked SUPERSEDED."""
+    from components.risk_forecasting.services.forecast_v2_service import StalePreview, SupersedeConfirmationRequired
+
+    _require_daph(viewer)
+    today = _date.today()
+    year = request.year or today.year
+    month = request.month or today.month
+    try:
+        result = service.generate_period(year, month, request.diseases, generated_by=viewer.userId,
+                                         trigger_type="MANUAL", dry_run=request.dry_run,
+                                         expected_supersede_count=request.expected_supersede_count)
+    except SupersedeConfirmationRequired as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except StalePreview as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Forecast record storage is temporarily unavailable.")
+    return {"summary": result["summary"], "records": [r.model_dump() for r in result["records"]]}
+
+
+@router.get("/v2/model-card", summary="Deployed v2 forecaster, validation status and evaluation summary")
+def get_v2_model_card():
+    from components.risk_forecasting.pipeline.predictor import V2Predictor
+    card = {}
+    for disease in ("FMD", "LSD"):
+        artifact = V2Predictor.load(disease).artifact
+        card[disease] = {
+            "model_version": artifact["model_version"],
+            "training_period": artifact["training_period"],
+            "label_policy": artifact["label_policy"],
+            "issue_rule": artifact["issue_rule"],
+            "deployment": artifact["deployment"],
+            "evaluation_summary": artifact["evaluation_summary"],
+            "data_sources": artifact["data_sources"],
+        }
+    return card
+
+
+@router.get("/v2/surveillance/active", summary="Verified cases and disease deaths recorded in the app for a month")
+def get_active_surveillance(
+    disease: Literal["FMD", "LSD"] = Query(...),
+    year: Optional[int] = Query(None, ge=2017, le=2030),
+    month: Optional[int] = Query(None, ge=1, le=12),
+):
+    """Real-time signal, separate from the forecast: counts of verified diagnostic cases and
+    disease deaths per district for the month (default: current month), with coverage status."""
+    from components.risk_forecasting.pipeline.surveillance import app_month_observations
+    today = _date.today()
+    year = year or today.year
+    month = month or today.month
+    try:
+        observations = app_month_observations(get_app_db(), disease, year, month)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Surveillance records are temporarily unavailable.")
+    return {
+        "disease": disease,
+        "period": f"{year:04d}-{month:02d}",
+        "districts": {d: o.as_dict() for d, o in observations.items()},
+    }
+
+
+@router.get("/v2/performance", summary="Score stored v2 forecasts against observed outcomes")
+def get_v2_performance(service=Depends(get_forecast_v2_service)):
+    """Prospective monitoring: hits, missed outbreaks, false alarms and Brier score for v2
+    forecasts whose target month has passed. Months without known surveillance are listed
+    as unscored rather than counted as 'no outbreak'."""
+    try:
+        return service.performance()
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Forecast record storage is temporarily unavailable.")
+
+
+_outlook_repository = None
+
+
+def get_outlook_repository():
+    global _outlook_repository
+    if _outlook_repository is None:
+        from components.risk_forecasting.repositories.outlook_repository import MongoOutlookRepository
+        _outlook_repository = MongoOutlookRepository()
+    return _outlook_repository
+
+
+def get_seasonal_outlook_service():
+    from components.risk_forecasting.services.seasonal_outlook_service import SeasonalOutlookService
+    return SeasonalOutlookService(repository_getter=get_outlook_repository)
+
+
+@router.get("/v2/severity-history", summary="District severity history: class mix of past outbreak years (descriptive, read-only; no database)")
+def get_severity_history():
+    from components.risk_forecasting.pipeline.severity_history import summary
+    return summary()
+
+
+@router.get("/v2/outlooks", summary="Issued Seasonal Outlooks (read-only; never creates a collection or index)")
+def list_seasonal_outlooks(
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None),
+    district: Optional[str] = Query(None),
+    target_year: Optional[int] = Query(None, ge=2017, le=2030),
+    target_month: Optional[int] = Query(None, ge=1, le=12),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    try:
+        records, total = get_outlook_repository().list(
+            disease=disease, district=district, target_year=target_year, target_month=target_month,
+            limit=limit, offset=offset)
+    except RuntimeError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Outlook storage is temporarily unavailable.")
+    return {"total_count": total, "limit": limit, "offset": offset, "records": [r.model_dump() for r in records]}
+
+
+@router.get("/v2/outlooks/preview", summary="Computed (not stored) Seasonal Outlook for the next month, labelled as a preview")
+def preview_seasonal_outlooks(
+    disease: Optional[Literal["FMD", "LSD"]] = Query(None),
+    district: Optional[str] = Query(None),
+):
+    from components.risk_forecasting.services.seasonal_outlook_service import (
+        OutlookDataError, OutlookTargetError, next_month)
+    service = get_seasonal_outlook_service()
+    year, month = next_month(service.clock().date())
+    try:
+        planned = service.plan(year, month, [disease] if disease else ("FMD", "LSD"))
+    except (OutlookTargetError, OutlookDataError) as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if district:
+        planned = [r for r in planned if r.district.lower() == district.lower()]
+    return {"preview": True, "stored": False, "target_period": f"{year:04d}-{month:02d}",
+            "records": [r.model_dump() for r in planned]}

@@ -7,8 +7,15 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
+import { getDefaultTargetPeriod } from '../../config/forecastPeriod';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityPanel } from '../SeverityPanel';
+import { ForecastDetails } from '../ForecastDetails';
+import { RiskReasonBulb } from '../GuideCards';
+import { loadObservations, monthHasStarted } from '../../services/liveObservationLoader';
+import { buildRecentObservations } from '../forecastPresentation';
+import { BASELINE_BADGE, describeRiskPlain, isActiveRecord, isBaselineRecord, selectOfficialRecords } from '../forecastPresentation';
 import { listForecastRecords, listCanonicalDistricts } from '../../services/riskForecastingWorkflowApi.js';
-import { fetchAuthorizedDiseaseForecasts } from '../../services/demoForecastingApi.js';
 
 const CANONICAL_DISTRICTS = [
   'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
@@ -22,7 +29,11 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-function getRiskBadge(riskLevel) {
+// Districts that need attention come first; within a level the higher chance comes first.
+const TIER_RANK = { HIGH: 2, MEDIUM: 1, LOW: 0 };
+
+function getRiskBadge(riskLevel, record) {
+  if (isBaselineRecord(record)) return BASELINE_BADGE;
   const norm = (riskLevel || '').toUpperCase();
   switch (norm) {
     case 'HIGH':
@@ -59,14 +70,38 @@ export function DaphDistrictForecasts({ viewerContext }) {
     authorizedDistricts.includes('ALL_DISTRICTS');
 
   const [allRecords, setAllRecords] = useState([]);
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+  const [liveObservations, setLiveObservations] = useState({});   // `${disease}|${year}-${month}` -> district -> recorded counts
+
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
+
+  // Recorded cases and deaths for each month that has started and has stored forecasts (live, read-only).
+  useEffect(() => {
+    const wanted = new Map();
+    allRecords.forEach((r) => {
+      if (r.target_year && r.target_month && monthHasStarted(r.target_year, r.target_month)) {
+        wanted.set(`${r.disease}|${r.target_year}-${r.target_month}`, { disease: r.disease, year: r.target_year, month: r.target_month });
+      }
+    });
+    if (wanted.size === 0) return undefined;
+    let active = true;
+    Promise.all([...wanted.entries()].map(([key, q]) => loadObservations(q).then((districts) => [key, districts]))).then((pairs) => {
+      if (active) setLiveObservations(Object.fromEntries(pairs));
+    });
+    return () => { active = false; };
+  }, [allRecords]);
   const [canonicalDistricts, setCanonicalDistricts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [selectedDisease, setSelectedDisease] = useState('ALL');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(() => getDefaultTargetPeriod().year);
+  const [selectedMonth, setSelectedMonth] = useState(() => getDefaultTargetPeriod().month);
 
   const abortControllerRef = useRef(null);
 
@@ -100,59 +135,12 @@ export function DaphDistrictForecasts({ viewerContext }) {
 
       if (recordsRes.status === 'fulfilled') {
         const rawRecords = recordsRes.value?.records || [];
-        fetchedRecords = rawRecords.filter(
-          r => (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)
-        );
+        fetchedRecords = selectOfficialRecords(rawRecords.filter(
+          r => isActiveRecord(r) && (r.target_year ?? r.targetYear) === Number(selectedYear) && (r.target_month ?? r.targetMonth) === Number(selectedMonth)
+        ));
       }
 
-      // Fall back to live forecast evaluation using the trained model pipeline for any month/year if no saved DB records exist
-      if (fetchedRecords.length === 0) {
-        try {
-          const liveRes = await fetchAuthorizedDiseaseForecasts({ year: selectedYear, targetMonth: selectedMonth, signal: controller.signal });
-          if (controller.signal.aborted) return;
-          const liveRecords = [];
-          if (liveRes?.fmd?.status === 'success' && liveRes.fmd.data?.districts) {
-            liveRes.fmd.data.districts.forEach(d => {
-              liveRecords.push({
-                forecast_id: `live_fmd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'FMD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false
-              });
-            });
-          }
-          if (liveRes?.lsd?.status === 'success' && liveRes.lsd.data?.districts) {
-            liveRes.lsd.data.districts.forEach(d => {
-              liveRecords.push({
-                forecast_id: `live_lsd_${d.district}_${selectedYear}_${selectedMonth}`,
-                district: d.district,
-                disease: 'LSD',
-                target_year: Number(selectedYear),
-                target_month: Number(selectedMonth),
-                probability: d.probability_pct / 100,
-                probability_pct: d.probability_pct,
-                risk_level: d.risk_level,
-                predicted_severity: d.predicted_severity || (d.risk_level === 'HIGH' ? 'HIGH' : d.risk_level === 'MEDIUM' ? 'MEDIUM' : 'LOW'),
-                status: 'GENERATED',
-                fallback_applied: d.provenance?.fallback_applied ?? false
-              });
-            });
-          }
-          if (liveRecords.length > 0) {
-            fetchedRecords = liveRecords;
-          }
-        } catch (_) {
-          // If live request fails, fallback stays empty
-        }
-      }
-
+      // Only persisted forecast records are displayed; an empty period shows the empty state.
       const authRecords = isNational
         ? fetchedRecords
         : fetchedRecords.filter(r => authorizedDistricts.includes(r.district));
@@ -189,8 +177,9 @@ export function DaphDistrictForecasts({ viewerContext }) {
   const handleReset = () => {
     setSelectedDisease('ALL');
     setSelectedDistrict('ALL');
-    setSelectedYear(2025);
-    setSelectedMonth(1);
+    const defaultPeriod = getDefaultTargetPeriod();
+    setSelectedYear(defaultPeriod.year);
+    setSelectedMonth(defaultPeriod.month);
   };
 
   const displayRecords = useMemo(() => {
@@ -198,7 +187,7 @@ export function DaphDistrictForecasts({ viewerContext }) {
       const matchDisease = selectedDisease === 'ALL' || r.disease === selectedDisease;
       const matchDistrict = selectedDistrict === 'ALL' || r.district === selectedDistrict;
       return matchDisease && matchDistrict;
-    }).sort((a, b) => b.probability - a.probability);
+    }).sort((a, b) => (TIER_RANK[b.risk_level] ?? 0) - (TIER_RANK[a.risk_level] ?? 0) || b.probability - a.probability);
   }, [allRecords, selectedDisease, selectedDistrict]);
 
   const coverageSummary = useMemo(() => {
@@ -366,42 +355,39 @@ export function DaphDistrictForecasts({ viewerContext }) {
         !loading && !error && displayRecords.length > 0 && (
           <div className="grid grid-cols-1 gap-4">
             {displayRecords.map(r => {
-              const badge = getRiskBadge(r.risk_level);
+              const badge = getRiskBadge(r.risk_level, r);
               return (
                 <div key={r.district + r.disease} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow flex flex-col md:flex-row gap-6">
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-lg text-on-surface">{r.district} District &middot; {r.disease}</h3>
-                      <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
-                        {badge.label}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <RiskReasonBulb record={r} district={r.district} />
+                        <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
+                          {badge.label}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex gap-4 items-baseline">
                       <div className="text-3xl font-extrabold text-on-surface">
                         {typeof r.probability_pct === 'number' ? r.probability_pct.toFixed(1) : (r.probability_pct ?? 'N/A')}{r.probability_pct !== null && r.probability_pct !== undefined ? '%' : ''}
                       </div>
                     </div>
+                    {describeRiskPlain(r, r.district, r.target_month).sentence && (
+                      <p className="text-sm text-on-surface">{describeRiskPlain(r, r.district, r.target_month).sentence}</p>
+                    )}
+                    <SeverityPanel
+                      entry={severityFor(severityHistory, r.disease, r.district)}
+                      recent={buildRecentObservations(r, liveObservations[`${r.disease}|${r.target_year}-${r.target_month}`]?.[r.district])}
+                    />
                   </div>
 
-                  <div className="flex-1 grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Predicted Severity</span>
-                      <span className="text-on-surface font-medium">{r.predicted_severity ?? 'N/A'}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Record Status</span>
-                      <span className="text-on-surface font-medium">{r.status ?? 'N/A'}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Target Period</span>
-                      <span className="text-on-surface font-medium">
-                        {MONTH_NAMES[(r.target_month || selectedMonth) - 1]} {r.target_year || selectedYear}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-xs font-medium text-on-surface-variant block">Data Provenance</span>
-                      <span className="text-on-surface font-medium">{r.fallback_applied ? 'Proxy Data (Fallback)' : 'Exact Period'}</span>
-                    </div>
+                  <div className="flex-1">
+                    <ForecastDetails
+                      record={r}
+                      district={r.district}
+                      chance={typeof r.probability_pct === 'number' ? `${r.probability_pct.toFixed(1)}%` : 'Not available'}
+                    />
                   </div>
                 </div>
               );

@@ -373,7 +373,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       expect(naElements.length).toBeGreaterThan(0);
     });
 
-    it('ensures missing predicted severity is displayed as N/A', async () => {
+    it('shows a missing severity as "Not predicted" and never invents a value', async () => {
       const recordMissingSev = {
         ...mockForecastRecord,
         forecast_id: 'fdr_anu_001',
@@ -387,8 +387,8 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       }));
 
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      const naElements = await screen.findAllByText(/N\/A/i);
-      expect(naElements.length).toBeGreaterThan(0);
+      const notPredicted = await screen.findAllByText('Not predicted');
+      expect(notPredicted.length).toBeGreaterThan(0);
     });
 
     it('displays target period clearly distinct from generated timestamp', async () => {
@@ -401,11 +401,12 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       ).toBeInTheDocument();
     });
 
-    it('displays scientific disclaimer and forecast-not-diagnosis guardrail', async () => {
+    it('keeps the decision record free of the long disclaimer box, and never presents a forecast as a diagnosis', async () => {
       render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
-      expect(
-        await screen.findByText(/Scientific decision-support output\. Model forecasts do not constitute confirmed clinical diagnoses\./i)
-      ).toBeInTheDocument();
+      await screen.findByText('Forecast Decision Record');
+      expect(screen.queryByText(/Scientific decision-support output/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/confirmed clinical diagnoses|See the v2 model card/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Confirmed Diagnosis/i)).not.toBeInTheDocument();
     });
 
     it('does not render chart or trend UI elements in history workspace', async () => {
@@ -552,6 +553,64 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
       await screen.findByText(/Simulated Delivery History/i);
       expect(screen.queryByText(/Delivered to Farmer/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/Farmer Read/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Approval and delivery wording', () => {
+    it('shows the approving officer as the veterinary officer, never as DAPH', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findByText(/Batch ID: batch_anu_001/i);
+      expect(screen.queryByText('DAPH Official')).not.toBeInTheDocument();
+    });
+
+    it('hides the delivery history box when the advisory has no delivery batches', async () => {
+      workflowApi.listNotificationBatches.mockResolvedValue({ batches: [], total_count: 0 });
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findByText(/Linked Advisory History/i);
+      await waitFor(() => expect(screen.queryByText(/Loading batches/i)).not.toBeInTheDocument());
+      expect(screen.queryByText(/Simulated Delivery History/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/No notification batches enqueued/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Several versions of the same forecast', () => {
+    const newer = { ...mockForecastRecord, forecast_id: 'fdr_new_v21', model_version: 'fmd_v2.1', generated_at: '2026-10-15T02:41:20Z', status: 'GENERATED' };
+    const older = { ...mockForecastRecord, forecast_id: 'fdr_old_v20', model_version: 'fmd_v2.0', generated_at: '2026-10-14T08:50:20Z', status: 'GENERATED' };
+    const replaced = { ...mockForecastRecord, forecast_id: 'fdr_lsd_old', disease: 'LSD', model_version: 'lsd_v2.0', generated_at: '2026-10-14T08:50:20Z', status: 'SUPERSEDED' };
+    const lsdNew = { ...mockForecastRecord, forecast_id: 'fdr_lsd_new', disease: 'LSD', model_version: 'lsd_v2.1', generated_at: '2026-10-15T02:41:20Z', status: 'GENERATED' };
+
+    beforeEach(() => {
+      workflowApi.listForecastRecords.mockImplementation(async () => ({ total_count: 4, limit: 10, offset: 0, records: [older, replaced, newer, lsdNew] }));
+      workflowApi.listAdvisories.mockImplementation(async ({ forecast_id }) => ({
+        total_count: forecast_id === 'fdr_old_v20' ? 1 : 0, limit: 50, offset: 0,
+        advisories: forecast_id === 'fdr_old_v20' ? [{ ...mockAdvisoryRecord, advisory_id: 'adv_on_old', forecast_id: 'fdr_old_v20' }] : [],
+      }));
+    });
+
+    it('lists one record per disease and month, with the earlier versions tucked under it', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      await screen.findAllByText(/Target: .* 2024|Target: /i);
+      expect(screen.getAllByText('Latest').length).toBe(2);                         // FMD and LSD each have an earlier version
+      expect(screen.getAllByRole('button', { name: /Earlier versions \(1\)/ }).length).toBe(2);
+      expect(screen.queryByText(/Earlier \u00b7 (replaced|has advisory)/)).not.toBeInTheDocument();  // collapsed by default
+    });
+
+    it('opens the earlier versions and says whether each was replaced or kept for an advisory', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      const toggles = await screen.findAllByRole('button', { name: /Earlier versions \(1\)/ });
+      toggles.forEach((button) => fireEvent.click(button));
+      expect(screen.getByText('Earlier \u00b7 replaced')).toBeInTheDocument();
+      expect(screen.getByText('Earlier \u00b7 has advisory')).toBeInTheDocument();
+    });
+
+    it('shows the advisories written against an earlier version on the latest one', async () => {
+      render(<VeterinaryForecastAdvisoryHistory viewerContext={validVetContext} />);
+      fireEvent.click((await screen.findAllByText('FMD'))[0]);                      // the FMD record that has the older version
+      expect(await screen.findByText(/Linked Advisory History \(1\)/)).toBeInTheDocument();
+      await screen.findByText(/adv_on_old/);
+      expect(screen.queryByText(/No advisory created for this forecast/)).not.toBeInTheDocument();
+      const asked = workflowApi.listAdvisories.mock.calls.map((call) => call[0].forecast_id);
+      expect(asked).toEqual(expect.arrayContaining(['fdr_new_v21', 'fdr_old_v20']));
     });
   });
 
