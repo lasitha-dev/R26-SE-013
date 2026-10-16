@@ -228,7 +228,12 @@ export function DaphDistrictForecasts({ viewerContext }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mt-3 md:mt-0">
-            {authorizedDistricts.map(d => (
+            {authorizedDistricts.includes('ALL_DISTRICTS') ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">public</span>
+                All districts
+              </span>
+            ) : authorizedDistricts.map(d => (
               <span key={d} className="px-2 py-1 bg-surface-container-high border border-outline-variant/50 rounded text-xs font-medium text-on-surface-variant">
                 {d}
               </span>
