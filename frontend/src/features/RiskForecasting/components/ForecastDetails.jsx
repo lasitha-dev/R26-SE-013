@@ -107,4 +107,3 @@ ForecastDetails.propTypes = {
   earlierOutlook: PropTypes.object,
   onExplain: PropTypes.func,
 };
-

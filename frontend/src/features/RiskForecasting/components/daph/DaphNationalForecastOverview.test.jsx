@@ -978,4 +978,3 @@ describe('DaphNationalForecastOverview Component', () => {
     });
   });
 });
-

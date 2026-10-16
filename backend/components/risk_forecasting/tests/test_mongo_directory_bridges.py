@@ -228,3 +228,42 @@ def test_16_conftest_restoration():
         
     # Should be restored exactly to what it was
     assert forecast_follow_up_service.vet_dir is original_vet_dir
+
+
+def test_test_injection_replaces_and_restores_every_production_adapter(monkeypatch):
+    import importlib
+    from components.risk_forecasting.tests.conftest import (
+        _RESTORED_ATTRIBUTES, _inject_in_memory_services_generator,
+    )
+
+    adapters = []
+    for module_name, service_name, attribute in _RESTORED_ATTRIBUTES:
+        service = getattr(importlib.import_module(module_name), service_name)
+        production_adapter = object()
+        monkeypatch.setattr(service, attribute, production_adapter)
+        adapters.append((service, attribute, production_adapter))
+
+    fixture = _inject_in_memory_services_generator()
+    next(fixture)
+    try:
+        # main.app can install production services during collection. No adapter
+        # from that setup may survive into an isolated forecasting test.
+        for service, attribute, production_adapter in adapters:
+            assert getattr(service, attribute) is not production_adapter
+    finally:
+        fixture.close()
+
+    for service, attribute, production_adapter in adapters:
+        assert getattr(service, attribute) is production_adapter
+
+
+def test_test_injection_restores_attributes_absent_before_production_setup(monkeypatch):
+    from components.risk_forecasting.services.notification_service import notification_service
+    from components.risk_forecasting.tests.conftest import _inject_in_memory_services_generator
+
+    monkeypatch.delattr(notification_service, "recipient_dir", raising=False)
+    fixture = _inject_in_memory_services_generator()
+    next(fixture)
+    assert hasattr(notification_service, "recipient_dir")
+    fixture.close()
+    assert not hasattr(notification_service, "recipient_dir")

@@ -188,4 +188,3 @@ explicitly instead.
    A scheduler stays deferred until the manual routine has run for a few months.
 5. **Old-method records in `forecast_records`** (70 v1 records, none with a `model_version`): removal or hiding is waiting
    for your decision; some are referenced by advisories and follow-ups (see the owner's message of 2026-10-14).
-
