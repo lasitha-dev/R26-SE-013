@@ -54,8 +54,9 @@ export default function VetDashboard() {
     fetchDashboardData()
   }, [])
 
+  const alertStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk']
   const alertsCount = cattleList.filter(
-    (c) => c.health_status === 'Alert' || c.status === 'Alert'
+    (c) => alertStates.includes(c.health_status) || alertStates.includes(c.status)
   ).length
 
   return (
@@ -196,11 +197,23 @@ export default function VetDashboard() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {cattleList.slice(0, 8).map((c) => {
-                    const isAlert = c.health_status === 'Alert' || c.status === 'Alert'
+                    const rawStatus = c.health_status || c.status || 'Healthy'
+                    const isDeceased = c.status === 'Deceased' || c.health_status === 'Deceased'
+                    const isAlert = !isDeceased && alertStates.includes(rawStatus)
                     return (
                       <tr key={c.id || c.identifier} className="hover:bg-surface-container-high/40 transition-colors">
                         <td className="py-3 px-3 font-bold text-white font-mono flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isAlert ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`} />
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isDeceased
+                                ? 'bg-slate-500'
+                                : rawStatus === 'Heat Stress'
+                                ? 'bg-amber-400 animate-pulse'
+                                : isAlert
+                                ? 'bg-red-400 animate-pulse'
+                                : 'bg-emerald-400'
+                            }`}
+                          />
                           {c.identifier}
                         </td>
                         <td className="py-3 px-3 text-slate-300 text-[11px]">
@@ -211,12 +224,16 @@ export default function VetDashboard() {
                         <td className="py-3 px-3">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              isAlert
+                              isDeceased
+                                ? 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+                                : rawStatus === 'Heat Stress'
+                                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                : isAlert
                                 ? 'bg-red-500/15 text-red-400 border border-red-500/30'
                                 : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
-                            {isAlert ? 'Alert' : 'Healthy'}
+                            {isDeceased ? 'Deceased' : rawStatus}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right">

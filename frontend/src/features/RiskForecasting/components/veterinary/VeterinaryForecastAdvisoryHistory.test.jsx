@@ -125,7 +125,7 @@ describe('VeterinaryForecastAdvisoryHistory Component', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
 
     vi.spyOn(workflowApi, 'listForecastRecords').mockImplementation(async () => ({
       total_count: 1,

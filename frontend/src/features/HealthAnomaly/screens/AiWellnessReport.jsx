@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { ProfileContext } from '../../../context/ProfileContext'
 
 // Skeleton placeholder for results still loading
 function SkeletonBlock({ className = '' }) {
@@ -25,6 +26,7 @@ function dataURLtoBlob(dataUrl) {
 
 export default function AiWellnessReport() {
   const location = useLocation()
+  const { checkAlertsStatus } = useContext(ProfileContext) || {}
   const state = location.state || {}
   const { imageBase64, cattleId, activeCattle, weatherData, logsData, currentDate } = state
 
@@ -95,7 +97,10 @@ export default function AiWellnessReport() {
           const ageMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)));
           const daysInMilk = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)));
 
+          const resolvedCattleId = cattleId || activeCattle?.id || activeCattle?._id || null;
+
           const triagePayload = {
+            cattle_id: resolvedCattleId,
             bcs_score: parseFloat(calculatedBcs),
             age_months: parseInt(ageMonths, 10),
             days_in_milk: parseInt(daysInMilk, 10),
@@ -114,7 +119,7 @@ export default function AiWellnessReport() {
 
           const triageRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-7day', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
             body: JSON.stringify(triagePayload),
           });
 
@@ -124,6 +129,11 @@ export default function AiWellnessReport() {
           }
           const triageData = await triageRes.json();
           predClass = triageData.class;
+
+          // Keep global alert badges synchronized with the updated database state
+          if (typeof checkAlertsStatus === 'function') {
+            checkAlertsStatus();
+          }
         }
 
         if (!isMounted) return;

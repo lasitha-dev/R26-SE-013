@@ -1,3 +1,4 @@
+import { cacheFarmLocation } from '../features/HealthAnomaly/utils/wellnessData.js'
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -33,6 +34,9 @@ export default function SystemLogin() {
         localStorage.setItem("email", data.email)
         localStorage.setItem("role", "farm_owner")
         localStorage.setItem("veterinarian_name", data.veterinarian_name)
+
+        cacheFarmLocation(data)
+
         navigate('/health/dashboard')
       } else {
         setErrorMessage(data.detail || "Authentication failed. Please verify credentials.")

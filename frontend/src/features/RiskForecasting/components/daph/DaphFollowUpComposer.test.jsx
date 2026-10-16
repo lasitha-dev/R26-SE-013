@@ -385,6 +385,10 @@ describe('DaphFollowUpComposer Component', () => {
     });
 
     it('proves only one POST occurs after explicit final confirmation', async () => {
+      api.issueFollowUp.mockResolvedValueOnce([{
+        id: 'issued-once', assigned_vet_id: 'vet_1', status: 'ISSUED',
+        instruction_summary: 'Valid instruction', operational_priority: 'HIGH',
+      }]);
       render(
         <DaphFollowUpComposer
           forecastRecord={mockForecastRecord}
@@ -409,6 +413,7 @@ describe('DaphFollowUpComposer Component', () => {
       // Confirm & Issue (first POST)
       const confirmButton = screen.getByRole('button', { name: /Confirm & Issue Follow-Up/i });
       fireEvent.click(confirmButton);
+      await waitFor(() => expect(screen.getByText(/follow-up record\(s\) have been registered/i)).toBeInTheDocument());
       expect(api.issueFollowUp).toHaveBeenCalledTimes(1);
 
       // Attempt double click while disabled, or ensure state protects against multiple POSTs

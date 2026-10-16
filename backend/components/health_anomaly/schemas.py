@@ -24,6 +24,34 @@ class TokenResponse(BaseModel):
     owner_name: str
     email: str
     veterinarian_name: str
+    location_district: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location: Optional[str] = None
+    district: Optional[str] = None
+
+class FarmProfileUpdate(BaseModel):
+    owner_name: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    profile_photo: Optional[str] = None
+    location_district: Optional[str] = None
+    district: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[Union[float, int, str]] = None
+    longitude: Optional[Union[float, int, str]] = None
+
+class FarmProfileResponse(BaseModel):
+    owner_name: Optional[str] = None
+    email: Optional[str] = None
+    location_district: Optional[str] = None
+    district: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    registration_number: Optional[str] = None
+    veterinarian_name: Optional[str] = None
+    profile_photo: Optional[str] = None
+    assigned_vet_ids: List[str] = []
 
 class VetRegister(BaseModel):
     full_name: str = Field(..., min_length=1)
@@ -113,6 +141,7 @@ class CattleResponse(BaseModel):
     health_status: str = "Healthy"
     bcs_score: Optional[float] = None
     last_scored_date: Optional[str] = None
+    last_monitored_date: Optional[str] = None
     death_date: Optional[str] = None
     death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
@@ -124,12 +153,25 @@ class DailyLogCreate(BaseModel):
     milk_yield: float = Field(..., ge=0.0)
     weight: float = Field(..., ge=0.1)
 
+class DailyLogBulkItem(BaseModel):
+    cattle_id: Optional[str] = None
+    identifier: Optional[str] = None
+    date: str = Field(..., min_length=1)
+    milk_yield: float = Field(..., ge=0.0, allow_inf_nan=False)
+    weight: float = Field(..., ge=0.1, allow_inf_nan=False)
+    water_intake: Optional[float] = Field(None, ge=0, allow_inf_nan=False)
+    feed_intake: Optional[float] = Field(None, ge=0, allow_inf_nan=False)
+    body_temp: Optional[float] = Field(None, allow_inf_nan=False)
+
 class DailyLogResponse(BaseModel):
     id: str
     cattle_id: str
     date: str
     milk_yield: float
     weight: float
+    water_intake: Optional[float] = None
+    feed_intake: Optional[float] = None
+    body_temp: Optional[float] = None
 
 class PredictPayload(BaseModel):
     cattle_id: str
@@ -148,11 +190,13 @@ class PredictPayload(BaseModel):
 
 class PredictResponse(BaseModel):
     is_anomaly: bool
+    status: Optional[str] = None
 
 
 from typing import List
 
 class TriagePredictPayload(BaseModel):
+    cattle_id: Optional[str] = None
     bcs_score: float
     age_months: int
     days_in_milk: int

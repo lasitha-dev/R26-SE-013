@@ -77,6 +77,7 @@ export default function AnimalProfile() {
   const [showEditLogModal, setShowEditLogModal] = useState(false)
   const [editingLog, setEditingLog] = useState(null)
   const [editLogErrorMessage, setEditLogErrorMessage] = useState('')
+  const [editSelectedGender, setEditSelectedGender] = useState('')
 
   // Default date configurations
   const todayDateString = new Date().toISOString().split('T')[0]
@@ -203,7 +204,8 @@ export default function AnimalProfile() {
     const gender = formData.get('edit_gender')
     const weightVal = formData.get('edit_weight')
     const dob = formData.get('edit_dob')
-    const calvingDateVal = formData.get('edit_calving_date')
+    const isEditMale = (gender || '').toLowerCase() === 'male'
+    const calvingDateVal = isEditMale ? null : formData.get('edit_calving_date')
 
     if (!identifier || !breed || !gender || !weightVal || !dob) {
       setEditErrorMessage('Please fill in all required fields.')
@@ -226,7 +228,7 @@ export default function AnimalProfile() {
       return
     }
 
-    if (calvingDateVal) {
+    if (!isEditMale && calvingDateVal) {
       const calvingDate = new Date(calvingDateVal)
       calvingDate.setHours(0, 0, 0, 0)
       if (calvingDate > today) {
@@ -246,7 +248,7 @@ export default function AnimalProfile() {
       breed,
       weight,
       profile_photo: editPhotoBase64 || null,
-      calving_date: calvingDateVal || null,
+      calving_date: isEditMale ? null : (calvingDateVal || null),
       status: cattle.status
     }
 
@@ -397,22 +399,84 @@ export default function AnimalProfile() {
 
   const rawStatus = cattle.health_status || cattle.status || 'Healthy'
   const isHealthy = rawStatus === 'Healthy'
+  const isMale = (cattle.gender || '').toLowerCase() === 'male'
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Heat Stress':
+        return {
+          pill: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+          dot: 'bg-amber-400',
+          label: 'HEAT STRESS',
+        }
+      case 'Unhealthy':
+        return {
+          pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+          dot: 'bg-rose-400',
+          label: 'UNHEALTHY',
+        }
+      case 'Alert':
+      case 'At Risk':
+        return {
+          pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+          dot: 'bg-rose-400',
+          label: 'ALERT',
+        }
+      case 'Deceased':
+        return {
+          pill: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+          dot: 'bg-slate-500',
+          label: 'DECEASED',
+        }
+      case 'Healthy':
+      default:
+        return {
+          pill: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+          dot: 'bg-emerald-400',
+          label: 'HEALTHY',
+        }
+    }
+  }
 
   return (
     <div className="space-y-8">
       {/* Alert Warning Banner */}
-      {!isHealthy && (
-        <div className="bg-error/15 border border-error/30 text-error p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+      {!isHealthy && rawStatus !== 'Deceased' && (
+        <div
+          className={`${
+            rawStatus === 'Heat Stress'
+              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+              : 'bg-error/15 border-error/30 text-error'
+          } border p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4`}
+        >
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-3xl animate-bounce">warning</span>
             <div>
-              <p className="font-bold text-sm">🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.</p>
-              <p className="text-xs text-slate-400 mt-1">This subject has breached standard clinical deviations. Check logs or perform triage.</p>
+              <p className="font-bold text-sm">
+                {rawStatus === 'Heat Stress'
+                  ? '🚨 HEAT STRESS: Potential thermal strain detected. Check cooling protocols and logs.'
+                  : rawStatus === 'Unhealthy'
+                  ? isMale
+                    ? '🚨 UNHEALTHY: Potential health anomaly detected. Please review clinical metrics.'
+                    : '🚨 UNHEALTHY: Potential health anomaly detected. Please review clinical metrics or run triage.'
+                  : isMale
+                  ? '🚨 ALERT: Potential health issue detected. Please review clinical metrics.'
+                  : '🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.'}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {isMale
+                  ? 'This subject has breached standard clinical deviations. Check logs or perform clinical examination.'
+                  : 'This subject has breached standard clinical deviations. Check logs or perform triage.'}
+              </p>
             </div>
           </div>
           <button
             onClick={handleDismissAlert}
-            className="w-full md:w-auto px-6 py-2.5 bg-error text-on-error hover:bg-error/95 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98]"
+            className={`w-full md:w-auto px-6 py-2.5 ${
+              rawStatus === 'Heat Stress'
+                ? 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                : 'bg-error text-on-error hover:bg-error/95'
+            } text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98]`}
             type="button"
           >
             Ignore Alert (Own Risk)
@@ -445,20 +509,19 @@ export default function AnimalProfile() {
                 {t}
               </span>
             ))}
-            <span
-              className={`px-3 py-1 ${
-                isHealthy
-                  ? 'bg-primary-container/20 text-primary border-primary/30'
-                  : 'bg-error-container/20 text-error border-error/30'
-              } text-[10px] font-black tracking-widest rounded border uppercase flex items-center gap-1.5`}
-            >
-              <span
-                className={`w-1.5 h-1.5 ${
-                  isHealthy ? 'bg-primary' : 'bg-error'
-                } rounded-full animate-pulse`}
-              ></span>
-              {isHealthy ? 'Healthy' : 'Alert'}
-            </span>
+            {(() => {
+              const badge = getStatusBadge(rawStatus)
+              return (
+                <span
+                  className={`px-3 py-1 ${badge.pill} text-[10px] font-black tracking-widest rounded uppercase flex items-center gap-1.5`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 ${badge.dot} rounded-full ${!isHealthy ? 'animate-pulse' : ''}`}
+                  ></span>
+                  {badge.label}
+                </span>
+              )
+            })()}
           </div>
         </div>
         <div className="flex gap-4">
@@ -473,6 +536,7 @@ export default function AnimalProfile() {
             onClick={() => {
               setEditPhotoBase64(cattle.profile_photo || '')
               setEditErrorMessage('')
+              setEditSelectedGender(cattle.gender || 'Female')
               setShowEditCattleModal(true)
             }}
             className="px-5 py-2.5 bg-primary hover:opacity-90 text-on-primary text-xs font-bold rounded-lg transition-all shadow-lg shadow-primary/20"
@@ -518,15 +582,17 @@ export default function AnimalProfile() {
           <div className="p-6 space-y-6">
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Core Parameters</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${isMale ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                 <div className="p-4 bg-surface-container rounded-lg border border-white/5">
                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Weight</span>
                   <p className="text-xl font-bold mt-1 text-white">{cattle.weight} KG</p>
                 </div>
-                <div className="p-4 bg-surface-container rounded-lg border border-white/5">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lactation Stage</span>
-                  <p className="text-xl font-bold mt-1 text-white">{getLactationStage(cattle.calving_date)}</p>
-                </div>
+                {!isMale && (
+                  <div className="p-4 bg-surface-container rounded-lg border border-white/5">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Lactation Stage</span>
+                    <p className="text-xl font-bold mt-1 text-white">{getLactationStage(cattle.calving_date)}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -534,52 +600,54 @@ export default function AnimalProfile() {
 
         {/* Analytics & Metrics */}
         <div className="col-span-12 lg:col-span-7 space-y-6">
-          {/* Milk Yield Chart Card */}
-          <div className="bg-surface-container-low rounded-lg p-6 border border-outline-variant/10">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Milk Yield Analytics</h3>
-                <p className="text-xs text-slate-500">Weekly tracking and peak yield points</p>
-              </div>
-              <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold tracking-widest rounded-full uppercase">
-                Avg: {avgYield}L / Day
-              </span>
-            </div>
-            
-            {displayLogs.length === 0 ? (
-              <div className="h-36 flex items-center justify-center border border-dashed border-white/5 rounded">
-                <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">
-                  No milk yield records found
+          {/* Milk Yield Chart Card (Female Only) */}
+          {!isMale && (
+            <div className="bg-surface-container-low rounded-lg p-6 border border-outline-variant/10">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Milk Yield Analytics</h3>
+                  <p className="text-xs text-slate-500">Weekly tracking and peak yield points</p>
+                </div>
+                <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold tracking-widest rounded-full uppercase">
+                  Avg: {avgYield}L / Day
                 </span>
               </div>
-            ) : (
-              <div>
-                <div className="flex items-end gap-2 h-36 px-2 border-b border-outline-variant/20 pb-2">
-                  {displayLogs.map((log, idx) => {
-                    const pct = (log.milk_yield / maxMilk) * 100
-                    return (
-                      <div key={log.id || idx} className="w-full flex flex-col justify-end h-full group/bar relative">
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/bar:block bg-surface-container-highest border border-primary/20 text-primary text-[10px] font-bold px-2.5 py-1 rounded whitespace-nowrap z-20 shadow-xl">
-                          {log.milk_yield} L ({log.date})
+
+              {displayLogs.length === 0 ? (
+                <div className="h-36 flex items-center justify-center border border-dashed border-white/5 rounded">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">
+                    No milk yield records found
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-end gap-2 h-36 px-2 border-b border-outline-variant/20 pb-2">
+                    {displayLogs.map((log, idx) => {
+                      const pct = (log.milk_yield / maxMilk) * 100
+                      return (
+                        <div key={log.id || idx} className="w-full flex flex-col justify-end h-full group/bar relative">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/bar:block bg-surface-container-highest border border-primary/20 text-primary text-[10px] font-bold px-2.5 py-1 rounded whitespace-nowrap z-20 shadow-xl">
+                            {log.milk_yield} L ({log.date})
+                          </div>
+                          <div
+                            className="w-full rounded-t bg-primary/30 hover:bg-primary transition-all duration-300 cursor-pointer"
+                            style={{ height: `${pct}%` }}
+                          ></div>
                         </div>
-                        <div
-                          className="w-full rounded-t bg-primary/30 hover:bg-primary transition-all duration-300 cursor-pointer"
-                          style={{ height: `${pct}%` }}
-                        ></div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
+                  <div className="flex justify-between text-[8px] sm:text-[10px] text-slate-500 font-semibold tracking-wider uppercase mt-4 px-2 overflow-x-auto whitespace-nowrap gap-1">
+                    {displayLogs.map((log, idx) => (
+                      <span key={log.id || idx} className="flex-1 text-center">
+                        {log.date.slice(5)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex justify-between text-[8px] sm:text-[10px] text-slate-500 font-semibold tracking-wider uppercase mt-4 px-2 overflow-x-auto whitespace-nowrap gap-1">
-                  {displayLogs.map((log, idx) => (
-                    <span key={log.id || idx} className="flex-1 text-center">
-                      {log.date.slice(5)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Daily Body Weight Trend Card */}
           <div className="bg-surface-container-low rounded-lg p-6 border border-outline-variant/10">
@@ -660,66 +728,70 @@ export default function AnimalProfile() {
         </div>
       </div>
 
-      {/* Dynamic Animal Specific Daily Logs Table */}
-      <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden shadow-2xl">
-        <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
-          <div>
-            <h3 className="text-base font-bold text-white tracking-tight uppercase">Daily Health & Yield Logs</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Recorded metrics for this subject animal</p>
+      {/* Dynamic Animal Specific Daily Logs Table (Female Only) */}
+      {!isMale && (
+        <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden shadow-2xl">
+          <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight uppercase">Daily Health & Yield Logs</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Recorded metrics for this subject animal</p>
+            </div>
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-surface-container-lowest/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-bold">
-                <th className="px-8 py-4">Date</th>
-                <th className="px-8 py-4">Daily Milk Yield</th>
-                <th className="px-8 py-4">Body Weight</th>
-                <th className="px-8 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/10">
-              {dailyLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-8 py-10 text-center text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    No records found
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-surface-container-lowest/50 text-slate-400 text-[10px] uppercase tracking-[0.2em] font-bold">
+                  <th className="px-8 py-4">Date</th>
+                  <th className="px-8 py-4">Daily Milk Yield</th>
+                  <th className="px-8 py-4">Body Weight</th>
+                  <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                dailyLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-surface-container-high/40 transition-colors">
-                    <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">{log.date}</td>
-                    <td className="px-8 py-4 text-sm font-semibold text-primary">{log.milk_yield} L</td>
-                    <td className="px-8 py-4 text-sm font-semibold text-secondary">{log.weight} KG</td>
-                    <td className="px-8 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingLog(log)
-                            setEditLogErrorMessage('')
-                            setShowEditLogModal(true)
-                          }}
-                          className="px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
-                          type="button"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLog(log.id)}
-                          className="px-3 py-1 bg-error/10 border border-error/20 text-error text-xs font-bold rounded hover:bg-error/20 transition-all active:scale-95"
-                          type="button"
-                        >
-                          Delete
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/10">
+                {dailyLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-8 py-10 text-center text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      No records found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  [...dailyLogs]
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .map((log) => (
+                    <tr key={log.id} className="hover:bg-surface-container-high/40 transition-colors">
+                      <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">{log.date}</td>
+                      <td className="px-8 py-4 text-sm font-semibold text-primary">{log.milk_yield} L</td>
+                      <td className="px-8 py-4 text-sm font-semibold text-secondary">{log.weight} KG</td>
+                      <td className="px-8 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingLog(log)
+                              setEditLogErrorMessage('')
+                              setShowEditLogModal(true)
+                            }}
+                            className="px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
+                            type="button"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="px-3 py-1 bg-error/10 border border-error/20 text-error text-xs font-bold rounded hover:bg-error/20 transition-all active:scale-95"
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Historical BCS Logs */}
       <div className="bg-surface-container-low rounded-lg border border-outline-variant/10 overflow-hidden shadow-2xl">
@@ -746,7 +818,9 @@ export default function AnimalProfile() {
                   </td>
                 </tr>
               ) : (
-                bcsLogs.map((log, idx) => (
+                [...bcsLogs]
+                  .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                  .map((log, idx) => (
                   <tr key={log.id || idx} className="hover:bg-surface-container-high/40 transition-colors">
                     <td className="px-8 py-4 text-sm text-on-surface/80 font-mono">
                       {log.date || 'Unknown'}
@@ -880,7 +954,8 @@ export default function AnimalProfile() {
                     Gender
                   </label>
                   <select
-                    defaultValue={cattle.gender}
+                    value={editSelectedGender}
+                    onChange={(e) => setEditSelectedGender(e.target.value)}
                     className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                     name="edit_gender"
                     required
@@ -927,19 +1002,21 @@ export default function AnimalProfile() {
                 />
               </div>
 
-              {/* Calving Date */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Last Calving Date (Optional)
-                </label>
-                <input
-                  defaultValue={cattle.calving_date || ''}
-                  className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
-                  name="edit_calving_date"
-                  type="date"
-                  max={todayDateString}
-                />
-              </div>
+              {/* Calving Date (Female Only) */}
+              {editSelectedGender !== 'Male' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Last Calving Date (Optional)
+                  </label>
+                  <input
+                    defaultValue={cattle.calving_date || ''}
+                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
+                    name="edit_calving_date"
+                    type="date"
+                    max={todayDateString}
+                  />
+                </div>
+              )}
 
               {/* Weight */}
               <div className="space-y-1">

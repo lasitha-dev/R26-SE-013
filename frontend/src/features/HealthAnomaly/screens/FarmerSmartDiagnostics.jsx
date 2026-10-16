@@ -129,9 +129,10 @@ const FarmerSmartDiagnostics = () => {
   const isFailure = status === 'error' || (status === 'done' && !result?.cattle_detected);
 
   // Filter herd list
+  const nonHealthyStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'];
   const filteredHerd = herdList.filter((c) => {
     const isDeceased = c.status === 'Deceased' || c.health_status === 'Deceased';
-    const isAlert = !isDeceased && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk');
+    const isAlert = !isDeceased && (nonHealthyStates.includes(c.status) || nonHealthyStates.includes(c.health_status));
     const isHealthy = !isDeceased && !isAlert;
 
     if (herdFilter === 'healthy' && !isHealthy) return false;
@@ -145,8 +146,8 @@ const FarmerSmartDiagnostics = () => {
     return tag.includes(term) || breed.includes(term) || gender.includes(term);
   });
 
-  const healthyCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && c.status !== 'Alert' && c.health_status !== 'Alert' && c.status !== 'At Risk').length;
-  const alertCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk')).length;
+  const healthyCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && !nonHealthyStates.includes(c.status) && !nonHealthyStates.includes(c.health_status)).length;
+  const alertCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (nonHealthyStates.includes(c.status) || nonHealthyStates.includes(c.health_status))).length;
   const deceasedCount = herdList.filter(c => c.status === 'Deceased' || c.health_status === 'Deceased').length;
 
   // Animate logic trace steps on success
@@ -383,7 +384,7 @@ const FarmerSmartDiagnostics = () => {
               </h3>
               <p className="text-2xs text-slate-400 mt-0.5">
                 Current Health Status:{' '}
-                <span className={`font-bold ${cattleInfo.status === 'Deceased' ? 'text-red-500' : cattleInfo.health_status === 'Alert' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                <span className={`font-bold ${cattleInfo.status === 'Deceased' ? 'text-red-500' : cattleInfo.health_status === 'Heat Stress' ? 'text-amber-400' : (cattleInfo.health_status === 'Unhealthy' || cattleInfo.health_status === 'Alert') ? 'text-red-400' : 'text-emerald-400'}`}>
                   {cattleInfo.status === 'Deceased' ? 'Deceased' : (cattleInfo.health_status || 'Healthy')}
                 </span>
                 {cattleInfo.bcs_score !== null && cattleInfo.bcs_score !== undefined && (
@@ -532,7 +533,7 @@ const FarmerSmartDiagnostics = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredHerd.map((cattle) => {
                 const isDeceased = cattle.status === 'Deceased' || cattle.health_status === 'Deceased';
-                const isAlert = !isDeceased && (cattle.status === 'Alert' || cattle.health_status === 'Alert' || cattle.status === 'At Risk');
+                const isAlert = !isDeceased && (nonHealthyStates.includes(cattle.status) || nonHealthyStates.includes(cattle.health_status));
 
                 return (
                   <div
@@ -564,12 +565,24 @@ const FarmerSmartDiagnostics = () => {
                         className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
                           isDeceased
                             ? 'bg-red-500/15 text-red-300 border-red-500/30'
-                            : isAlert
+                            : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
                             ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                            : isAlert
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
                             : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                         }`}
                       >
-                        {isDeceased ? 'Deceased' : isAlert ? 'Alert' : 'Healthy'}
+                        {isDeceased
+                          ? 'Deceased'
+                          : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
+                          ? 'Heat Stress'
+                          : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                          ? 'Unhealthy'
+                          : isAlert
+                          ? 'Alert'
+                          : 'Healthy'}
                       </span>
                     </div>
 
