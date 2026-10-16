@@ -1071,7 +1071,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                   <th className="py-3 px-3 text-center"><RiskTierTerm /></th>
                   <th className="py-3 px-3 text-center"><SeverityTerm /></th>
                   <th className="py-3 px-3 text-center">Advisory Coverage</th>
-                  <th className="py-3 px-3 text-center">Simulated Batch</th>
                   <th className="py-3 px-3 text-center"><FollowUpTerm /></th>
                   <th className="py-3 px-3 text-center">Data Provenance</th>
                   <th className="py-3 px-3 text-center">Details</th>
@@ -1180,17 +1179,6 @@ export function DaphNationalForecastOverview({ viewerContext }) {
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400">
                             {row.advisoryStatusSummary}
                           </span>
-                        )}
-                      </td>
-
-                      {/* Simulated Batch */}
-                      <td className="py-3 px-3 text-center font-mono text-slate-300">
-                        {row.batchSummary ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700" title={`Simulated Success: ${row.batchSummary.succeeded}`}>
-                            {row.batchSummary.status} ({row.batchSummary.succeeded})
-                          </span>
-                        ) : (
-                          <span className="text-slate-600">—</span>
                         )}
                       </td>
 
