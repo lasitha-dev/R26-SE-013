@@ -118,7 +118,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         # C. DAPH issues follow-up for forecast fdr_e2e_anu_001 assigned to vet_officer_01
         issue_payload = {
             "forecast_id": "fdr_e2e_anu_001",
-            "assigned_vet_id": "vet_officer_01",
+            "assigned_vet_ids": ["vet_officer_01"],
             "instruction_summary": "Initiate target ring vaccination and ring surveillance in Anuradhapura division 3.",
             "idempotency_key": "idemp_e2e_happy_001",
         }
@@ -128,7 +128,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
         self.assertEqual(res_issue.status_code, 201)
-        fu_data = res_issue.json()
+        fu_data = res_issue.json()[0]
         fu_id = fu_data["follow_up_id"]
 
         # D. Verify initial record state
@@ -226,12 +226,12 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_e2e_anu_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Perform clinical inspection of dairy herds.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         # 2. Vet escalates with reason (version 1 -> 2, ESCALATED)
         res_esc = self.client.post(
@@ -267,12 +267,12 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_e2e_anu_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Surveillance sampling instruction.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         # 2. DAPH cancels active task
         res_cancel = self.client.post(
@@ -316,13 +316,13 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_e2e_anu_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Authoritative cancellation test task.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
         self.assertEqual(res_issue.status_code, 201)
-        fu_initial = res_issue.json()
+        fu_initial = res_issue.json()[0]
         fu_id = fu_initial["follow_up_id"]
         self.assertEqual(fu_initial["version"], 1)
         self.assertEqual(fu_initial["status"], "ISSUED")
@@ -402,12 +402,12 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_e2e_anu_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Sample test instruction.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         # 2. Acknowledge (version 1 -> 2)
         self.client.post(
@@ -438,7 +438,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         key = "idemp_test_dedup_001"
         payload = {
             "forecast_id": "fdr_e2e_anu_001",
-            "assigned_vet_id": "vet_officer_01",
+            "assigned_vet_ids": ["vet_officer_01"],
             "instruction_summary": "Idempotent follow-up instruction.",
             "idempotency_key": key,
         }
@@ -450,7 +450,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
         self.assertEqual(res1.status_code, 201)
-        rec1 = res1.json()
+        rec1 = res1.json()[0]
 
         # 2. Repeated identical request returns same record
         res2 = self.client.post(
@@ -459,7 +459,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
         self.assertEqual(res2.status_code, 201)
-        rec2 = res2.json()
+        rec2 = res2.json()[0]
         self.assertEqual(rec1["follow_up_id"], rec2["follow_up_id"])
 
         # 3. Request with same idempotency key but different parameters returns HTTP 409 Conflict
@@ -479,7 +479,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         # 1. FARMER role denied on issue (403)
         res_farmer_issue = self.client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_id": "vet_officer_01", "instruction_summary": "Test"},
+            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_ids": ["vet_officer_01"], "instruction_summary": "Test"},
             headers={"X-Actor-ID": "farmer_01", "X-Actor-Role": "FARMER"},
         )
         self.assertEqual(res_farmer_issue.status_code, 403)
@@ -487,7 +487,7 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         # 2. VETERINARY_OFFICER role denied on issue (403)
         res_vet_issue = self.client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_id": "vet_officer_01", "instruction_summary": "Test"},
+            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_ids": ["vet_officer_01"], "instruction_summary": "Test"},
             headers={"X-Actor-ID": "vet_officer_01", "X-Actor-Role": "VETERINARY_OFFICER"},
         )
         self.assertEqual(res_vet_issue.status_code, 403)
@@ -495,10 +495,10 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         # 3. Create valid follow-up as DAPH
         res_ok_issue = self.client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_id": "vet_officer_01", "instruction_summary": "Test"},
+            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_ids": ["vet_officer_01"], "instruction_summary": "Test"},
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_ok_issue.json()["follow_up_id"]
+        fu_id = res_ok_issue.json()[0]["follow_up_id"]
 
         # 4. DAPH_OFFICIAL denied on acknowledge transition (403)
         res_daph_ack = self.client.post(
@@ -513,18 +513,18 @@ class TestFollowUpEndToEnd(unittest.TestCase):
         # 1. Issue follow-up 1 for vet_officer_01 in Anuradhapura
         res1 = self.client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_id": "vet_officer_01", "instruction_summary": "Vet 1 task"},
+            json={"forecast_id": "fdr_e2e_anu_001", "assigned_vet_ids": ["vet_officer_01"], "instruction_summary": "Vet 1 task"},
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu1_id = res1.json()["follow_up_id"]
+        fu1_id = res1.json()[0]["follow_up_id"]
 
         # 2. Issue follow-up 2 for vet_officer_02 in Kurunegala
         res2 = self.client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": "fdr_e2e_kuru_002", "assigned_vet_id": "vet_officer_02", "instruction_summary": "Vet 2 task"},
+            json={"forecast_id": "fdr_e2e_kuru_002", "assigned_vet_ids": ["vet_officer_02"], "instruction_summary": "Vet 2 task"},
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu2_id = res2.json()["follow_up_id"]
+        fu2_id = res2.json()[0]["follow_up_id"]
 
         # 3. vet_officer_01 lists follow-ups -> sees ONLY fu1_id
         res_vet1_list = self.client.get(

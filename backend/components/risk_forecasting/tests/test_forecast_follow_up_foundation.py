@@ -131,7 +131,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         with self.assertRaises(ValueError):
             CreateFollowUpRequest(
                 forecast_id="fdr_test_fmd_001",
-                assigned_vet_id="vet_officer_01",
+                assigned_vet_ids=["vet_officer_01"],
                 instruction_summary="",
             )
 
@@ -164,10 +164,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
         req1 = CreateFollowUpRequest(
             forecast_id="REC-TEST-001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Snapshot test.",
         )
-        fu1 = self.service.issue_follow_up(req1, actor=self.daph_actor)
+        fu1 = self.service.issue_follow_up(req1, actor=self.daph_actor)[0]
 
         self.assertEqual(fu1.forecast_risk_level, "HIGH")
         self.assertEqual(fu1.probability, 0.623)
@@ -199,10 +199,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
         req2 = CreateFollowUpRequest(
             forecast_id="REC-TEST-002",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Snapshot test 2.",
         )
-        fu2 = self.service.issue_follow_up(req2, actor=self.daph_actor)
+        fu2 = self.service.issue_follow_up(req2, actor=self.daph_actor)[0]
 
         self.assertEqual(fu2.forecast_risk_level, "MEDIUM")
         self.assertEqual(fu2.probability, 0.456)
@@ -234,10 +234,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
         req3 = CreateFollowUpRequest(
             forecast_id="REC-TEST-003",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Snapshot test 3.",
         )
-        fu3 = self.service.issue_follow_up(req3, actor=self.daph_actor)
+        fu3 = self.service.issue_follow_up(req3, actor=self.daph_actor)[0]
 
         self.assertEqual(fu3.forecast_risk_level, "LOW")
         self.assertEqual(fu3.probability, 0.1)
@@ -249,10 +249,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Verifies successful issuance by DAPH with correct scientific snapshot copying and priority derivation."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Deploy active ring vaccination around Maha Illuppallama.",
         )
-        record = self.service.issue_follow_up(req, actor=self.daph_actor)
+        record = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         self.assertTrue(record.follow_up_id.startswith("ffu_"))
         self.assertEqual(record.forecast_id, "fdr_test_fmd_001")
@@ -270,10 +270,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Verifies MEDIUM risk level derives MEDIUM operational priority."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_lsd_002",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Monitor vector control in Colombo district.",
         )
-        record = self.service.issue_follow_up(req, actor=self.daph_actor)
+        record = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
         self.assertEqual(record.forecast_risk_level, "MEDIUM")
         self.assertEqual(record.operational_priority, "MEDIUM")
 
@@ -281,22 +281,22 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Rejects issuance when referenced forecast ID does not exist."""
         req = CreateFollowUpRequest(
             forecast_id="non_existent_fdr",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Check district status.",
         )
         with self.assertRaises(KeyError):
-            self.service.issue_follow_up(req, actor=self.daph_actor)
+            self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
     def test_issue_denied_for_superseded_forecast(self):
         """Rejects issuance for superseded forecast records."""
         self.forecast_repo.update_status("fdr_test_fmd_001", "SUPERSEDED")
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Check district status.",
         )
         with self.assertRaises(ValueError) as ctx:
-            self.service.issue_follow_up(req, actor=self.daph_actor)
+            self.service.issue_follow_up(req, actor=self.daph_actor)[0]
         self.assertIn("superseded", str(ctx.exception).lower())
 
     def test_issue_denied_for_inactive_or_unassigned_vet(self):
@@ -304,55 +304,55 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         # Unassigned Vet (vet_officer_02 is assigned to Kurunegala, forecast is Anuradhapura)
         req_unassigned = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_02",
+            assigned_vet_ids=["vet_officer_02"],
             instruction_summary="Check district status.",
         )
         with self.assertRaises(ValueError) as ctx:
-            self.service.issue_follow_up(req_unassigned, actor=self.daph_actor)
+            self.service.issue_follow_up(req_unassigned, actor=self.daph_actor)[0]
         self.assertIn("not assigned to district", str(ctx.exception))
 
         # Inactive Vet
         req_inactive = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_inactive_01",
+            assigned_vet_ids=["vet_inactive_01"],
             instruction_summary="Check district status.",
         )
         with self.assertRaises(ValueError) as ctx2:
-            self.service.issue_follow_up(req_inactive, actor=self.daph_actor)
+            self.service.issue_follow_up(req_inactive, actor=self.daph_actor)[0]
         self.assertIn("inactive", str(ctx2.exception).lower())
 
     def test_issue_denied_for_non_daph_actors(self):
         """Rejects follow-up issuance when initiated by a Vet or Farmer actor."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Self-issued task attempt.",
         )
         with self.assertRaises(ValueError) as ctx:
-            self.service.issue_follow_up(req, actor=self.vet_actor)
+            self.service.issue_follow_up(req, actor=self.vet_actor)[0]
         self.assertIn("not authorized", str(ctx.exception))
 
     def test_issue_idempotency_behavior(self):
         """Verifies idempotent record retrieval vs collision handling."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Deploy active ring vaccination.",
             idempotency_key="idemp_ffu_100",
         )
-        first = self.service.issue_follow_up(req, actor=self.daph_actor)
-        second = self.service.issue_follow_up(req, actor=self.daph_actor)
+        first = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
+        second = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
         self.assertEqual(first.follow_up_id, second.follow_up_id)
 
         # Idempotency collision with modified parameter
         req_diff = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="DIFFERENT INSTRUCTION TEXT",
             idempotency_key="idemp_ffu_100",
         )
         with self.assertRaises(ValueError) as ctx:
-            self.service.issue_follow_up(req_diff, actor=self.daph_actor)
+            self.service.issue_follow_up(req_diff, actor=self.daph_actor)[0]
         self.assertIn("collision", str(ctx.exception).lower())
 
     # ─── 3. Repository Defensive Copy & Query Tests ────────────────────────────
@@ -361,10 +361,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Verifies repository returns deep copies that cannot mutate internal store."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Defensive copy test.",
         )
-        saved = self.service.issue_follow_up(req, actor=self.daph_actor)
+        saved = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
         fetched = self.service.get_follow_up(saved.follow_up_id)
 
         # Mutate fetched object locally
@@ -377,16 +377,16 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Verifies list filters, pagination limit/offset, and actor scoping."""
         req1 = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Task 1",
         )
         req2 = CreateFollowUpRequest(
             forecast_id="fdr_test_lsd_002",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Task 2",
         )
-        self.service.issue_follow_up(req1, actor=self.daph_actor)
-        self.service.issue_follow_up(req2, actor=self.daph_actor)
+        self.service.issue_follow_up(req1, actor=self.daph_actor)[0]
+        self.service.issue_follow_up(req2, actor=self.daph_actor)[0]
 
         # List all as DAPH
         res_daph = self.service.list_follow_ups(actor=self.daph_actor)
@@ -407,10 +407,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Tests ISSUED -> ACKNOWLEDGED -> ACTION_IN_PROGRESS -> COMPLETED transition chain."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Complete lifecycle test.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
         self.assertEqual(rec.status, "ISSUED")
         self.assertEqual(rec.version, 1)
 
@@ -443,10 +443,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Rejects acknowledgement attempts by an unassigned Veterinary Officer."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Targeted to vet 01.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         with self.assertRaises(ValueError) as ctx:
             self.service.acknowledge_follow_up(rec.follow_up_id, expected_version=1, actor=self.other_vet_actor)
@@ -456,10 +456,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Rejects DAPH official attempting to perform Vet acknowledgement action."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Targeted to vet 01.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         with self.assertRaises(ValueError) as ctx:
             self.service.acknowledge_follow_up(rec.follow_up_id, expected_version=1, actor=self.daph_actor)
@@ -469,10 +469,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Rejects status transition when expected version does not match current version."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Concurrency test.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         # Attempt transition with wrong version (expected version 99 instead of 1)
         with self.assertRaises(ValueError) as ctx:
@@ -483,10 +483,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Tests DAPH official cancelling an ISSUED follow-up instruction."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Cancellation test.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         cancelled = self.service.cancel_follow_up(
             rec.follow_up_id, expected_version=1, reason="Risk re-assessed by DAPH HQ.", actor=self.daph_actor
@@ -503,10 +503,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Tests escalating a follow-up instruction with explicit reason requirement."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Escalation test.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         # Empty reason rejected
         with self.assertRaises(ValueError):
@@ -524,10 +524,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         """Tests associating an opaque external supply chain resource request reference ID."""
         req = CreateFollowUpRequest(
             forecast_id="fdr_test_fmd_001",
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Resource reference test.",
         )
-        rec = self.service.issue_follow_up(req, actor=self.daph_actor)
+        rec = self.service.issue_follow_up(req, actor=self.daph_actor)[0]
 
         linked = self.service.link_external_resource_request(
             rec.follow_up_id, expected_version=1, external_resource_request_id="ext_res_req_9988", actor=self.daph_actor
@@ -543,7 +543,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
         payload = {
             "forecast_id": "fdr_test_fmd_001",
-            "assigned_vet_id": "vet_officer_01",
+            "assigned_vet_ids": ["vet_officer_01"],
             "instruction_summary": "HTTP API roundtrip test instruction.",
         }
         headers = {
@@ -554,7 +554,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         # POST /follow-ups
         res_post = client.post("/api/v1/risk-forecasting/follow-ups", json=payload, headers=headers)
         self.assertEqual(res_post.status_code, 201)
-        data = res_post.json()
+        data = res_post.json()[0]
         self.assertEqual(data["district"], "Anuradhapura")
         self.assertEqual(data["status"], "ISSUED")
         self.assertEqual(data["issued_by_daph_id"], "daph_hq_01")
@@ -571,7 +571,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
 
         payload = {
             "forecast_id": "fdr_test_fmd_001",
-            "assigned_vet_id": "vet_officer_01",
+            "assigned_vet_ids": ["vet_officer_01"],
             "instruction_summary": "Mismatch test.",
             "idempotency_key": "body_key_001",
         }
@@ -594,12 +594,12 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_test_fmd_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Transition test.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_post.json()["follow_up_id"]
+        fu_id = res_post.json()[0]["follow_up_id"]
 
         # Acknowledge with correct version (1)
         res_ack = client.post(
@@ -637,7 +637,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         client = TestClient(app)
         payload = {
             "forecast_id": "fdr_test_fmd_001",
-            "assigned_vet_id": "vet_officer_01",
+            "assigned_vet_ids": ["vet_officer_01"],
             "instruction_summary": "Spoofed issuer attempt.",
             "issued_by_daph_id": "daph_spoofed_999",
         }
@@ -660,12 +660,12 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_test_fmd_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Transition spoof test.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         # Attempt acknowledge with spoofed body actor_id
         res_ack = client.post(
@@ -685,7 +685,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_test_fmd_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Farmer issue attempt.",
             },
             headers={"X-Actor-ID": "farmer_999", "X-Actor-Role": "FARMER"},
@@ -699,12 +699,12 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_test_fmd_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Unassigned vet test.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         res_ack = client.post(
             f"/api/v1/risk-forecasting/follow-ups/{fu_id}/acknowledge?version=1",
@@ -724,12 +724,12 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
             "/api/v1/risk-forecasting/follow-ups",
             json={
                 "forecast_id": "fdr_test_fmd_001",
-                "assigned_vet_id": "vet_officer_01",
+                "assigned_vet_ids": ["vet_officer_01"],
                 "instruction_summary": "Resource link auth test.",
             },
             headers={"X-Actor-ID": "daph_hq_01", "X-Actor-Role": "DAPH_OFFICIAL"},
         )
-        fu_id = res_issue.json()["follow_up_id"]
+        fu_id = res_issue.json()[0]["follow_up_id"]
 
         # Reject payload containing actor_id in body (422)
         res_extra = client.post(
@@ -920,10 +920,10 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         daph_actor = FollowUpActorContext(actor_id="daph_hq_01", role="DAPH_OFFICIAL")
         req = CreateFollowUpRequest(
             forecast_id=self.sample_forecast.forecast_id,
-            assigned_vet_id="vet_officer_01",
+            assigned_vet_ids=["vet_officer_01"],
             instruction_summary="Operational follow-up instruction test.",
         )
-        rec = self.service.issue_follow_up(req, actor=daph_actor)
+        rec = self.service.issue_follow_up(req, actor=daph_actor)[0]
         from components.risk_forecasting.services.follow_up_service import forecast_follow_up_service
         forecast_follow_up_service.follow_up_repo.save(rec)
         return rec
@@ -1028,7 +1028,7 @@ class TestForecastFollowUpFoundation(unittest.TestCase):
         # 2. Issue
         res_issue = client.post(
             "/api/v1/risk-forecasting/follow-ups",
-            json={"forecast_id": self.sample_forecast.forecast_id, "assigned_vet_id": "vet_officer_01", "instruction_summary": "Test"},
+            json={"forecast_id": self.sample_forecast.forecast_id, "assigned_vet_ids": ["vet_officer_01"], "instruction_summary": "Test"},
             headers=sys_headers,
         )
         self.assertEqual(res_issue.status_code, 403)

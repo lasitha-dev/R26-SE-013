@@ -214,7 +214,7 @@ class FMDService:
             scaler = self.models["stage1_31_scaler"]
             feat_cols = list(self.models["stage1_31_cols"])
             variant_name = "31_feature_autocorrelation"
-        elif use_31feat_requested:
+        elif use_31feat_requested and has_31feat_artifacts:
             model = self.models["stage1_30_model"]
             scaler = self.models["stage1_30_scaler"]
             feat_cols = list(self.models["stage1_30_cols"])

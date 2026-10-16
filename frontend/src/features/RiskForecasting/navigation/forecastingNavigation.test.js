@@ -101,12 +101,13 @@ describe('forecastingNavigation Helpers', () => {
     expect(ids).not.toContain('outbox');
   });
 
-  it('DAPH gets National Overview, Follow-Up Monitoring, and District Forecasts', () => {
+  it('DAPH gets National Overview, Follow-Up Monitoring, District Forecasts, and Outbreak Monitor', () => {
     const items = getForecastingNavigation(daphContextBasic);
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).toEqual(NAVIGATION_ITEMS.NATIONAL_OVERVIEW);
     expect(items[1]).toEqual(NAVIGATION_ITEMS.FOLLOW_UP_MONITORING);
     expect(items[2]).toEqual(NAVIGATION_ITEMS.DISTRICT_FORECASTS);
+    expect(items[3]).toEqual(NAVIGATION_ITEMS.OUTBREAK_MONITOR);
 
     const ids = items.map((i) => i.id);
     expect(ids).not.toContain('surveillance-overview');
@@ -121,7 +122,7 @@ describe('forecastingNavigation Helpers', () => {
       permissions: { ...daphContextBasic.permissions, viewDataQuality: true },
     };
     const items = getForecastingNavigation(daphWithDataQuality);
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     const ids = items.map((i) => i.id);
     expect(ids).not.toContain('data-quality');
   });

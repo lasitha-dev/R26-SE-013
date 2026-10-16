@@ -5,6 +5,7 @@ dependency injection into FMD and LSD services, and preservation of feature cont
 """
 
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import pandas as pd
 
@@ -67,7 +68,8 @@ class TestProviderBoundaryAndCharacterization(unittest.TestCase):
         req = FMDOutbreakPredictRequest(
             district="Anuradhapura", year=2020, month=12, model_variant="30_feature_baseline"
         )
-        res = fmd_service.predict(req)
+        with patch.object(fmd_service.data_provider, "get_valid_lag1", return_value=0.0):
+            res = fmd_service.predict(req)
         self.assertEqual(res.disease, "FMD")
         self.assertEqual(res.district, "Anuradhapura")
         self.assertEqual(res.provenance.data_quality, "EXACT_REQUESTED_PERIOD")
