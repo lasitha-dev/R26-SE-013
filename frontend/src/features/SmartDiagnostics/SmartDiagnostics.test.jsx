@@ -46,6 +46,29 @@ const getFetchReasoning = async () => {
 };
 
 describe('SmartDiagnostics', () => {
+  it.each(['Mastitis', 'Foot and Mouth Disease', 'Lumpy Skin Disease'])('shows and saves severity from model findings and LLM reasoning for %s', async (name) => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const visual = { grade: 'Mild', source: 'visual_thresholds', needs_review: false };
+    const combined = { grade: 'Moderate', formatted: 'Moderate severity estimate',
+      source: 'model_llm_reasoning', needs_review: false,
+      description: 'Moderate severity estimated from model findings and LLM reasoning.',
+      diagnostic_rationale: 'Visual Mild plus LLM Severe; weighted score 1.6.',
+      reasoning_assessment: { llm_grade: 'Severe', weighted_score: 1.6, llm_weight: .3 } };
+    api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
+      disease: { name, confidence: 90 }, severity: visual, review: { required: false } });
+    api.fetchReasoning.mockResolvedValue({ status: 'ok', severity_assessment: combined });
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate severity estimate');
+    expect(screen.getByTestId('diagnostic-rationale')).toHaveTextContent('Visual Mild plus LLM Severe');
+    expect(screen.queryByTestId('needs-review-banner')).not.toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Vet: Verify & Report/ })); });
+    expect(api.reportDiagnosticCase).toHaveBeenCalledWith(expect.objectContaining({
+      severity: 'Moderate', clinical_notes: expect.stringContaining('reasoning_assessment'),
+    }));
+  });
+
   it('allows an optional clinical assessment and restores the automatic estimate when findings change', async () => {
     const api = await import('./services/api');
     vi.clearAllMocks();

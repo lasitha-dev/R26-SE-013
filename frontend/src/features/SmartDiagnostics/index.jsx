@@ -128,6 +128,7 @@ const SmartDiagnostics = () => {
   const clinicalKey = clinicalDiseaseKey(disease?.name);
   const effectiveSeverity = resolveSeverity(result, severityAssessment);
   const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
+  const modelReasoned = effectiveSeverity?.source === 'model_llm_reasoning';
   const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
   const clinicalReady = !usesClinicalChecklist || (effectiveSeverity?.assessment_status === 'provisional' && ['done', 'fallback', 'unavailable'].includes(reasoningStatus));
   const dynamicSeverity = effectiveSeverity;
@@ -211,6 +212,8 @@ const SmartDiagnostics = () => {
         cropped_image: croppedImage,
         clinical_notes: usesClinicalChecklist
           ? `Veterinary checklist reviewed; provisional rule-based assessment. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, rubric_id: effectiveSeverity.rubric_id, assessment_status: effectiveSeverity.assessment_status, clinical_observations: effectiveSeverity.clinical_observations, evidence: effectiveSeverity.evidence, references: effectiveSeverity.references })}`
+          : modelReasoned
+            ? `Automated severity estimate reviewed for this case. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment, reasoning_assessment: effectiveSeverity.reasoning_assessment })}`
           : automaticVisual
             ? `Automatic visual estimate reviewed for this case; clinical severity is not established. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
             : `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
@@ -608,7 +611,7 @@ const SmartDiagnostics = () => {
                       {needsReview && (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
-                          <span className="font-medium">{usesClinicalChecklist ? 'Clinical checklist requires veterinary review. Application accuracy has not been validated.' : 'Review required: inspect missing evidence, model uncertainty and image quality before clinical interpretation.'}</span>
+                          <span className="font-medium">{usesClinicalChecklist ? 'Clinical checklist requires veterinary review. Application accuracy has not been validated.' : 'Assessment checks: inspect the evidence and image quality notes below.'}</span>
                         </div>
                       )}
 
@@ -617,7 +620,7 @@ const SmartDiagnostics = () => {
                         <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1.5 flex items-center justify-between">
                           <span className="flex items-center gap-1">
                             <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
-                            {usesClinicalChecklist ? (clinicalKey === 'foot_and_mouth' ? 'FMD field triage assessment' : 'Clinical checklist assessment') : automaticVisual ? 'Automatic visual severity estimate' : 'Existing Image Assessment'}
+                            {usesClinicalChecklist ? (clinicalKey === 'foot_and_mouth' ? 'FMD field triage assessment' : 'Clinical checklist assessment') : modelReasoned ? 'Severity from model findings and LLM reasoning' : automaticVisual ? 'Automatic visual severity estimate' : 'Existing Image Assessment'}
                           </span>
                           {reasoningStatus === 'loading' ? (
                             <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 animate-pulse" data-testid="synthesising-badge">
@@ -736,7 +739,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
+                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : modelReasoned ? 'MODEL FINDINGS + LLM REASONING' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="diagnostic-rationale">

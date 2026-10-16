@@ -1,8 +1,11 @@
 # Grounded veterinary explanations
 
-LSD, FMD and mastitis use the same local explanation service. Automatic visual
-grades and optional clinical checklists remain deterministic. Explanation failures
-never replace their scores, measurements, unknowns or review flags.
+LSD, FMD and mastitis use the same local reasoning service. Initial visual grades
+and optional clinical checklists remain deterministic. For an assessable visual
+result, the LLM can recommend a severity grade with supporting case-evidence IDs.
+The backend applies the configured weight and cutoffs to produce the final estimate.
+Reasoning failures retain the model-based result and its measurements and flags.
+See [SEVERITY_THRESHOLDS.md](../SEVERITY_THRESHOLDS.md) for configuration.
 
 ## Evidence and reference flow
 
@@ -26,10 +29,13 @@ response: case evidence, general reference facts, limitations and next checks.
 It does **not** write unrestricted clinical prose. The server validates types,
 assessment kind, applicable IDs and duplicates, then renders source-bound text.
 The model can select/order optional points but cannot create claims, citations,
-numbers, diagnoses or severity fields. Essential assessment evidence, all
+numbers or diagnoses. The only severity fields accepted are `severity_grade`
+(Mild/Moderate/Severe or null) and `severity_evidence_ids`, restricted to measured
+coverage and supplied symptom evidence. They cannot grade missing measurements
+or override clinical checklists. Essential assessment evidence, all
 applicable limitations and disease-specific confirmation/check items remain
 mandatory even when the model omits them. User-reported observations stay labelled
-as unverified data, including instruction-like text.
+as user-reported data, including instruction-like text.
 
 This is constrained explanation organization, not an independent diagnostic model.
 It reduces the model's freedom to hallucinate at the cost of less flexible prose.
@@ -55,10 +61,10 @@ No response text from an invalid generation is displayed. No analyzed ROI yields
 explanation generation falls back.
 
 Both veterinary and farmer views display the explanation separately from the
-immediate severity result. Request revisions clear stale explanations after image
+initial severity result, then use the combined estimate when available. Request revisions clear stale explanations after image
 or checklist changes. The prior Markdown formatter and severity-metadata parser
 remain compatibility helpers; the active service does not use them to extract or
-replace grades.
+replace grades through unrestricted generated prose.
 
 ## Model configuration
 
@@ -98,7 +104,9 @@ python -m components.smart_diagnostics.evaluation.reasoning_benchmark --live --o
 
 Reports include per-case latency, model identity, accepted/fallback counts,
 structured explanations and unchanged-assessment checks. Existing report files
-are never overwritten. A run with fallbacks or changed assessments exits nonzero.
+are never overwritten. This legacy benchmark expects unchanged assessments;
+use `reasoning.llm_weight: 0` when comparing explanation-only runs. A run with
+fallbacks or changed assessments exits nonzero.
 These synthetic checks are not clinical validation or a comparison of diagnostic
 accuracy. Compare models only on a frozen case set and add blinded veterinary
 ratings of correctness, relevance, omissions and usefulness on independent cases.

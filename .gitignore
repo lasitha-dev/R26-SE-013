@@ -9,3 +9,5 @@ backend/components/smart_diagnostics/models/best.pt
 .agents/
 backend/components/smart_diagnostics/models/mask_rcnn_cow_symptoms_refined.keras
 /.kilo
+backend/components/smart_diagnostics/review_portal/*
+sites/*

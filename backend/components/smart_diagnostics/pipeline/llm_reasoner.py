@@ -320,7 +320,7 @@ def parse_llm_severity_assessment(
 # ═══════════════════════════════════════════════════════════════════════════
 
 def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
-    """One grounded explanation path for all diseases; preserve measured assessment."""
+    """Combine model findings with a grounded, configurable LLM recommendation."""
     from ..schemas import ReasoningResponse
     from ..config import settings
     from .grounded_reasoning import (ExplanationSelection, build_context, default_selection,
@@ -362,7 +362,18 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
             if len(content) > 16000 or response.choices[0].finish_reason in ("length", "content_filter"):
                 raise ValueError("Incomplete or oversized explanation")
             selection = ExplanationSelection.model_validate_json(content)
+            # Validate all selected IDs before accepting any severity influence.
             explanation = assemble_explanation(context, selection, "llm_selected")
+            if selection.severity_grade is not None:
+                from ..implementations.severity_scorer import combine_reasoned_severity
+                combined = combine_reasoned_severity(baseline, selection.severity_grade,
+                    [context["evidence"][id]["text"] for id in selection.severity_evidence_ids], context["severity_policy"])
+                updated_context = build_context(vision_results, combined, farm_metadata, policy=context["severity_policy"])
+                # The original context has already validated the recommendation;
+                # the final context renders the combined grade and its evidence.
+                rendered_selection = selection.model_copy(update=dict(severity_grade=None, severity_evidence_ids=[]))
+                explanation = assemble_explanation(updated_context, rendered_selection, "llm_selected")
+                baseline = combined
         except ValueError:
             return fallback("invalid_explanation", "The generated explanation could not be verified. A reference summary is shown; the original assessment is retained.")
         return ReasoningResponse(status="ok", reasoning_report=render_report(explanation), model_name=model_name,

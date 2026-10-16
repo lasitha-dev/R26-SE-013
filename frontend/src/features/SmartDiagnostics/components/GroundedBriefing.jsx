@@ -32,9 +32,9 @@ export default function GroundedBriefing({ explanation, assessment, status }) {
         </li>)}
       </ul>
     </div>)}
-    <p className="text-xs text-amber-300">{explanation.reference_review_status}</p>
     <details className="text-xs text-on-surface-variant">
       <summary className="cursor-pointer">Explanation provenance</summary>
+      <p>{explanation.reference_review_status}</p>
       <p className="mt-2">Reference pack: {explanation.reference_pack_version}; prompt: {explanation.prompt_version}</p>
       {explanation.severity_policy_version && <p>Severity policy: {explanation.severity_policy_version}</p>}
       <p className="break-all">Evidence fingerprint: {explanation.evidence_sha256}</p>

@@ -6,6 +6,7 @@ export function clinicalDiseaseKey(name) {
 
 // Automatic visual estimates are primary; clinical checklists are an explicit option.
 export function resolveSeverity(result, assessment) {
+  if (assessment?.source === 'model_llm_reasoning') return assessment;
   if (!clinicalDiseaseKey(result?.disease?.name)) return assessment || result?.severity;
   if (assessment?.source === 'clinical_rules') return assessment;
   if (assessment?.source === 'visual_thresholds') return assessment;

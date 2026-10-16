@@ -12,7 +12,7 @@ export default function ImageEvidenceStatus({ result }) {
     {result?.review?.reasons?.length > 0 && <ul className="list-disc pl-4 text-amber-300">
       {result.review.reasons.map((reason) => <li key={reason}>{reason.replaceAll('_', ' ')}</li>)}
     </ul>}
-    <p>Image measurements and attention do not establish clinical severity. Segmentation thresholds and image-review flags require validation.</p>
+    <p>Model findings provide the initial severity estimate; LLM reasoning refines it using the configured policy.</p>
     <VisualSeverity assessment={result?.severity?.visual_assessment} />
   </div>;
 }

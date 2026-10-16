@@ -4,7 +4,7 @@ from pydantic import ValidationError
 
 from components.smart_diagnostics.config import settings
 from components.smart_diagnostics.implementations.severity_scorer import (
-    SeverityPolicy, compute_composite_severity, load_severity_policy,
+    SeverityPolicy, combine_reasoned_severity, compute_composite_severity, load_severity_policy,
 )
 
 
@@ -23,7 +23,8 @@ def test_threshold_boundaries_use_unrounded_measurements(coverage, grade):
     assert result.grade == grade
     assert result.score == coverage / 100
     assert result.composite_score is None and result.prognosis is None
-    assert result.needs_review and result.confidence_level == "Not validated"
+    assert result.needs_review == bool(result.visual_assessment.review_reasons)
+    assert result.confidence_level == "Model estimate"
     assert result.visual_assessment.validation_status == "unvalidated"
 
 
@@ -87,5 +88,54 @@ def test_automatic_primary_grade_needs_no_clinical_observations(name):
 def test_invalid_policy_is_rejected(moderate, severe):
     raw = load_severity_policy(settings.SEVERITY_POLICY_PATH).model_dump()
     raw["diseases"]["lumpy_skin"].update(moderate_min_pct=moderate, severe_min_pct=severe)
+    with pytest.raises(ValidationError):
+        SeverityPolicy.model_validate(raw)
+
+
+def test_review_for_validation_status_is_configurable():
+    policy = load_severity_policy(settings.SEVERITY_POLICY_PATH)
+    result = compute_composite_severity(signals(segmentation_contract_status="training_lineage_unverified"), policy)
+    assert result.grade == "Moderate" and not result.needs_review
+    assert result.visual_assessment.validation_status == "unvalidated"
+    raw = policy.model_dump()
+    raw["review"].update(require_unvalidated_policy_review=True, require_unverified_segmentation_review=True)
+    result = compute_composite_severity(signals(segmentation_contract_status="training_lineage_unverified"), SeverityPolicy.model_validate(raw))
+    assert result.grade == "Moderate" and result.needs_review
+    assert set(result.visual_assessment.review_reasons) == {"visual_thresholds_unvalidated", "segmentation_training_contract_unverified"}
+
+
+def test_policy_edits_apply_without_restart(tmp_path):
+    path = tmp_path / "policy.json"
+    policy = load_severity_policy(settings.SEVERITY_POLICY_PATH)
+    path.write_text(policy.model_dump_json(), encoding="utf-8")
+    first = compute_composite_severity(signals(), load_severity_policy(str(path)))
+    raw = policy.model_dump()
+    raw["diseases"]["lumpy_skin"]["moderate_min_pct"] = 25
+    path.write_text(SeverityPolicy.model_validate(raw).model_dump_json(), encoding="utf-8")
+    second = compute_composite_severity(signals(), load_severity_policy(str(path)))
+    assert (first.grade, second.grade) == ("Moderate", "Mild")
+    assert first.visual_assessment.policy_sha256 != second.visual_assessment.policy_sha256
+
+
+@pytest.mark.parametrize("weight,moderate,severe,expected", [
+    (0, 1.5, 2.5, "Mild"), (.3, 1.5, 2.5, "Moderate"),
+    (1, 1.5, 2.5, "Severe"), (.3, 1.7, 2.5, "Mild"), (.3, 1.2, 1.6, "Severe"),
+])
+def test_llm_influence_and_combined_cutoffs_are_configurable(weight, moderate, severe, expected):
+    raw = load_severity_policy(settings.SEVERITY_POLICY_PATH).model_dump()
+    raw["reasoning"].update(llm_weight=weight, moderate_min_score=moderate, severe_min_score=severe)
+    policy = SeverityPolicy.model_validate(raw)
+    baseline = compute_composite_severity(signals(lesion_coverage_pct=5), policy)
+    result = combine_reasoned_severity(baseline, "Severe", ["Reported symptoms"], policy)
+    assert result.grade == expected
+    assert result.visual_assessment.grade == "Mild" and result.lesion_coverage_pct == 5
+    assert baseline.grade == "Mild"  # Retain the original measured assessment.
+
+
+@pytest.mark.parametrize("changes", [dict(llm_weight=-.1), dict(llm_weight=1.1),
+    dict(llm_weight=float("nan")), dict(moderate_min_score=2.6), dict(severe_min_score=1.5)])
+def test_invalid_reasoning_policy_is_rejected(changes):
+    raw = load_severity_policy(settings.SEVERITY_POLICY_PATH).model_dump()
+    raw["reasoning"].update(changes)
     with pytest.raises(ValidationError):
         SeverityPolicy.model_validate(raw)

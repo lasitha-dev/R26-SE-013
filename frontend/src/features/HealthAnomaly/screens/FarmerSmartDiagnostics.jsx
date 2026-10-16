@@ -170,7 +170,8 @@ const FarmerSmartDiagnostics = () => {
   const diseaseName = disease?.name || '';
 
   const clinicalKey = clinicalDiseaseKey(diseaseName);
-  const effectiveSeverity = clinicalKey ? resolveSeverity(result, severityAssessment) : result?.severity;
+  const effectiveSeverity = resolveSeverity(result, severityAssessment);
+  const modelReasoned = effectiveSeverity?.source === 'model_llm_reasoning';
   const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
   const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
   const dynamicSeverity = effectiveSeverity;
@@ -250,7 +251,9 @@ const FarmerSmartDiagnostics = () => {
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: automaticVisual
+        clinical_notes: modelReasoned
+          ? `Farmer-submitted automated severity estimate. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment, reasoning_assessment: effectiveSeverity.reasoning_assessment })}`
+          : automaticVisual
           ? `Farmer-submitted automatic visual estimate; clinical severity is not established. Awaiting veterinary verification. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
           : `Farmer-submitted AI diagnostic report. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Awaiting veterinary verification.`,
         llm_reasoning: reasoning,
@@ -793,7 +796,7 @@ const FarmerSmartDiagnostics = () => {
                       {/* Step 3: Clinical Metrics */}
                       <div className={`p-2.5 rounded-xl border transition-all duration-300 ${visibleSteps >= 3 ? 'bg-surface-container border-primary/30 opacity-100' : 'bg-surface-container/30 border-transparent opacity-30'}`}>
                         <div className="flex items-center justify-between text-2xs mb-0.5">
-                          <span className="text-outline uppercase font-bold">{automaticVisual ? 'Step 3 · Automatic visual estimate' : clinicalKey ? 'Step 3 · Clinical review required' : 'Step 3 • Severity & AI Confidence'}</span>
+                          <span className="text-outline uppercase font-bold">{modelReasoned ? 'Step 3 · Model findings + LLM severity' : automaticVisual ? 'Step 3 · Automatic visual estimate' : usesClinicalChecklist ? 'Step 3 · Clinical checklist' : 'Step 3 • Severity & AI Confidence'}</span>
                           <div className="flex items-center gap-1.5">
                             <span className={`font-bold ${severityColor}`}>{severityFormatted}</span>
                             {confidenceLevel && (
@@ -804,7 +807,7 @@ const FarmerSmartDiagnostics = () => {
                                   ? 'bg-amber-500/15 text-amber-300'
                                   : 'bg-rose-500/15 text-rose-300'
                               }`}>
-                                {confidenceLevel} Conf.
+                                {confidenceLevel === 'Model estimate' ? confidenceLevel : `${confidenceLevel} Conf.`}
                               </span>
                             )}
                           </div>
@@ -816,7 +819,7 @@ const FarmerSmartDiagnostics = () => {
                         {needsReview && (
                           <div className="mt-1.5 p-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-xs text-amber-400">warning</span>
-                            <span>Uncertainty Notice: Requires field veterinarian verification.</span>
+                            <span>Assessment checks: inspect the evidence and image quality notes.</span>
                           </div>
                         )}
                       </div>

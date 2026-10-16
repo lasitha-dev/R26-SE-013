@@ -63,7 +63,8 @@ async def health(request: Request):
 async def detect(request: Request, image: UploadFile = File(...),
                  body_site: str | None = Form(None), observed_symptoms: str | None = Form(None)):
     from .model_errors import ModelUnavailable
-    from .implementations.severity_scorer import compute_composite_severity
+    from .implementations.severity_scorer import compute_composite_severity, load_severity_policy
+    from .config import settings
     from .schemas import SegmentationAssessment, ReviewAssessment
     import numpy as np
 
@@ -142,7 +143,8 @@ async def detect(request: Request, image: UploadFile = File(...),
         predicted_class="cattle" if healthy else disease.name, predicted_display=disease.name,
         lesion_coverage_pct=segmentation.lesion_coverage_pct, cluster_count=segmentation.cluster_count,
         mean_intensity=segmentation.mean_intensity, spatial_correlation=spatial)
-    severity = compute_composite_severity(signals)
+    policy = load_severity_policy(settings.SEVERITY_POLICY_PATH)
+    severity = compute_composite_severity(signals, policy)
     severity.spatial_correlation = spatial
     severity.lesion_coverage_pct = segmentation.lesion_coverage_pct
     severity.cluster_count = segmentation.cluster_count
@@ -152,24 +154,21 @@ async def detect(request: Request, image: UploadFile = File(...),
         severity.attention_cluster_count = None
 
     reasons = list(severity.visual_assessment.review_reasons) if severity.visual_assessment else []
-    if disease.confidence < 60:
-        reasons.append("low_classification_confidence")
-    if margin < 15:
-        reasons.append("small_top_two_margin")
-    if min(cropped.size) < 128:
+    if min(cropped.size) < policy.review.minimum_crop_side_px:
         reasons.append("small_analyzed_region")
     gray = np.asarray(cropped.convert("L"), dtype=float)
-    if gray.std() < 5:
+    if gray.std() < policy.review.minimum_image_stddev:
         reasons.append("low_image_detail")
-    if gray.mean() < 20 or gray.mean() > 235:
+    if gray.mean() < policy.review.minimum_image_brightness or gray.mean() > policy.review.maximum_image_brightness:
         reasons.append("extreme_image_brightness")
     if not healthy:
         if not completed:
             reasons.append("segmentation_" + segmentation.status)
-        if segmentation.contract_status != "verified":
+        if policy.review.require_unverified_segmentation_review and segmentation.contract_status != "verified":
             reasons.append("segmentation_training_contract_unverified")
     if prediction.get("attention_status") == "failed":
         reasons.append("attention_unavailable")
+    reasons = list(dict.fromkeys(reasons))
     if reasons:
         severity.needs_review = True
     attention = prediction.get("attention_overlay_image")
@@ -196,11 +195,11 @@ async def detect(request: Request, image: UploadFile = File(...),
 
 @router.post("/api/reason", response_model=ReasoningResponse)
 async def reason(body: ReasoningRequest):
-    """Keep assessments deterministic; explain all diseases through one grounded path."""
+    """Rebuild model severity, then combine grounded LLM reasoning using policy."""
     from .implementations.clinical_severity import assess_clinical_severity, clinical_disease_key
     sev = body.severity
-    if body.cattle_detected and body.disease and clinical_disease_key(body.disease.name):
-        if body.clinical_observations is None:
+    if body.cattle_detected and body.disease:
+        if body.clinical_observations is None or not clinical_disease_key(body.disease.name):
             from .implementations.severity_scorer import compute_composite_severity
             # Rebuild from the supplied model measurements, rather than accepting a
             # client-provided grade or retaining the former mandatory checklist.

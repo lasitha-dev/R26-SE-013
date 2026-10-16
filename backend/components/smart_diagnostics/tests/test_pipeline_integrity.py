@@ -109,7 +109,7 @@ def test_failed_segmenter_keeps_classification_but_reports_unknown_measurements(
 
 
 def test_api_preserves_supplied_measurements_through_unavailable_reasoning(client):
-    body = dict(cattle_detected=True,detections=[],disease=dict(name='Lumpy Skin Disease',confidence=90,all_probabilities={}),
+    body = dict(cattle_detected=True,detections=[],disease=dict(name='Lumpy Skin Disease',confidence=90,all_probabilities={'lumpy_skin':90,'cattle':10}),
         best_detection=dict(bbox=[0,0,100,100],confidence=.9,bbox_normalized=dict(x1=0,y1=0,x2=1,y2=1)),
         severity=dict(grade='Moderate',score=.42,composite_score=.42,lesion_coverage_pct=12.25,cluster_count=3,needs_review=True),
         segmentation=dict(status='completed_with_regions',lesion_coverage_pct=12.25,cluster_count=3))
@@ -117,7 +117,9 @@ def test_api_preserves_supplied_measurements_through_unavailable_reasoning(clien
         result = client.post('/api/reason',json=body).json()
     assert result['status'] == 'fallback'
     assert result['severity_assessment']['lesion_coverage_pct'] == 12.25
-    assert result['severity_assessment']['grade'] == 'Moderate' and result['severity_assessment']['needs_review']
+    assert result['severity_assessment']['grade'] == 'Moderate'
+    assert result['severity_assessment']['score'] == .1225
+    assert result['severity_assessment']['composite_score'] is None
 
 
 @pytest.mark.parametrize('disease', ['Lumpy Skin Disease', 'Mastitis', 'Foot and Mouth Disease'])
@@ -137,7 +139,8 @@ def test_three_model_evidence_and_thresholds_survive_api_and_explanation(
     assert visual['thresholds_pct'] == dict(moderate_min_pct=10, severe_min_pct=30)
     assert visual['evidence']['yolo_confidence'] == payload['best_detection']['confidence']
     assert visual['evidence']['vit_confidence_pct'] == payload['disease']['confidence']
-    assert 'visual_thresholds_unvalidated' in payload['review']['reasons']
+    assert 'visual_thresholds_unvalidated' not in payload['review']['reasons']
+    assert visual['validation_status'] == 'unvalidated'
     assert payload['severity']['grade'] == 'Severe'
     assert payload['severity']['source'] == 'visual_thresholds'
     with patch('openai.OpenAI', side_effect=ConnectionError('offline')):

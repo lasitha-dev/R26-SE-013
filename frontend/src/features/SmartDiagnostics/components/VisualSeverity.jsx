@@ -19,9 +19,9 @@ export default function VisualSeverity({ assessment }) {
       </div>
     </>}
     <p>Detector confidence: {evidence.yolo_confidence == null ? 'Unknown' : `${(evidence.yolo_confidence * 100).toFixed(1)}%`}; disease confidence: {evidence.vit_confidence_pct ?? 'Unknown'}%; class margin: {evidence.top2_margin_pct ?? 'Unknown'} points.</p>
-    <p className="text-amber-300">Unvalidated thresholds. Veterinary review required. This estimates crop appearance; clinical severity, total body involvement and disease stage require clinical assessment.</p>
     <details>
       <summary className="cursor-pointer">Threshold evidence and review reasons</summary>
+      <p>Unvalidated thresholds. This estimates crop appearance; clinical severity, total body involvement and disease stage require clinical assessment.</p>
       <p className="mt-2">{assessment.rationale}</p>
       <p>Policy: {assessment.policy_version}</p>
       {assessment.review_reasons?.length > 0 && <ul className="list-disc pl-4">{assessment.review_reasons.map(reason => <li key={reason}>{reason.replaceAll('_', ' ')}</li>)}</ul>}

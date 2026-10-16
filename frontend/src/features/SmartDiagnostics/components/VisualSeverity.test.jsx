@@ -19,6 +19,7 @@ describe('Visual severity evidence', () => {
     expect(screen.getByText(/Moderate: 10% to below 30%/)).toBeInTheDocument();
     expect(screen.getByText(/Detector confidence: 90.0%/)).toBeInTheDocument();
     expect(screen.getByText(/Unvalidated thresholds/)).toBeInTheDocument();
+    expect(screen.queryByText(/Veterinary review required/)).not.toBeInTheDocument();
   });
 
   it('keeps an unassessable result when measurements are unavailable', () => {

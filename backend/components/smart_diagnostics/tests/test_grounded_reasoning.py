@@ -121,7 +121,7 @@ def test_reported_instructions_remain_quoted_data_and_cannot_supply_new_claims()
         outcome = generate_report_result(vision, {"notes": attack})
     assert outcome.status == "fallback" and outcome.severity_assessment.grade == "Moderate"
     reported = next(point for point in outcome.explanation.supporting_evidence if point.id == "reported_symptoms")
-    assert reported.text.startswith("User-reported symptoms (unverified):")
+    assert reported.text.startswith("User-reported symptoms:")
 
 
 def test_provenance_changes_with_evidence_but_not_with_llm_order():
@@ -215,3 +215,57 @@ def test_outer_request_failure_keeps_template_and_original_assessment(
     assert response.json()["error_code"] == "reasoning_failed_or_timed_out"
     assert response.json()["explanation"]["origin"] == "template"
     assert response.json()["severity_assessment"]["grade"] == detected["severity"]["grade"]
+
+
+@pytest.mark.parametrize("name", ["Lumpy Skin Disease", "Foot and Mouth Disease", "Mastitis"])
+def test_api_combines_evidence_backed_llm_grade_for_all_diseases(
+        name, create_app, dummy_rgb_image_bytes, mock_yolo_single_detection):
+    mask = FakeSegmenter()
+    mask.predict_with_metrics = lambda image: (image, dict(status="completed_with_regions",
+        lesion_coverage_pct=5, cluster_count=2, contract_status="verified"))
+    client = TestClient(create_app(detector=FakeDetector(mock_yolo_single_detection),
+        classifier=FakeClassifier(dict(name=name, confidence=90,
+            all_probabilities={name: 90, "cattle": 10}, top2_margin=80)), segmenter=mask))
+    detected = client.post("/api/detect", files={"image": ("cow.jpg", dummy_rgb_image_bytes, "image/jpeg")}).json()
+    assert detected["severity"]["grade"] == "Mild"
+    payload = json.dumps(dict(case_kind="visual_estimate", evidence_ids=["prediction"],
+        context_ids=[], limitation_ids=["crop_scope"], next_check_ids=[],
+        severity_grade="Severe", severity_evidence_ids=["coverage"]))
+    with patch("openai.OpenAI", return_value=completion(payload)):
+        response = client.post("/api/reason", json=detected)
+    assert response.status_code == 200
+    outcome = response.json()
+    assert outcome["status"] == "ok"
+    assessment = outcome["severity_assessment"]
+    assert assessment["grade"] == "Moderate" and assessment["source"] == "model_llm_reasoning"
+    assert assessment["composite_score"] == 1.6
+    assert assessment["visual_assessment"] == detected["severity"]["visual_assessment"]
+    assert assessment["reasoning_assessment"]["llm_grade"] == "Severe"
+    assert "Moderate severity estimate" in outcome["explanation"]["summary"]
+    assert "LLM recommendation Severe" in outcome["reasoning_report"]
+
+
+@pytest.mark.parametrize("ids", [[], ["lsd_signs"], ["prediction"], ["assessment"], ["coverage", "coverage"]])
+def test_llm_severity_rejects_missing_reference_or_self_supporting_evidence(ids):
+    vision, assessment = case()
+    payload = selected_payload(vision, assessment, severity_grade="Severe", severity_evidence_ids=ids)
+    with patch("openai.OpenAI", return_value=completion(payload)):
+        result = generate_report_result(vision)
+    assert result.status == "fallback" and result.error_code == "invalid_explanation"
+    assert result.severity_assessment == assessment
+
+
+def test_llm_cannot_grade_missing_measurements_or_override_clinical_checklist():
+    for vision, assessment in [case(coverage=None, status="failed"),
+            case("mastitis", clinical_observations=dict(disease="mastitis", vet_confirmed=True,
+                milk_abnormal=True, udder_inflammation=False, systemic_illness=False))]:
+        context = build_context(vision, assessment)
+        if vision.get("clinical_observations"):
+            from components.smart_diagnostics.implementations.clinical_severity import assess_clinical_severity
+            context = build_context(vision, assess_clinical_severity("mastitis", vision["clinical_observations"]))
+        payload = default_selection(context).model_dump()
+        payload.update(severity_grade="Severe", severity_evidence_ids=["coverage"])
+        with patch("openai.OpenAI", return_value=completion(json.dumps(payload))):
+            result = generate_report_result(vision)
+        assert result.status == "fallback"
+        assert result.severity_assessment.grade == ("Mild" if vision.get("clinical_observations") else "Unassessable")

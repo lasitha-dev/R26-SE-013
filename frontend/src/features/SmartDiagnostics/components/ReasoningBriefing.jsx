@@ -287,9 +287,9 @@ export default function ReasoningBriefing({ reasoning, reasoningStatus, reasonin
     </div>;
   }
 
-  if (severityAssessment?.source === 'visual_thresholds') {
+  if (['visual_thresholds', 'model_llm_reasoning'].includes(severityAssessment?.source)) {
     return <div className="rounded-2xl p-5 border border-outline-variant/20 bg-surface-container-low space-y-3" data-testid="reasoning-briefing">
-      <h3 className="font-bold text-on-surface">Automatic visual assessment</h3>
+      <h3 className="font-bold text-on-surface">{severityAssessment.source === 'model_llm_reasoning' ? 'Model findings and LLM severity assessment' : 'Automatic visual assessment'}</h3>
       <p className="text-sm text-amber-300" data-testid="briefing-severity-grade">{severityAssessment.formatted || severityAssessment.grade}</p>
       <p className="text-sm text-on-surface-variant">{severityAssessment.description}</p>
       <p className="text-xs text-on-surface-variant">{severityAssessment.diagnostic_rationale}</p>

@@ -1,7 +1,8 @@
-"""Versioned crop-mask thresholds, separate from clinical disease severity.
+"""Configurable visual thresholds and model/LLM severity estimates.
 
 YOLO selects the ROI, ViT supplies disease context, and segmentation measures
 predicted foreground. Certainty gates interpretation; it never increases burden.
+Grounded LLM recommendations contribute through a configurable ordinal policy.
 """
 from __future__ import annotations
 
@@ -9,7 +10,6 @@ import hashlib
 import json
 import math
 import re
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -32,6 +32,36 @@ class DiseaseThresholds(BaseModel):
         return self
 
 
+class ReasoningSeverityPolicy(BaseModel):
+    """Combine ordinal visual/LLM grades; weights never use model confidence."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    llm_weight: float = Field(default=0.3, ge=0, le=1)
+    moderate_min_score: float = Field(default=1.5, gt=1, lt=3)
+    severe_min_score: float = Field(default=2.5, gt=1, le=3)
+
+    @model_validator(mode="after")
+    def ordered(self):
+        if self.moderate_min_score >= self.severe_min_score:
+            raise ValueError("Moderate score must be below severe score.")
+        return self
+
+
+class ReviewPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    require_unvalidated_policy_review: bool = False
+    require_unverified_segmentation_review: bool = False
+    minimum_crop_side_px: int = Field(default=128, ge=0)
+    minimum_image_stddev: float = Field(default=5, ge=0)
+    minimum_image_brightness: float = Field(default=20, ge=0, le=255)
+    maximum_image_brightness: float = Field(default=235, ge=0, le=255)
+
+    @model_validator(mode="after")
+    def ordered(self):
+        if self.minimum_image_brightness >= self.maximum_image_brightness:
+            raise ValueError("Minimum brightness must be below maximum brightness.")
+        return self
+
+
 class SeverityPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     version: str = Field(min_length=1)
@@ -42,11 +72,12 @@ class SeverityPolicy(BaseModel):
     minimum_top_two_margin_pct: float = Field(ge=0, le=100)
     boundary_margin_pct: float = Field(ge=0, le=100)
     diseases: dict[str, DiseaseThresholds]
+    reasoning: ReasoningSeverityPolicy = Field(default_factory=ReasoningSeverityPolicy)
+    review: ReviewPolicy = Field(default_factory=ReviewPolicy)
 
 
-@lru_cache(maxsize=4)
 def load_severity_policy(path: str) -> SeverityPolicy:
-    """Read once per process; reject invalid policies rather than using defaults."""
+    """Read for each assessment so config edits apply without restarting."""
     return SeverityPolicy.model_validate_json(Path(path).read_text(encoding="utf-8"))
 
 
@@ -102,9 +133,10 @@ def assess_visual_severity(signals: dict[str, Any], policy: SeverityPolicy | Non
                  else "Moderate" if coverage >= profile.moderate_min_pct else "Mild")
         if any(abs(coverage - boundary) <= policy.boundary_margin_pct for boundary in thresholds.values()):
             reasons.append("near_visual_grade_boundary")
-    if signals.get("segmentation_contract_status") != "verified":
+    if policy.review.require_unverified_segmentation_review and signals.get("segmentation_contract_status") != "verified":
         reasons.append("segmentation_training_contract_unverified")
-    reasons.append("visual_thresholds_unvalidated")
+    if policy.review.require_unvalidated_policy_review:
+        reasons.append("visual_thresholds_unvalidated")
     return VisualSeverityAssessment(grade=grade, coverage_pct=coverage, disease_key=key,
         policy_version=policy.version, policy_sha256=digest, thresholds_pct=thresholds,
         evidence={"yolo_confidence": detector, "vit_confidence_pct": classifier, "top2_margin_pct": margin,
@@ -130,10 +162,11 @@ def compute_composite_severity(signals: dict[str, Any], policy: SeverityPolicy |
         return assessment
 
     score = visual.coverage_pct / 100 if visual.grade != "Unassessable" else None
-    formatted = (f"{visual.grade} visual burden (provisional)" if visual.grade in ("Mild", "Moderate", "Severe")
-                 else f"{visual.grade} - clinical review needed")
+    formatted = (f"{visual.grade} severity estimate" if visual.grade in ("Mild", "Moderate", "Severe")
+                 else "No visible regions" if visual.grade == "No visible regions"
+                 else "Severity unavailable - insufficient model evidence")
     return SeverityMetrics(score=score, composite_score=None, grade=visual.grade, formatted=formatted,
-        source="visual_thresholds", confidence_level="Not validated", needs_review=True,
+        source="visual_thresholds", confidence_level="Model estimate", needs_review=bool(visual.review_reasons),
         assessment_status="provisional" if score is not None else "unassessable",
         assessment_target=visual.assessment_target, rubric_id=visual.policy_version,
         description=f"{formatted}. Predicted mask coverage is limited to the analyzed crop. Clinical severity, stage and prognosis are not established.",
@@ -141,6 +174,37 @@ def compute_composite_severity(signals: dict[str, Any], policy: SeverityPolicy |
         spatial_correlation=signals.get("spatial_correlation"), lesion_coverage_pct=visual.coverage_pct,
         cluster_count=signals.get("cluster_count"), mean_intensity=signals.get("mean_intensity"),
         top2_margin=_number(signals.get("top2_margin"), 100), visual_assessment=visual)
+
+
+GRADE_SCORES = {"Mild": 1.0, "Moderate": 2.0, "Severe": 3.0}
+
+
+def combine_reasoned_severity(assessment: SeverityMetrics, grade: str, evidence: list[str],
+                              policy: SeverityPolicy) -> SeverityMetrics:
+    """Apply configurable ordinal cutoffs while retaining measured visual evidence."""
+    if assessment.source != "visual_thresholds" or assessment.grade not in GRADE_SCORES:
+        raise ValueError("LLM severity requires an assessable automatic visual grade.")
+    if grade not in GRADE_SCORES or not evidence:
+        raise ValueError("A severity recommendation must cite case evidence.")
+    weight = policy.reasoning.llm_weight
+    if weight == 0:
+        return assessment
+    score = round((1 - weight) * GRADE_SCORES[assessment.grade] + weight * GRADE_SCORES[grade], 12)
+    final_grade = ("Severe" if score >= policy.reasoning.severe_min_score else
+                   "Moderate" if score >= policy.reasoning.moderate_min_score else "Mild")
+    rationale = (f"Visual grade {assessment.grade} ({GRADE_SCORES[assessment.grade]:g}); "
+        f"LLM recommendation {grade} ({GRADE_SCORES[grade]:g}). "
+        f"Weighted score: {score:g} = {1-weight:g} × visual + {weight:g} × LLM. "
+        f"Moderate begins at {policy.reasoning.moderate_min_score:g}; severe at {policy.reasoning.severe_min_score:g}. "
+        "LLM supporting evidence: " + " ".join(evidence))
+    return assessment.model_copy(update=dict(grade=final_grade, formatted=f"{final_grade} severity estimate",
+        source="model_llm_reasoning", composite_score=score,
+        assessment_target="model_and_reasoning_severity_estimate", assessment_status="estimated",
+        description=f"{final_grade} severity estimated from model findings and LLM reasoning. This is an automated estimate, not a confirmed clinical grade.",
+        diagnostic_rationale=rationale, evidence=evidence,
+        reasoning_assessment=dict(visual_grade=assessment.grade, llm_grade=grade, llm_weight=weight,
+            weighted_score=score, moderate_min_score=policy.reasoning.moderate_min_score,
+            severe_min_score=policy.reasoning.severe_min_score)))
 
 
 def visual_severity_report(name: str, assessment: SeverityMetrics) -> str:

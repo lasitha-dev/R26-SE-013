@@ -46,11 +46,11 @@ def test_clinical_fallback_severity_generation():
     assert sev.grade == "Moderate"
     assert "stage" not in sev.model_dump()
     assert sev.prognosis is None
-    assert "visual burden" in sev.description
+    assert "severity estimate" in sev.description
     assert sev.composite_score is None
     assert sev.score == 0.145
-    assert sev.confidence_level == "Not validated"
-    assert sev.needs_review is True
+    assert sev.confidence_level == "Model estimate"
+    assert sev.needs_review is False
     print(f"Clinical fallback severity verified: {sev.grade} - {sev.description}")
 
 
@@ -72,7 +72,7 @@ def test_healthy_baseline_severity():
     sev = create_clinical_fallback_severity(vision_results)
     assert sev.grade == "Unassessable"
     assert sev.prognosis is None
-    assert sev.confidence_level == "Not validated"
+    assert sev.confidence_level == "Model estimate"
     assert sev.needs_review is True
     print("Healthy baseline severity verified.")
 

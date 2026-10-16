@@ -94,6 +94,7 @@ class SeverityMetrics(BaseModel):
     references: List[Dict[str, str]] = Field(default_factory=list)
     clinical_observations: Optional[ClinicalObservations] = None
     visual_assessment: Optional[VisualSeverityAssessment] = None
+    reasoning_assessment: Optional[dict] = None
 
 
 class SegmentationAssessment(BaseModel):
@@ -185,7 +186,7 @@ class GroundedExplanation(BaseModel):
     reference_pack_sha256: str
     reference_review_status: str
     evidence_sha256: str
-    prompt_version: str = "evidence_selection_v1"
+    prompt_version: str = "evidence_severity_selection_v2"
     severity_policy_version: Optional[str] = None
     severity_policy_sha256: Optional[str] = None
 
