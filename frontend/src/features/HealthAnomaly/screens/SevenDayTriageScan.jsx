@@ -7,18 +7,60 @@ export default function SevenDayTriageScan() {
 
   const [cattleList, setCattleList] = useState([])
   const [imageFile, setImageFile] = useState(null)
+  const get7DayDates = (endDateStr) => {
+    if (!endDateStr) return []
+    const parts = endDateStr.split('-').map(Number)
+    if (parts.length !== 3 || parts.some(isNaN)) return []
+    const [year, month, day] = parts
+    const baseDate = new Date(year, month - 1, day)
+    const dates = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(baseDate)
+      d.setDate(baseDate.getDate() - i)
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      dates.push(`${yyyy}-${mm}-${dd}`)
+    }
+    return dates
+  }
+
+  const normalizeDateStr = (raw) => {
+    if (!raw) return ''
+    const str = String(raw).trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+
+    const parts = str.split(/[\/\-]/)
+    if (parts.length === 3) {
+      const p1 = parseInt(parts[0], 10)
+      const p2 = parseInt(parts[1], 10)
+      const p3 = parseInt(parts[2], 10)
+      if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+        if (p1 > 1000) {
+          return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`
+        }
+        let year = p3
+        if (year < 100) year += 2000
+        return `${year}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`
+      }
+    }
+    return str
+  }
+
   const [selectedCattleId, setSelectedCattleId] = useState('')
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0])
   const [weatherFetched, setWeatherFetched] = useState(false)
   const [weatherData, setWeatherData] = useState(
     Array(7).fill(null).map(() => ({ temp: 31.4, humidity: 78, thi: 82.4 }))
   )
+  const [lockedRows, setLockedRows] = useState(Array(7).fill(false))
+  const [validationError, setValidationError] = useState('')
   const [logsData, setLogsData] = useState({
-    yields: [28, 27, 29, 28, 26, 28, 30],
-    water: [65, 68, 62, 70, 66, 72, 68],
-    feed: [14.2, 14.5, 13.8, 14.0, 14.1, 14.3, 14.2],
-    temp: [38.5, 38.6, 38.4, 38.5, 38.7, 38.5, 38.5],
-    weight: [580, 582, 579, 581, 580, 583, 581],
+    yields: [0, 0, 0, 0, 0, 0, 0],
+    water: [48, 48, 48, 48, 48, 48, 48],
+    feed: [14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0],
+    temp: [38.5, 38.5, 38.5, 38.5, 38.5, 38.5, 38.5],
+    weight: [0, 0, 0, 0, 0, 0, 0],
   })
 
   const [bcsPreview, setBcsPreview] = useState(null)
@@ -26,108 +68,97 @@ export default function SevenDayTriageScan() {
   const [bcsScore, setBcsScore] = useState('')
   const [dragActive, setDragActive] = useState(false)
 
-  // Auto-detect cattle_id from query params or route state (e.g. from Bulk Upload report)
+  // Auto-detect cattle_id and optional date from query params or route state
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const paramId = params.get('cattle_id') || location.state?.cattle_id
     if (paramId) {
       setSelectedCattleId(paramId)
     }
+    const paramDate = params.get('date') || location.state?.date
+    if (paramDate) {
+      setCurrentDate(paramDate)
+    }
   }, [location.search, location.state])
 
-  // Auto-populate 7-day logs from database when a cow is selected
+  // Target dates for the 7 slots (Day 1 = currentDate - 6 days, ..., Day 7 = currentDate)
+  const targetDates = get7DayDates(currentDate)
+
+  // Auto-populate 7-day logs from database when a cow or currentDate is selected
   useEffect(() => {
-    if (!selectedCattleId) return
+    if (!selectedCattleId) {
+      setLockedRows(Array(7).fill(false))
+      setLogsData({
+        yields: [0, 0, 0, 0, 0, 0, 0],
+        water: [48, 48, 48, 48, 48, 48, 48],
+        feed: [14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0],
+        temp: [38.5, 38.5, 38.5, 38.5, 38.5, 38.5, 38.5],
+        weight: [0, 0, 0, 0, 0, 0, 0],
+      })
+      return
+    }
 
     const fetchCattleLogs = async () => {
       try {
         const token = localStorage.getItem('token')
         const headers = { Authorization: token ? `Bearer ${token}` : '' }
         const res = await fetch(`http://127.0.0.1:8000/api/cattle/${selectedCattleId}/daily-logs`, { headers })
-        if (!res.ok) return
-        const logs = await res.json()
-        if (!Array.isArray(logs) || logs.length === 0) return
-
-        // Sort ascending by date
-        const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date))
-
-        // Target dates for the 7 slots (Day 1 = currentDate - 6 days, Day 7 = currentDate)
-        const curDate = new Date(currentDate)
-        const days7Dates = []
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(curDate)
-          d.setDate(d.getDate() - i)
-          days7Dates.push(d.toISOString().split('T')[0])
+        let logs = []
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data)) logs = data
         }
 
         const dateMap = {}
-        sortedLogs.forEach((l) => {
-          dateMap[l.date] = l
+        logs.forEach((l) => {
+          const norm = normalizeDateStr(l.date)
+          if (norm) {
+            dateMap[norm] = l
+          }
         })
 
-        const exactMatches = days7Dates.filter(d => dateMap[d])
+        const days7Dates = get7DayDates(currentDate)
+        const newYields = [0, 0, 0, 0, 0, 0, 0]
+        const newWeight = [0, 0, 0, 0, 0, 0, 0]
+        const newLocked = Array(7).fill(false)
+        const newWater = [48, 48, 48, 48, 48, 48, 48]
+        const newFeed = [14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0]
+        const newTemp = [38.5, 38.5, 38.5, 38.5, 38.5, 38.5, 38.5]
 
-        setLogsData((prev) => {
-          const newYields = [...prev.yields]
-          const newWeight = [...prev.weight]
-          const newWater = [...prev.water]
-          const newFeed = [...prev.feed]
-          const newTemp = [...prev.temp]
+        days7Dates.forEach((dateStr, idx) => {
+          const matchedLog = dateMap[dateStr]
+          if (matchedLog) {
+            newYields[idx] = (matchedLog.milk_yield !== undefined && matchedLog.milk_yield !== null)
+              ? parseFloat(matchedLog.milk_yield)
+              : 0
+            newWeight[idx] = (matchedLog.weight !== undefined && matchedLog.weight !== null)
+              ? parseFloat(matchedLog.weight)
+              : 0
+            newLocked[idx] = true
 
-          if (exactMatches.length >= 1) {
-            // Populate by exact date match
-            days7Dates.forEach((dateStr, idx) => {
-              const matchedLog = dateMap[dateStr]
-              if (matchedLog) {
-                if (matchedLog.milk_yield !== undefined && matchedLog.milk_yield !== null) {
-                  newYields[idx] = parseFloat(matchedLog.milk_yield)
-                }
-                if (matchedLog.weight !== undefined && matchedLog.weight !== null) {
-                  newWeight[idx] = parseFloat(matchedLog.weight)
-                }
-                if (matchedLog.water_intake !== undefined && matchedLog.water_intake !== null) {
-                  newWater[idx] = parseFloat(matchedLog.water_intake)
-                }
-                if (matchedLog.feed_intake !== undefined && matchedLog.feed_intake !== null) {
-                  newFeed[idx] = parseFloat(matchedLog.feed_intake)
-                }
-                if (matchedLog.body_temp !== undefined && matchedLog.body_temp !== null) {
-                  newTemp[idx] = parseFloat(matchedLog.body_temp)
-                }
-              }
-            })
+            if (matchedLog.water_intake !== undefined && matchedLog.water_intake !== null && Number(matchedLog.water_intake) > 0) {
+              newWater[idx] = parseFloat(matchedLog.water_intake)
+            }
+            if (matchedLog.feed_intake !== undefined && matchedLog.feed_intake !== null && Number(matchedLog.feed_intake) > 0) {
+              newFeed[idx] = parseFloat(matchedLog.feed_intake)
+            }
+            if (matchedLog.body_temp !== undefined && matchedLog.body_temp !== null && Number(matchedLog.body_temp) > 0) {
+              newTemp[idx] = parseFloat(matchedLog.body_temp)
+            }
           } else {
-            // Fallback for cattle with historical logs not aligned with today:
-            // map the latest up to 7 logs into the 7 slots (ending at Day 7)
-            const recentLogs = sortedLogs.slice(-7)
-            const startIndex = 7 - recentLogs.length
-            recentLogs.forEach((l, i) => {
-              const targetIdx = startIndex + i
-              if (l.milk_yield !== undefined && l.milk_yield !== null) {
-                newYields[targetIdx] = parseFloat(l.milk_yield)
-              }
-              if (l.weight !== undefined && l.weight !== null) {
-                newWeight[targetIdx] = parseFloat(l.weight)
-              }
-              if (l.water_intake !== undefined && l.water_intake !== null) {
-                newWater[targetIdx] = parseFloat(l.water_intake)
-              }
-              if (l.feed_intake !== undefined && l.feed_intake !== null) {
-                newFeed[targetIdx] = parseFloat(l.feed_intake)
-              }
-              if (l.body_temp !== undefined && l.body_temp !== null) {
-                newTemp[targetIdx] = parseFloat(l.body_temp)
-              }
-            })
+            newYields[idx] = 0
+            newWeight[idx] = 0
+            newLocked[idx] = false
           }
+        })
 
-          return {
-            yields: newYields,
-            weight: newWeight,
-            water: newWater,
-            feed: newFeed,
-            temp: newTemp
-          }
+        setLockedRows(newLocked)
+        setLogsData({
+          yields: newYields,
+          weight: newWeight,
+          water: newWater,
+          feed: newFeed,
+          temp: newTemp
         })
       } catch (err) {
         console.error('Error fetching cattle daily logs for 7-day intake:', err)
@@ -380,6 +411,9 @@ export default function SevenDayTriageScan() {
       arr[index] = floatVal
       return { ...prev, [type]: arr }
     })
+    if (validationError) {
+      setValidationError('')
+    }
   }
 
   const handleImageUpload = (e) => {
@@ -415,17 +449,38 @@ export default function SevenDayTriageScan() {
 
   const handleRunDiagnostics = async () => {
     if (!selectedCattleId) {
-      alert('Please select a Cattle ID first.')
-      return
-    }
-    if (!imageFile) {
-      alert('Please upload a top-down cattle image first.')
+      setValidationError('Please select a Cattle ID before running diagnostics.')
       return
     }
 
+    // Validation: Check if any row still has milk <= 0 or weight <= 0
+    const missingDays = []
+    for (let i = 0; i < 7; i++) {
+      const m = Number(logsData.yields[i])
+      const w = Number(logsData.weight[i])
+      if (isNaN(m) || m <= 0 || isNaN(w) || w <= 0) {
+        const dStr = targetDates[i] ? targetDates[i].slice(5) : `Day ${i + 1}`
+        missingDays.push(`D${i + 1} (${dStr})`)
+      }
+    }
+
+    if (missingDays.length > 0) {
+      setValidationError(
+        `Incomplete 7-Day Physiological Records: Missing milk yield or weight for ${missingDays.join(', ')}. Please fill in all missing (0) values before proceeding.`
+      )
+      return
+    }
+
+    if (!imageFile) {
+      setValidationError('Please upload a top-down cattle image before running diagnostics.')
+      return
+    }
+
+    setValidationError('')
+
     const activeCattleObj = cattleList.find(c => c.id === selectedCattleId)
     if (!activeCattleObj) {
-      alert('Selected cattle not found.')
+      setValidationError('Selected cattle record could not be found.')
       return
     }
 
@@ -589,8 +644,11 @@ export default function SevenDayTriageScan() {
             type="date"
             className="w-full bg-[#060e20] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all [color-scheme:dark]"
             value={currentDate}
-            onChange={(e) => setCurrentDate(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
+            onChange={(e) => {
+              setCurrentDate(e.target.value)
+              if (validationError) setValidationError('')
+            }}
           />
         </div>
 
@@ -702,12 +760,17 @@ export default function SevenDayTriageScan() {
         {/* Logs Intake Section */}
         <div className="lg:col-span-8">
           <div className="glass-card rounded-xl p-6 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-secondary">clinical_notes</span>
-                <h3 className="text-base font-bold text-on-surface tracking-tight uppercase">
-                  7-Day Physiological Logs
-                </h3>
+                <div>
+                  <h3 className="text-base font-bold text-on-surface tracking-tight uppercase">
+                    7-Day Physiological Logs
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    Recorded logs are locked. Missing days (0) must be entered manually before scan.
+                  </p>
+                </div>
               </div>
               {weatherFetched && (
                 <span className="px-2 py-1 bg-secondary/15 text-[9px] font-black text-secondary border border-secondary/20 rounded uppercase tracking-wider animate-pulse">
@@ -716,12 +779,23 @@ export default function SevenDayTriageScan() {
               )}
             </div>
 
+            {/* Validation Error Banner */}
+            {validationError && (
+              <div 
+                data-testid="triage-validation-banner" 
+                className="bg-error/15 border border-error/40 text-error px-4 py-3 rounded-xl flex items-center gap-3 animate-fadeIn mb-4"
+              >
+                <span className="material-symbols-outlined text-xl shrink-0">error</span>
+                <p className="text-xs font-bold uppercase tracking-wide leading-relaxed">{validationError}</p>
+              </div>
+            )}
+
             <div className="flex-1 overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/5">
-                    <th className="py-3 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left w-12">
-                      Day
+                    <th className="py-3 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left whitespace-nowrap">
+                      Day (Date)
                     </th>
                     <th className="py-3 px-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center bg-surface-container-lowest/30">
                       Temp (°C)
@@ -750,12 +824,35 @@ export default function SevenDayTriageScan() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {Array(7).fill(null).map((_, idx) => {
+                  {targetDates.map((dateStr, idx) => {
                     const weather = weatherData[idx] || { temp: 31.4, humidity: 78, thi: 82.4 }
+                    const isLocked = lockedRows[idx]
+                    const shortDate = dateStr ? dateStr.slice(5) : `Day ${idx + 1}`
+                    const hasMilkError = validationError && Number(logsData.yields[idx]) <= 0
+                    const hasWeightError = validationError && Number(logsData.weight[idx]) <= 0
+
                     return (
-                      <tr key={idx} className="hover:bg-white/5 transition-colors">
-                        <td className="py-3 px-2 text-xs font-bold text-white font-mono">
-                          D{idx + 1}
+                      <tr key={idx} className={`hover:bg-white/5 transition-colors ${isLocked ? 'bg-white/[0.02]' : ''}`}>
+                        <td className="py-3 px-2 text-xs font-bold text-white font-mono whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className={isLocked ? 'text-primary' : 'text-slate-300'}>D{idx + 1}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">({shortDate})</span>
+                            {isLocked ? (
+                              <span 
+                                className="material-symbols-outlined text-[14px] text-primary" 
+                                title="Auto-populated from Database (Locked)"
+                              >
+                                lock
+                              </span>
+                            ) : (
+                              <span 
+                                className="material-symbols-outlined text-[14px] text-amber-400/70" 
+                                title="Manual Entry Required (No DB Log)"
+                              >
+                                edit
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-2 text-center text-xs font-bold text-slate-300 bg-surface-container-lowest/30 font-mono">
                           {weather.temp.toFixed(1)}
@@ -770,42 +867,62 @@ export default function SevenDayTriageScan() {
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full bg-[#060e20] border-none rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
+                            disabled={isLocked}
+                            className={`w-full rounded py-2 text-center text-xs font-bold transition-all px-1 min-w-[50px] ${
+                              isLocked
+                                ? 'bg-[#060e20]/40 border border-white/5 text-slate-400 opacity-60 cursor-not-allowed select-none'
+                                : 'bg-[#060e20] border border-white/10 text-primary focus:ring-1 focus:ring-primary shadow-inner cursor-text'
+                            } ${hasMilkError ? 'ring-1 ring-error border-error text-error' : ''}`}
                             type="number"
+                            step="0.1"
                             value={logsData.yields[idx]}
                             onChange={(e) => handleLogChange('yields', idx, e.target.value)}
+                            title={isLocked ? 'Locked from database log' : 'Enter milk yield'}
                           />
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full bg-[#060e20] border-none rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
+                            disabled={false}
+                            className="w-full bg-[#060e20] border border-white/10 rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
                             type="number"
+                            step="0.1"
                             value={logsData.water[idx]}
                             onChange={(e) => handleLogChange('water', idx, e.target.value)}
                           />
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full bg-[#060e20] border-none rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
+                            disabled={false}
+                            className="w-full bg-[#060e20] border border-white/10 rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
                             type="number"
+                            step="0.1"
                             value={logsData.feed[idx]}
                             onChange={(e) => handleLogChange('feed', idx, e.target.value)}
                           />
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full bg-[#060e20] border-none rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
+                            disabled={false}
+                            className="w-full bg-[#060e20] border border-white/10 rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
                             type="number"
+                            step="0.1"
                             value={logsData.temp[idx]}
                             onChange={(e) => handleLogChange('temp', idx, e.target.value)}
                           />
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full bg-[#060e20] border-none rounded py-2 text-center text-xs font-bold text-primary focus:ring-1 focus:ring-primary shadow-inner px-1 min-w-[50px]"
+                            disabled={isLocked}
+                            className={`w-full rounded py-2 text-center text-xs font-bold transition-all px-1 min-w-[50px] ${
+                              isLocked
+                                ? 'bg-[#060e20]/40 border border-white/5 text-slate-400 opacity-60 cursor-not-allowed select-none'
+                                : 'bg-[#060e20] border border-white/10 text-primary focus:ring-1 focus:ring-primary shadow-inner cursor-text'
+                            } ${hasWeightError ? 'ring-1 ring-error border-error text-error' : ''}`}
                             type="number"
+                            step="0.1"
                             value={logsData.weight[idx]}
                             onChange={(e) => handleLogChange('weight', idx, e.target.value)}
+                            title={isLocked ? 'Locked from database log' : 'Enter cattle weight'}
                           />
                         </td>
                       </tr>
@@ -869,8 +986,19 @@ export default function SevenDayTriageScan() {
         </div>
       </div>
 
+      {/* Validation Error Banner Above Run Button */}
+      {validationError && (
+        <div 
+          data-testid="triage-validation-banner-action" 
+          className="bg-error/15 border border-error/40 text-error px-4 py-3 rounded-xl flex items-center gap-3 animate-fadeIn"
+        >
+          <span className="material-symbols-outlined text-xl shrink-0">error</span>
+          <p className="text-xs font-bold uppercase tracking-wide leading-relaxed">{validationError}</p>
+        </div>
+      )}
+
       {/* Action Button */}
-      <div className="pt-4">
+      <div className="pt-2">
         <button
           onClick={handleRunDiagnostics}
           className="group relative overflow-hidden bg-primary rounded-xl p-6 w-full flex items-center justify-center text-on-primary transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:shadow-primary/20"

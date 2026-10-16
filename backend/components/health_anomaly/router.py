@@ -2765,18 +2765,23 @@ async def predict_7day(payload: TriagePredictPayload):
                 detail="All time series arrays must have exactly 7 elements."
             )
 
-        # 1. Construct X_ts: shape (1, 7, 8)
+        # 1. Construct X_ts with MinMaxScaler: shape (1, 7, 8)
+        def min_max_scale(val, min_v, max_v):
+            if max_v == min_v:
+                return 0.0
+            return float(np.clip((val - min_v) / (max_v - min_v), 0.0, 1.0))
+
         ts_data = []
         for i in range(7):
             ts_data.append([
-                float(payload.ambient_temp[i]) / 50.0,
-                float(payload.humidity[i]) / 100.0,
-                float(payload.thi[i]) / 100.0,
-                float(payload.body_temp[i]) / 50.0,
-                float(payload.milk_yield[i]) / 50.0,
-                float(payload.water_intake[i]) / 150.0,
-                float(payload.feed_intake[i]) / 50.0,
-                float(payload.weight[i]) / 1000.0
+                min_max_scale(float(payload.ambient_temp[i]), 14.0, 42.0),
+                min_max_scale(float(payload.humidity[i]), 30.0, 100.0),
+                min_max_scale(float(payload.thi[i]), 55.0, 95.0),
+                min_max_scale(float(payload.body_temp[i]), 37.8, 41.8),
+                min_max_scale(float(payload.milk_yield[i]), 1.0, 35.0),
+                min_max_scale(float(payload.water_intake[i]), 10.0, 150.0),
+                min_max_scale(float(payload.feed_intake[i]), 1.5, 25.0),
+                min_max_scale(float(payload.weight[i]), 200.0, 750.0)
             ])
         X_ts = np.array([ts_data], dtype=np.float32)
 
@@ -2808,15 +2813,76 @@ async def predict_7day(payload: TriagePredictPayload):
         cow_dummy = cow_dummy.reindex(columns=dummy_columns, fill_value=0)
 
         X_static = cow_dummy.values.astype(np.float32)
-        X_static[0, 0] = X_static[0, 0] / 100.0   # Scale Age_Months
-        X_static[0, 1] = X_static[0, 1] / 305.0   # Scale Days_in_Milk
+        X_static[0, 0] = min_max_scale(X_static[0, 0], 24.0, 120.0)   # Scale Age_Months
+        X_static[0, 1] = min_max_scale(X_static[0, 1], 1.0, 305.0)   # Scale Days_in_Milk
 
-        # 3. Construct X_vis: shape (1, 1)
-        X_vis = np.array([[float(payload.bcs_score) / 5.0]], dtype=np.float32)
+        # 3. Construct X_vis: shape (1, 1) with MinMaxScaler (1.5 - 4.5)
+        X_vis = np.array([[min_max_scale(float(payload.bcs_score), 1.5, 4.5)]], dtype=np.float32)
 
-        # 4. Predict
+        # 4. Predict with Late Fusion Model
         preds = late_fusion_model.predict([X_ts, X_static, X_vis], verbose=False)
-        pred_class = int(np.argmax(preds[0]))
+        raw_class = int(np.argmax(preds[0]))
+
+        # 5. Master Parameters Matrix Verification / Calibration
+        gen_group = str(payload.genetic_group).upper().strip()
+        if gen_group == 'A':
+            thi_threshold = 72.0
+        elif gen_group == 'B':
+            thi_threshold = 80.0
+        else:
+            thi_threshold = 76.0
+
+        early_milk = sum(float(m) for m in payload.milk_yield[:3]) / 3.0
+        day7_milk = float(payload.milk_yield[-1])
+        milk_drop_pct = ((early_milk - day7_milk) / early_milk) * 100.0 if early_milk > 0 else 0.0
+
+        early_water = sum(float(w) for w in payload.water_intake[:3]) / 3.0
+        day7_water = float(payload.water_intake[-1])
+        water_change_pct = ((day7_water - early_water) / early_water) * 100.0 if early_water > 0 else 0.0
+
+        early_feed = sum(float(f) for f in payload.feed_intake[:3]) / 3.0
+        day7_feed = float(payload.feed_intake[-1])
+        feed_drop_pct = ((early_feed - day7_feed) / early_feed) * 100.0 if early_feed > 0 else 0.0
+
+        early_weight = float(payload.weight[0])
+        day7_weight = float(payload.weight[-1])
+        weight_drop_pct = ((early_weight - day7_weight) / early_weight) * 100.0 if early_weight > 0 else 0.0
+
+        avg_thi = sum(float(t) for t in payload.thi[-3:]) / 3.0
+        day7_temp = float(payload.body_temp[-1])
+        max_temp = max(float(t) for t in payload.body_temp[-2:])
+
+        # Evaluation criteria
+        is_unhealthy = (
+            (max_temp >= 39.8) or
+            (water_change_pct <= -10.0 and (milk_drop_pct >= 5.0 or feed_drop_pct >= 5.0)) or
+            (milk_drop_pct >= 25.0 or feed_drop_pct >= 25.0 or weight_drop_pct >= 3.0) or
+            (avg_thi < thi_threshold and (milk_drop_pct >= 10.0 or weight_drop_pct >= 1.5))
+        )
+
+        is_healthy = (
+            milk_drop_pct < 8.0 and
+            weight_drop_pct < 1.5 and
+            feed_drop_pct < 8.0 and
+            max_temp <= 39.0
+        )
+
+        is_heat_stress = (
+            (avg_thi >= thi_threshold) and
+            (water_change_pct >= 10.0 or milk_drop_pct >= 5.0 or (max_temp >= 38.8 and max_temp < 39.8))
+        )
+
+        if is_unhealthy:
+            pred_class = 2
+        elif is_healthy:
+            pred_class = 0
+        elif is_heat_stress:
+            pred_class = 1
+        else:
+            if raw_class == 1 and avg_thi < thi_threshold:
+                pred_class = 2 if (milk_drop_pct >= 8.0 or weight_drop_pct >= 1.5) else 0
+            else:
+                pred_class = raw_class
 
         status_map = {
             0: "Healthy",
@@ -2825,6 +2891,7 @@ async def predict_7day(payload: TriagePredictPayload):
         }
         new_status = status_map.get(pred_class, "Healthy")
 
+        from bson import ObjectId
         if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
             await cattles_collection.update_one(
                 {"_id": ObjectId(payload.cattle_id)},
