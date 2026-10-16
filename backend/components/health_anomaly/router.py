@@ -46,13 +46,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 YOLO_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 BCS_MODEL_PATH = os.path.join(BASE_DIR, "Cow_BCS_Final_Master.h5")
 LATE_FUSION_MODEL_PATH = os.path.join(BASE_DIR, "adrs_late_fusion_model.h5")
+LATE_FUSION_SCALERS_PATH = os.path.join(BASE_DIR, "late_fusion_scalers.pkl")
 
 yolo_model = None
 bcs_model = None
 late_fusion_model = None
+late_fusion_scalers = None
 
 def load_ai_models():
-    global yolo_model, bcs_model, late_fusion_model
+    global yolo_model, bcs_model, late_fusion_model, late_fusion_scalers
     if YOLO is not None:
         try:
             if os.path.exists(YOLO_MODEL_PATH):
@@ -79,6 +81,15 @@ def load_ai_models():
                 print(f"Late Fusion Model not found at {LATE_FUSION_MODEL_PATH}")
         except Exception as e:
             print(f"Error loading Late Fusion model: {e}")
+    try:
+        if os.path.exists(LATE_FUSION_SCALERS_PATH):
+            import joblib
+            late_fusion_scalers = joblib.load(LATE_FUSION_SCALERS_PATH)
+            print(f"Late Fusion Scalers loaded successfully from {LATE_FUSION_SCALERS_PATH}")
+        else:
+            print(f"Late Fusion Scalers not found at {LATE_FUSION_SCALERS_PATH}")
+    except Exception as e:
+        print(f"Error loading Late Fusion scalers: {e}")
 
 # Load models once
 load_ai_models()
@@ -1439,6 +1450,16 @@ def normalize_date_str(raw_date: Union[str, datetime, None]) -> str:
 
 @router.post("/daily-logs", response_model=DailyLogResponse, status_code=status.HTTP_201_CREATED)
 async def create_daily_log(log_data: DailyLogCreate):
+    from bson import ObjectId
+    # Ensure male cattle cannot have daily lactation/milk logs
+    if ObjectId.is_valid(log_data.cattle_id):
+        cow = await cattles_collection.find_one({"_id": ObjectId(log_data.cattle_id)})
+        if cow and str(cow.get("gender", "")).strip().lower() == "male":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Daily lactation/milk logs cannot be added for male cattle."
+            )
+
     norm_date = normalize_date_str(log_data.date)
     # Check for duplicate daily log entry
     existing_log = await daily_logs_collection.find_one({
@@ -1720,6 +1741,10 @@ async def create_daily_logs_bulk(
 
             if not cow and log.cattle_id and ObjectId.is_valid(log.cattle_id):
                 cow = await cattles_collection.find_one({"_id": ObjectId(log.cattle_id)})
+
+            # Silently ignore/skip male cattle rows
+            if cow and str(cow.get("gender", "")).strip().lower() == "male":
+                continue
 
             resolved_id = str(cow["_id"]) if cow else (log.cattle_id or "")
             norm_date = normalize_date_str(log.date)
@@ -2746,13 +2771,13 @@ async def get_bcs_logs(id: str):
 
 @router.post("/monitor/predict-7day")
 async def predict_7day(payload: TriagePredictPayload):
-    global late_fusion_model
-    if late_fusion_model is None:
+    global late_fusion_model, late_fusion_scalers
+    if late_fusion_model is None or late_fusion_scalers is None:
         load_ai_models()
-    if late_fusion_model is None:
+    if late_fusion_model is None or late_fusion_scalers is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Late Fusion model is not loaded. Please ensure adrs_late_fusion_model.h5 is present."
+            detail="Late Fusion model or scalers not loaded. Please ensure adrs_late_fusion_model.h5 and late_fusion_scalers.pkl are present."
         )
 
     try:
@@ -2765,42 +2790,30 @@ async def predict_7day(payload: TriagePredictPayload):
                 detail="All time series arrays must have exactly 7 elements."
             )
 
-        # 1. Construct X_ts with MinMaxScaler: shape (1, 7, 8)
-        def min_max_scale(val, min_v, max_v):
-            if max_v == min_v:
-                return 0.0
-            return float(np.clip((val - min_v) / (max_v - min_v), 0.0, 1.0))
-
-        ts_data = []
-        for i in range(7):
-            ts_data.append([
-                min_max_scale(float(payload.ambient_temp[i]), 14.0, 42.0),
-                min_max_scale(float(payload.humidity[i]), 30.0, 100.0),
-                min_max_scale(float(payload.thi[i]), 55.0, 95.0),
-                min_max_scale(float(payload.body_temp[i]), 37.8, 41.8),
-                min_max_scale(float(payload.milk_yield[i]), 1.0, 35.0),
-                min_max_scale(float(payload.water_intake[i]), 10.0, 150.0),
-                min_max_scale(float(payload.feed_intake[i]), 1.5, 25.0),
-                min_max_scale(float(payload.weight[i]), 200.0, 750.0)
-            ])
-        X_ts = np.array([ts_data], dtype=np.float32)
+        scaler_ts = late_fusion_scalers['scaler_ts']
+        scaler_static = late_fusion_scalers['scaler_static']
+        scaler_visual = late_fusion_scalers['scaler_visual']
+        dummy_columns = late_fusion_scalers['dummy_columns']
+        ts_cols = late_fusion_scalers['ts_cols']
 
         import pandas as pd
-        # 2. Construct X_static: exact 45 columns matching drop_first=True training schema
-        dummy_columns = [
-            'Age_Months', 'Days_in_Milk', 'Breed_Ankole', 'Breed_Australian_Friesian_Sahiwal',
-            'Breed_Australian_Milking_Zebu', 'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss',
-            'Breed_Butana', 'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
-            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando', 'Breed_Guernsey',
-            'Breed_Hariana', 'Breed_Holstein-Friesian', 'Breed_Holstein_Zebu_Cross',
-            'Breed_Illawarra_Shorthorn', 'Breed_Jersey', 'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej',
-            'Breed_Kenana', 'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
-            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole', 'Breed_Rathi',
-            'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal', 'Breed_Simmental',
-            'Breed_Tharparkar', 'Breed_Tipo_Carora', 'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil',
-            'Genetic_Group_B', 'Genetic_Group_C', 'Lactation_Stage_Late', 'Lactation_Stage_Mid'
-        ]
+        # 1. Construct 56-feature time series DataFrame matching exact training columns
+        ts_row = {}
+        for d in range(1, 8):
+            idx = d - 1
+            ts_row[f"Ambient_Temp_Day_{d}"] = float(payload.ambient_temp[idx])
+            ts_row[f"Humidity_Day_{d}"] = float(payload.humidity[idx])
+            ts_row[f"THI_Day_{d}"] = float(payload.thi[idx])
+            ts_row[f"Body_Temp_Day_{d}"] = float(payload.body_temp[idx])
+            ts_row[f"Milk_Yield_Day_{d}"] = float(payload.milk_yield[idx])
+            ts_row[f"Water_Intake_Day_{d}"] = float(payload.water_intake[idx])
+            ts_row[f"Feed_Intake_Day_{d}"] = float(payload.feed_intake[idx])
+            ts_row[f"Weight_Day_{d}"] = float(payload.weight[idx])
 
+        df_ts = pd.DataFrame([ts_row])[ts_cols]
+        X_ts_scaled = scaler_ts.transform(df_ts).reshape(1, 7, 8)
+
+        # 2. Construct 45 dummy columns matching exact training schema
         cow_static_df = pd.DataFrame([{
             'Age_Months': float(payload.age_months),
             'Days_in_Milk': float(payload.days_in_milk),
@@ -2808,81 +2821,16 @@ async def predict_7day(payload: TriagePredictPayload):
             'Genetic_Group': payload.genetic_group,  # Must be 'A', 'B', or 'C'
             'Lactation_Stage': payload.lactation_stage.split(' ')[0].title()  # 'Early', 'Mid', or 'Late'
         }])
+        cow_dummy = pd.get_dummies(cow_static_df).reindex(columns=dummy_columns, fill_value=0)
+        X_stat_scaled = scaler_static.transform(cow_dummy)
 
-        cow_dummy = pd.get_dummies(cow_static_df)
-        cow_dummy = cow_dummy.reindex(columns=dummy_columns, fill_value=0)
+        # 3. Construct visual BCS DataFrame
+        df_vis = pd.DataFrame([[float(payload.bcs_score)]], columns=['Day_7_BCS'])
+        X_vis_scaled = scaler_visual.transform(df_vis)
 
-        X_static = cow_dummy.values.astype(np.float32)
-        X_static[0, 0] = min_max_scale(X_static[0, 0], 24.0, 120.0)   # Scale Age_Months
-        X_static[0, 1] = min_max_scale(X_static[0, 1], 1.0, 305.0)   # Scale Days_in_Milk
-
-        # 3. Construct X_vis: shape (1, 1) with MinMaxScaler (1.5 - 4.5)
-        X_vis = np.array([[min_max_scale(float(payload.bcs_score), 1.5, 4.5)]], dtype=np.float32)
-
-        # 4. Predict with Late Fusion Model
-        preds = late_fusion_model.predict([X_ts, X_static, X_vis], verbose=False)
-        raw_class = int(np.argmax(preds[0]))
-
-        # 5. Master Parameters Matrix Verification / Calibration
-        gen_group = str(payload.genetic_group).upper().strip()
-        if gen_group == 'A':
-            thi_threshold = 72.0
-        elif gen_group == 'B':
-            thi_threshold = 80.0
-        else:
-            thi_threshold = 76.0
-
-        early_milk = sum(float(m) for m in payload.milk_yield[:3]) / 3.0
-        day7_milk = float(payload.milk_yield[-1])
-        milk_drop_pct = ((early_milk - day7_milk) / early_milk) * 100.0 if early_milk > 0 else 0.0
-
-        early_water = sum(float(w) for w in payload.water_intake[:3]) / 3.0
-        day7_water = float(payload.water_intake[-1])
-        water_change_pct = ((day7_water - early_water) / early_water) * 100.0 if early_water > 0 else 0.0
-
-        early_feed = sum(float(f) for f in payload.feed_intake[:3]) / 3.0
-        day7_feed = float(payload.feed_intake[-1])
-        feed_drop_pct = ((early_feed - day7_feed) / early_feed) * 100.0 if early_feed > 0 else 0.0
-
-        early_weight = float(payload.weight[0])
-        day7_weight = float(payload.weight[-1])
-        weight_drop_pct = ((early_weight - day7_weight) / early_weight) * 100.0 if early_weight > 0 else 0.0
-
-        avg_thi = sum(float(t) for t in payload.thi[-3:]) / 3.0
-        day7_temp = float(payload.body_temp[-1])
-        max_temp = max(float(t) for t in payload.body_temp[-2:])
-
-        # Evaluation criteria
-        is_unhealthy = (
-            (max_temp >= 39.8) or
-            (water_change_pct <= -10.0 and (milk_drop_pct >= 5.0 or feed_drop_pct >= 5.0)) or
-            (milk_drop_pct >= 25.0 or feed_drop_pct >= 25.0 or weight_drop_pct >= 3.0) or
-            (avg_thi < thi_threshold and (milk_drop_pct >= 10.0 or weight_drop_pct >= 1.5))
-        )
-
-        is_healthy = (
-            milk_drop_pct < 8.0 and
-            weight_drop_pct < 1.5 and
-            feed_drop_pct < 8.0 and
-            max_temp <= 39.0
-        )
-
-        is_heat_stress = (
-            (avg_thi >= thi_threshold) and
-            (water_change_pct >= 10.0 or milk_drop_pct >= 5.0 or (max_temp >= 38.8 and max_temp < 39.8))
-        )
-
-        if is_unhealthy:
-            pred_class = 2
-        elif is_healthy:
-            pred_class = 0
-        elif is_heat_stress:
-            pred_class = 1
-        else:
-            if raw_class == 1 and avg_thi < thi_threshold:
-                pred_class = 2 if (milk_drop_pct >= 8.0 or weight_drop_pct >= 1.5) else 0
-            else:
-                pred_class = raw_class
+        # 4. Pure Late Fusion Model Prediction (NO hardcoded if/else rule overrides!)
+        preds = late_fusion_model.predict([X_ts_scaled, X_stat_scaled, X_vis_scaled], verbose=False)
+        pred_class = int(np.argmax(preds[0]))
 
         status_map = {
             0: "Healthy",
@@ -2898,7 +2846,16 @@ async def predict_7day(payload: TriagePredictPayload):
                 {"$set": {"health_status": new_status, "status": new_status}}
             )
 
-        return {"class": pred_class, "status": new_status}
+        return {
+            "class": pred_class,
+            "status": new_status,
+            "confidence": float(preds[0][pred_class]),
+            "probabilities": {
+                "healthy": float(preds[0][0]),
+                "heat_stress": float(preds[0][1]),
+                "unhealthy": float(preds[0][2])
+            }
+        }
 
     except Exception as e:
         raise HTTPException(

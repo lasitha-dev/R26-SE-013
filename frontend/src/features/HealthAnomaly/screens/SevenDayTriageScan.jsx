@@ -617,11 +617,13 @@ export default function SevenDayTriageScan() {
               onChange={(e) => setSelectedCattleId(e.target.value)}
             >
               <option value="">-- Choose Cattle ID --</option>
-              {cattleList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.identifier} ({c.breed})
-                </option>
-              ))}
+              {cattleList
+                .filter((c) => (c.gender || '').toLowerCase() !== 'male')
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.identifier} ({c.breed})
+                  </option>
+                ))}
             </select>
             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
               expand_more

@@ -65,8 +65,9 @@ export default function WellnessDataIntake() {
     fetchData()
   }, [])
 
-  // Filter dropdown subjects so that ONLY cattle in lactation period (within 305 days of calving) are listed
+  // Filter dropdown subjects so that ONLY female cattle in lactation period (within 305 days of calving) are listed
   const lactationActiveCattle = cattleList.filter((c) => {
+    if ((c.gender || '').toLowerCase() === 'male') return false // Male cattle cannot lactate
     if (!c.calving_date) return false // No calving date means not lactating
     const calvingDate = new Date(c.calving_date)
     const today = new Date()
@@ -132,7 +133,9 @@ export default function WellnessDataIntake() {
   // ─── Dynamic Sample CSV Generator (4-column standard format) ─────────────
   const downloadSampleCSV = () => {
     const today = new Date()
-    let sampleCows = lactationActiveCattle.length > 0 ? lactationActiveCattle : cattleList
+    let sampleCows = lactationActiveCattle.length > 0
+      ? lactationActiveCattle
+      : cattleList.filter((c) => (c.gender || '').toLowerCase() !== 'male')
     if (sampleCows.length === 0) {
       sampleCows = [
         { identifier: 'kiri katiya', breed: 'Jersey' },
