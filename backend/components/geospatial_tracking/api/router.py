@@ -22,14 +22,19 @@ unchanged from Checkpoint 10A -- they never touch the snapshot cache.
 from __future__ import annotations
 
 import json
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from ..repositories.base import OutbreakRepository
-from ..repositories.provider import create_outbreak_repository
+from ..repositories.provider import (
+    SCIENTIFIC_DATASET_UNAVAILABLE,
+    ScientificDatasetUnavailableError,
+    create_outbreak_repository,
+)
 from ..services.application.frozen_geospatial_analysis_10a import (
     ACTIVE_SOURCE_WINDOW_DAYS_10A1,
     ACTIVE_SOURCE_WINDOW_ORIGINAL_PROVENANCE_10A1,
@@ -128,7 +133,28 @@ router = APIRouter(prefix="/api/geospatial", tags=["geospatial"])
 # Checkpoint 10B Part 3/8: ONE shared snapshot store backs both HTTP and
 # WebSocket -- a snapshot computed by one transport is immediately
 # reusable by the other, inside its TTL/capacity bounds.
-SNAPSHOT_STORE_10B = SnapshotStore10B()
+#
+# GEO-PAGE1-LIVE-VERIFY-01: `ttl_seconds` is overridden here (the module
+# default `SNAPSHOT_CACHE_TTL_SECONDS_10B` -- baked into
+# `geospatial_transport_protocol_hash_10b1()` -- is deliberately left
+# untouched so no locked checkpoint protocol hash/evidence file changes)
+# because it was measured, live against the real running dev backend, to
+# be shorter than the worst-case cache-MISS/EXPIRY recompute time: a MISS
+# for `/analysis/{id}/summary|cells|sources` took 45-90s (real geospatial
+# reference-data resolution), while a HIT is <10ms. With the previous 60s
+# default, any vet who spent over a minute on one origin before returning
+# to it -- or whose page merely sat idle a little over a minute -- would
+# silently retrigger the full 45-90s recompute, indistinguishable, from
+# the timeline/map, from the feature being broken. The underlying data is
+# real `HISTORICAL_RETROSPECTIVE_REPLAY` analysis for an immutable past
+# `t0` (this cache is permissible at all only because nothing about it
+# can change -- see `snapshot_store_10b.py`'s own module docstring), so
+# there is no scientific-freshness reason for a short TTL; a genuine
+# on-demand refresh still bypasses this entirely via `force_refresh`
+# (the WebSocket `SnapshotRefreshMessage` path). Extended for real,
+# measured user-experience impact only, never tuned against outbreak
+# outcomes.
+SNAPSHOT_STORE_10B = SnapshotStore10B(ttl_seconds=1800.0)
 
 # GEO-VISUAL-POLISH-02: `SnapshotStore10B` is a GENERIC bounded LRU+TTL
 # cache (its own docstring: "knows nothing about scientific content -- key
@@ -173,11 +199,46 @@ def get_repository() -> Generator[OutbreakRepository, None, None]:
     by `/origins` -- the analysis routes resolve a shared snapshot
     instead (Checkpoint 10B: no repository is opened at all on a cache
     hit)."""
-    repo = create_outbreak_repository()
+    repo = _LazyRepository()
     try:
         yield repo
     finally:
         repo.close()
+
+
+class _LazyRepository:
+    """Opens the real repository on first use, so request validation (e.g. an
+    unsupported disease -> 422) still runs before any dataset check, and a
+    missing dataset surfaces inside the handler where it maps to 503."""
+
+    def __init__(self) -> None:
+        self._repo: OutbreakRepository | None = None
+
+    def __getattr__(self, name: str):
+        if self._repo is None:
+            self._repo = create_outbreak_repository()
+        return getattr(self._repo, name)
+
+    def close(self) -> None:
+        if self._repo is not None:
+            self._repo.close()
+
+
+@contextmanager
+def _scientific_dataset_or_503() -> Iterator[None]:
+    try:
+        yield
+    except ScientificDatasetUnavailableError as exc:
+        raise _scientific_dataset_unavailable_http_error() from exc
+
+
+def _scientific_dataset_unavailable_http_error() -> HTTPException:
+    # 503, not 500: the process has no usable scientific dataset (e.g. an
+    # empty development SQLite file) -- a configuration state, not a fault.
+    return HTTPException(
+        status_code=503,
+        detail={"status": SCIENTIFIC_DATASET_UNAVAILABLE, "message": "scientific dataset unavailable"},
+    )
 
 
 def _resolve_disease_or_http_error(disease: str | None) -> str:
@@ -227,6 +288,8 @@ def _get_snapshot_or_http_error(
             exc.status, ERROR_HTTP_STATUS_MAP_10A[ANALYSIS_INTERNAL_ERROR_10A]
         )
         raise HTTPException(status_code=http_status, detail={"status": exc.status, "message": str(exc)}) from exc
+    except ScientificDatasetUnavailableError as exc:
+        raise _scientific_dataset_unavailable_http_error() from exc
     except Exception as exc:  # unexpected software failure -- never a raw stack trace to the client
         raise HTTPException(
             status_code=ERROR_HTTP_STATUS_MAP_10A[ANALYSIS_INTERNAL_ERROR_10A],
@@ -343,7 +406,8 @@ def list_origins(
     origin-ledger builder verbatim; performs NO scientific analysis for
     the whole database here."""
     resolved_disease = _resolve_disease_or_http_error(disease)
-    origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease, country_scope=country)
+    with _scientific_dataset_or_503():
+        origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease, country_scope=country)
     summaries = [
         OriginSummarySchema(
             forecast_origin_id=o.forecast_origin_id, country=o.country, t0=o.t0,
@@ -402,7 +466,8 @@ def get_origin_trigger_sources(
     # origin for this disease resolves through the SAME cache entry, so a
     # page load's N independent per-origin requests rebuild the full
     # ledger at most once per TTL window instead of N times.
-    origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease)
+    with _scientific_dataset_or_503():
+        origins = _cached_forecast_origin_ledger(repo, disease=resolved_disease)
     origin = next((o for o in origins if o.forecast_origin_id == forecast_origin_id), None)
     if origin is None:
         raise HTTPException(
@@ -412,7 +477,8 @@ def get_origin_trigger_sources(
 
     features: list[TriggerSourceFeature] = []
     for source_id in origin.trigger_source_ids_at_t0:
-        record = repo.get_historical_record(source_id)
+        with _scientific_dataset_or_503():
+            record = repo.get_historical_record(source_id)
         if record is None or not isinstance(record.latitude, (int, float)) or not isinstance(record.longitude, (int, float)):
             continue
         features.append(
@@ -498,6 +564,8 @@ def get_fmd_risk_analysis(forecast_origin_id: str, repo: OutbreakRepository = De
     except FmdRiskAnalysisError9 as exc:
         http_status = _FMD_ERROR_HTTP_STATUS_MAP_9.get(exc.status, 500)
         raise HTTPException(status_code=http_status, detail={"status": exc.status, "message": str(exc)}) from exc
+    except ScientificDatasetUnavailableError as exc:
+        raise _scientific_dataset_unavailable_http_error() from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail={"status": "ANALYSIS_INTERNAL_ERROR", "message": "internal FMD analysis failure"}
@@ -540,6 +608,8 @@ def _snapshot_or_error_status_10b(
         return None, "", UNSUPPORTED_DISEASE_10A
     except RuntimeAnalysisError10A as exc:
         return None, "", exc.status
+    except ScientificDatasetUnavailableError:
+        return None, "", SCIENTIFIC_DATASET_UNAVAILABLE
     except Exception:
         return None, "", ANALYSIS_INTERNAL_ERROR_10A
 

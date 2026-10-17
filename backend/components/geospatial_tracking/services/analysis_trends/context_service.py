@@ -124,6 +124,7 @@ from ...domain.analysis_trends_models import (
     NominalReachDayAnalytics,
     SelectedOriginAnalytics,
 )
+from ...repositories.provider import ScientificDatasetUnavailableError
 from ...repositories.scientific_read_port import ScientificReadPort
 from ...services.application.frozen_geospatial_analysis_10a import (
     DISEASE_MODEL_READINESS_10A,
@@ -137,6 +138,14 @@ from .score_distribution import build_relative_spatial_score_distribution
 _DISEASE_CODE_BY_DISPLAY = {display: abbreviation.upper() for abbreviation, display in SUPPORTED_DISEASES.items()}
 """The same computed-once alias table `services/my_area/context_service.py`
 uses -- never a second hardcoded copy."""
+
+
+def _scientific_failure_status(exc: Exception) -> str:
+    """No configured scientific dataset is a configuration state (HTTP 503),
+    never reported as an internal error."""
+    if isinstance(exc, ScientificDatasetUnavailableError):
+        return AnalysisTrendsStatus.SCIENTIFIC_DATASET_UNAVAILABLE.value
+    return AnalysisTrendsStatus.ANALYSIS_INTERNAL_ERROR.value
 
 
 def _now_iso() -> str:
@@ -191,9 +200,9 @@ class AnalysisTrendsService:
         try:
             candidates = self._scientific_port.list_historical_trigger_candidates(disease=resolved_display, country=ANALYSIS_TRENDS_COUNTRY)
             origins = self._scientific_port.list_origins(disease=resolved_display, country=ANALYSIS_TRENDS_COUNTRY)
-        except Exception:
+        except Exception as exc:
             return AnalysisTrendsContext(
-                status=AnalysisTrendsStatus.ANALYSIS_INTERNAL_ERROR.value, disease=disease_code, scope_country=ANALYSIS_TRENDS_COUNTRY,
+                status=_scientific_failure_status(exc), disease=disease_code, scope_country=ANALYSIS_TRENDS_COUNTRY,
                 model_evaluation=model_evaluation, model_run_comparison=model_run_comparison,
                 confidence=confidence, drivers=drivers, generated_at=generated_at,
             )
@@ -279,9 +288,9 @@ class AnalysisTrendsService:
                             model_evaluation=model_evaluation, model_run_comparison=model_run_comparison,
                             confidence=confidence, drivers=drivers, generated_at=generated_at,
                         )
-                except Exception:
+                except Exception as exc:
                     return AnalysisTrendsContext(
-                        status=AnalysisTrendsStatus.ANALYSIS_INTERNAL_ERROR.value, disease=disease_code, scope_country=ANALYSIS_TRENDS_COUNTRY,
+                        status=_scientific_failure_status(exc), disease=disease_code, scope_country=ANALYSIS_TRENDS_COUNTRY,
                         historical_summary=historical_summary, historical_trend=historical_trend,
                         model_evaluation=model_evaluation, model_run_comparison=model_run_comparison,
                         confidence=confidence, drivers=drivers, generated_at=generated_at,
