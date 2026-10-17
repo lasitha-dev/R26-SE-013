@@ -65,6 +65,19 @@ class TestDistrictMatches:
     def test_missing_farm_district_never_matches(self):
         assert district_matches("Kegalle", None) is False
 
+    def test_vet_district_with_district_suffix_matches_bare_farm_district(self):
+        assert district_matches("Matara District", "Matara") is True
+        assert district_matches("MATARA DISTRICT", "5.9478, 80.5483 (Matara District)") is True
+        assert district_matches("Matara District", "Galle") is False
+
+    def test_suffix_alone_never_matches(self):
+        assert district_matches(" District", "Matara") is False
+        assert district_matches("District", "5.9478, 80.5483 (Matara District)") is False
+
+    def test_similar_district_names_stay_distinct(self):
+        assert district_matches("Matara", "Matale") is False
+        assert district_matches("Matale", "7.4675, 80.6234 (Matale District)") is True
+
 
 class TestVetWithDistrictButZeroAssignedFarms:
     """Regression item 1/2/3: exactly the real Dr. Thushan / VET-LK-44444
@@ -217,3 +230,56 @@ class TestPrivacyFirewall:
         farm = normalize_assigned_farm(raw)
         assert farm.personally_assigned is True
         assert farm.total_animals == 42
+
+
+class TestSurveillanceStatusDistinguishesOutcomes:
+    """Phase 1: My Area resolves the vet's authorised district from this
+    response, so "no district on the profile", "no farms in the district"
+    and "district lookup failed" must be distinguishable. In-memory fakes
+    only -- never the live database."""
+
+    def _context(self, vet_doc, farm_docs, case_docs=()):
+        port = MongoOperationalDataPort(
+            vets_collection=FakeCollection([vet_doc]),
+            farms_collection=FakeCollection(list(farm_docs)),
+            diagnostic_cases_collection=FakeCollection(list(case_docs)),
+        )
+        return _run(OperationalContextService(port).get_operational_context(VET))
+
+    def test_resolved_district_returns_its_real_verified_cases(self):
+        vet = make_vet_document(email="vet@example.com", district="Matara District")
+        farm = make_farm_document(location_district="5.9478, 80.5483 (Matara District)", latitude=5.9478, longitude=80.5483)
+        other = make_farm_document(location_district="Galle", latitude=6.05, longitude=80.22)
+        case = make_diagnostic_case_document(farm_id=str(farm["_id"]), disease_name="Lumpy Skin Disease", verified=True, verified_at="2026-10-01 09:00:00")
+        unverified = make_diagnostic_case_document(farm_id=str(farm["_id"]), disease_name="Lumpy Skin Disease", verified=False)
+        other_case = make_diagnostic_case_document(farm_id=str(other["_id"]), disease_name="Lumpy Skin Disease", verified=True)
+        context = self._context(vet, [farm, other], [case, unverified, other_case])
+        assert context.surveillance_status == "DISTRICT_RESOLVED"
+        assert context.vet_district == "Matara District"
+        assert [f.farm_id for f in context.surveillance_farms] == [str(farm["_id"])]
+        assert [c.case_id for c in context.surveillance_contexts] == [str(case["_id"])]
+
+    def test_no_registered_district(self):
+        vet = make_vet_document(email="vet@example.com")
+        del vet["district"]
+        context = self._context(vet, [make_farm_document(location_district="Matara")])
+        assert context.surveillance_status == "NO_REGISTERED_DISTRICT"
+        assert context.vet_district is None
+        assert context.surveillance_contexts == []
+
+    def test_district_with_no_farms(self):
+        vet = make_vet_document(email="vet@example.com", district="Kegalle")
+        context = self._context(vet, [make_farm_document(location_district="Matara")])
+        assert context.surveillance_status == "NO_FARMS_IN_DISTRICT"
+        assert context.vet_district == "Kegalle"
+
+    def test_district_lookup_failure_is_reported_not_hidden(self):
+        port = FakeOperationalDataPort(raise_on_district=True)
+        context = _run(OperationalContextService(port).get_operational_context(VET))
+        assert context.surveillance_status == "DISTRICT_DATA_UNAVAILABLE"
+        assert context.vet_district is None
+
+    def test_status_is_serialized_in_the_response_dict(self):
+        vet = make_vet_document(email="vet@example.com", district="Kegalle")
+        context = self._context(vet, [])
+        assert context.as_dict()["surveillance_status"] == "NO_FARMS_IN_DISTRICT"

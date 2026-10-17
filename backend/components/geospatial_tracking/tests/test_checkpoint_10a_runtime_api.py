@@ -41,7 +41,7 @@ from components.geospatial_tracking.services.model_development.candidate_registr
 from components.geospatial_tracking.services.model_development.rate_scope_conditioning_protocol_9c1 import rate_scope_conditioning_protocol_hash_9c1
 
 _DB_PATH = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
-_DB_AVAILABLE = _DB_PATH.exists()
+_DB_AVAILABLE = _DB_PATH.exists() and _DB_PATH.stat().st_size > 0  # a 0-byte placeholder file is not a usable DB
 _skip_no_db = pytest.mark.skipif(not _DB_AVAILABLE, reason="dev SQLite DB absent (clean clone)")
 
 

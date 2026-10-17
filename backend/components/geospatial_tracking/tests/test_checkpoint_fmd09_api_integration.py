@@ -39,7 +39,7 @@ from components.geospatial_tracking.services.model_development.local_evaluation_
 from fastapi import FastAPI
 
 _DB_PATH = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
-_DB_AVAILABLE = _DB_PATH.exists()
+_DB_AVAILABLE = _DB_PATH.exists() and _DB_PATH.stat().st_size > 0  # a 0-byte placeholder file is not a usable DB
 _skip_no_db = pytest.mark.skipif(not _DB_AVAILABLE, reason="dev SQLite DB absent (clean clone)")
 
 
@@ -104,6 +104,7 @@ class TestFmd09ErrorPaths:
         finally:
             repo.close()
 
+    @_skip_no_db  # needs a real origin ledger; without a dataset the route correctly answers 503
     def test_router_maps_origin_not_found_to_404(self):
         client = _client()
         response = client.get("/api/geospatial/analysis/ORIGIN:Nowhere:1999-01-01/fmd-risk")

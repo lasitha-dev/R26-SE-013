@@ -136,8 +136,22 @@ class FakeCollection:
                 return document
         return None
 
-    def find(self, filter: dict[str, Any]) -> _FakeCursor:
-        return _FakeCursor([document for document in self._documents if _matches_query(document, filter)])
+    def find(self, filter: dict[str, Any], projection: dict[str, Any] | None = None) -> _FakeCursor:
+        # `projection` follows Mongo's semantics (inclusion keeps `_id` plus the
+        # listed fields; exclusion drops the listed fields), so a production
+        # projection that forgets a field the adapter reads fails a test here.
+        matched = [document for document in self._documents if _matches_query(document, filter)]
+        return _FakeCursor([_project(document, projection) for document in matched])
+
+
+def _project(document: dict[str, Any], projection: dict[str, Any] | None) -> dict[str, Any]:
+    if not projection:
+        return document
+    if all(bool(value) for key, value in projection.items() if key != "_id"):
+        keep = {key for key, value in projection.items() if value}
+        return {key: value for key, value in document.items() if key in keep or (key == "_id" and projection.get("_id", 1))}
+    drop = {key for key, value in projection.items() if not value}
+    return {key: value for key, value in document.items() if key not in drop}
 
 
 def make_vet_document(**overrides: Any) -> dict[str, Any]:

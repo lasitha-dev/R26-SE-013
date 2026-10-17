@@ -57,7 +57,7 @@ _HISTORICAL_10A1_HASH = "e44761319870e9196768599ad88fde237d709c2b17b03f17662ab14
 _ORIGIN = "ORIGIN:Afghanistan:2022-05-29"
 
 _DB_PATH = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
-_DB_AVAILABLE = _DB_PATH.exists()
+_DB_AVAILABLE = _DB_PATH.exists() and _DB_PATH.stat().st_size > 0  # a 0-byte placeholder file is not a usable DB
 _skip_no_db = pytest.mark.skipif(not _DB_AVAILABLE, reason="dev SQLite DB absent (clean clone)")
 
 _TRANSPORT_MODULES = (router_module, snapshot_module, chunking_10b, transport_protocol_module)

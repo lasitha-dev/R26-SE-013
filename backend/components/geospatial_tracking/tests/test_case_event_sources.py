@@ -118,7 +118,7 @@ class TestDeltaPollingCaseEventSource:
             await source._primed.wait()
             snapshot = source.current_snapshot()
             assert "C1" in snapshot
-            assert snapshot["C1"].verified_at == "2026-01-02 10:00:00"
+            assert snapshot["C1"].verified_at == "2026-01-02T10:00:00+00:00"  # legacy naive host text is UTC
 
         _run(scenario())
 

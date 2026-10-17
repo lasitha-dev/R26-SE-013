@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from components.geospatial_tracking.api.analysis_trends_router_factory import create_analysis_trends_router
 from components.geospatial_tracking.domain.operational_models import AuthenticatedVetContext
 
+from ._main_import import isolated_main_module
 from ._my_area_fakes import FakeScientificReadPort, make_historical_trigger_candidate
 
 _VET = AuthenticatedVetContext(email="vet@example.com", role="vet")
@@ -207,10 +208,9 @@ class TestAuthorizedHostMounting:
             "import create_analysis_trends_router" in source
         )
 
-    def test_main_module_mounts_analysis_trends_router_once(self):
-        import main as main_module
-
-        paths = _resolve_geospatial_paths(main_module.app)
+    def test_main_module_mounts_analysis_trends_router_once(self, monkeypatch):
+        with isolated_main_module(monkeypatch) as main_module:
+            paths = _resolve_geospatial_paths(main_module.app)
         matches = [p for p in paths if p == "/api/geospatial/analysis-trends"]
         assert matches == ["/api/geospatial/analysis-trends"], matches
         assert not any("/api/api/" in p for p in paths)
