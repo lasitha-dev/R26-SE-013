@@ -12,6 +12,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { dataChangedReceived, flushIfDue, initialDataChangeState, readyReceived, sessionChanged } from './dataChangeReconciler'
+
 import { hasTokenDisappeared, readAuthToken } from '../api/operationalApi'
 import { OPERATIONAL_EVENTS_FETCH_STATUS, openOperationalEventStream } from '../api/operationalEventsApi'
 import {
@@ -51,6 +53,11 @@ export function useVerifiedClinicalEvents() {
   const reconnectAtRef = useRef(null)
   const connectingRef = useRef(false)
   const lastKnownTokenRef = useRef(null)
+  // Realtime data invalidation (contract §6). The reconciler state lives in
+  // a ref (updated per SSE frame / RAF tick); only the debounced refetch
+  // token and its summary are React state, so idle frames never re-render.
+  const dataChangeRef = useRef(initialDataChangeState)
+  const [dataChange, setDataChange] = useState({ token: 0, dataVersion: null, lastApplied: null })
 
   const connect = useCallback(() => {
     if (connectingRef.current) return
@@ -61,8 +68,9 @@ export function useVerifiedClinicalEvents() {
 
     openOperationalEventStream({
       signal: controller.signal,
-      onReady: ({ transport }) => {
+      onReady: ({ transport, data_version: dataVersion } = {}) => {
         if (!mountedRef.current) return
+        dataChangeRef.current = readyReceived(dataChangeRef.current, dataVersion, performance.now())
         setState((prev) => connectionReady(prev, { transportMode: transport }, Date.now()))
       },
       onHeartbeat: () => {
@@ -73,12 +81,19 @@ export function useVerifiedClinicalEvents() {
         if (!mountedRef.current) return
         setState((prev) => eventReceived(prev, event, Date.now()))
       },
+      onDataChanged: (event) => {
+        if (!mountedRef.current) return
+        dataChangeRef.current = dataChangedReceived(dataChangeRef.current, event, performance.now())
+        setState((prev) => heartbeatReceived(prev, Date.now()))
+      },
     })
       .then(() => {
         // Section 8 "tolerate reconnect": a clean stream end (server
         // closed it) is treated the same as a transient failure -- the
         // vet's browser keeps trying, it never silently stops watching.
-        connectingRef.current = false
+        // Only the CURRENT connection may release the guard: a stale,
+        // aborted stream settling late must not clobber a newer one.
+        if (abortControllerRef.current === controller) connectingRef.current = false
         if (!mountedRef.current || controller.signal.aborted) return
         setState((prev) => {
           const next = connectionLost(prev, null)
@@ -89,7 +104,7 @@ export function useVerifiedClinicalEvents() {
         })
       })
       .catch((err) => {
-        connectingRef.current = false
+        if (abortControllerRef.current === controller) connectingRef.current = false
         if (!mountedRef.current || err?.name === 'AbortError') return
         const reason = err?.operationalEventsStatus ?? OPERATIONAL_EVENTS_FETCH_STATUS.NETWORK_ERROR
         setState((prev) => {
@@ -117,6 +132,22 @@ export function useVerifiedClinicalEvents() {
         setState((prev) => connectionLost(prev, 'SESSION_REQUIRED'))
       } else {
         const now = performance.now()
+        const currentToken = readAuthToken()
+        if (lastKnownTokenRef.current && currentToken && currentToken !== lastKnownTokenRef.current) {
+          // A different session (another account signed in, e.g. in another
+          // tab): drop the version history and reconnect as the new identity.
+          dataChangeRef.current = sessionChanged()
+          setDataChange({ token: 0, dataVersion: null, lastApplied: null })
+          abortControllerRef.current?.abort()
+          connectingRef.current = false
+          reconnectAtRef.current = null
+          connect()
+        }
+        const flushed = flushIfDue(dataChangeRef.current, now)
+        if (flushed !== dataChangeRef.current) {
+          dataChangeRef.current = flushed
+          setDataChange({ token: flushed.token, dataVersion: flushed.dataVersion, lastApplied: flushed.lastApplied })
+        }
         if (reconnectAtRef.current != null && now >= reconnectAtRef.current && !connectingRef.current) {
           reconnectAtRef.current = null
           connect()
@@ -130,6 +161,11 @@ export function useVerifiedClinicalEvents() {
       mountedRef.current = false
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       abortControllerRef.current?.abort()
+      // Release the guard: React StrictMode (dev) unmounts and remounts this
+      // effect, and the remount's connect() must not be skipped as "already
+      // connecting" -- that left the stream never connected (stuck chip).
+      connectingRef.current = false
+      abortControllerRef.current = null
     }
     // Intentionally mount-once, mirroring useOperationalContext.js.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,5 +187,15 @@ export function useVerifiedClinicalEvents() {
   const isStale = isStaleNow(state.lastActivityAt, Date.now(), STALE_THRESHOLD_MS)
   const lastEvent = state.notifications[0]?.event ?? null
 
-  return { ...state, isStale, lastEvent, dismiss, markRead, disconnect }
+  return {
+    ...state,
+    isStale,
+    lastEvent,
+    dismiss,
+    markRead,
+    disconnect,
+    dataChangeToken: dataChange.token,
+    dataVersion: dataChange.dataVersion ?? dataChangeRef.current.dataVersion,
+    lastDataChange: dataChange.lastApplied,
+  }
 }

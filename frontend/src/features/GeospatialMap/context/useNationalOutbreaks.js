@@ -59,6 +59,7 @@ export const NATIONAL_STATUS = {
 // D (rendered map features, after co-location aggregation) are derived
 // from `originsWithSources` itself by the caller -- this hook never
 // duplicates that computation.
+const NO_ORIGINS = Object.freeze([])
 const ZERO_RESOLUTION_STATS = { expectedOriginCount: 0, resolvedOriginCount: 0, failedOriginCount: 0, expectedSourceRecordCount: 0 }
 
 export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
@@ -66,7 +67,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
 
   useEffect(() => {
     if (!hasCapability(diseaseCode, CAPABILITY.HISTORICAL_ORIGINS)) {
-      setState({ status: NATIONAL_STATUS.UNAVAILABLE, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
+      setState({ diseaseCode, status: NATIONAL_STATUS.UNAVAILABLE, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
       return undefined
     }
 
@@ -87,7 +88,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
     // kept below too, for a response that already started decoding before
     // abort could take effect).
     const abortController = new AbortController()
-    setState({ status: NATIONAL_STATUS.LOADING, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
+    setState({ diseaseCode, status: NATIONAL_STATUS.LOADING, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
     // GEO33B Section 1/2: this effect runs on MOUNT, in parallel with (and
     // completely independent of) MapLibre's own construction/style load --
     // it never waits for `map.on('load')`. The marks make that provable
@@ -122,7 +123,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
         const expectedSourceRecordCount = summaries.reduce((sum, s) => sum + (s.sourceCount ?? 0), 0)
 
         if (summaries.length === 0) {
-          setState({ status: NATIONAL_STATUS.EMPTY, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
+          setState({ diseaseCode, status: NATIONAL_STATUS.EMPTY, originsWithSources: [], error: null, ...ZERO_RESOLUTION_STATS })
           return
         }
 
@@ -135,6 +136,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
         // settles, even though the real forecast-origin count was already
         // known from the lightweight `/origins` response alone.
         setState({
+          diseaseCode,
           status: NATIONAL_STATUS.LOADING,
           originsWithSources: [],
           error: null,
@@ -188,6 +190,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
           const revealed = resultsBySlot.filter(Boolean)
           if (isFinal) markTiming(GEO_TIMING.NATIONAL_ALL_SETTLED, { repeat: true })
           setState({
+            diseaseCode,
             status: isFinal ? (revealed.length === 0 ? NATIONAL_STATUS.EMPTY : NATIONAL_STATUS.READY) : NATIONAL_STATUS.LOADING,
             originsWithSources: revealed,
             error: null,
@@ -223,7 +226,7 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
       })
       .catch((err) => {
         if (cancelled) return
-        setState({ status: NATIONAL_STATUS.ERROR, originsWithSources: [], error: err.message, ...ZERO_RESOLUTION_STATS })
+        setState({ diseaseCode, status: NATIONAL_STATUS.ERROR, originsWithSources: [], error: err.message, ...ZERO_RESOLUTION_STATS })
       })
 
     return () => {
@@ -232,5 +235,11 @@ export function useNationalOutbreaks(diseaseCode, country, refreshToken = 0) {
     }
   }, [diseaseCode, country, refreshToken])
 
-  return state
+  // On a disease switch the render that carries the new `diseaseCode` runs
+  // before this effect resets the state, so the previous disease's origins
+  // would still be returned for one render -- long enough for a caller's
+  // effect to select another disease's origin (e.g. an LSD origin sent to
+  // FMD-only `/fmd-risk`, a 404). Never return origins loaded for a
+  // different disease.
+  return state.diseaseCode === diseaseCode ? state : { ...state, originsWithSources: NO_ORIGINS }
 }
