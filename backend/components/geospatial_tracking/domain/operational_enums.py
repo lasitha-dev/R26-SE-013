@@ -31,6 +31,17 @@ class OperationalStatus(str, Enum):
     OPERATIONAL_DATA_UNAVAILABLE = "OPERATIONAL_DATA_UNAVAILABLE"
 
 
+class SurveillanceStatus(str, Enum):
+    """Outcome of resolving the vet's registered-district surveillance scope,
+    so "no district on the profile" is never confused with "the district
+    lookup failed"."""
+
+    DISTRICT_RESOLVED = "DISTRICT_RESOLVED"
+    NO_REGISTERED_DISTRICT = "NO_REGISTERED_DISTRICT"
+    NO_FARMS_IN_DISTRICT = "NO_FARMS_IN_DISTRICT"
+    DISTRICT_DATA_UNAVAILABLE = "DISTRICT_DATA_UNAVAILABLE"
+
+
 class LocationStatus(str, Enum):
     """GPS usability of one operational farm record. `VALID` is the only
     status a `VerifiedClinicalContext` may be built on top of (Section 11's

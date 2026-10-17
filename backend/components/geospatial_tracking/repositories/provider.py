@@ -41,6 +41,15 @@ REPOSITORY_PROVIDER_KIND_10B1 = "SQLITE_DEVELOPMENT_PROVIDER"
 
 _repository_factory_override: Callable[[], OutbreakRepository] | None = None
 
+SCIENTIFIC_DATASET_UNAVAILABLE = "SCIENTIFIC_DATASET_UNAVAILABLE"
+
+
+class ScientificDatasetUnavailableError(RuntimeError):
+    """No usable scientific dataset is configured for this process. Mapped
+    to HTTP 503 by the API -- never a fabricated or empty analysis."""
+
+    status = SCIENTIFIC_DATASET_UNAVAILABLE
+
 
 def set_repository_factory_override(factory: Callable[[], OutbreakRepository] | None) -> None:
     """GEO-MONGODB-NATIVE-INTEGRATION-24B composition-root hook. Pass a
@@ -66,5 +75,17 @@ def create_outbreak_repository() -> OutbreakRepository:
     installed."""
     if _repository_factory_override is not None:
         return _repository_factory_override()
-    db_path = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
+    db_path = default_sqlite_db_path()
+    # `sqlite3.connect` silently creates a missing file, which is how a
+    # 0-byte `pistes_dev.db` appears; such a file has no tables and every
+    # query fails. Refuse it explicitly instead of creating or opening it.
+    if not db_path.is_file() or db_path.stat().st_size == 0:
+        raise ScientificDatasetUnavailableError(
+            "The development SQLite dataset is missing or empty. The running application reads the "
+            "scientific dataset from MongoDB (installed by backend/main.py)."
+        )
     return SQLiteOutbreakRepository(db_path)
+
+
+def default_sqlite_db_path() -> Path:
+    return Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
