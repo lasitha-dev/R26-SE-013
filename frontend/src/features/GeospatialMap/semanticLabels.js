@@ -268,7 +268,7 @@ export const ACTION_REFRESH_OPERATIONAL_CONTEXT = 'Refresh'
 // only real origin relevance (`relevantOrigins`), so "responsible" would
 // overstate what the real contract proves.
 export const MY_AREA_PAGE_TITLE = 'Area Risk Intelligence'
-export const MY_AREA_PAGE_TAGLINE = 'What may affect my area in the coming days, and which outbreaks are relevant.'
+export const MY_AREA_PAGE_TAGLINE = 'Relative spatial score around my area at the as-of date, its nominal reach, and the sources behind it.'
 
 // Section 10: `distance_basis === 'NEAREST_T0_TRIGGER_SOURCE'` wording --
 // never "outbreak"/"origin distance"/"threat" (Section 10's explicit
@@ -335,7 +335,7 @@ export const LABEL_FORECAST_D0 = 'Observed / origin context'
  * never implying a percentage/score/grade the backend does not supply.
  */
 export const ANALYSIS_TRENDS_PAGE_TITLE = 'Analysis & Trends'
-export const ANALYSIS_TRENDS_PAGE_TAGLINE = 'Sri Lanka historical and model evidence'
+export const ANALYSIS_TRENDS_PAGE_TAGLINE = 'Historical outbreak patterns and spatial intelligence'
 
 // Section 16/17: KPI wording -- "Historical source records" (never
 // "Cases today"/"Active cases"/"Current infections"), "Forecast

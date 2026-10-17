@@ -32,7 +32,7 @@ function isFiniteNumber(value) {
 function normalizeFarm(rawFarm) {
   if (!rawFarm || typeof rawFarm.farm_id !== 'string' || !rawFarm.farm_id) return null
   const hasValidLocation =
-    rawFarm.location_status === 'VALID' && isFiniteNumber(rawFarm.latitude) && isFiniteNumber(rawFarm.longitude)
+    rawFarm.location_status === 'VALID' && isFiniteNumber(rawFarm.latitude) && Math.abs(rawFarm.latitude) <= 90 && isFiniteNumber(rawFarm.longitude) && Math.abs(rawFarm.longitude) <= 180
   return {
     farmId: rawFarm.farm_id,
     latitude: hasValidLocation ? rawFarm.latitude : null,
@@ -44,6 +44,7 @@ function normalizeFarm(rawFarm) {
     // so a farm's dropdown/label/popup text never shows raw coordinates.
     locationDistrict: normalizeDistrictDisplayName(rawFarm.location_district),
     personallyAssigned: rawFarm.personally_assigned !== false,
+    totalAnimals: rawFarm.personally_assigned !== false && Number.isFinite(rawFarm.total_animals) ? rawFarm.total_animals : null,
   }
 }
 
@@ -52,13 +53,13 @@ function normalizeFarm(rawFarm) {
  * semantic class is exactly the approved one -- never defaults an
  * unrecognized disease to LSD/FMD, never renders a marker with no real
  * coordinate. */
-function normalizeClinicalContext(rawContext, farmsById) {
+function normalizeClinicalContext(rawContext, farmsById, includeUnmapped = false) {
   if (!rawContext || typeof rawContext.case_id !== 'string' || !rawContext.case_id) return null
   if (!KNOWN_DISEASES.has(rawContext.disease)) return null
   if (rawContext.semantic_class !== 'VERIFIED_CLINICAL_CONTEXT') return null
 
   const farm = farmsById.get(rawContext.farm_id)
-  if (!farm || farm.locationStatus !== 'VALID') return null
+  if (!farm || (!includeUnmapped && farm.locationStatus !== 'VALID')) return null
 
   return {
     caseId: rawContext.case_id,
@@ -66,6 +67,8 @@ function normalizeClinicalContext(rawContext, farmsById) {
     disease: rawContext.disease,
     semanticClass: rawContext.semantic_class,
     verificationTime: typeof rawContext.verification_time === 'string' ? rawContext.verification_time : null,
+    reportedAt: typeof rawContext.case_creation_time === 'string' ? rawContext.case_creation_time : null,
+    locationStatus: farm.locationStatus,
     timestampBasis: rawContext.timestamp_basis === 'VERIFICATION_TIME' ? rawContext.timestamp_basis : null,
     latitude: farm.latitude,
     longitude: farm.longitude,
@@ -113,10 +116,14 @@ export function normalizeOperationalContext(raw) {
     vetRole: typeof raw?.vet?.role === 'string' ? raw.vet.role : null,
     farms,
     clinicalContexts,
+    // List/count population is independent of whether the farm can be mapped.
+    clinicalRecords: rawContexts.map((c) => normalizeClinicalContext(c, farmsById, true)).filter(Boolean),
     locationRequiredFarmCount,
     generatedAt: typeof raw?.generated_at === 'string' ? raw.generated_at : null,
     vetDistrict: typeof raw?.vet_district === 'string' && raw.vet_district.trim() ? raw.vet_district : null,
     surveillanceFarms,
     surveillanceContexts,
+    surveillanceRecords: rawSurveillanceContexts.map((c) => normalizeClinicalContext(c, surveillanceFarmsById, true)).filter(Boolean),
+    surveillanceStatus: typeof raw?.surveillance_status === 'string' ? raw.surveillance_status : null,
   }
 }
