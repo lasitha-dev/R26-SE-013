@@ -21,7 +21,16 @@
  * varies only with the real `caseCount`; opacity varies only with the
  * real `recencyTier` -- never with disease or risk.
  */
-import { CLINICAL_CIRCLE_ICON_ID, CLINICAL_DIAMOND_ICON_ID, CLINICAL_MARKER_COLOR_HEX } from './operationalIcons'
+import { CASE_AGE_CLASS, classifyCaseAge, combinedAgeClass, isCaseMarkerVisible } from '../adapters/caseAge'
+import {
+  CLINICAL_CIRCLE_ICON_ID,
+  CLINICAL_CIRCLE_OLDER_ICON_ID,
+  CLINICAL_CIRCLE_UNDATED_ICON_ID,
+  CLINICAL_DIAMOND_ICON_ID,
+  CLINICAL_DIAMOND_OLDER_ICON_ID,
+  CLINICAL_DIAMOND_UNDATED_ICON_ID,
+  CLINICAL_MARKER_COLOR_HEX,
+} from './operationalIcons'
 
 export const OPERATIONAL_MARKERS_SOURCE_ID = 'geo-operational-clinical-contexts'
 export const OPERATIONAL_MARKERS_LAYER_ID = 'operational-clinical-symbol'
@@ -43,10 +52,13 @@ export const OPERATIONAL_MARKERS_PROMOTE_ID = 'farmDiseaseKey'
  * MapLibre feature-state (the transient "just arrived" highlight, Section
  * 12) can target one specific farm marker across `setData` refreshes.
  */
-export function buildOperationalMarkerFeatureCollection(farmGroups) {
+export function buildOperationalMarkerFeatureCollection(farmGroups, { ageReferenceDateKey = null } = {}) {
   return {
     type: 'FeatureCollection',
-    features: farmGroups.map((g) => ({
+    features: farmGroups.map((g) => ({ g, ageClass: combinedAgeClass((g.reportedAts ?? []).map((t) => classifyCaseAge(t, ageReferenceDateKey).ageClass)) }))
+      // Every report on the farm is older than the 30-day monitoring limit.
+      .filter(({ ageClass }) => isCaseMarkerVisible(ageClass))
+      .map(({ g, ageClass }) => ({
       type: 'Feature',
       properties: {
         farmDiseaseKey: `${g.farmId}::${g.disease}`,
@@ -59,6 +71,9 @@ export function buildOperationalMarkerFeatureCollection(farmGroups) {
         verificationTimes: g.verificationTimes,
         latestVerificationTime: g.latestVerificationTime,
         recencyTier: g.recencyTier,
+        // Report-date age of the farm's youngest report (red <=14 d, brown
+        // 15-30 d); never derived from the verification time.
+        ageClass,
       },
       geometry: { type: 'Point', coordinates: [g.longitude, g.latitude] },
     })),
@@ -77,7 +92,12 @@ export function buildOperationalMarkerFeatureCollection(farmGroups) {
  */
 export function operationalMarkerIconLayout() {
   return {
-    'icon-image': ['case', ['==', ['get', 'disease'], 'LSD'], CLINICAL_DIAMOND_ICON_ID, CLINICAL_CIRCLE_ICON_ID],
+    'icon-image': [
+      'case',
+      ['==', ['get', 'disease'], 'LSD'],
+      ['match', ['get', 'ageClass'], CASE_AGE_CLASS.RECENT, CLINICAL_DIAMOND_ICON_ID, CASE_AGE_CLASS.OLDER, CLINICAL_DIAMOND_OLDER_ICON_ID, CLINICAL_DIAMOND_UNDATED_ICON_ID],
+      ['match', ['get', 'ageClass'], CASE_AGE_CLASS.RECENT, CLINICAL_CIRCLE_ICON_ID, CASE_AGE_CLASS.OLDER, CLINICAL_CIRCLE_OLDER_ICON_ID, CLINICAL_CIRCLE_UNDATED_ICON_ID],
+    ],
     'icon-allow-overlap': true,
     'icon-ignore-placement': true,
     'icon-size': ['step', ['get', 'caseCount'], 0.85, 2, 1.0, 4, 1.2, 10, 1.45],

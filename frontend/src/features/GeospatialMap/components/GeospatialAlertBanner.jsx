@@ -15,12 +15,12 @@ import { buildAlertBannerTitle, buildAlertExplanation } from '../adapters/alertM
  * -- the page decides what "View update" means for its own deep-link
  * semantics (Section 12), this component only renders and delegates.
  */
-export default function GeospatialAlertBanner({ notifications, onViewUpdate, onDismiss }) {
+export default function GeospatialAlertBanner({ notifications, onViewUpdate, onDismiss, farmNames = null }) {
   if (!notifications || notifications.length === 0) return null
 
   const newest = notifications[0]
   const title = buildAlertBannerTitle(notifications.length)
-  const explanation = buildAlertExplanation(newest.event)
+  const explanation = buildAlertExplanation(newest.event, { farmName: farmNames?.get(newest.event?.farm_id)?.name ?? null })
 
   return (
     <div

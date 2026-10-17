@@ -1,0 +1,92 @@
+/*
+ * Visual alignment with references/geospatial-ui/adrs-geospatial-v4.zip.
+ * Presentation only: no layout hierarchy, scientific state, map layer,
+ * event handler, or API behavior is changed here.
+ */
+.geo-filterbar {
+  background: #141d2e;
+  border-color: #1f2b42;
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.6);
+}
+
+.geo-map-card {
+  background: #a2bdfb;
+  border-color: #1f2b42;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6);
+}
+
+.geo-mode-toolbar {
+  gap: 4px;
+  padding: 5px;
+  background: rgba(30, 38, 52, 0.93);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6);
+  scrollbar-width: none;
+}
+
+.geo-mode-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.geo-mode-toolbar .geo-mode-pill {
+  min-height: 38px;
+  padding: 0 17px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.geo-mode-toolbar .geo-mode-pill[aria-selected='true'] {
+  background: #3ee38a;
+  color: #062014;
+  box-shadow: 0 0 12px rgba(62, 227, 138, 0.28);
+}
+
+.geo-timeline-dock {
+  background: rgba(30, 38, 54, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.75);
+}
+
+/* Light frosted legend from the supplied map reference. The separate info
+   trigger stays dark so it remains visible over both land and sea. */
+.geo-map-legend {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #475569;
+  box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.45);
+}
+
+.geo-map-legend [class*='text-on-surface'] {
+  color: #475569;
+}
+
+.geo-map-legend .text-on-surface,
+.geo-map-legend [class*='font-semibold'][class*='text-on-surface'],
+.geo-map-legend [class*='font-bold'][class*='text-on-surface'] {
+  color: #0f172a;
+}
+
+.geo-map-legend [class*='border-outline-variant'] {
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+.geo-map-info-button {
+  background: rgba(30, 38, 52, 0.93);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e5eaf2;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.7);
+}
+
+@media (max-width: 860px) {
+  .geo-mode-toolbar .geo-mode-pill {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 13.5px;
+  }
+
+  .geo-timeline-dock {
+    width: calc(100vw - 24px);
+    padding: 10px 12px 8px;
+  }
+}
+

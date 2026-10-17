@@ -11,6 +11,7 @@
  */
 
 import { getDiseaseConfig } from '../disease/diseaseRegistry'
+import { formatVerificationTime } from './verificationTime'
 
 function diseaseLabel(diseaseCode) {
   try {
@@ -38,17 +39,21 @@ export function buildAlertBannerTitle(count) {
  * the event is simply omitted from the returned object (never a guessed
  * placeholder) -- callers should render only the keys that are present.
  */
-export function buildAlertExplanation(event) {
+export function buildAlertExplanation(event, { farmName = null } = {}) {
   if (!event) return null
   const disease = diseaseLabel(event.disease)
   const explanation = {}
 
   if (event.disease && event.verified_at) {
-    explanation.whatChanged = `A ${disease} case was verified for this farm at ${event.verified_at}.`
+    // Local date/time for the vet; the raw value only if it cannot be parsed.
+    const when = formatVerificationTime(event.verified_at) ?? event.verified_at
+    explanation.whatChanged = `A ${disease} case was verified ${farmName ? `at ${farmName}` : 'for this farm'} on ${when}.`
   }
 
   if (event.farm_id) {
-    explanation.whyThisMatters = `This farm (${event.farm_id}) is in your assigned area -- verified clinical evidence here may be relevant to what you are currently reviewing.`
+    explanation.whyThisMatters = farmName
+      ? `${farmName} is one of your assigned farms -- verified clinical evidence here may be relevant to what you are currently reviewing.`
+      : `This farm (record ${event.farm_id}) is in your assigned area -- verified clinical evidence here may be relevant to what you are currently reviewing.`
   }
 
   explanation.whatToReview = 'Open the case for details, or dismiss if you have already reviewed it.'

@@ -23,6 +23,12 @@
 
 export const CLINICAL_DIAMOND_ICON_ID = 'geo-clinical-diamond-icon'
 export const CLINICAL_CIRCLE_ICON_ID = 'geo-clinical-circle-icon'
+// Report-date age variants (`adapters/caseAge.js`): >30 days grey, report
+// date unknown / after the reference date white with a slate ring.
+export const CLINICAL_DIAMOND_OLDER_ICON_ID = 'geo-clinical-diamond-older-icon'
+export const CLINICAL_CIRCLE_OLDER_ICON_ID = 'geo-clinical-circle-older-icon'
+export const CLINICAL_DIAMOND_UNDATED_ICON_ID = 'geo-clinical-diamond-undated-icon'
+export const CLINICAL_CIRCLE_UNDATED_ICON_ID = 'geo-clinical-circle-undated-icon'
 export const CLINICAL_ICON_SIZE = 18
 
 // GEO31A Section 2/10: red-500 core / red-700 ring -- the SAME red family
@@ -32,6 +38,12 @@ export const CLINICAL_ICON_SIZE = 18
 export const CLINICAL_MARKER_COLOR_HEX = '#ef4444'
 const CLINICAL_FILL = [239, 68, 68, 255]
 const CLINICAL_STROKE = [185, 28, 28, 255]
+
+export const CLINICAL_ICON_PALETTE = Object.freeze({
+  RECENT: Object.freeze({ fill: CLINICAL_FILL, stroke: CLINICAL_STROKE }),
+  OLDER: Object.freeze({ fill: [138, 106, 79, 255], stroke: [87, 62, 42, 255] }), // muted brown (15-30 d)
+  UNDATED: Object.freeze({ fill: [248, 250, 252, 255], stroke: [51, 65, 85, 255] }),
+})
 
 function makeRgbaBuffer(width, height) {
   return new Uint8ClampedArray(width * height * 4)
@@ -48,7 +60,7 @@ function setPixel(data, width, x, y, [r, g, b, a]) {
 
 /** Solid red diamond (LSD) with a darker red ring -- steady core, always
  * visible (Section 2: "the center dot MUST remain visible at all times"). */
-export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
+export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE, palette = CLINICAL_ICON_PALETTE.RECENT) {
   const data = makeRgbaBuffer(size, size)
   const cx = (size - 1) / 2
   const cy = (size - 1) / 2
@@ -57,9 +69,9 @@ export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
     for (let x = 0; x < size; x += 1) {
       const norm = Math.abs(x - cx) / r + Math.abs(y - cy) / r // diamond (L1) distance
       if (norm <= 0.82) {
-        setPixel(data, size, x, y, CLINICAL_FILL)
+        setPixel(data, size, x, y, palette.fill)
       } else if (norm <= 1.15) {
-        setPixel(data, size, x, y, CLINICAL_STROKE)
+        setPixel(data, size, x, y, palette.stroke)
       }
     }
   }
@@ -68,7 +80,7 @@ export function buildClinicalDiamondIcon(size = CLINICAL_ICON_SIZE) {
 
 /** Solid red circle (FMD) with a darker red ring -- steady core, always
  * visible (Section 2: "the center dot MUST remain visible at all times"). */
-export function buildClinicalCircleIcon(size = CLINICAL_ICON_SIZE) {
+export function buildClinicalCircleIcon(size = CLINICAL_ICON_SIZE, palette = CLINICAL_ICON_PALETTE.RECENT) {
   const data = makeRgbaBuffer(size, size)
   const cx = (size - 1) / 2
   const cy = (size - 1) / 2
@@ -77,9 +89,9 @@ export function buildClinicalCircleIcon(size = CLINICAL_ICON_SIZE) {
     for (let x = 0; x < size; x += 1) {
       const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / r // circular (L2) distance
       if (dist <= 0.78) {
-        setPixel(data, size, x, y, CLINICAL_FILL)
+        setPixel(data, size, x, y, palette.fill)
       } else if (dist <= 1.0) {
-        setPixel(data, size, x, y, CLINICAL_STROKE)
+        setPixel(data, size, x, y, palette.stroke)
       }
     }
   }

@@ -39,8 +39,10 @@ export const DIRECTION_ICON_SIZE = 20
 // layer -- shape (diamond=LSD, circle=FMD) still carries disease
 // identity, per this module's existing convention; color never varies
 // by disease.
-const SOURCE_FILL = [239, 68, 68, 255] // red-500 core
-const SOURCE_STROKE = [185, 28, 28, 255] // red-700 ring
+// Historical (dated, resolved) WAHIS/EMPRES records: neutral grey, so red
+// stays reserved for vet-verified ADRS cases on the same map.
+const SOURCE_FILL = [148, 163, 184, 255] // slate-400 core
+const SOURCE_STROKE = [51, 65, 85, 255] // slate-700 ring
 const DIRECTION_FILL = [30, 41, 59, 255] // slate-800 -- neutral, never red (not an outbreak marker)
 
 function makeRgbaBuffer(width, height) {

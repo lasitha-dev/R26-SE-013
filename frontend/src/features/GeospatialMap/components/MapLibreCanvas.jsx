@@ -1,8 +1,16 @@
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import './mapPopups.css'
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { GEO_TIMING, logTimingSummary, markTiming } from '../adapters/loadTiming'
 import { featureBelongsToOutbreak, nationalStackIndicatorPaint } from '../adapters/nationalSourcePresentation'
+import {
+  EMPTY_FEATURE_COLLECTION,
+  createRiskZoneCrossFader,
+  directionArrowLayout,
+  ensureDirectionArrowImage,
+  runCorridorReveal,
+} from './mapFrameTransitions'
 import { resolveBasemapConfig } from './basemapConfig'
 // GEO33B Section 15/16: this feature's OWN MapLibre control chrome (dark
 // zoom buttons/attribution), scoped entirely under `.geo-map-shell` below.
@@ -18,12 +26,31 @@ import {
   computeRiskTierStats,
   directionIconLayout,
   nationalSourceAmbientPulsePaint,
+  page1RiskFillColorExpression,
+  page1RiskFillOpacityExpression,
+  page1RiskLineColorExpression,
+  page1RiskLineOpacityExpression,
   riskTierColorExpression,
   sourceIconLayout,
   NATIONAL_SOURCES_PULSE_CYCLE_MS,
 } from './mapLibreAdapter'
-import { buildReachRingFeatureCollectionForCenters, emptyReachRingFeatureCollection } from './nominalReachRing'
-import { CLINICAL_CIRCLE_ICON_ID, CLINICAL_DIAMOND_ICON_ID, buildClinicalCircleIcon, buildClinicalDiamondIcon } from './operationalIcons'
+import {
+  REACH_GRADIENT_BAND_OPACITY,
+  buildReachGradientFeatureCollectionForCenters,
+  buildReachRingFeatureCollectionForCenters,
+  emptyReachRingFeatureCollection,
+} from './nominalReachRing'
+import {
+  CLINICAL_CIRCLE_ICON_ID,
+  CLINICAL_CIRCLE_OLDER_ICON_ID,
+  CLINICAL_CIRCLE_UNDATED_ICON_ID,
+  CLINICAL_DIAMOND_ICON_ID,
+  CLINICAL_DIAMOND_OLDER_ICON_ID,
+  CLINICAL_DIAMOND_UNDATED_ICON_ID,
+  CLINICAL_ICON_PALETTE,
+  buildClinicalCircleIcon,
+  buildClinicalDiamondIcon,
+} from './operationalIcons'
 import {
   OPERATIONAL_MARKERS_HALO_LAYER_ID,
   OPERATIONAL_MARKERS_LAYER_ID,
@@ -41,12 +68,122 @@ import {
   buildFmdSourceMarkerImage,
   buildSourceMarkerImage,
 } from './presentationIcons'
+import { ANALYSIS_MODE } from '../context/outbreakSelectionReducer'
+import { clusterDetailsText } from '../adapters/clusterPresentation'
+import { isFatalMapError, MAP_RESOURCE_ERROR_TEXT } from './mapPresentationError'
+import {
+  NATIONAL_CASE_LAYER_ID,
+  RISK_CELL_LAYER_IDS,
+  addNationalCaseLayers,
+  addOriginPulseLayer,
+  addStageLayers,
+  applyStageVisibility,
+  startOriginPulse,
+  updateStageData,
+  addCorridorLabelLayer,
+  addEnvironmentLayers,
+  addTrajectoryFlowLayers,
+  startEnvironmentAnimation,
+  startTrajectoryFlow,
+  CORRIDOR_LABEL_LAYER_ID,
+  startCasePulse,
+  STAGE_LAYER,
+  addTrajectoryLabelLayer,
+} from './stageLayers'
+import { caseHoverHtml } from '../adapters/caseAge'
+import { createRiskFieldRenderer } from './riskFieldRenderer'
+import { riskHoverHtml } from './riskHoverCard'
+import { basemapPlaceSourceId, buildTrajectoryLabels, nearestMappedPlace } from './trajectoryLabels'
+import { isPointInsideDistrictFeature, normalizeDistrictDisplayName } from '../adapters/districtGeometry'
+
 
 const CELLS_SOURCE_ID = 'geo-cells'
 const SOURCES_SOURCE_ID = 'geo-sources'
 const DIRECTIONS_SOURCE_ID = 'geo-directions'
 const NATIONAL_SOURCES_SOURCE_ID = 'geo-national-sources'
+const PAGE1_FORECAST_RISK_SOURCE_ID = 'geo-page1-forecast-risk'
+// Phase 3: the backend's full static relative-risk zones (identical on every
+// day), drawn faintly beneath the selected day's reach-limited zones.
+const PAGE1_FORECAST_CONTEXT_SOURCE_ID = 'geo-page1-forecast-context'
+const PAGE1_FORECAST_CONTEXT_FILL_LAYER_ID = 'page1-forecast-context-fill'
+const PAGE1_FORECAST_CONTEXT_LINE_LAYER_ID = 'page1-forecast-context-line'
+const PAGE1_FORECAST_PATH_SOURCE_ID = 'geo-page1-forecast-path'
+const PAGE1_FORECAST_FRONT_SOURCE_ID = 'geo-page1-forecast-front'
+const PAGE1_FORECAST_TRANSITION_MS = 520
+// ONE fill layer + ONE line layer for every Page-1 risk contour feature,
+// regardless of how many real outbreaks are currently loaded -- color is
+// entirely data-driven off each feature's own `riskLevel` property via a
+// `match` expression (`mapLibreAdapter.js`), so a 5th/6th/etc. real
+// outbreak never needs a new MapLibre layer, and an unrecognized
+// `riskLevel` falls through to a transparent, never black, fill.
+const PAGE1_FORECAST_RISK_FILL_LAYER_ID = 'page1-forecast-risk-fill'
+const PAGE1_FORECAST_RISK_LINE_LAYER_ID = 'page1-forecast-risk-line'
+// Phase 4: the reach-limited risk zones are double-buffered (A = the ids
+// above, B = these) and cross-faded by opacity, so every polygon on screen
+// is always an exact backend polygon (`mapFrameTransitions.js`).
+const PAGE1_FORECAST_RISK_B_SOURCE_ID = 'geo-page1-forecast-risk-b'
+const PAGE1_FORECAST_RISK_FILL_B_LAYER_ID = 'page1-forecast-risk-fill-b'
+const PAGE1_FORECAST_RISK_LINE_B_LAYER_ID = 'page1-forecast-risk-line-b'
+const PAGE1_TIMELINE_ORIGIN_SOURCE_ID = 'geo-page1-timeline-origins'
+const PAGE1_TIMELINE_ORIGIN_LAYER_ID = 'page1-timeline-origin'
+// Trajectory-only: Day 0 direction arrow at each source (backend 8B.3
+// bearing) and "Day N · near <OSM place>" labels (trajectoryLabels.js).
+const TRAJECTORY_LABEL_SOURCE_ID = 'geo-trajectory-labels'
+const TRAJECTORY_LABEL_LAYER_ID = 'trajectory-place-label'
+const TRAJECTORY_REMAINING_SOURCE_ID = 'geo-trajectory-remaining'
+const TRAJECTORY_REMAINING_LAYER_ID = 'trajectory-remaining'
+const TRAJECTORY_PLUME_SOURCE_ID = 'geo-trajectory-plumes'
+const TRAJECTORY_PLUME_LAYER_ID = 'trajectory-plume'
+const TRAJECTORY_ONLY_LAYER_IDS = [TRAJECTORY_PLUME_LAYER_ID, TRAJECTORY_REMAINING_LAYER_ID, TRAJECTORY_LABEL_LAYER_ID]
+const PAGE1_FORECAST_PATH_SELECTED_LAYER_ID = 'page1-forecast-path-selected'
+const PAGE1_FORECAST_PATH_FLOW_LAYER_ID = 'page1-forecast-path-flow'
+const PAGE1_FORECAST_ARROW_LAYER_ID = 'page1-forecast-arrow'
+// The context source now carries the selected day's nominal-reach OUTLINE
+// (geometric distance), shown in Risk Zones and Trajectory modes.
+const PAGE1_REACH_OUTLINE_LAYER_IDS = [PAGE1_FORECAST_CONTEXT_FILL_LAYER_ID, PAGE1_FORECAST_CONTEXT_LINE_LAYER_ID]
+const PAGE1_RISK_LAYER_IDS = [
+  PAGE1_FORECAST_RISK_FILL_LAYER_ID,
+  PAGE1_FORECAST_RISK_LINE_LAYER_ID,
+  PAGE1_FORECAST_RISK_FILL_B_LAYER_ID,
+  PAGE1_FORECAST_RISK_LINE_B_LAYER_ID,
+]
+// Direction indicators only: no glow, no travelling dash, no moving "front"
+// marker -- those made a geometric tendency read as a transmission path.
+// One label per path (its front, trajectoryLabels.js): the along-line
+// "Day N · X km" label is no longer shown.
+const PAGE1_TRAJECTORY_LAYER_IDS = [
+  PAGE1_FORECAST_PATH_SELECTED_LAYER_ID,
+  'page1-forecast-path',
+  PAGE1_FORECAST_ARROW_LAYER_ID,
+  PAGE1_TIMELINE_ORIGIN_LAYER_ID,
+]
+const PAGE1_DECORATIVE_LAYER_IDS = ['page1-forecast-path-glow', PAGE1_FORECAST_PATH_FLOW_LAYER_ID, 'page1-forecast-front-glow', 'page1-forecast-front']
+const NO_SELECTED_CORRIDOR_FILTER = ['==', ['get', 'sourceId'], '__none__']
+// Layers dimmed when one source is focused (clicked case or path).
+const TRAJECTORY_FOCUS_PAINT = [
+  ['page1-forecast-path', 'line-opacity', 0.95],
+  [PAGE1_FORECAST_ARROW_LAYER_ID, 'icon-opacity', 0.95],
+  [TRAJECTORY_REMAINING_LAYER_ID, 'line-opacity', 0.55],
+  [TRAJECTORY_PLUME_LAYER_ID, 'fill-opacity', 0.16],
+  [TRAJECTORY_LABEL_LAYER_ID, 'text-opacity', 1],
+  [PAGE1_TIMELINE_ORIGIN_LAYER_ID, 'circle-stroke-opacity', 0.9],
+]
 const REACH_RING_SOURCE_ID = 'geo-reach-ring'
+// GEO-REACH-GRADIENT-01: a SEPARATE source for the concentric-disk
+// gradient bands (`buildReachGradientFeatureCollectionForCenters`) --
+// kept apart from `REACH_RING_SOURCE_ID`'s single outline+flat-fill
+// feature per center so the crisp boundary line always stays the
+// topmost, sharpest element regardless of how many gradient bands exist.
+const REACH_GRADIENT_SOURCE_ID = 'geo-reach-gradient'
+// One-shot growth pulse: a brief glow drawn at the NEW boundary exactly
+// when the real target radius genuinely increases (a real day-forward
+// advance), never a continuous/decorative loop -- MapLibre GL has no
+// dash-offset/marching-ants primitive to animate a literal "flowing"
+// boundary, so this reuses the SAME one-shot expand-then-fade technique
+// already proven in this file for `national-sources-ripple` (feature
+// re-added + a long paint-transition does the actual fade).
+const REACH_GROWTH_PULSE_SOURCE_ID = 'geo-reach-growth-pulse'
+const REACH_GROWTH_PULSE_MS = 550
 // GEO30B Section 16: the vet's real district polygon (see
 // `data/ATTRIBUTION.md`) -- fill + outline, never a symbol/text layer
 // (this basemap declares no `glyphs` URL; the "MY DISTRICT · X" label
@@ -64,7 +201,12 @@ export const NATIONAL_SOURCES_STACK_LAYER_ID = 'national-sources-stack'
 export const NATIONAL_SOURCES_PULSE_LAYER_ID = 'national-sources-ambient-pulse'
 
 const RIPPLE_TRANSITION_MS = 1800
-const REACH_RING_TWEEN_MS = 800
+// GEO-REACH-GRADIENT-01: bumped from 800ms so the real day-to-day growth
+// is comfortably visible rather than reading as a near-instant pop, while
+// still finishing well inside the 1400ms real per-day playback tick at 1x
+// speed (`OutbreakMapPage.jsx`'s `intervalMs = 1400 / playbackSpeed`) --
+// timing/UX only, never a change to which real radius is drawn.
+const REACH_RING_TWEEN_MS = 1000
 
 // GEO33A Section 8: a flat, small padding left real geography readable
 // right up to the map's own edges, where the floating `ModeToolbar`
@@ -73,7 +215,16 @@ const REACH_RING_TWEEN_MS = 800
 // place Sri Lanka's own coastline or a real marker underneath either one.
 // Asymmetric padding reserves real room for both without shrinking the
 // fit unnecessarily on the sides.
-const MAP_FIT_PADDING = { top: 90, bottom: 110, left: 40, right: 40 }
+// Tight vertical padding: the island is tall, so generous top/bottom padding
+// zoomed it out until southern India filled the frame.
+// Bottom = the timeline dock (~140 px with its offset) plus a margin, so the
+// south coast (Galle/Matara) is never fitted underneath it.
+const MAP_FIT_PADDING = { top: 60, bottom: 158, left: 24, right: 24 }
+// Cases / Clusters have no bottom timeline dock: the island can use that room.
+const MAP_FIT_PADDING_OPEN = { top: 60, bottom: 36, left: 24, right: 24 }
+function MAP_FIT_PADDING_BY_MODE(mode) {
+  return mode === ANALYSIS_MODE.CASES || mode === ANALYSIS_MODE.CLUSTERS ? MAP_FIT_PADDING_OPEN : MAP_FIT_PADDING
+}
 
 // GEO33B Section 5: an upper bound for every camera fit on this page.
 // Without it, `fitBounds` over a small real geometry (a single origin's
@@ -82,6 +233,9 @@ const MAP_FIT_PADDING = { top: 90, bottom: 110, left: 40, right: 40 }
 // loses all surrounding context. 11 is roughly "a few districts across" --
 // a presentation limit, never derived from any scientific value.
 const MAP_FIT_MAX_ZOOM = 11
+// Clicking a national origin zooms toward it, but keeps enough surrounding
+// geography (neighbouring districts) to stay a surveillance view.
+const ORIGIN_FIT_MAX_ZOOM = 8.5
 
 // GEO29A Part 11: fixed, real Sri Lanka geographic constants -- presentation
 // camera defaults only, never derived from or mistaken for scientific/model
@@ -100,6 +254,18 @@ export const SRI_LANKA_INITIAL_ZOOM = 7.1
 export const SRI_LANKA_BOUNDS = [
   [79.55, 5.85],
   [81.95, 9.92],
+]
+
+// GEO-PAGE1-FINAL Section 5.2/6: a real, fixed geographic pan/zoom-out
+// constraint -- deliberately much LOOSER than `SRI_LANKA_BOUNDS` above
+// (which is only ever used for the "Fit Sri Lanka" camera target), so a
+// vet can still freely explore the whole island, its coastline, and a
+// reasonable amount of surrounding ocean/southern-India context, while
+// never being able to pan/zoom this Sri Lanka surveillance map into an
+// unrelated part of the world or into a wrapped duplicate copy of it.
+export const SRI_LANKA_MAX_PAN_BOUNDS = [
+  [72.0, 2.0],
+  [90.0, 15.0],
 ]
 
 /**
@@ -123,8 +289,18 @@ export const SRI_LANKA_BOUNDS = [
  *    drawn as a ring around every real source in the selected origin
  *    (see `nominalReachRing.js`'s header for why not just one point);
  *    tweened smoothly between day values, never risk-colored.
+ *    GEO-REACH-GRADIENT-01: the SAME real radius also drives a soft
+ *    concentric-disk gradient fill (`reach-ring-gradient`) and a one-shot
+ *    boundary flash (`reach-ring-growth-pulse`) whenever the real target
+ *    radius genuinely increases -- both purely presentational over the
+ *    one real value, never a second/independent radius.
  *  - `reduceMotion`: skips the camera-fit animation, the reach-ring
  *    tween (snaps instead), and the selection ripple.
+ *  - `showTrajectoryLayer` (GEO-TRAJECTORY-01): shows the real per-cell
+ *    `direction-arrows` layer (`bearing_deg`) for Trajectory mode, without
+ *    the risk-tier `cells-circle` dots that stay exclusive to Risk Zones
+ *    (`showRiskLayer`). The reach ring is shared by both modes via
+ *    `reachRingCenters` already being non-null in either (`OutbreakMapPage.jsx`).
  *
  * GEO-INT-03 additions (Section 6/9/10/13): a fourth, independent overlay
  * for the Verified Clinical Context operational layer --
@@ -183,6 +359,36 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     // before -- `OutbreakMapPage.jsx` is the only caller that passes this
     // explicitly, tying it to `ANALYSIS_MODE.RISK_ZONES`.
     showRiskLayer = true,
+    // GEO-TRAJECTORY-01: Trajectory mode's own visibility gate for the
+    // direction-arrows layer (real per-cell `bearing_deg`) -- deliberately
+    // separate from `showRiskLayer` so `cells-circle` (the risk-TIER
+    // dots) stays exclusive to Risk Zones mode while the direction arrows
+    // are shared real data, honestly relevant to both "how risky is this
+    // cell" (Risk Zones) and "which way might this spread" (Trajectory).
+    showTrajectoryLayer = false,
+    // Deterministic presentation geometry derived by the parent from the
+    // CURRENT real national outbreak/source array. These props never
+    // trigger a fetch or create another map instance.
+    page1ForecastVisualization = null,
+    showPage1ForecastLayer = false,
+    showPage1ForecastRiskZones = false,
+    // Research inspection: the selected historical origin's per-cell score
+    // circles and per-cell gradient arrows. Off by default.
+    showResearchLayers = false,
+    // National Map per-mode stage layers (`stageLayers.js`): backend snapshot
+    // geometry for the selected day, and the mode that decides which of them
+    // is visible. `null` (every other caller) keeps them all hidden.
+    stage = null,
+    stageMode = null,
+    onSelectRiskCell = null,
+    onSelectNationalCase = null,
+    onEnvPointSelect = null,
+    onSelectCorridor = null,
+    // Phase 4: hover tooltip + selected-source emphasis for the backend
+    // direction corridors (`CorridorPopup`).
+    onHoverCorridor = null,
+    selectedCorridorSourceId = null,
+    focusedCaseKey = null,
     arrivalHighlightKey = null,
     // GEO33B Section 8/11: real farm+disease keys that became visible on
     // THIS observed-replay step (`OutbreakMapPage.jsx` derives them by
@@ -193,6 +399,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     newlyRevealedKeys = null,
     selectedOperationalKey = null,
     districtFeature = null,
+    // All ADM2 districts (names the district under the Risk Zones hover card).
+    districtCollection = null,
     onSelectCell,
     onSelectSource,
     onSelectOperationalCase,
@@ -209,6 +417,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   const visuallySelectedOutbreakId = autoFocusOutbreak ? null : selectedOutbreakId
   const containerRef = useRef(null)
   const mapRef = useRef(null)
+  const clusterPopupRef = useRef(null)
   const failedRef = useRef(false)
   const loadedRef = useRef(false)
   const lastFitOutbreakIdRef = useRef(undefined)
@@ -218,6 +427,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   // still in flight. Deliberately a boolean about PRESENTATION readiness --
   // it never gates, delays, or reports anything about real data.
   const [styleReady, setStyleReady] = useState(false)
+  const [mapResourceError, setMapResourceError] = useState(false)
 
   // GEO33B Section 2: latest-value mirrors of every async-arriving prop.
   //
@@ -239,16 +449,59 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   // through these refs inside `map.on('load')` makes the wiring genuinely
   // order-independent: data-first and style-first both end up correct.
   const nationalSourcesRef = useRef(nationalSources)
+  const page1ForecastVisualizationRef = useRef(page1ForecastVisualization)
+  const showPage1ForecastLayerRef = useRef(showPage1ForecastLayer)
+  const showPage1ForecastRiskZonesRef = useRef(showPage1ForecastRiskZones)
+  const showTrajectoryLayerRef = useRef(showTrajectoryLayer)
+  const showResearchLayersRef = useRef(showResearchLayers)
+  showResearchLayersRef.current = showResearchLayers
   const operationalFeaturesRef = useRef(operationalFeatures)
   const districtFeatureRef = useRef(districtFeature)
   const cellFeaturesRef = useRef(cellFeatures)
   const sourceFeaturesRef = useRef(sourceFeatures)
   nationalSourcesRef.current = nationalSources
+  page1ForecastVisualizationRef.current = page1ForecastVisualization
+  const onSelectCorridorRef = useRef(onSelectCorridor)
+  onSelectCorridorRef.current = onSelectCorridor
+  const onHoverCorridorRef = useRef(onHoverCorridor)
+  onHoverCorridorRef.current = onHoverCorridor
+  const reduceMotionRef = useRef(reduceMotion)
+  reduceMotionRef.current = reduceMotion
+  const stageRef = useRef(stage)
+  stageRef.current = stage
+  const stageModeRef = useRef(stageMode)
+  stageModeRef.current = stageMode
+  const stageFaderRef = useRef(null)
+  // Animated Risk Zones surface (riskFieldRenderer.js) and its hover card.
+  const riskFieldRef = useRef(null)
+  const refreshRiskHoverRef = useRef(null)
+  const districtCollectionRef = useRef(districtCollection)
+  districtCollectionRef.current = districtCollection
+  const onSelectRiskCellRef = useRef(onSelectRiskCell)
+  onSelectRiskCellRef.current = onSelectRiskCell
+  const onSelectNationalCaseRef = useRef(onSelectNationalCase)
+  onSelectNationalCaseRef.current = onSelectNationalCase
+  const onEnvPointSelectRef = useRef(onEnvPointSelect)
+  onEnvPointSelectRef.current = onEnvPointSelect
+  // Camera framing: the scope the camera was last fitted to, and whether the
+  // vet has since moved the camera by hand. While they have not, a container
+  // resize re-fits that scope (the map first lays out at its minimum height,
+  // so a one-off fit at mount left southern India / open ocean in frame).
+  const scopeBoundsRef = useRef(null)
+  const userMovedCameraRef = useRef(false)
+  const page1RiskFaderRef = useRef(null)
+  const page1RevealCancelRef = useRef(null)
+  showPage1ForecastLayerRef.current = showPage1ForecastLayer
+  showPage1ForecastRiskZonesRef.current = showPage1ForecastRiskZones
+  showTrajectoryLayerRef.current = showTrajectoryLayer
   operationalFeaturesRef.current = operationalFeatures
   districtFeatureRef.current = districtFeature
   cellFeaturesRef.current = cellFeatures
   sourceFeaturesRef.current = sourceFeatures
   const reachRingAnimRef = useRef(null)
+  const page1ForecastAnimRef = useRef(null)
+  const currentPage1ForecastRef = useRef(null)
+  const relabelTrajectoryRef = useRef(null)
   const currentReachRadiusKmRef = useRef(0)
   // GEO31A Section 2: tracks the previously-selected operational farm key
   // so its steady halo can be cleared when a DIFFERENT farm becomes
@@ -305,6 +558,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       // SELECTION (the focused-origin effect below), which is where the
       // vet actually asked to zoom in on real records.
       const bounds = explicitBounds ?? SRI_LANKA_BOUNDS
+      scopeBoundsRef.current = bounds
+      userMovedCameraRef.current = false
       // GEO-VIVA-USER-VISIBLE-RECOVERY-05: dev-only marks bracketing the
       // REAL camera animation this control performs -- `moveend` is
       // MapLibre's own native "the camera has actually finished moving"
@@ -312,7 +567,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       // true click-to-settled-camera time for Location changes.
       markTiming(GEO_TIMING.CAMERA_FIT_START, { repeat: true })
       map.once('moveend', () => markTiming(GEO_TIMING.CAMERA_FIT_END, { repeat: true }))
-      map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: !reduceMotion })
+      map.fitBounds(bounds, { padding: MAP_FIT_PADDING_BY_MODE(stageModeRef.current), maxZoom: MAP_FIT_MAX_ZOOM, animate: !reduceMotion })
     },
   }))
 
@@ -347,6 +602,12 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         pitch: 0,
         maxPitch: 0,
         bearing: 0,
+        // GEO-PAGE1-FINAL Section 5.2/6: no wrapped duplicate copies of
+        // the map, and panning/zooming out is constrained to a real,
+        // fixed region around Sri Lanka -- a vet can never scroll this
+        // surveillance map into an unrelated part of the world.
+        renderWorldCopies: false,
+        maxBounds: SRI_LANKA_MAX_PAN_BOUNDS,
         // GEO33B Section 16: the DEFAULT attribution control renders
         // bottom-right, which is exactly where this page's bottom-docked
         // timeline and its right-hand legend/popup column sit -- at
@@ -359,6 +620,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         attributionControl: false,
       })
       mapRef.current = map
+      // Development-only debug handle (never in production builds).
+      if (import.meta.env?.DEV && typeof window !== 'undefined') window.__geoMap = map
       markTiming(GEO_TIMING.MAP_CONSTRUCT_END)
 
       // GEO-OWNED-FINAL-08 Section 15 "host-layout safety": MapLibre has
@@ -375,10 +638,25 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
         resizeObserver = new ResizeObserver(() => {
           mapRef.current?.resize()
+          // Re-frame the current scope after a layout change, unless the vet
+          // has moved the camera themselves. An instant jump to the SAME
+          // framing `resetView` computes -- not an extra animated fit.
+          const current = mapRef.current
+          if (current && loadedRef.current && !userMovedCameraRef.current && scopeBoundsRef.current) {
+            const camera = current.cameraForBounds(scopeBoundsRef.current, { padding: MAP_FIT_PADDING_BY_MODE(stageModeRef.current), maxZoom: MAP_FIT_MAX_ZOOM })
+            if (camera) current.jumpTo(camera)
+          }
         })
         resizeObserver.observe(containerRef.current)
       }
 
+      // A real hand gesture (drag / wheel / pinch) marks the camera as the
+      // vet's own choice; programmatic fits carry no `originalEvent`.
+      for (const type of ['dragstart', 'zoomstart']) {
+        map.on(type, (event) => {
+          if (event?.originalEvent) userMovedCameraRef.current = true
+        })
+      }
       map.dragRotate.disable()
       map.touchZoomRotate.disableRotation()
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
@@ -404,11 +682,11 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         // scientific-data problem -- surface the fallback, never touch
         // the committed snapshot.
         // eslint-disable-next-line no-console
-        console.warn('MapLibre map error (falling back to SVG view):', e?.error?.message || e)
-        if (!failedRef.current) {
+        console.warn('MapLibre map resource error:', e?.error?.message || e)
+        if (isFatalMapError(e?.error) && !failedRef.current) {
           failedRef.current = true
           onMapUnavailable?.()
-        }
+        } else setMapResourceError(true)
       })
 
       map.on('load', () => {
@@ -423,6 +701,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         const latestCellFeatures = cellFeaturesRef.current ?? []
         const latestSourceFeatures = sourceFeaturesRef.current ?? []
         const latestNationalSources = nationalSourcesRef.current
+        const latestPage1Forecast = page1ForecastVisualizationRef.current
         const latestDistrictFeature = districtFeatureRef.current
         const cellsFC = buildCellsFeatureCollection(latestCellFeatures)
         const sourcesFC = buildSourcesFeatureCollection({ type: 'FeatureCollection', features: latestSourceFeatures })
@@ -445,6 +724,10 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         if (!map.hasImage(DIRECTION_ICON_ID)) map.addImage(DIRECTION_ICON_ID, buildDirectionArrowImage())
         if (!map.hasImage(CLINICAL_DIAMOND_ICON_ID)) map.addImage(CLINICAL_DIAMOND_ICON_ID, buildClinicalDiamondIcon())
         if (!map.hasImage(CLINICAL_CIRCLE_ICON_ID)) map.addImage(CLINICAL_CIRCLE_ICON_ID, buildClinicalCircleIcon())
+        if (!map.hasImage(CLINICAL_DIAMOND_OLDER_ICON_ID)) map.addImage(CLINICAL_DIAMOND_OLDER_ICON_ID, buildClinicalDiamondIcon(undefined, CLINICAL_ICON_PALETTE.OLDER))
+        if (!map.hasImage(CLINICAL_CIRCLE_OLDER_ICON_ID)) map.addImage(CLINICAL_CIRCLE_OLDER_ICON_ID, buildClinicalCircleIcon(undefined, CLINICAL_ICON_PALETTE.OLDER))
+        if (!map.hasImage(CLINICAL_DIAMOND_UNDATED_ICON_ID)) map.addImage(CLINICAL_DIAMOND_UNDATED_ICON_ID, buildClinicalDiamondIcon(undefined, CLINICAL_ICON_PALETTE.UNDATED))
+        if (!map.hasImage(CLINICAL_CIRCLE_UNDATED_ICON_ID)) map.addImage(CLINICAL_CIRCLE_UNDATED_ICON_ID, buildClinicalCircleIcon(undefined, CLINICAL_ICON_PALETTE.UNDATED))
 
         // GEO30B Section 16/17/26: the vet's real district polygon --
         // added FIRST (before cells/sources/markers) so layer paint
@@ -468,20 +751,53 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           id: MY_DISTRICT_FILL_LAYER_ID,
           type: 'fill',
           source: MY_DISTRICT_SOURCE_ID,
-          paint: { 'fill-color': '#4edea3', 'fill-opacity': 0.08 },
+          paint: { 'fill-color': '#4edea3', 'fill-opacity': 0.16 },
+        })
+        // The logged-in vet's own district stands out at national zoom: a
+        // soft glow under a solid outline, plus its name when glyphs exist.
+        map.addLayer({
+          id: 'my-district-glow',
+          type: 'line',
+          source: MY_DISTRICT_SOURCE_ID,
+          paint: { 'line-color': '#4edea3', 'line-width': 9, 'line-blur': 5, 'line-opacity': 0.45 },
         })
         map.addLayer({
           id: MY_DISTRICT_OUTLINE_LAYER_ID,
           type: 'line',
           source: MY_DISTRICT_SOURCE_ID,
-          paint: { 'line-color': '#4edea3', 'line-width': 1.5, 'line-opacity': 0.85 },
+          paint: { 'line-color': '#4edea3', 'line-width': 2.6, 'line-opacity': 1 },
         })
 
         map.addSource(CELLS_SOURCE_ID, { type: 'geojson', data: cellsFC })
         map.addSource(SOURCES_SOURCE_ID, { type: 'geojson', data: sourcesFC })
         map.addSource(DIRECTIONS_SOURCE_ID, { type: 'geojson', data: directionsFC })
         map.addSource(NATIONAL_SOURCES_SOURCE_ID, { type: 'geojson', data: nationalFC, promoteId: 'source_id' })
+        map.addSource(PAGE1_FORECAST_RISK_SOURCE_ID, {
+          type: 'geojson',
+          data: latestPage1Forecast?.riskZones ?? { type: 'FeatureCollection', features: [] },
+        })
+        map.addSource(PAGE1_FORECAST_RISK_B_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
+        map.addSource(PAGE1_TIMELINE_ORIGIN_SOURCE_ID, { type: 'geojson', data: latestPage1Forecast?.origins ?? EMPTY_FEATURE_COLLECTION })
+        map.addSource(PAGE1_FORECAST_CONTEXT_SOURCE_ID, {
+          type: 'geojson',
+          data: latestPage1Forecast?.contextZones ?? { type: 'FeatureCollection', features: [] },
+        })
+        map.addSource(PAGE1_FORECAST_PATH_SOURCE_ID, {
+          type: 'geojson',
+          data: latestPage1Forecast?.paths ?? { type: 'FeatureCollection', features: [] },
+        })
+        map.addSource(PAGE1_FORECAST_FRONT_SOURCE_ID, {
+          type: 'geojson',
+          data: latestPage1Forecast?.fronts ?? { type: 'FeatureCollection', features: [] },
+        })
+        currentPage1ForecastRef.current = latestPage1Forecast
+        // GEO-REACH-GRADIENT-01: the gradient-band source is added FIRST so
+        // its `fill` layer paints UNDER the outline/fill of REACH_RING_SOURCE_ID
+        // (added next) -- the crisp real-radius boundary line always stays
+        // the topmost, sharpest element on top of the soft gradient.
+        map.addSource(REACH_GRADIENT_SOURCE_ID, { type: 'geojson', data: emptyReachRingFeatureCollection() })
         map.addSource(REACH_RING_SOURCE_ID, { type: 'geojson', data: emptyReachRingFeatureCollection() })
+        map.addSource(REACH_GROWTH_PULSE_SOURCE_ID, { type: 'geojson', data: emptyReachRingFeatureCollection() })
         // GEO26B Section 12: `promoteId` lets `feature-state` (the
         // transient "just arrived" highlight, set by the dedicated effect
         // below) target one specific farm marker by its real
@@ -515,7 +831,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           id: 'cells-circle',
           type: 'circle',
           source: CELLS_SOURCE_ID,
-          layout: { visibility: showRiskLayer ? 'visible' : 'none' },
+          layout: { visibility: showRiskLayer && showResearchLayersRef.current ? 'visible' : 'none' },
           paint: {
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 8, 7, 12, 11],
             'circle-color': riskTierColorExpression(tierStats),
@@ -527,24 +843,266 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           },
         })
 
-        // Nominal-reach ring (Section 22/26): dashed outline, near-zero
-        // fill, a colour deliberately outside the risk red/orange/blue
-        // family so it can never read as a risk zone. `-transition`
-        // entries only smooth paint-PROPERTY changes (there are none
-        // here); the actual grow/shrink is a source-data tween driven by
-        // the `reachRingFeatureCollection` effect below.
+        // Per-mode stage layers (risk bands, reach isochrones, district
+        // concentration) -- all hidden until `applyStageVisibility` below.
+        stageFaderRef.current = addStageLayers(map, { reduceMotion: () => reduceMotionRef.current }).cellFader
+        try {
+          riskFieldRef.current = createRiskFieldRenderer(map, { sourceId: 'geo-risk-field', layerId: 'risk-field', reduceMotion: () => reduceMotionRef.current })
+        } catch (error) {
+          // A browser without 2D-canvas filters keeps the plain cell layers.
+          console.warn('Risk field surface unavailable', error)
+          riskFieldRef.current = null
+        }
+
+        // Page-1 qualitative risk influence: EVERY real outbreak
+        // contributes its own independent set of risk-contour features
+        // (`page1ForecastVisualization.js::buildOutbreakRiskFeatures`) into
+        // this ONE shared source -- N outbreaks naturally produce N
+        // separate local risk fields, never one shared/merged shape. Color
+        // is entirely data-driven off each feature's real `riskLevel`
+        // property via a `match` expression (never a per-tier filtered
+        // layer with a static color), so this stays exactly two layers no
+        // matter how many outbreaks or risk bands are currently active,
+        // and an unrecognized `riskLevel` falls through to a transparent
+        // fill/line -- never the default black that caused the earlier
+        // blob. Source features are pre-sorted lowest-to-highest severity
+        // (green under yellow under orange under red) by the adapter, so
+        // draw order is correct within this single layer.
         map.addLayer({
-          id: 'reach-ring-fill',
+          id: PAGE1_FORECAST_CONTEXT_FILL_LAYER_ID,
           type: 'fill',
-          source: REACH_RING_SOURCE_ID,
-          paint: { 'fill-color': '#14b8a6', 'fill-opacity': 0.04 },
+          source: PAGE1_FORECAST_CONTEXT_SOURCE_ID,
+          layout: { visibility: 'none' }, // isotropic reach ring: replaced by the direction-shaped reach
+          paint: { 'fill-color': '#94A3B8', 'fill-opacity': 0 },
         })
+        map.addLayer({
+          id: PAGE1_FORECAST_CONTEXT_LINE_LAYER_ID,
+          type: 'line',
+          source: PAGE1_FORECAST_CONTEXT_SOURCE_ID,
+          layout: { visibility: 'none' }, // isotropic reach ring: replaced by the direction-shaped reach
+          // Nominal-reach outline: neutral slate dashes, never a risk colour.
+          paint: { 'line-color': '#94A3B8', 'line-width': 1.2, 'line-opacity': 0.8, 'line-dasharray': [3, 2] },
+        })
+        // Two identical buffers (A, B). Opacity is driven per frame by the
+        // cross-fader below, so the paint-transition duration is 0 here.
+        const page1RiskBuffers = [
+          { sourceId: PAGE1_FORECAST_RISK_SOURCE_ID, fillId: PAGE1_FORECAST_RISK_FILL_LAYER_ID, lineId: PAGE1_FORECAST_RISK_LINE_LAYER_ID },
+          { sourceId: PAGE1_FORECAST_RISK_B_SOURCE_ID, fillId: PAGE1_FORECAST_RISK_FILL_B_LAYER_ID, lineId: PAGE1_FORECAST_RISK_LINE_B_LAYER_ID },
+        ]
+        for (const buffer of page1RiskBuffers) {
+          map.addLayer({
+            id: buffer.fillId,
+            type: 'fill',
+            source: buffer.sourceId,
+            layout: { visibility: showPage1ForecastRiskZonesRef.current ? 'visible' : 'none' },
+            paint: {
+              'fill-color': page1RiskFillColorExpression(),
+              'fill-opacity': page1RiskFillOpacityExpression(false),
+              'fill-opacity-transition': { duration: 0 },
+            },
+          })
+          map.addLayer({
+            id: buffer.lineId,
+            type: 'line',
+            source: buffer.sourceId,
+            layout: { visibility: showPage1ForecastRiskZonesRef.current ? 'visible' : 'none' },
+            paint: {
+              'line-color': page1RiskLineColorExpression(),
+              'line-width': 0.8,
+              'line-opacity': page1RiskLineOpacityExpression(false),
+              'line-opacity-transition': { duration: 0 },
+            },
+          })
+        }
+        page1RiskFaderRef.current = createRiskZoneCrossFader({
+          map,
+          reduceMotion: () => reduceMotionRef.current,
+          buffers: page1RiskBuffers.map((buffer) => ({
+            sourceId: buffer.sourceId,
+            layers: [
+              { id: buffer.fillId, property: 'fill-opacity', role: 'fill', base: page1RiskFillOpacityExpression(false) },
+              { id: buffer.lineId, property: 'line-opacity', role: 'line', base: page1RiskLineOpacityExpression(false) },
+            ],
+          })),
+        })
+        page1RiskFaderRef.current.show(latestPage1Forecast?.riskZones ?? EMPTY_FEATURE_COLLECTION)
+
+        // GEO-REACH-GRADIENT-01: the soft radial "hot at the origin, fading
+        // at the edge" fill -- REACH_GRADIENT_BAND_COUNT concentric filled
+        // disks (`buildReachGradientFeatureCollectionForCenters`), all at
+        // real fractions of the SAME real radius, each painted at the SAME
+        // small flat opacity so ordinary alpha-over compositing (not a data-
+        // driven expression) produces the gradient -- see that function's
+        // own module comment for the exact math. A colour deliberately
+        // outside the risk red/orange/blue family so it can never read as a
+        // risk zone (same teal as the boundary line below).
+        map.addLayer({
+          id: 'reach-ring-gradient',
+          type: 'fill',
+          source: REACH_GRADIENT_SOURCE_ID,
+          paint: { 'fill-color': '#14b8a6', 'fill-opacity': REACH_GRADIENT_BAND_OPACITY },
+        })
+        // The crisp real-radius boundary -- widened from the previous
+        // 1.5px/0.04-opacity-fill combo (too subtle to read as "spread is
+        // happening") so the edge itself is the clearest single element of
+        // this layer. `-transition` entries only smooth paint-PROPERTY
+        // changes (there are none here); the actual grow/shrink is a
+        // source-data tween driven by the `reachRingFeatureCollection`
+        // effect below.
         map.addLayer({
           id: 'reach-ring-line',
           type: 'line',
           source: REACH_RING_SOURCE_ID,
-          paint: { 'line-color': '#14b8a6', 'line-width': 1.5, 'line-dasharray': [2, 2], 'line-opacity': 0.85 },
+          paint: { 'line-color': '#14b8a6', 'line-width': 2.5, 'line-dasharray': [2, 2], 'line-opacity': 0.9 },
         })
+        // GEO-REACH-GRADIENT-01: the one-shot "just grew" glow -- drawn at
+        // the NEW boundary exactly when the real target radius genuinely
+        // increases (a real day-forward advance), then fades via the
+        // `-transition` below. See `REACH_GROWTH_PULSE_SOURCE_ID`'s own
+        // comment for why this (not a continuous dash-flow loop) is the
+        // honest, real-event-driven substitute for a "marching ants"
+        // boundary MapLibre GL has no primitive for.
+        map.addLayer({
+          id: 'reach-ring-growth-pulse',
+          type: 'line',
+          source: REACH_GROWTH_PULSE_SOURCE_ID,
+          paint: {
+            'line-color': '#5eead4',
+            'line-width': 5,
+            'line-opacity': 0,
+            'line-opacity-transition': { duration: REACH_GROWTH_PULSE_MS },
+          },
+        })
+
+        // Purple always means projected presentation spread. The path and
+        // current front remain visible in Cases, Risk Zones and Trajectory;
+        // only the qualitative polygon bands are mode-gated above.
+        map.addLayer({
+          id: 'page1-forecast-path-glow',
+          type: 'line',
+          source: PAGE1_FORECAST_PATH_SOURCE_ID,
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#C084FC', 'line-width': 8, 'line-opacity': 0.16 },
+        })
+        // Selected-source emphasis: a soft lavender halo under the chosen
+        // corridor only (filter swapped by the selection effect below).
+        map.addLayer({
+          id: PAGE1_FORECAST_PATH_SELECTED_LAYER_ID,
+          type: 'line',
+          source: PAGE1_FORECAST_PATH_SOURCE_ID,
+          filter: NO_SELECTED_CORRIDOR_FILTER,
+          layout: { visibility: showPage1ForecastLayerRef.current ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#E9D5FF', 'line-width': 11, 'line-opacity': 0.34, 'line-blur': 2 },
+        })
+        map.addLayer({
+          id: 'page1-forecast-path',
+          type: 'line',
+          source: PAGE1_FORECAST_PATH_SOURCE_ID,
+          layout: { visibility: showPage1ForecastLayerRef.current ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#8B5CF6', 'line-width': showTrajectoryLayerRef.current ? 3.5 : 2.5, 'line-opacity': 0.95 },
+        })
+        // Where and how far: "Day N · X km" along each backend corridor.
+        addCorridorLabelLayer(map, PAGE1_FORECAST_PATH_SOURCE_ID, showPage1ForecastLayerRef.current)
+        addTrajectoryFlowLayers(map)
+        // Direction flow: a light dash travelling origin -> reach end along
+        // the same backend corridor (animated only without reduced motion).
+        map.addLayer({
+          id: PAGE1_FORECAST_PATH_FLOW_LAYER_ID,
+          type: 'line',
+          source: PAGE1_FORECAST_PATH_SOURCE_ID,
+          layout: { visibility: 'none', 'line-cap': 'butt', 'line-join': 'round' },
+          paint: { 'line-color': '#F3E8FF', 'line-width': 1.6, 'line-opacity': 0.72, 'line-dasharray': [0, 4, 3] },
+        })
+        map.addLayer({
+          id: 'page1-forecast-front-glow',
+          type: 'circle',
+          source: PAGE1_FORECAST_FRONT_SOURCE_ID,
+          layout: { visibility: 'none' },
+          paint: { 'circle-radius': 12, 'circle-color': '#A855F7', 'circle-opacity': 0.2, 'circle-blur': 0.35 },
+        })
+        map.addLayer({
+          id: 'page1-forecast-front',
+          type: 'circle',
+          source: PAGE1_FORECAST_FRONT_SOURCE_ID,
+          layout: { visibility: 'none' },
+          paint: {
+            'circle-radius': showTrajectoryLayerRef.current ? 6 : 5,
+            'circle-color': '#A855F7',
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#F3E8FF',
+            'circle-opacity': 0.98,
+          },
+        })
+        // Arrow at each nominal-reach front, rotated to the backend bearing
+        // (map-aligned, so it stays correct when the map is rotated).
+        ensureDirectionArrowImage(map)
+        map.addLayer({
+          id: PAGE1_FORECAST_ARROW_LAYER_ID,
+          type: 'symbol',
+          source: PAGE1_FORECAST_FRONT_SOURCE_ID,
+          layout: directionArrowLayout(showPage1ForecastLayerRef.current ? 'visible' : 'none'),
+          paint: { 'icon-opacity': 0.95 },
+        })
+        // Every backend source, as a restrained teal origin ring the corridor
+        // visibly starts from -- including a source with no directional
+        // tendency (which therefore has no corridor or arrow).
+        map.addLayer({
+          id: PAGE1_TIMELINE_ORIGIN_LAYER_ID,
+          type: 'circle',
+          source: PAGE1_TIMELINE_ORIGIN_SOURCE_ID,
+          layout: { visibility: showPage1ForecastLayerRef.current ? 'visible' : 'none' },
+          paint: {
+            'circle-radius': 6.5,
+            'circle-color': 'rgba(15,23,42,0.35)',
+            'circle-stroke-color': '#2DD4BF',
+            'circle-stroke-width': 1.8,
+            'circle-stroke-opacity': 0.9,
+          },
+        })
+        addOriginPulseLayer(map, { sourceId: PAGE1_TIMELINE_ORIGIN_SOURCE_ID, beforeId: PAGE1_TIMELINE_ORIGIN_LAYER_ID })
+        // Trajectory: the part of each backend path still ahead (to Day 14),
+        // faint and dashed -- shown from Day 1, never on Day 0.
+        const trajectoryVisibility = showPage1ForecastLayerRef.current && showTrajectoryLayerRef.current ? 'visible' : 'none'
+        // Each case's own spread area so far (soft violet), under its path.
+        map.addSource(TRAJECTORY_PLUME_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
+        map.addLayer({
+          id: TRAJECTORY_PLUME_LAYER_ID,
+          type: 'fill',
+          source: TRAJECTORY_PLUME_SOURCE_ID,
+          layout: { visibility: trajectoryVisibility },
+          paint: { 'fill-color': '#8b5cf6', 'fill-opacity': 0.16, 'fill-outline-color': 'rgba(139,92,246,0.45)' },
+        }, 'page1-forecast-path')
+        map.addSource(TRAJECTORY_REMAINING_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
+        map.addLayer({
+          id: TRAJECTORY_REMAINING_LAYER_ID,
+          type: 'line',
+          source: TRAJECTORY_REMAINING_SOURCE_ID,
+          layout: { visibility: trajectoryVisibility, 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#a78bfa', 'line-width': 2, 'line-dasharray': [2, 3], 'line-opacity': 0.55 },
+        }, PAGE1_TIMELINE_ORIGIN_LAYER_ID)
+        map.addSource(TRAJECTORY_LABEL_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION })
+        addTrajectoryLabelLayer(map, { id: TRAJECTORY_LABEL_LAYER_ID, sourceId: TRAJECTORY_LABEL_SOURCE_ID, visibility: trajectoryVisibility })
+        // Places come from loaded basemap tiles: re-resolve once the camera
+        // settles (new zoom = new place points), always from the latest frame.
+        const relabelTrajectory = () => {
+          if (!map.getSource(TRAJECTORY_LABEL_SOURCE_ID)) return
+          const viz = currentPage1ForecastRef.current
+          map.getSource(TRAJECTORY_LABEL_SOURCE_ID).setData(viz
+            ? buildTrajectoryLabels({ fronts: viz.fronts, origins: viz.origins, findPlace: (point) => nearestMappedPlace(map, point) })
+            : EMPTY_FEATURE_COLLECTION)
+        }
+        // Not on 'idle': the animated case pulse repaints every frame, so the
+        // map never goes idle. Relabel (once per frame at most) after a camera
+        // move and whenever basemap tiles with place names finish loading.
+        let relabelQueued = false
+        const queueRelabel = () => {
+          if (relabelQueued) return
+          relabelQueued = true
+          requestAnimationFrame(() => { relabelQueued = false; relabelTrajectory() })
+        }
+        relabelTrajectoryRef.current = queueRelabel
+        map.on('moveend', queueRelabel)
+        map.on('sourcedata', (e) => { if (e.isSourceLoaded && e.sourceId === basemapPlaceSourceId(map)) queueRelabel() })
 
         // One-time selection ripple (Section 9/27): radius/opacity are a
         // `case` on feature-state `rippleExpanded`; a long paint
@@ -577,6 +1135,9 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           id: NATIONAL_SOURCES_PULSE_LAYER_ID,
           type: 'circle',
           source: NATIONAL_SOURCES_SOURCE_ID,
+          // Hidden: these are dated historical records, and a continuous
+          // "live" pulse made them read as current outbreaks.
+          layout: { visibility: 'none' },
           paint: {
             ...nationalSourceAmbientPulsePaint(false),
             'circle-radius-transition': { duration: reduceMotion ? 0 : NATIONAL_SOURCES_PULSE_CYCLE_MS / 2 },
@@ -640,7 +1201,11 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           id: 'direction-arrows',
           type: 'symbol',
           source: DIRECTIONS_SOURCE_ID,
-          layout: { ...directionIconLayout(), visibility: showRiskLayer ? 'visible' : 'none' },
+          // GEO33B Section 2's documented stale-closure caveat applies here
+          // too -- this initial value is corrected immediately by the
+          // dedicated toggle effect below (`[showRiskLayer, showTrajectoryLayer]`),
+          // which also runs once right after mount.
+          layout: { ...directionIconLayout(), visibility: (showRiskLayer || showTrajectoryLayer) && showResearchLayersRef.current ? 'visible' : 'none' },
         })
 
         // GEO-INT-03 Section 9/10, REDESIGNED by GEO31A Section 2/3:
@@ -656,6 +1221,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         // change, so without this the layer could stay hidden forever if
         // Cases mode (the default) never actually "changes" after the map
         // finishes its async load.
+        addNationalCaseLayers(map)
+        addEnvironmentLayers(map)
         map.addLayer({
           id: OPERATIONAL_MARKERS_HALO_LAYER_ID,
           type: 'circle',
@@ -670,7 +1237,120 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           layout: { ...operationalMarkerIconLayout(), visibility: showOperationalLayer ? 'visible' : 'none' },
           paint: operationalMarkerPaint(reduceMotion),
         })
+        // Env mode: a click anywhere (not on a case marker) asks for the
+        // forecast at that point; the nearest mapped place names it.
+        map.on('click', (e) => {
+          if (stageModeRef.current !== ANALYSIS_MODE.ENV || !onEnvPointSelectRef.current) return
+          const caseLayers = [NATIONAL_CASE_LAYER_ID].filter((id) => map.getLayer(id))
+          if (caseLayers.length && map.queryRenderedFeatures(e.point, { layers: caseLayers }).length) return
+          const point = [e.lngLat.lng, e.lngLat.lat]
+          onEnvPointSelectRef.current({ point, place: nearestMappedPlace(map, point) })
+        })
+        map.on('click', NATIONAL_CASE_LAYER_ID, (e) => {
+          const feature = e.features?.[0]
+          if (!feature) return
+          onSelectNationalCaseRef.current?.({ ...feature.properties, coordinates: feature.geometry?.coordinates ?? null })
+        })
+        // Hover: a short summary while the cursor is on a case; it closes
+        // as soon as the cursor leaves the marker.
+        const caseHoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, className: 'geo-case-hover' })
+        for (const layerId of [STAGE_LAYER.CLUSTER_HULL, STAGE_LAYER.CLUSTER_MEMBER]) {
+          map.on('click', layerId, (event) => {
+            const feature = event.features?.[0]
+            if (!feature) return
+            clusterPopupRef.current?.remove()
+            const content = document.createElement('div')
+            content.textContent = clusterDetailsText(feature.properties)
+            clusterPopupRef.current = new maplibregl.Popup({ offset: 12, maxWidth: '290px', className: 'geo-case-hover geo-cluster-popup' })
+              .setLngLat(event.lngLat).setDOMContent(content).addTo(map)
+          })
+          map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer' })
+          map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = '' })
+        }
+        map.on('mousemove', NATIONAL_CASE_LAYER_ID, (e) => {
+          const feature = e.features?.[0]
+          if (!feature) return
+          map.getCanvas().style.cursor = 'pointer'
+          caseHoverPopup.setLngLat(feature.geometry.coordinates).setHTML(caseHoverHtml(feature.properties)).addTo(map)
+        })
+        map.on('mouseleave', NATIONAL_CASE_LAYER_ID, () => {
+          map.getCanvas().style.cursor = ''
+          caseHoverPopup.remove()
+        })
+        // Risk Zones hover card: the selected day's score at the cursor, the
+        // cases behind it, its day-to-day trend and where it is. A case
+        // marker under the cursor keeps its own card.
+        const riskHoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14, maxWidth: '300px', className: 'geo-case-hover geo-risk-hover' })
+        const casePlaces = new Map()
+        let riskHoverAt = null
+        const casePlace = (coordinates) => {
+          const key = coordinates.join(',')
+          if (!casePlaces.has(key)) {
+            const place = nearestMappedPlace(map, coordinates)
+            if (!place) return null // tiles may still be loading: try again next time
+            casePlaces.set(key, place)
+          }
+          return casePlaces.get(key)
+        }
+        const refreshRiskHover = () => {
+          const probe = riskHoverAt && stageModeRef.current === ANALYSIS_MODE.RISK_ZONES ? riskFieldRef.current?.probe(riskHoverAt.lng, riskHoverAt.lat) : null
+          if (!probe) {
+            riskHoverPopup.remove()
+            return
+          }
+          const point = [riskHoverAt.lng, riskHoverAt.lat]
+          const district = districtCollectionRef.current?.features?.find((f) => isPointInsideDistrictFeature(point, f))
+          riskHoverPopup.setLngLat(riskHoverAt).setHTML(riskHoverHtml(probe, {
+            pointPlace: nearestMappedPlace(map, point),
+            district: district ? normalizeDistrictDisplayName(district.properties?.shapeName) : null,
+            casePlace,
+          })).addTo(map)
+        }
+        refreshRiskHoverRef.current = refreshRiskHover
+        map.on('mousemove', (e) => {
+          const markerLayers = [NATIONAL_CASE_LAYER_ID, OPERATIONAL_MARKERS_LAYER_ID].filter((id) => map.getLayer(id))
+          const onMarker = markerLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: markerLayers }).length > 0
+          riskHoverAt = onMarker ? null : e.lngLat
+          refreshRiskHover()
+        })
+        map.getCanvas().addEventListener('mouseleave', () => {
+          riskHoverAt = null
+          riskHoverPopup.remove()
+        })
+        for (const layerId of RISK_CELL_LAYER_IDS) {
+          map.on('click', layerId, (e) => {
+            const feature = e.features?.[0]
+            // An observed case marker drawn above the cell takes the click.
+            if (map.getLayer(NATIONAL_CASE_LAYER_ID) && map.queryRenderedFeatures?.(e.point, { layers: [NATIONAL_CASE_LAYER_ID] })?.length) return
+            if (feature) onSelectRiskCellRef.current?.(feature.properties)
+          })
+          map.on('mouseenter', layerId, () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
+          map.on('mouseleave', layerId, () => {
+            map.getCanvas().style.cursor = ''
+          })
+        }
+        updateStageData(map, stageRef.current, stageFaderRef.current)
+        applyStageVisibility(map, stageModeRef.current)
+        riskFieldRef.current?.setModel(stageRef.current?.riskField?.model ?? null, stageRef.current?.riskField?.index ?? 0)
+        riskFieldRef.current?.setVisible(stageModeRef.current === ANALYSIS_MODE.RISK_ZONES)
 
+        for (const layerId of ['page1-forecast-path', PAGE1_FORECAST_ARROW_LAYER_ID, PAGE1_TIMELINE_ORIGIN_LAYER_ID]) {
+          map.on('click', layerId, (e) => {
+            const feature = e.features?.[0]
+            if (feature) onSelectCorridorRef.current?.(feature.properties)
+          })
+          map.on('mousemove', layerId, (e) => {
+            const feature = e.features?.[0]
+            map.getCanvas().style.cursor = 'pointer'
+            if (feature) onHoverCorridorRef.current?.(feature.properties)
+          })
+          map.on('mouseleave', layerId, () => {
+            map.getCanvas().style.cursor = ''
+            onHoverCorridorRef.current?.(null)
+          })
+        }
         map.on('click', 'cells-circle', (e) => {
           const feature = e.features?.[0]
           if (feature) onSelectCell?.(feature)
@@ -714,7 +1394,8 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
           ? SRI_LANKA_BOUNDS
           : computeCombinedLngLatBounds(latestCellFeatures, latestSourceFeatures)
         if (bounds) {
-          map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: false })
+          scopeBoundsRef.current = bounds
+          map.fitBounds(bounds, { padding: MAP_FIT_PADDING_BY_MODE(stageModeRef.current), maxZoom: MAP_FIT_MAX_ZOOM, animate: false })
         }
       })
     } catch (err) {
@@ -729,6 +1410,13 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
 
     return () => {
       if (reachRingAnimRef.current) cancelAnimationFrame(reachRingAnimRef.current)
+      if (page1ForecastAnimRef.current) cancelAnimationFrame(page1ForecastAnimRef.current)
+      page1RiskFaderRef.current?.destroy()
+      page1RiskFaderRef.current = null
+      riskFieldRef.current?.destroy()
+      riskFieldRef.current = null
+      page1RevealCancelRef.current?.()
+      page1RevealCancelRef.current = null
       resizeObserver?.disconnect()
       map?.remove()
       mapRef.current = null
@@ -778,7 +1466,9 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       const focusedSources = nationalSources.features.filter((f) => featureBelongsToOutbreak(f, visuallySelectedOutbreakId))
       const bounds = computeCombinedLngLatBounds(cellFeatures, focusedSources)
       if (bounds) {
-        map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: !reduceMotion, duration: reduceMotion ? 0 : 1200 })
+        scopeBoundsRef.current = bounds
+        userMovedCameraRef.current = false
+        map.fitBounds(bounds, { padding: MAP_FIT_PADDING, maxZoom: Math.min(MAP_FIT_MAX_ZOOM, ORIGIN_FIT_MAX_ZOOM), animate: !reduceMotion, duration: reduceMotion ? 0 : 1200 })
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -798,6 +1488,128 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     markTiming(GEO_TIMING.NATIONAL_SOURCES_SET_DATA, { repeat: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nationalSources])
+
+  // ---- Page-1 timeline frame changes (Phase 4). Sources are created once
+  // with the map and updated in place: no remount, no request, no camera
+  // move on a timeline tick.
+  //  - risk zones: opacity cross-fade between two buffers holding exact
+  //    backend polygons; an identical frame (reach plateau) is left alone;
+  //  - corridors: revealed along their own backend geometry with the front
+  //    travelling on it;
+  //  - a newer frame supersedes any running transition (rapid scrubbing).
+  // Reduced motion applies every frame instantly. ----
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || !page1ForecastVisualization) return undefined
+    const pathSource = map.getSource(PAGE1_FORECAST_PATH_SOURCE_ID)
+    const frontSource = map.getSource(PAGE1_FORECAST_FRONT_SOURCE_ID)
+    if (!pathSource || !frontSource) return undefined
+
+    map.getSource(PAGE1_FORECAST_CONTEXT_SOURCE_ID)?.setData(page1ForecastVisualization.contextZones ?? EMPTY_FEATURE_COLLECTION)
+    map.getSource(PAGE1_TIMELINE_ORIGIN_SOURCE_ID)?.setData(page1ForecastVisualization.origins ?? EMPTY_FEATURE_COLLECTION)
+    page1RiskFaderRef.current?.show(page1ForecastVisualization.riskZones ?? EMPTY_FEATURE_COLLECTION)
+
+    page1RevealCancelRef.current?.()
+    const previous = currentPage1ForecastRef.current
+    currentPage1ForecastRef.current = page1ForecastVisualization
+    page1RevealCancelRef.current = runCorridorReveal({
+      previous: previous && previous !== page1ForecastVisualization ? previous : null,
+      next: page1ForecastVisualization,
+      durationMs: PAGE1_FORECAST_TRANSITION_MS,
+      reduceMotion,
+      apply: ({ paths, fronts }) => {
+        pathSource.setData(paths)
+        frontSource.setData(fronts)
+      },
+    })
+    map.getSource(TRAJECTORY_REMAINING_SOURCE_ID)?.setData(page1ForecastVisualization.remaining ?? EMPTY_FEATURE_COLLECTION)
+    map.getSource(TRAJECTORY_PLUME_SOURCE_ID)?.setData(page1ForecastVisualization.plumes ?? EMPTY_FEATURE_COLLECTION)
+    // Labels follow the selected frame's FINAL tips (not the reveal tween).
+    relabelTrajectoryRef.current?.()
+    return undefined
+  }, [page1ForecastVisualization, reduceMotion])
+
+  // ---- National Map stage layers: data for the selected day, then the
+  // one-and-only per-mode visibility decision (and the Trajectory pulse). ----
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    updateStageData(map, stage, stageFaderRef.current)
+    riskFieldRef.current?.setModel(stage?.riskField?.model ?? null, stage?.riskField?.index ?? 0)
+    refreshRiskHoverRef.current?.() // a new day: the open hover card shows that day
+  }, [stage, styleReady])
+
+  useEffect(() => {
+    clusterPopupRef.current?.remove()
+    clusterPopupRef.current = null
+  }, [stage?.clusters, stageMode])
+
+
+  // Red pulse on recent cases, in every mode that shows cases.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || reduceMotion) return undefined
+    return startCasePulse(map)
+  }, [reduceMotion, styleReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return undefined
+    applyStageVisibility(map, stageMode)
+    riskFieldRef.current?.setVisible(stageMode === ANALYSIS_MODE.RISK_ZONES)
+    refreshRiskHoverRef.current?.()
+    if (reduceMotion) return undefined
+    if (stageMode === ANALYSIS_MODE.ENV) return startEnvironmentAnimation(map, () => stageRef.current?.environment)
+    if (stageMode !== ANALYSIS_MODE.TRAJECTORY) return undefined
+    const stopPulse = startOriginPulse(map)
+    const stopFlow = startTrajectoryFlow(map, () => page1ForecastVisualizationRef.current?.paths)
+    return () => { stopPulse(); stopFlow() }
+  }, [stageMode, reduceMotion, styleReady])
+
+  // Selected-source emphasis for the corridor the vet clicked.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || !map.getLayer(PAGE1_FORECAST_PATH_SELECTED_LAYER_ID)) return
+    map.setFilter(
+      PAGE1_FORECAST_PATH_SELECTED_LAYER_ID,
+      selectedCorridorSourceId ? ['==', ['get', 'sourceId'], selectedCorridorSourceId] : NO_SELECTED_CORRIDOR_FILTER,
+    )
+    // Focus: the selected source stays clear, every other path/label/origin
+    // fades back (set once per selection change, never per frame).
+    for (const [layerId, property, base] of TRAJECTORY_FOCUS_PAINT) {
+      if (!map.getLayer(layerId)) continue
+      map.setPaintProperty(layerId, property, selectedCorridorSourceId ? ['case', ['==', ['get', 'sourceId'], selectedCorridorSourceId], base, base * 0.22] : base)
+    }
+  }, [selectedCorridorSourceId, styleReady, showTrajectoryLayer])
+
+  // Clicked case: that case stays clear, every other case marker fades back
+  // and only its own pulse keeps running (prototype focus behaviour).
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    const isFocus = ['any', ['==', ['get', 'recordKey'], focusedCaseKey ?? ''], ['in', focusedCaseKey ?? '__none__', ['coalesce', ['get', 'recordKeys'], ['literal', []]]]]
+    const base = ['case', ['get', 'verified'], 1, 0.6]
+    if (map.getLayer(NATIONAL_CASE_LAYER_ID)) {
+      map.setPaintProperty(NATIONAL_CASE_LAYER_ID, 'circle-opacity', focusedCaseKey ? ['case', isFocus, base, ['*', base, 0.25]] : base)
+      map.setPaintProperty(NATIONAL_CASE_LAYER_ID, 'circle-stroke-opacity', focusedCaseKey ? ['case', isFocus, 1, 0.25] : 1)
+    }
+    if (map.getLayer(STAGE_LAYER.NATIONAL_CASE_PULSE)) {
+      const recent = ['==', ['get', 'ageClass'], 'RECENT']
+      map.setFilter(STAGE_LAYER.NATIONAL_CASE_PULSE, focusedCaseKey ? ['all', recent, isFocus] : recent)
+    }
+  }, [focusedCaseKey, styleReady])
+
+  // Mode change: re-frame the same scope for that mode's padding (instant),
+  // unless the vet has moved the camera themselves.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || userMovedCameraRef.current || !scopeBoundsRef.current) return
+    const camera = map.cameraForBounds(scopeBoundsRef.current, { padding: MAP_FIT_PADDING_BY_MODE(stageMode), maxZoom: MAP_FIT_MAX_ZOOM })
+    if (camera) map.jumpTo(camera)
+  }, [stageMode, styleReady])
+
+  // No travelling dash along the direction indicators: a geometric
+  // tendency is not movement, and animated flow implied a transmission path.
 
   // ---- selection changes: halo/dim/ripple on the national layer ----
   useEffect(() => {
@@ -843,46 +1655,22 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visuallySelectedOutbreakId, nationalSources])
 
-  // ---- GEO-VISUAL-POLISH-01: continuous ambient pulse clock for every
-  // national source marker. A single shared RAF loop toggling ONE
-  // layer-level paint property twice per cycle (never a per-feature
-  // setFeatureState loop) -- cost is independent of how many real markers
-  // exist. RAF-driven, never setInterval/setTimeout (`noAutoPolling.test.js`
-  // bans both anywhere in this feature outside the one documented
-  // operational scheduler); ticks against `performance.now()` so the
-  // actual flip cadence stays correct regardless of frame rate, matching
-  // this file's own playback-adjacent reach-ring tween. Skipped entirely
-  // under reduced motion -- the layer then simply stays at its initial
-  // collapsed/steady paint from the mount effect above. ----
-  useEffect(() => {
-    if (reduceMotion) return undefined
-    const HALF_CYCLE_MS = NATIONAL_SOURCES_PULSE_CYCLE_MS / 2
-    let expanded = false
-    let lastTick = performance.now()
-    let frame
-    const tick = (now) => {
-      const map = mapRef.current
-      if (map && loadedRef.current && map.getLayer(NATIONAL_SOURCES_PULSE_LAYER_ID) && now - lastTick >= HALF_CYCLE_MS) {
-        lastTick = now
-        expanded = !expanded
-        const paint = nationalSourceAmbientPulsePaint(expanded)
-        map.setPaintProperty(NATIONAL_SOURCES_PULSE_LAYER_ID, 'circle-radius', paint['circle-radius'])
-        map.setPaintProperty(NATIONAL_SOURCES_PULSE_LAYER_ID, 'circle-opacity', paint['circle-opacity'])
-      }
-      frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => {
-      if (frame) cancelAnimationFrame(frame)
-    }
-  }, [reduceMotion])
+  // No ambient "live" pulse on national source markers: they are dated
+  // historical records (see the hidden NATIONAL_SOURCES_PULSE_LAYER_ID).
 
-  // ---- nominal-reach ring: smooth grow/shrink between real day values ----
+  // No breathing animation on the risk zones: they are a static relative
+  // score at the as-of date, and a pulse implied changing activity.
+
+  // ---- nominal-reach ring: smooth grow/shrink between real day values,
+  // plus the same real radius/centers driving the gradient-band source
+  // (GEO-REACH-GRADIENT-01) so the fill and the boundary line are always
+  // in lockstep -- one real radius value, two rendering layers. ----
   useEffect(() => {
     const map = mapRef.current
     if (!map || !loadedRef.current) return
     const source = map.getSource(REACH_RING_SOURCE_ID)
-    if (!source) return
+    const gradientSource = map.getSource(REACH_GRADIENT_SOURCE_ID)
+    if (!source || !gradientSource) return
 
     if (reachRingAnimRef.current) {
       cancelAnimationFrame(reachRingAnimRef.current)
@@ -891,7 +1679,14 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
 
     if (!reachRingCenters || reachRingCenters.length === 0 || !(reachRingRadiusKm > 0)) {
       source.setData(emptyReachRingFeatureCollection())
+      gradientSource.setData(emptyReachRingFeatureCollection())
       currentReachRadiusKmRef.current = 0
+      const pulseSource = map.getSource(REACH_GROWTH_PULSE_SOURCE_ID)
+      if (pulseSource && map.getLayer('reach-ring-growth-pulse')) {
+        pulseSource.setData(emptyReachRingFeatureCollection())
+        map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity-transition', { duration: 0 })
+        map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity', 0)
+      }
       return
     }
 
@@ -903,14 +1698,39 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     // previous one actually ended, including a value the user
     // interrupted mid-tween.
     const targetRadiusKm = reachRingRadiusKm
+    const priorRadiusKm = currentReachRadiusKmRef.current
+
+    // GEO-REACH-GRADIENT-01: a real, event-driven growth pulse -- fires
+    // only when the real target radius genuinely INCREASED from wherever
+    // the ring currently is (a real forward day advance, never a
+    // backward scrub/rewind, and never on the initial reveal from zero
+    // radius, which already has its own tween-in). See
+    // `REACH_GROWTH_PULSE_SOURCE_ID`'s module comment for why this
+    // one-shot flash-then-fade (not a continuous loop) is the honest
+    // substitute for a literal marching-ants boundary.
+    if (!reduceMotion && priorRadiusKm > 0 && targetRadiusKm > priorRadiusKm && map.getLayer('reach-ring-growth-pulse')) {
+      const pulseSource = map.getSource(REACH_GROWTH_PULSE_SOURCE_ID)
+      if (pulseSource) {
+        pulseSource.setData(buildReachRingFeatureCollectionForCenters(reachRingCenters, targetRadiusKm))
+        map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity-transition', { duration: 0 })
+        map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity', 0.9)
+        requestAnimationFrame(() => {
+          const stillMounted = mapRef.current === map
+          if (!stillMounted || !map.getLayer('reach-ring-growth-pulse')) return
+          map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity-transition', { duration: REACH_GROWTH_PULSE_MS })
+          map.setPaintProperty('reach-ring-growth-pulse', 'line-opacity', 0)
+        })
+      }
+    }
 
     if (reduceMotion) {
       source.setData(buildReachRingFeatureCollectionForCenters(reachRingCenters, targetRadiusKm))
+      gradientSource.setData(buildReachGradientFeatureCollectionForCenters(reachRingCenters, targetRadiusKm))
       currentReachRadiusKmRef.current = targetRadiusKm
       return
     }
 
-    const startRadiusKm = currentReachRadiusKmRef.current
+    const startRadiusKm = priorRadiusKm
     const startTime = performance.now()
 
     const tick = (now) => {
@@ -919,6 +1739,7 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
       const currentRadiusKm = startRadiusKm + (targetRadiusKm - startRadiusKm) * eased
       currentReachRadiusKmRef.current = currentRadiusKm
       source.setData(buildReachRingFeatureCollectionForCenters(reachRingCenters, currentRadiusKm))
+      gradientSource.setData(buildReachGradientFeatureCollectionForCenters(reachRingCenters, currentRadiusKm))
       if (t < 1) {
         reachRingAnimRef.current = requestAnimationFrame(tick)
       } else {
@@ -1072,16 +1893,55 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
   }, [showOperationalLayer])
 
   // ---- GEO31A Section 8/10: Risk-Zones-mode-only visibility toggle for
-  // the real scored-cell/direction layers -- a mode switch reveals
-  // already-fetched real data instantly (no refetch, no camera move),
-  // exactly like the operational-layer toggle above. ----
+  // the real scored-cell layer -- a mode switch reveals already-fetched
+  // real data instantly (no refetch, no camera move), exactly like the
+  // operational-layer toggle above. `cells-circle` (risk-TIER dots) stays
+  // exclusive to Risk Zones; `direction-arrows` (real per-cell
+  // `bearing_deg`) is shared with Trajectory mode (GEO-TRAJECTORY-01) --
+  // both real data, never fabricated for either mode. ----
   useEffect(() => {
     const map = mapRef.current
     if (!map || !loadedRef.current) return
-    const visibility = showRiskLayer ? 'visible' : 'none'
-    if (map.getLayer('cells-circle')) map.setLayoutProperty('cells-circle', 'visibility', visibility)
-    if (map.getLayer('direction-arrows')) map.setLayoutProperty('direction-arrows', 'visibility', visibility)
-  }, [showRiskLayer])
+    // Research inspection only: these belong to the selected HISTORICAL
+    // origin's own analysis (its t0), not to the current snapshot, and at
+    // national zoom they render as a dense circle/arrow carpet.
+    if (map.getLayer('cells-circle')) map.setLayoutProperty('cells-circle', 'visibility', showRiskLayer && showResearchLayers ? 'visible' : 'none')
+    if (map.getLayer('direction-arrows')) {
+      map.setLayoutProperty('direction-arrows', 'visibility', (showRiskLayer || showTrajectoryLayer) && showResearchLayers ? 'visible' : 'none')
+    }
+  }, [showRiskLayer, showTrajectoryLayer, showResearchLayers])
+
+  // The generated purple spread is common to Cases/Risk/Trajectory. Only
+  // the four qualitative risk bands switch with Risk Zones mode.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current) return
+    const forecastVisibility = showPage1ForecastLayer ? 'visible' : 'none'
+    for (const layerId of PAGE1_TRAJECTORY_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', forecastVisibility)
+    }
+    const riskVisibility = showPage1ForecastLayer && showPage1ForecastRiskZones ? 'visible' : 'none'
+    for (const layerId of PAGE1_RISK_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', riskVisibility)
+    }
+    // The isotropic reach ring is never drawn: Risk Zones outlines the backend's
+    // direction-shaped reach itself (riskFieldRenderer.js), Trajectory draws paths.
+    const reachVisibility = 'none'
+    if (map.getLayer(CORRIDOR_LABEL_LAYER_ID)) map.setLayoutProperty(CORRIDOR_LABEL_LAYER_ID, 'visibility', 'none')
+    for (const layerId of PAGE1_REACH_OUTLINE_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', reachVisibility)
+    }
+    for (const layerId of PAGE1_DECORATIVE_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none')
+    }
+    for (const layerId of TRAJECTORY_ONLY_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', showPage1ForecastLayer && showTrajectoryLayer ? 'visible' : 'none')
+    }
+    if (map.getLayer('page1-forecast-path')) {
+      map.setPaintProperty('page1-forecast-path', 'line-width', showTrajectoryLayer ? 3.5 : 2.5)
+      map.setPaintProperty('page1-forecast-path', 'line-opacity', 0.95)
+    }
+  }, [showPage1ForecastLayer, showPage1ForecastRiskZones, showTrajectoryLayer])
 
   // ---- FMD-10C1: national-source marker shape follows the selected
   // disease's `markerShape` (diamond=LSD, circle=FMD) -- color never
@@ -1097,8 +1957,11 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
     // `geo-map-shell` is the scope root for this feature's own MapLibre
     // control chrome (`geospatialMapChrome.css`) -- nothing outside this
     // component's subtree is affected.
-    <div className="geo-map-shell relative h-full w-full overflow-hidden rounded border">
-      <div ref={containerRef} className="h-full min-h-[650px] w-full" role="application" aria-label="Geospatial scientific map" />
+    <div className="geo-map-shell relative h-full w-full overflow-hidden rounded-[17px]">
+      {/* Floor matches the page wrapper's own minimum (`useAvailableMapHeight`
+          MIN_HEIGHT_PX): a taller floor overrode the measured viewport fit
+          and pushed the timeline's date row below the fold at 1440x900. */}
+      <div ref={containerRef} className="h-full min-h-[480px] w-full" role="application" aria-label="Geospatial scientific map" />
 
       {/* GEO33B Section 4: a restrained, honest "the basemap is still
           loading" state, shown ONLY until the style actually loads.
@@ -1126,10 +1989,11 @@ const MapLibreCanvas = forwardRef(function MapLibreCanvas(
         >
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-400 backdrop-blur">
             <span className={reduceMotion ? 'h-1.5 w-1.5 rounded-full bg-slate-500' : 'h-1.5 w-1.5 animate-pulse rounded-full bg-slate-500'} />
-            Loading map…
+            {mapResourceError ? 'Map background unavailable. Check the map provider connection.' : 'Loading map…'}
           </div>
         </div>
       )}
+      {styleReady && mapResourceError && <div role="status" className="pointer-events-none absolute bottom-2 left-3 right-3 rounded bg-slate-950/90 px-2 py-1 text-[10px] text-amber-200">{MAP_RESOURCE_ERROR_TEXT}</div>}
     </div>
   )
 })

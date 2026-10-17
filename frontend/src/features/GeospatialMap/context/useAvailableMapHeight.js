@@ -27,7 +27,11 @@ export function useAvailableMapHeight(wrapperRef) {
     function measure() {
       const el = wrapperRef.current
       if (!el || typeof window === 'undefined') return
-      const top = el.getBoundingClientRect().top
+      // Document-relative top (viewport top + current scroll). A purely
+      // viewport-relative top shrank as the page scrolled, which grew the
+      // map, which scrolled the page further -- the feedback loop that slid
+      // the page header and section tabs under the sticky app header.
+      const top = el.getBoundingClientRect().top + (window.scrollY || 0)
       const available = window.innerHeight - top - BOTTOM_MARGIN_PX
       setHeight(Math.max(MIN_HEIGHT_PX, Math.floor(available)))
     }
@@ -35,9 +39,23 @@ export function useAvailableMapHeight(wrapperRef) {
     measure()
     window.addEventListener('resize', measure)
     window.addEventListener('orientationchange', measure)
+    // Rows above the map (district chip, notices, status rows) render after
+    // the first measurement once their data arrives and push the map down;
+    // a stale height then overhangs the fold. Any such shift changes the
+    // document body's size, so re-measure on that too (once per frame).
+    let frame = null
+    const observer = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+        if (frame != null) cancelAnimationFrame(frame)
+        frame = requestAnimationFrame(() => { frame = null; measure() })
+      })
+      : null
+    observer?.observe(document.body)
     return () => {
       window.removeEventListener('resize', measure)
       window.removeEventListener('orientationchange', measure)
+      observer?.disconnect()
+      if (frame != null) cancelAnimationFrame(frame)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
