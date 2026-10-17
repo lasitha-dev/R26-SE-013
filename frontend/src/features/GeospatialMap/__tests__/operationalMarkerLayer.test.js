@@ -68,8 +68,12 @@ describe('GEO-INT-03-LAYER-02: operationalMarkerIconLayout is disease-shape-driv
     const layout = operationalMarkerIconLayout()
     const expr = layout['icon-image']
     expect(expr[0]).toBe('case')
-    expect(expr).toContain(CLINICAL_DIAMOND_ICON_ID)
-    expect(expr).toContain(CLINICAL_CIRCLE_ICON_ID)
+    // Shape by disease; within each shape the report-date age picks the
+    // red (<=30 d) / grey (older) / undated variant (adapters/caseAge.js).
+    const text = JSON.stringify(expr)
+    expect(text).toContain(CLINICAL_DIAMOND_ICON_ID)
+    expect(text).toContain(CLINICAL_CIRCLE_ICON_ID)
+    expect(text).toContain('ageClass')
   })
 
   it('carries no color property, and its icon-size is a step expression keyed on the real caseCount', () => {

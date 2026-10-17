@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_DISEASE_CODE, getDiseaseConfig, isDiseaseReady, listDiseaseCodes } from '../disease/diseaseRegistry'
+import { CAPABILITY, DEFAULT_DISEASE_CODE, getDiseaseConfig, hasCapability, isDiseaseReady, listDiseaseCodes } from '../disease/diseaseRegistry'
 import { FmdModelNotReadyError, buildForecastFrame as fmdBuildForecastFrame } from '../adapters/fmdOutbreakAdapter'
 import { getOutbreakAdapter } from '../adapters/index'
 import * as lsdOutbreakAdapter from '../adapters/lsdOutbreakAdapter'
@@ -31,6 +31,26 @@ describe('diseaseRegistry', () => {
 
   it('lists both registered disease codes', () => {
     expect(listDiseaseCodes()).toEqual(['LSD', 'FMD'])
+  })
+
+  // GEO-TRAJECTORY-01: confirmed live against the running backend
+  // (2026-09-01, `GET /analysis/{id}/cells?disease=lsd`) -- every sampled
+  // real LSD origin's cells carry a real `direction.bearing_deg`, and
+  // `nominal_reach_by_day` is real and non-zero for days 1-7. TRAJECTORY
+  // must track DIRECTION/NOMINAL_REACH (both already `true` for LSD) --
+  // it previously stayed `false` as a stale gate, not a real backend
+  // limitation, which is what left the Trajectory mode pill permanently
+  // disabled despite real data existing.
+  it('LSD trajectory capability matches its real direction/reach capabilities (no stale gate)', () => {
+    expect(hasCapability('LSD', CAPABILITY.TRAJECTORY)).toBe(true)
+    expect(hasCapability('LSD', CAPABILITY.DIRECTION)).toBe(true)
+    expect(hasCapability('LSD', CAPABILITY.NOMINAL_REACH)).toBe(true)
+  })
+
+  it('FMD has no trajectory capability -- no spatial-cell/direction model exists for it at all', () => {
+    expect(hasCapability('FMD', CAPABILITY.TRAJECTORY)).toBe(false)
+    expect(hasCapability('FMD', CAPABILITY.DIRECTION)).toBe(false)
+    expect(hasCapability('FMD', CAPABILITY.SPATIAL_CELLS)).toBe(false)
   })
 })
 

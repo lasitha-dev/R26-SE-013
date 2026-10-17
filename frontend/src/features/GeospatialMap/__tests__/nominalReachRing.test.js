@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  REACH_GRADIENT_BAND_COUNT,
+  REACH_GRADIENT_BAND_OPACITY,
+  buildReachGradientFeatureCollectionForCenters,
   buildReachRingFeatureCollectionForCenters,
   buildReachRingPolygon,
   emptyReachRingFeatureCollection,
@@ -67,5 +70,51 @@ describe('nominalReachRing', () => {
     expect(buildReachRingFeatureCollectionForCenters([[80, 9]], 0).features).toHaveLength(0)
     expect(buildReachRingFeatureCollectionForCenters([], 10).features).toHaveLength(0)
     expect(buildReachRingFeatureCollectionForCenters(null, 10).features).toHaveLength(0)
+  })
+})
+
+describe('GEO-REACH-GRADIENT-01: concentric-disk radial gradient -- same real radius, layered opacity only', () => {
+  it('emits REACH_GRADIENT_BAND_COUNT bands per real center, largest radius first', () => {
+    const fc = buildReachGradientFeatureCollectionForCenters([[80.1, 9.6]], 20)
+    expect(fc.features).toHaveLength(REACH_GRADIENT_BAND_COUNT)
+    // Largest band (fraction 1) first, so smaller/more-opaque bands paint
+    // on top of it -- required for the compositing gradient to look right.
+    expect(fc.features[0].properties.bandFraction).toBe(1)
+    expect(fc.features[fc.features.length - 1].properties.bandFraction).toBeCloseTo(1 / REACH_GRADIENT_BAND_COUNT)
+    // Monotonically decreasing fraction -> monotonically decreasing radius.
+    for (let i = 1; i < fc.features.length; i += 1) {
+      expect(fc.features[i].properties.radiusKm).toBeLessThan(fc.features[i - 1].properties.radiusKm)
+    }
+  })
+
+  it('every band is a real fraction of the SAME real radiusKm -- never a second/independent radius value', () => {
+    const radiusKm = 19.732107215773755 // real day-5 value observed live against the backend
+    const fc = buildReachGradientFeatureCollectionForCenters([[80.1, 9.6]], radiusKm)
+    for (const feature of fc.features) {
+      expect(feature.properties.radiusKm).toBeCloseTo(radiusKm * feature.properties.bandFraction, 10)
+    }
+  })
+
+  it('draws the same band set around EVERY real center, never just one', () => {
+    const centers = [
+      [80.0290277, 9.6734908],
+      [80.08333, 9.75],
+    ]
+    const fc = buildReachGradientFeatureCollectionForCenters(centers, 15)
+    expect(fc.features).toHaveLength(centers.length * REACH_GRADIENT_BAND_COUNT)
+  })
+
+  it('returns no features for a non-positive radius or no centers -- same honesty rule as the ring/outline', () => {
+    expect(buildReachGradientFeatureCollectionForCenters([[80, 9]], 0).features).toHaveLength(0)
+    expect(buildReachGradientFeatureCollectionForCenters([], 10).features).toHaveLength(0)
+    expect(buildReachGradientFeatureCollectionForCenters(null, 10).features).toHaveLength(0)
+  })
+
+  it('the equal per-band opacity composites to roughly the intended ~25% peak at the origin, ~0% at the edge (alpha-over math)', () => {
+    const centerComposite = 1 - (1 - REACH_GRADIENT_BAND_OPACITY) ** REACH_GRADIENT_BAND_COUNT
+    expect(centerComposite).toBeGreaterThan(0.2)
+    expect(centerComposite).toBeLessThan(0.3)
+    // The outermost sliver is covered by exactly one band.
+    expect(REACH_GRADIENT_BAND_OPACITY).toBeLessThan(0.05)
   })
 })
