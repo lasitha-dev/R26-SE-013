@@ -12,9 +12,9 @@ import { LABEL_OBSERVED_AT_LATEST, LABEL_OBSERVED_CASES_TIMELINE, LABEL_OBSERVED
  * from, or is derived by, that control or by the Sri-Lanka/My-District
  * camera scope).
  *
- * `dates` are real `YYYY-MM-DD` keys built ONLY from real verification
- * timestamps (`adapters/observedReplay.js::buildObservedReplayDates`) --
- * this component never invents a tick between two real dates.
+ * `dates` are real `YYYY-MM-DD` keys supplied by the observed dataset --
+ * this component never invents a tick between two real dates. The Cases
+ * map supplies verification dates or, for pending reports, report dates.
  */
 export default function ObservedTimelineControl({
   dates,
@@ -72,7 +72,7 @@ export default function ObservedTimelineControl({
           D0/D+N forecast timeline that occupies the same screen position
           in other modes. */}
       {hasDates && (
-        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="shrink-0 text-[11px] font-bold uppercase tracking-wide text-red-300">
               {datasetLabel} · {activeDateKey ? formatDisplayDate(activeDateKey) : LABEL_OBSERVED_AT_LATEST}
@@ -123,6 +123,7 @@ export default function ObservedTimelineControl({
             type="button"
             onClick={isPlaybackActive ? onPause : onPlay}
             disabled={playDisabled && !isPlaybackActive}
+            title={playDisabled ? (hasDates ? 'Only one observation date is available; there is no history to play.' : 'No dated case reports are available to replay.') : 'Replay observed reports at their fixed recorded locations'}
             aria-label={isPlaybackActive ? 'Pause' : 'Play'}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-400 text-slate-950 transition-colors hover:bg-red-300 disabled:opacity-40"
           >
@@ -192,6 +193,7 @@ export default function ObservedTimelineControl({
           </div>
         )}
       </div>
+      {hasDates && dates.length === 1 && <p className="mt-1 text-[10px] text-on-surface-variant/65">One recorded observation date · playback needs at least two dates.</p>}
     </div>
   )
 }
