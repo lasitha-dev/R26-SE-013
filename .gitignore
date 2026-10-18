@@ -10,3 +10,5 @@ build/
 /.kilo
 backend/components/smart_diagnostics/review_portal/*
 sites/*
+node_modules/
+frontend/node_modules/
