@@ -120,6 +120,7 @@ export function DaphNationalForecastOverview({ viewerContext }) {
     return () => clearTimeout(timer);
   }, [generationMessage]);
   const [activeAlerts, setActiveAlerts] = useState([]);
+  const [signalsHidden, setSignalsHidden] = useState(false);
 
   // Active AbortController ref for race-condition safeguarding
   const abortControllerRef = useRef(null);
@@ -823,18 +824,46 @@ export function DaphNationalForecastOverview({ viewerContext }) {
         </div>
       )}
 
-      {activeAlerts.length > 0 && (
-        <div className="bg-rose-950/40 border border-rose-500/40 rounded-lg p-4 text-xs text-rose-200" aria-label="Active outbreak signals">
-          <strong className="block mb-1 text-rose-100">Active outbreak signals this month (verified app records)</strong>
-          <ul className="space-y-0.5">
+      {activeAlerts.length > 0 && !signalsHidden && (
+        <section
+          aria-label="Active outbreak signals"
+          title="Observed records, kept separate from the forecasts below"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-slate-900/40 to-transparent px-4 py-2.5 text-xs"
+        >
+          <span className="flex items-center gap-2 font-semibold text-amber-200">
+            <span className="material-symbols-outlined text-base text-amber-300" aria-hidden="true">monitoring</span>
+            Recorded in the app this month
+          </span>
+          <ul className="flex flex-wrap items-center gap-2">
             {activeAlerts.map((alert) => (
-              <li key={`${alert.disease}-${alert.district}`}>
-                {alert.district} — {alert.disease}: {alert.verified_cases} verified case{alert.verified_cases === 1 ? '' : 's'}, {alert.deaths} death{alert.deaths === 1 ? '' : 's'}
+              <li
+                key={`${alert.disease}-${alert.district}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-slate-300 transition hover:border-amber-500/40"
+              >
+                <span className="font-semibold text-white">{alert.district}</span>
+                <span className="text-slate-500" aria-hidden="true">·</span>
+                <span>{alert.disease}</span>
+                <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 font-semibold text-amber-200">
+                  {alert.verified_cases} case{alert.verified_cases === 1 ? '' : 's'}
+                </span>
+                {alert.deaths > 0 && (
+                  <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 font-semibold text-rose-200">
+                    {alert.deaths} death{alert.deaths === 1 ? '' : 's'}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
-          <span className="block mt-1 text-rose-300/70">Observed facts, shown separately from the forecasts below.</span>
-        </div>
+          <span className="ml-auto hidden text-[11px] text-slate-500 2xl:inline">Observed records, kept separate from the forecasts below</span>
+          <button
+            type="button"
+            onClick={() => setSignalsHidden(true)}
+            aria-label="Hide recorded cases"
+            className="ml-auto rounded-full p-1 2xl:ml-0 text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
+          >
+            <span className="material-symbols-outlined text-base" aria-hidden="true">close</span>
+          </button>
+        </section>
       )}
 
       {/* 4. Filter & Target Period Controls */}

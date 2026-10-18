@@ -853,8 +853,13 @@ describe('DaphNationalForecastOverview Component', () => {
       }));
       render(<DaphNationalForecastOverview viewerContext={validDaphContext} />);
       const panel = await screen.findByLabelText('Active outbreak signals');
-      expect(within(panel).getByText(/Anuradhapura — FMD: 2 verified cases, 1 death/)).toBeInTheDocument();
+      expect(within(panel).getByText('Anuradhapura')).toBeInTheDocument();
+      expect(within(panel).getByText('FMD')).toBeInTheDocument();
+      expect(within(panel).getByText('2 cases')).toBeInTheDocument();
+      expect(within(panel).getByText('1 death')).toBeInTheDocument();
       expect(within(panel).queryByText(/Colombo/)).not.toBeInTheDocument();
+      fireEvent.click(within(panel).getByRole('button', { name: /Hide recorded cases/i }));
+      expect(screen.queryByLabelText('Active outbreak signals')).not.toBeInTheDocument();
     });
   });
 
