@@ -39,11 +39,13 @@ export function aggregateClinicalContextsByFarm(clinicalContexts, nowMs = Date.n
         personallyAssigned: context.personallyAssigned !== false,
         caseIds: [],
         verificationTimes: [],
+        reportedAts: [],
       }
       groups.set(key, group)
     }
     group.caseIds.push(context.caseId)
     group.verificationTimes.push(context.verificationTime ?? null)
+    group.reportedAts.push(context.reportedAt ?? null)
   }
 
   const result = []
@@ -74,6 +76,8 @@ export function aggregateClinicalContextsByFarm(clinicalContexts, nowMs = Date.n
       verificationTimes,
       latestVerificationTime,
       recencyTier: classifyRecency(latestVerificationTime, nowMs),
+      // Report (case creation) times, for the report-date age colour.
+      reportedAts: group.reportedAts,
     })
   }
 

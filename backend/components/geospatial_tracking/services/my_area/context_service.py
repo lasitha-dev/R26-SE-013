@@ -39,6 +39,7 @@ from ...domain.my_area_enums import GEOSPATIAL_STUDY_COUNTRY, MyAreaStatus
 from ...domain.my_area_models import MyAreaContext, SelectedOriginContext
 from ...domain.operational_models import AuthenticatedVetContext
 from ...repositories.operational_port import OperationalDataPort
+from ...repositories.provider import ScientificDatasetUnavailableError
 from ...repositories.scientific_read_port import ScientificReadPort
 from ...services.application.frozen_geospatial_analysis_10a import RuntimeAnalysisError10A
 from ...services.disease import SUPPORTED_DISEASES, UnsupportedDiseaseError, resolve_disease_selection
@@ -65,6 +66,14 @@ _KNOWN_ORIGIN_ERROR_STATUSES = {
     "ORIGIN_NOT_FOUND": MyAreaStatus.ORIGIN_NOT_FOUND,
     "ANALYSIS_UNAVAILABLE_DISEASE_MODEL_NOT_READY": MyAreaStatus.ANALYSIS_UNAVAILABLE_DISEASE_MODEL_NOT_READY,
 }
+
+
+def _scientific_failure_status(exc: Exception) -> str:
+    """No configured scientific dataset is a configuration state (HTTP 503),
+    never reported as an internal error."""
+    if isinstance(exc, ScientificDatasetUnavailableError):
+        return MyAreaStatus.SCIENTIFIC_DATASET_UNAVAILABLE.value
+    return MyAreaStatus.ANALYSIS_INTERNAL_ERROR.value
 
 
 def _now_iso() -> str:
@@ -157,9 +166,9 @@ class MyAreaContextService:
                 for origin in origins:
                     locations = await run_in_threadpool(self._scientific_port.get_origin_trigger_locations, origin)
                     pairs.append((origin, locations))
-            except Exception:
+            except Exception as exc:
                 return MyAreaContext(
-                    status=MyAreaStatus.ANALYSIS_INTERNAL_ERROR.value,
+                    status=_scientific_failure_status(exc),
                     disease=disease_code, area=area, verified_clinical_contexts=clinical_contexts, generated_at=generated_at,
                 )
 
@@ -179,9 +188,9 @@ class MyAreaContextService:
         # `get_origin_analysis`. ---
         try:
             scoped_origins = await run_in_threadpool(self._scientific_port.list_origins, disease=resolved_display, country=GEOSPATIAL_STUDY_COUNTRY)
-        except Exception:
+        except Exception as exc:
             return MyAreaContext(
-                status=MyAreaStatus.ANALYSIS_INTERNAL_ERROR.value,
+                status=_scientific_failure_status(exc),
                 disease=disease_code, area=area, verified_clinical_contexts=clinical_contexts, generated_at=generated_at,
             )
 
@@ -209,9 +218,9 @@ class MyAreaContextService:
             return MyAreaContext(
                 status=status, disease=disease_code, area=area, verified_clinical_contexts=clinical_contexts, generated_at=generated_at,
             )
-        except Exception:
+        except Exception as exc:
             return MyAreaContext(
-                status=MyAreaStatus.ANALYSIS_INTERNAL_ERROR.value,
+                status=_scientific_failure_status(exc),
                 disease=disease_code, area=area, verified_clinical_contexts=clinical_contexts, generated_at=generated_at,
             )
 

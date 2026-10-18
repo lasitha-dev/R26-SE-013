@@ -98,7 +98,7 @@ class FakeDiagnosticCasesCollection:
                 return doc
         return None
 
-    def find(self, filter: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    def find(self, filter: dict[str, Any], projection: dict[str, Any] | None = None) -> AsyncIterator[dict[str, Any]]:
         matching = [doc for doc in self.documents if doc.get("verified") is True] if filter.get("verified") else list(self.documents)
         return self._iter(matching)
 

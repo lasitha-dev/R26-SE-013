@@ -3,12 +3,14 @@
 (Section 14), no real Mongo/network."""
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from bson import ObjectId
 
 from components.geospatial_tracking.domain.operational_models import AuthenticatedVetContext
-from components.geospatial_tracking.repositories.host_operational_adapter import MongoOperationalDataPort
+from components.geospatial_tracking.repositories.host_operational_adapter import MongoOperationalDataPort, host_timestamp_text
+from components.geospatial_tracking.repositories.mongo_case_event_source import _case_from_document
 from components.geospatial_tracking.services.operational.context_service import OperationalContextService
 
 from ._operational_fakes import FakeCollection, make_diagnostic_case_document, make_farm_document, make_vet_document
@@ -170,6 +172,55 @@ class TestVerifiedClinicalCaseResolution:
         assert context.clinical_contexts == []
 
 
+class TestBsonDateTimestamps:
+    """origin/main's `verify_diagnostic_case` stores `verified_at` as a BSON
+    date (`datetime.utcnow()`, read back by pymongo/motor as a naive UTC
+    `datetime`), not a string."""
+
+    def _verified_case_with_bson_date(self):
+        farm = make_farm_document(assigned_vet_emails=["vet@example.com"])
+        vet = make_vet_document(email="vet@example.com")
+        case = make_diagnostic_case_document(
+            farm_id=str(farm["_id"]), disease_name="Lumpy Skin Disease", verified=True,
+            verified_at=datetime(2026, 10, 14, 4, 17, 46, 766000),
+        )
+        return vet, farm, case
+
+    def test_naive_utc_datetime_becomes_explicit_utc_iso_text(self):
+        vet, farm, case = self._verified_case_with_bson_date()
+        port = _make_port(vets=[vet], farms=[farm], cases=[case])
+        result = _run(port.get_verified_clinical_cases(AuthenticatedVetContext(email=vet["email"], role="vet")))
+        assert result[0].verified_at == "2026-10-14T04:17:46.766000+00:00"
+
+    def test_verified_case_reaches_operational_context(self):
+        vet, farm, case = self._verified_case_with_bson_date()
+        port = _make_port(vets=[vet], farms=[farm], cases=[case])
+        context = _run(OperationalContextService(port).get_operational_context(AuthenticatedVetContext(email=vet["email"], role="vet")))
+        assert [c.verification_time for c in context.clinical_contexts] == ["2026-10-14T04:17:46.766000+00:00"]
+
+    def test_polling_source_maps_the_same_way(self):
+        _, _, case = self._verified_case_with_bson_date()
+        assert _case_from_document(case).verified_at == "2026-10-14T04:17:46.766000+00:00"
+
+    def test_legacy_naive_string_timestamps_become_explicit_utc(self):
+        # Legacy writer: datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") -- UTC without a marker.
+        assert host_timestamp_text("2026-10-14 04:17:46") == "2026-10-14T04:17:46+00:00"
+        assert host_timestamp_text("2026-08-31 18:28:38.880000") == "2026-08-31T18:28:38.880000+00:00"
+        assert host_timestamp_text(None) is None
+
+    def test_offset_aware_date_only_and_unparseable_strings_are_never_reinterpreted(self):
+        # Already explicit: converted to the same instant in UTC, never shifted twice.
+        assert host_timestamp_text("2026-10-14T04:17:46+00:00") == "2026-10-14T04:17:46+00:00"
+        assert host_timestamp_text("2026-10-14T09:47:46+05:30") == "2026-10-14T04:17:46+00:00"
+        assert host_timestamp_text(host_timestamp_text("2026-10-14 04:17:46")) == "2026-10-14T04:17:46+00:00"
+        assert host_timestamp_text("2026-10-14") == "2026-10-14"
+        assert host_timestamp_text("not a date") == "not a date"
+
+    def test_aware_datetime_is_normalised_to_utc(self):
+        colombo = timezone(timedelta(hours=5, minutes=30))
+        assert host_timestamp_text(datetime(2026, 10, 14, 9, 47, 46, tzinfo=colombo)) == "2026-10-14T04:17:46+00:00"
+
+
 class TestDataMinimizationAndPii:
     def test_farm_record_has_no_owner_pii(self):
         vet, farm = self._farm_with_pii()
@@ -194,6 +245,38 @@ class TestDataMinimizationAndPii:
         record = result[0]
         for forbidden_attr in ("symptoms_image", "cropped_image", "llm_reasoning", "clinical_notes", "cattle_id", "animal_identifier"):
             assert not hasattr(record, forbidden_attr)
+
+    def test_mongo_reads_never_download_images_photos_or_reasoning(self):
+        """Whole host documents carry base64 images/photos: reading them made one
+        operational-context request take ~19 s against Atlas. Every adapter read
+        projects to the fields it maps, and the mapped result is unchanged."""
+        vet, farm = self._farm_with_pii()
+        farm["profile_photo"] = "data:image/jpeg;base64," + "A" * 1000
+        case = make_diagnostic_case_document(
+            farm_id=str(farm["_id"]), verified=True,
+            symptoms_image="data:image/jpeg;base64,xxx", cropped_image="data:image/jpeg;base64,yyy", llm_reasoning="long text",
+        )
+        requested: list[dict] = []
+
+        class _SpyCollection(FakeCollection):
+            def find(self, filter, projection=None):
+                requested.append(projection)
+                return super().find(filter, projection)
+
+        port = MongoOperationalDataPort(
+            vets_collection=FakeCollection([vet]), farms_collection=_SpyCollection([farm]), diagnostic_cases_collection=_SpyCollection([case]),
+        )
+        context = AuthenticatedVetContext(email=vet["email"], role="vet")
+        farms = _run(port.get_assigned_farms(context))
+        cases = _run(port.get_verified_clinical_cases(context))
+        district_farms = _run(port.get_district_surveillance_farms(context, "Colombo"))
+        assert requested and all(projection for projection in requested)
+        heavy = {"profile_photo", "symptoms_image", "cropped_image", "llm_reasoning", "clinical_notes", "password"}
+        assert all(not (set(projection) & heavy) and all(projection.values()) for projection in requested)
+        assert (farms[0].latitude, farms[0].longitude, farms[0].location_district, farms[0].total_animals) == (farm["latitude"], farm["longitude"], farm["location_district"], farm["total_animals"])
+        assert [f.farm_id for f in district_farms] == [str(farm["_id"])]
+        assert (cases[0].disease_name, cases[0].verified, cases[0].farm_id) == (case["disease_name"], True, str(farm["_id"]))
+        assert cases[0].created_at is not None and cases[0].verified_at is not None
 
     @staticmethod
     def _farm_with_pii():

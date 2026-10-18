@@ -21,6 +21,12 @@ const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep
 
 export function formatTrendPeriodLabel(period, periodBasis) {
   if (typeof period !== 'string') return ''
+  if (periodBasis === 'DAY') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period)
+    if (!match) return period
+    const abbr = MONTH_ABBR[Number(match[2]) - 1] ?? match[2]
+    return `${Number(match[3])} ${abbr}`
+  }
   if (periodBasis === 'WEEK') {
     const match = /^(\d{4})-W(\d{2})$/.exec(period)
     if (!match) return period
@@ -74,12 +80,16 @@ export function buildTrendChartGeometry(
   // not overflow into illegible overlapping text.
   const labelEvery = n > 14 ? Math.ceil(n / 10) : 1
 
-  // Three evenly spaced horizontal reference lines (0%, 50%, 100% of the
-  // real maximum) -- pure axis scaffolding deterministically derived from
-  // the already-loaded `maxCount`, never a new/fabricated data value.
-  const gridLines = [0, 0.5, 1].map((frac) => ({
-    y: paddingTop + innerHeight * (1 - frac),
-    value: frac === 1 ? maxCount : Math.round(maxCount * frac),
+  // Horizontal reference lines at 0, a whole-number midpoint and the real
+  // maximum -- each drawn at the height of the value it is labelled with
+  // (a rounded label at the exact 50% height would mislabel odd maxima,
+  // e.g. "2" drawn at 1.5 when the maximum is 3). Counts are integers, so
+  // the midpoint is rounded and dropped when it duplicates 0 or the max.
+  const midpoint = Math.round(maxCount / 2)
+  const gridValues = maxCount > 0 ? [...new Set([0, midpoint, maxCount])] : [0]
+  const gridLines = gridValues.map((value) => ({
+    y: paddingTop + innerHeight * (1 - (maxCount > 0 ? value / maxCount : 0)),
+    value,
   }))
 
   return { width, height, paddingLeft, paddingTop, paddingRight, innerWidth, innerHeight, maxCount, bars, labelEvery, gridLines }

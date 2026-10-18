@@ -5,6 +5,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
+import { normalizeOperationalContext } from '../adapters/operationalContextAdapter'
 import ObservedTimelineControl from '../components/ObservedTimelineControl'
 import PageLegend from '../components/PageLegend'
 import { ANALYSIS_MODE } from '../context/outbreakSelectionReducer'
@@ -68,10 +69,10 @@ describe('GEO33B Section 10: the Cases-mode timeline always names its real datas
     expect(outbreaks).toContain(`aria-label="${LABEL_OBSERVED_OUTBREAKS_TIMELINE} timeline"`)
   })
 
-  it('the page wires the CLINICAL dataset label explicitly, and its dates come only from real verification timestamps', () => {
+  it('Cases mode shows no bottom replay timeline (vet request); the replay adapter still uses real verification timestamps', () => {
     const pageSrc = readFileSync(join(FEATURE_ROOT, 'pages', 'OutbreakMapPage.jsx'), 'utf-8')
-    expect(pageSrc).toContain('datasetLabel={LABEL_OBSERVED_CASES_TIMELINE}')
-    expect(pageSrc).toContain('buildObservedReplayDates(operationalContextsForDisease)')
+    expect(pageSrc).not.toContain('<ObservedTimelineControl')
+    expect(pageSrc).toContain(') : showOperationalLayer ? null : (')
     const replaySrc = readFileSync(join(FEATURE_ROOT, 'adapters', 'observedReplay.js'), 'utf-8')
     expect(replaySrc).toContain('parseVerificationTime(context?.verificationTime)')
   })
@@ -93,7 +94,7 @@ describe('GEO33B Section 9: the legend keys only what is really drawn', () => {
 
   it('distinguishes the national observed source, the verified clinical location, and the district outline', () => {
     const html = renderCasesLegend({ hasClinicalMarkers: true })
-    expect(html).toContain('Observed outbreak source (national)')
+    expect(html).toContain('Historical record (WAHIS/EMPRES, dated)')
     expect(html).toContain('Verified clinical location')
     expect(html).toContain('My District boundary')
   })
@@ -124,9 +125,11 @@ describe('GEO33B Section 9: the legend keys only what is really drawn', () => {
     const iconsSrc = readFileSync(join(FEATURE_ROOT, 'components', 'presentationIcons.js'), 'utf-8')
     const canvasSrc = readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8')
     const stackSrc = readFileSync(join(FEATURE_ROOT, 'adapters', 'nationalSourcePresentation.js'), 'utf-8')
-    // red-500 core, shared by the historical source icon.
-    expect(legendSrc).toContain("OBSERVED_SOURCE_COLOR = '#ef4444'")
-    expect(iconsSrc).toContain('[239, 68, 68, 255]')
+    // slate-400 core of the historical source icon -- deliberately NOT the
+    // red used for vet-verified ADRS cases.
+    expect(legendSrc).toContain("OBSERVED_SOURCE_COLOR = '#94a3b8'")
+    expect(iconsSrc).toContain('[148, 163, 184, 255]')
+    expect(legendSrc).not.toContain("OBSERVED_SOURCE_COLOR = '#ef4444'")
     // emerald selection halo stroke.
     expect(legendSrc).toContain("SELECTION_HALO_COLOR = '#10b981'")
     expect(canvasSrc).toContain("'circle-stroke-color': '#10b981'")
@@ -216,7 +219,7 @@ describe('GEO33B Section 12: the clinical layer stays scoped to the vet\'s own a
     expect(pageSrc).toContain('operational.data?.surveillanceContexts')
     // The national/scientific collection never feeds the clinical layer.
     const memoStart = pageSrc.indexOf('const operationalContextsForDisease = useMemo(')
-    const memoBody = pageSrc.slice(memoStart, pageSrc.indexOf('[operational.data, ctx.selectedDisease, observationWindowDays],', memoStart))
+    const memoBody = pageSrc.slice(memoStart, pageSrc.indexOf('[operational.data, ctx.selectedDisease, observationWindowDays, casesAsOf],', memoStart))
     expect(memoBody).not.toContain('national')
     expect(memoBody).not.toContain('nationalSourcesFC')
   })
@@ -232,6 +235,21 @@ describe('GEO33B Section 12: the clinical layer stays scoped to the vet\'s own a
   it('the adapter drops any context whose farm did not resolve to an authorized, located farm', () => {
     const adapterSrc = readFileSync(join(FEATURE_ROOT, 'adapters', 'operationalContextAdapter.js'), 'utf-8')
     expect(adapterSrc).toContain('const farm = farmsById.get(rawContext.farm_id)')
-    expect(adapterSrc).toContain("if (!farm || farm.locationStatus !== 'VALID') return null")
+    // Mapped contexts still require a located farm; the separate list/count
+    // population (clinicalRecords) may include unmapped farms, never placed.
+    expect(adapterSrc).toContain("if (!farm || (!includeUnmapped && farm.locationStatus !== 'VALID')) return null")
+    const data = normalizeOperationalContext({
+      farms: [
+        { farm_id: 'F1', latitude: 6, longitude: 80, location_status: 'VALID' },
+        { farm_id: 'F2', latitude: null, longitude: null, location_status: 'LOCATION_REQUIRED' },
+      ],
+      clinical_contexts: [
+        { case_id: 'C1', farm_id: 'F1', disease: 'LSD', semantic_class: 'VERIFIED_CLINICAL_CONTEXT' },
+        { case_id: 'C2', farm_id: 'F2', disease: 'LSD', semantic_class: 'VERIFIED_CLINICAL_CONTEXT' },
+        { case_id: 'C3', farm_id: 'UNKNOWN', disease: 'LSD', semantic_class: 'VERIFIED_CLINICAL_CONTEXT' },
+      ],
+    })
+    expect(data.clinicalContexts.map((c) => c.caseId)).toEqual(['C1'])
+    expect(data.clinicalRecords.map((c) => c.caseId)).toEqual(['C1', 'C2'])
   })
 })

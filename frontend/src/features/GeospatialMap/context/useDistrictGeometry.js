@@ -61,5 +61,9 @@ export function useDistrictGeometry(vetDistrict) {
 
   const feature = status === DISTRICT_GEOMETRY_STATUS.READY ? findDistrictFeature(featureCollection, vetDistrict) : null
 
-  return { status, feature }
+  // Page 1 also reuses the already-fetched national ADM2 collection to
+  // clip its presentation-only spread geometry to the island. Exposing
+  // this in-memory value is additive: existing callers keep reading only
+  // `status`/`feature`, and no second fetch is introduced.
+  return { status, feature, featureCollection }
 }

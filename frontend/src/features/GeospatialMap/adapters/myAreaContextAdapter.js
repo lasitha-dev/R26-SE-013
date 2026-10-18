@@ -117,6 +117,12 @@ function normalizeClinicalContext(raw) {
     semanticClass: raw.semantic_class,
     verificationTime: typeof raw.verification_time === 'string' ? raw.verification_time : null,
     timestampBasis: raw.timestamp_basis === 'VERIFICATION_TIME' ? raw.timestamp_basis : null,
+    // Optional and deliberately strict: the current backend contract does
+    // not expose case coordinates, so these remain null today. If the
+    // contract later adds genuine case-level coordinates, the map can use
+    // them without ever falling back to the farm coordinate.
+    latitude: isFiniteNumber(raw.latitude) && raw.latitude >= -90 && raw.latitude <= 90 ? raw.latitude : null,
+    longitude: isFiniteNumber(raw.longitude) && raw.longitude >= -180 && raw.longitude <= 180 ? raw.longitude : null,
   }
 }
 

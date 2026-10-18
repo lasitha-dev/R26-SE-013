@@ -33,9 +33,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any, AsyncIterator, Awaitable, Callable, Protocol
 
-from ..domain.operational_events import CaseChangeKind, RawCaseChange
+import hashlib
+import json
+from datetime import datetime, timezone
+
+from ..domain.operational_events import CaseChangeKind, GeospatialDataChangedEvent, GeospatialDataChangeKind, RawCaseChange
 from ..domain.operational_models import HostDiagnosticCase
-from .host_operational_adapter import ReadOnlyCollection
+from .host_operational_adapter import ReadOnlyCollection, host_timestamp_text
 
 _UNSEEN = object()
 
@@ -54,8 +58,8 @@ def _case_from_document(doc: dict[str, Any]) -> HostDiagnosticCase:
         farm_id=doc.get("farm_id"),
         disease_name=doc.get("disease_name"),
         verified=bool(doc.get("verified", False)),
-        created_at=doc.get("created_at"),
-        verified_at=doc.get("verified_at"),
+        created_at=host_timestamp_text(doc.get("created_at")),
+        verified_at=host_timestamp_text(doc.get("verified_at")),
     )
 
 
@@ -181,51 +185,129 @@ class DeltaPollingCaseEventSource:
         self._subscribers: list[asyncio.Queue] = []
         self._run_task: asyncio.Task | None = None
         self._primed = asyncio.Event()
+        self._data_version: str | None = None
 
     def describe_transport(self) -> str:
         return "delta_refresh"
 
     def current_snapshot(self) -> dict[str, HostDiagnosticCase]:
         """Section 15: a shallow copy of this source's own authoritative
-        `case_id -> last-seen HostDiagnosticCase` view, used by
-        `event_stream_service.py` to compute a per-vet reconciliation diff
-        on (re)connect. Never mutated by the caller."""
+        `case_id -> last-seen HostDiagnosticCase` view (ALL cases, pending
+        included), used by `event_stream_service.py` to compute a per-vet
+        reconciliation diff on (re)connect. Never mutated by the caller."""
         return dict(self._last_seen)
 
-    async def _poll_once(self) -> list[RawCaseChange]:
-        changes: list[RawCaseChange] = []
-        async for doc in self._collection.find({"verified": True}):
+    async def ensure_primed(self) -> None:
+        """Starts polling (if needed) and waits for the first authoritative snapshot."""
+        self._ensure_started()
+        await self._primed.wait()
+
+    def current_data_version(self) -> str | None:
+        """Deterministic version of the whole case dataset as last polled --
+        sent in the SSE `ready` frame so a reconnecting client can tell
+        whether it missed any change and must refetch."""
+        return self._data_version
+
+    async def _poll_once(self) -> tuple[list[RawCaseChange], list[GeospatialDataChangedEvent]]:
+        """One read-only poll of EVERY case (small projection, never images).
+        Detects creation (pending or verified), verification, withdrawal of
+        verification, disease reclassification, correction and deletion."""
+        current: dict[str, HostDiagnosticCase] = {}
+        async for doc in self._collection.find({}, _CASE_PROJECTION):
             case = _case_from_document(doc)
-            prior = self._last_seen.get(case.case_id, _UNSEEN)
-            if prior is _UNSEEN:
-                changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.CREATED))
-            elif prior.verified_at != case.verified_at:
-                changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.UPDATED))
-            self._last_seen[case.case_id] = case
-        return changes
+            current[case.case_id] = case
+        raw_changes: list[RawCaseChange] = []
+        data_changes: list[tuple] = []
+        for case_id, case in sorted(current.items()):
+            prior = self._last_seen.get(case_id)
+            if prior is None:
+                data_changes.append((GeospatialDataChangeKind.CREATED, case, None))
+                raw_changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.CREATED))
+                continue
+            if _fingerprint(prior) == _fingerprint(case):
+                continue
+            if not prior.verified and case.verified:
+                data_changes.append((GeospatialDataChangeKind.VERIFIED, case, prior))
+                # Newly verified = a NEW verified clinical context (unchanged semantics).
+                raw_changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.CREATED))
+            elif prior.verified and not case.verified:
+                data_changes.append((GeospatialDataChangeKind.UNVERIFIED, case, prior))
+            elif prior.disease_name != case.disease_name:
+                data_changes.append((GeospatialDataChangeKind.RECLASSIFIED, case, prior))
+                raw_changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.UPDATED))
+            else:
+                data_changes.append((GeospatialDataChangeKind.CORRECTED, case, prior))
+                if prior.verified_at != case.verified_at or prior.farm_id != case.farm_id:
+                    raw_changes.append(RawCaseChange(case=case, change_kind=CaseChangeKind.UPDATED))
+        for case_id in sorted(set(self._last_seen) - set(current)):
+            data_changes.append((GeospatialDataChangeKind.DELETED, None, self._last_seen[case_id]))
+        self._last_seen = current
+        self._data_version = _dataset_version(current)
+        events = [_data_change_event(kind, case, prior, self._data_version) for kind, case, prior in data_changes]
+        return raw_changes, events
 
     async def _run(self) -> None:
         await self._poll_once()  # priming pass -- seeds the snapshot, never broadcast
         self._primed.set()
         while True:
             await self._sleep(self._poll_interval)
-            changes = await self._poll_once()
-            for change in changes:
+            raw_changes, data_events = await self._poll_once()
+            for item in [*raw_changes, *data_events]:
                 for queue in list(self._subscribers):
-                    queue.put_nowait(change)
+                    queue.put_nowait(item)
 
     def _ensure_started(self) -> None:
         if self._run_task is None:
             self._run_task = asyncio.ensure_future(self._run())
 
-    async def watch(self) -> AsyncIterator[RawCaseChange]:
+    def watch(self) -> AsyncIterator:
+        """Registers the subscriber EAGERLY (before the first `__anext__`), so a
+        change polled between `watch()` and the first read is never lost.
+        Yields `RawCaseChange` and `GeospatialDataChangedEvent` items."""
         self._ensure_started()
-        await self._primed.wait()
         queue: asyncio.Queue = asyncio.Queue()
         self._subscribers.append(queue)
+        return self._drain(queue)
+
+    async def _drain(self, queue: asyncio.Queue):
         try:
+            await self._primed.wait()
             while True:
                 yield await queue.get()
         finally:
             if queue in self._subscribers:
                 self._subscribers.remove(queue)
+
+
+_CASE_PROJECTION = {"farm_id": 1, "disease_name": 1, "verified": 1, "created_at": 1, "verified_at": 1, "case_id": 1}
+
+
+def _fingerprint(case: HostDiagnosticCase) -> tuple:
+    return (case.farm_id, case.disease_name, case.verified, case.created_at, case.verified_at)
+
+
+def _dataset_version(cases: dict[str, HostDiagnosticCase]) -> str:
+    canonical = json.dumps(sorted([cid, *map(str, _fingerprint(c))] for cid, c in cases.items()), separators=(",", ":"))
+    return "ds_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def _disease_code(disease_name: str | None) -> str | None:
+    from ..services.operational.disease_normalization import resolve_operational_disease
+
+    resolved = resolve_operational_disease(disease_name)
+    return resolved.value if resolved else None
+
+
+def _data_change_event(kind, case, prior, data_version: str) -> GeospatialDataChangedEvent:
+    from ..services.operational.national_cases import record_key
+
+    subject = case or prior
+    return GeospatialDataChangedEvent(
+        change=kind.value,
+        record_key=record_key(subject.case_id),
+        disease=_disease_code(subject.disease_name) if case is not None else None,
+        previous_disease=_disease_code(prior.disease_name) if prior is not None else None,
+        verified=bool(case.verified) if case is not None else None,
+        data_version=data_version,
+        event_generated_at=datetime.now(timezone.utc).isoformat(),
+    )

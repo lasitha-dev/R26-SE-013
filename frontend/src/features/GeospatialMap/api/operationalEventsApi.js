@@ -71,7 +71,7 @@ export function parseSseMessage(rawMessage) {
  * the caller (Section 8 "abort/disconnect aware") is responsible for
  * reconnect policy; this function makes exactly one connection attempt.
  */
-export async function openOperationalEventStream({ signal, onReady, onEvent, onHeartbeat } = {}) {
+export async function openOperationalEventStream({ signal, onReady, onEvent, onHeartbeat, onDataChanged } = {}) {
   const token = readAuthToken()
   const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
@@ -114,6 +114,9 @@ export async function openOperationalEventStream({ signal, onReady, onEvent, onH
           if (parsed.eventType === 'ready') onReady?.(parsed.data)
           else if (parsed.eventType === 'heartbeat') onHeartbeat?.()
           else if (parsed.eventType === 'clinical_event') onEvent?.(parsed.data)
+          // Privacy-safe invalidation (contract §6): no case content, only
+          // the change kind, a one-way record key and the new data_version.
+          else if (parsed.eventType === 'geospatial_data_changed') onDataChanged?.(parsed.data)
         }
         boundary = buffer.indexOf('\n\n')
       }

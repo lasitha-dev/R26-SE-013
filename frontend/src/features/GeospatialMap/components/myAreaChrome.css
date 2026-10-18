@@ -41,3 +41,46 @@
 .my-area-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.55);
 }
+
+.my-area-timeline {
+  background: linear-gradient(145deg, rgba(14, 21, 17, 0.94), rgba(25, 34, 29, 0.88));
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+.my-area-timeline-track {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.my-area-timeline-track::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .my-area-timeline {
+    gap: 0.375rem;
+    padding-inline: 0.375rem;
+  }
+}
+
+/*
+ * My Area map attribution: same dark chrome as Page 1 (`.geo-map-shell`,
+ * geospatialMapChrome.css) and capped in width so the full OpenStreetMap /
+ * OpenMapTiles credit wraps inside the right side of the map instead of
+ * running across the top-left legend. Never hidden or collapsed.
+ */
+.my-area-map-shell .maplibregl-ctrl-attrib {
+  max-width: min(46%, 420px);
+  background-color: rgba(15, 23, 42, 0.78);
+  color: rgb(148, 163, 184);
+  line-height: 1.35;
+}
+
+.my-area-map-shell .maplibregl-ctrl-attrib a {
+  color: rgb(148, 163, 184);
+}
+
+.my-area-map-shell .maplibregl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.6);
+}

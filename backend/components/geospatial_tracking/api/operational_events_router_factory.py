@@ -88,7 +88,9 @@ def create_operational_events_router(
             # Section 9: told to the frontend up front so it never shows
             # "LIVE" wording while this connection is actually running on
             # the honest delta-refresh fallback (Section 4).
-            yield _format_sse("ready", {"transport": service.transport_mode()})
+            primed = getattr(service, "primed_data_version", None)
+            data_version = await primed() if primed is not None else None
+            yield _format_sse("ready", {"transport": service.transport_mode(), "data_version": data_version})
 
             events = service.stream_events(vet)
             try:
@@ -106,7 +108,9 @@ def create_operational_events_router(
                         break
                     if await request.is_disconnected():
                         break
-                    yield _format_sse("clinical_event", event.as_dict())
+                    # `geospatial_data_changed` for privacy-safe invalidation signals,
+                    # `clinical_event` for the vet's own verified clinical contexts.
+                    yield _format_sse(getattr(event, "sse_event_name", "clinical_event"), event.as_dict())
             finally:
                 # Section 8 disconnect cleanup: closes the underlying
                 # service/source subscription (unregisters this

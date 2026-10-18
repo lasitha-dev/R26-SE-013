@@ -2,9 +2,11 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import nationalTimeline from './fixtures/spatialTimeline.national.json'
+
 /**
- * GEO-PAGE1-FINAL Section 18/24: end-to-end proof that Risk Zones'
- * timeline populates with REAL data, and Play becomes usable, WITHOUT
+ * Page-1 presentation: end-to-end proof that Risk Zones' fixed timeline
+ * populates as soon as REAL marker anchors exist, and Play is usable, WITHOUT
  * the vet clicking a marker first -- the concrete root cause this
  * closure pass fixes (`selectMostRecentOrigin` + the page's own
  * auto-focus effect + `MapLibreCanvas`'s `autoFocusOutbreak` suppression
@@ -20,7 +22,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
  * "a total backend outage still renders" baseline -- proving this
  * feature works even when only the scientific layer is up.
  */
-describe('GEO-PAGE1-FINAL: Risk Zones auto-focuses the most recent real origin on load', () => {
+describe('Page 1: Risk Zones backend timeline works without a marker click', () => {
   let OutbreakMapPage
   let GeospatialProvider
 
@@ -84,6 +86,11 @@ describe('GEO-PAGE1-FINAL: Risk Zones auto-focuses the most recent real origin o
       if (href.match(/\/analysis\/([^/]+)\/cells/)) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(cellsResponse()) })
       }
+      // Phase 3: the master timeline reads the backend spatial-timeline snapshot
+      // (real Phase 2 engine output for two FICTIONAL test farms).
+      if (href.includes('/api/geospatial/spatial-timeline')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(nationalTimeline) })
+      }
       // Operational context, verified-clinical push transport, protocol,
       // district geometry -- all intentionally rejected, mirroring the
       // existing "total backend outage" smoke test's own baseline. This
@@ -97,7 +104,7 @@ describe('GEO-PAGE1-FINAL: Risk Zones auto-focuses the most recent real origin o
     vi.restoreAllMocks()
   })
 
-  it('switches to Risk Zones and the real timeline shows the MOST RECENT real origin real date, without ever clicking a marker', async () => {
+  it('switches to Risk Zones and shows the backend spatial-timeline dates, without ever clicking a marker', async () => {
     render(
       <GeospatialProvider>
         <OutbreakMapPage />
@@ -112,15 +119,16 @@ describe('GEO-PAGE1-FINAL: Risk Zones auto-focuses the most recent real origin o
     const riskZonesTab = await screen.findByRole('tab', { name: /risk zones/i })
     riskZonesTab.click()
 
-    // The real, most-recent origin's real date -- never the older one,
-    // never a fabricated placeholder -- appears in the timeline dock
-    // header WITHOUT the test ever clicking a map marker.
+    // The requested presentation date appears as soon as the mocked REAL
+    // source coordinates arrive. It is intentionally independent of the
+    // selected origin's historical T0 date.
     await waitFor(
       () => {
-        expect(screen.getByText(/28 Oct 2020/i)).toBeTruthy()
+        expect(screen.getByText(/Reach horizon · 13 OCT 2026/i)).toBeTruthy()
       },
       { timeout: 3000 },
     )
+    expect(screen.getByRole('button', { name: 'Play' }).disabled).toBe(false)
 
     // The old stale "select an origin first" banner is gone -- a real
     // focus already exists.

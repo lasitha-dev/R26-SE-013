@@ -40,7 +40,7 @@ describe('GEO30A Section 2/12: district chip is a context indicator, never a dat
 
   it('the Cases-mode disease/window filter never references vetDistrict as a gate', () => {
     const memoStart = outbreakMapPageSrc.indexOf('const operationalContextsForDisease = useMemo(')
-    const knownDepsArray = '[operational.data, ctx.selectedDisease, observationWindowDays],'
+    const knownDepsArray = '[operational.data, ctx.selectedDisease, observationWindowDays, casesAsOf],'
     const memoEnd = outbreakMapPageSrc.indexOf(knownDepsArray, memoStart)
     expect(memoEnd).toBeGreaterThan(memoStart)
     const memoBody = outbreakMapPageSrc.slice(memoStart, memoEnd + knownDepsArray.length)

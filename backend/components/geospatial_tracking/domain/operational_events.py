@@ -86,3 +86,38 @@ class VerifiedClinicalEvent:
 
     def as_dict(self) -> dict:
         return {f.name: getattr(self, f.name) for f in fields(self)}
+
+
+class GeospatialDataChangeKind(str, Enum):
+    """Every upstream case change that can alter a Geospatial output (case
+    markers, source eligibility, timeline, clusters). Not a clinical claim."""
+
+    CREATED = "CREATED"            # new report (pending or verified)
+    VERIFIED = "VERIFIED"          # pending -> vet-verified
+    UNVERIFIED = "UNVERIFIED"      # verification withdrawn
+    RECLASSIFIED = "RECLASSIFIED"  # disease changed
+    CORRECTED = "CORRECTED"        # farm / timestamps corrected
+    DELETED = "DELETED"            # report removed upstream
+
+
+@dataclass(frozen=True)
+class GeospatialDataChangedEvent:
+    """Privacy-safe invalidation signal (SSE frame `geospatial_data_changed`),
+    delivered to EVERY authenticated vet because the national source pool
+    feeds every district's scientific outputs. Carries no farm id, raw case
+    id, name, note or coordinate -- only the one-way `/national-cases`
+    record key, the disease code(s) and the new dataset version. The client
+    reacts by refetching the authoritative endpoints listed in `refetch`."""
+
+    change: str  # GeospatialDataChangeKind value
+    record_key: str
+    disease: str | None  # "LSD" | "FMD" | None (unsupported diagnosis)
+    previous_disease: str | None
+    verified: bool | None  # None when DELETED
+    data_version: str
+    event_generated_at: str
+    refetch: tuple = ("national-cases", "operational-context", "spatial-timeline", "st-clusters", "environment")
+    sse_event_name = "geospatial_data_changed"
+
+    def as_dict(self) -> dict:
+        return {f.name: (list(getattr(self, f.name)) if f.name == "refetch" else getattr(self, f.name)) for f in fields(self)}

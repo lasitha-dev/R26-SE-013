@@ -239,6 +239,10 @@ describe('FMD-10C1: disease switching removes stale geometry before the new dise
     // keeps proving the actual invariant this test names (LOADING clears
     // prior originsWithSources) without over-specifying every field the
     // object happens to carry alongside it.
-    expect(src).toMatch(/setState\(\{ status: NATIONAL_STATUS\.LOADING, originsWithSources: \[\], error: null/)
+    // State is tagged with the disease it was loaded for (`diseaseCode, `).
+    expect(src).toMatch(/setState\(\{ (diseaseCode, )?status: NATIONAL_STATUS\.LOADING, originsWithSources: \[\], error: null/)
+    // ...and origins loaded for another disease are never returned, even in
+    // the render before that reset is applied.
+    expect(src).toContain('return state.diseaseCode === diseaseCode ? state : { ...state, originsWithSources: NO_ORIGINS }')
   })
 })

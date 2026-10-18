@@ -71,3 +71,49 @@ export function buildReachRingFeatureCollectionForCenters(centers, radiusKm) {
   const features = (centers ?? []).map((center) => buildReachRingPolygon(center, radiusKm)).filter(Boolean)
   return { type: 'FeatureCollection', features }
 }
+
+// GEO-REACH-GRADIENT-01: MapLibre GL has no native gradient fill for a
+// polygon (`fill-color` is one flat color/opacity per feature) -- so a
+// soft radial "hot at the origin, fading at the edge" look is built the
+// same way the wider map-styling community does it: several concentric
+// FILLED disks of the SAME real radius (never a second/different radius
+// value), each painted at a small, EQUAL opacity, largest-first so the
+// smaller disks layer on top and their alpha naturally compounds toward
+// the center (standard alpha-over compositing: with N equal-opacity
+// layers of per-layer opacity a, the composited opacity at a point
+// covered by k of them is `1 - (1-a)^k`). This is a pure geometry/opacity
+// RENDERING technique over the one real `radiusKm` already drawn by
+// `buildReachRingPolygon` above -- it never derives a second radius value
+// and never touches the real km-per-day number itself.
+export const REACH_GRADIENT_BAND_COUNT = 8
+// `1 - (1 - REACH_GRADIENT_BAND_OPACITY) ** REACH_GRADIENT_BAND_COUNT` ~= 0.25
+// at the very center (every band overlapping); the outermost sliver
+// (covered by only the single largest band) reads at this one flat value,
+// close to 0 -- matching "~25% opacity at the origin, ~0% at the edge".
+export const REACH_GRADIENT_BAND_OPACITY = 0.035
+
+/**
+ * Builds the concentric-disk gradient FeatureCollection for every real
+ * center in `centers`, all at fractions of the SAME real `radiusKm` (never
+ * a fabricated/independent radius). Each feature carries `bandFraction`
+ * (1 = the full real radius, down to `1/bandCount`) purely for
+ * inspection/testing -- paint uses one flat, equal opacity per band
+ * (`REACH_GRADIENT_BAND_OPACITY`), the compositing itself produces the
+ * gradient. Returns an empty collection for a non-positive radius, same
+ * as `buildReachRingFeatureCollectionForCenters`.
+ */
+export function buildReachGradientFeatureCollectionForCenters(centers, radiusKm, bandCount = REACH_GRADIENT_BAND_COUNT) {
+  if (!(radiusKm > 0)) return emptyReachRingFeatureCollection()
+  const features = []
+  for (const center of centers ?? []) {
+    for (let band = bandCount; band >= 1; band -= 1) {
+      const fraction = band / bandCount
+      const feature = buildReachRingPolygon(center, radiusKm * fraction)
+      if (feature) {
+        feature.properties.bandFraction = fraction
+        features.push(feature)
+      }
+    }
+  }
+  return { type: 'FeatureCollection', features }
+}

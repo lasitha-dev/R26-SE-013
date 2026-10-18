@@ -42,4 +42,34 @@ describe('LSD-UI-03: ModeToolbar honesty (plan Section 21)', () => {
     }
     expect(html).not.toMatch(/<span[^>]*role="tab"/)
   })
+
+  // GEO-TRAJECTORY-01: Trajectory's availability follows the selected
+  // disease's real `trajectory` capability (confirmed live against the
+  // running backend, 2026-09-01 -- real per-cell `bearing_deg` +
+  // `nominal_reach_by_day` exist for every LSD origin sampled), mirroring
+  // how Risk Zones already follows `riskZones`. Omitting `disease`
+  // entirely (no pre-existing caller/test above passes it) leaves
+  // Trajectory exactly as the static `MODES` baseline declares it --
+  // disabled -- so none of the tests above needed to change.
+  describe('GEO-TRAJECTORY-01: Trajectory follows the selected disease real capability', () => {
+    it('is real/clickable for LSD (real direction + nominal-reach data exists)', () => {
+      const html = renderToStaticMarkup(React.createElement(ModeToolbar, { analysisMode: ANALYSIS_MODE.CASES, onSetMode: () => {}, disease: 'LSD' }))
+      expect(html).toMatch(/aria-selected="false"[^>]*>Trajectory</)
+      expect(html).not.toMatch(/aria-disabled="true"[^>]*aria-label="Trajectory:/)
+    })
+
+    it('stays honestly disabled for FMD, with an accurate per-disease reason', () => {
+      const html = renderToStaticMarkup(React.createElement(ModeToolbar, { analysisMode: ANALYSIS_MODE.CASES, onSetMode: () => {}, disease: 'FMD' }))
+      expect(html).toMatch(/aria-disabled="true"[^>]*aria-label="Trajectory: [^"]*"[^>]*>Trajectory<\/button>/)
+    })
+
+    it('clicking the now-enabled LSD Trajectory tab fires onSetMode with the real ANALYSIS_MODE.TRAJECTORY value', () => {
+      // Render-to-string can't dispatch click events -- this asserts the
+      // enabled tab is a plain clickable <button> (no aria-disabled, no
+      // preventDefault handler) wired to the real onSetMode callback via
+      // the same onClick pattern every other real/clickable mode uses.
+      const html = renderToStaticMarkup(React.createElement(ModeToolbar, { analysisMode: ANALYSIS_MODE.TRAJECTORY, onSetMode: () => {}, disease: 'LSD' }))
+      expect(html).toMatch(/aria-selected="true"[^>]*>Trajectory/)
+    })
+  })
 })

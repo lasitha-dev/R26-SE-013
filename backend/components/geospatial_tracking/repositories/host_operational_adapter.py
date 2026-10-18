@@ -43,11 +43,13 @@ structural scan in `tests/test_operational_structural_ownership.py`.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Protocol
 
 from bson import ObjectId
 
 from ..domain.operational_models import AuthenticatedVetContext, HostDiagnosticCase, HostFarmRecord
+from ..services.sri_lanka_time import utc_instant_text
 
 
 class ReadOnlyCollection(Protocol):
@@ -57,7 +59,34 @@ class ReadOnlyCollection(Protocol):
 
     async def find_one(self, filter: dict[str, Any]) -> dict[str, Any] | None: ...
 
-    def find(self, filter: dict[str, Any]) -> AsyncIterator[dict[str, Any]]: ...
+    def find(self, filter: dict[str, Any], projection: dict[str, Any] | None = None) -> AsyncIterator[dict[str, Any]]: ...
+
+
+# Only the fields this adapter reads. Host `farms` documents carry a base64
+# `profile_photo` and `diagnostic_cases` carry base64 `symptoms_image`/
+# `cropped_image` plus long `llm_reasoning` text; fetching whole documents
+# made one operational-context read take ~19 s against the shared Atlas
+# cluster (projected: well under a second). Filters are unaffected.
+FARM_PROJECTION = {"latitude": 1, "longitude": 1, "location_district": 1, "total_animals": 1}
+CASE_PROJECTION = {"farm_id": 1, "disease_name": 1, "verified": 1, "created_at": 1, "verified_at": 1}
+
+
+def host_timestamp_text(value: Any) -> str | None:
+    """`diagnostic_cases` timestamps as the domain's ISO text.
+
+    origin/main's `verify_diagnostic_case` writes `verified_at` as a BSON
+    date (`datetime.utcnow()`, naive UTC), while older writers stored
+    `datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")` strings -- also UTC,
+    without a marker. Both are emitted as explicit UTC ISO text here, the
+    single conversion point, so no consumer can re-read the instant as
+    local time (`services/sri_lanka_time.py`). Text that already carries
+    an offset keeps its instant; date-only/unparseable text is unchanged."""
+    if isinstance(value, datetime):
+        aware = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        return aware.isoformat()
+    if isinstance(value, str):
+        return utc_instant_text(value)
+    return value
 
 
 def _valid_object_id(value: Any) -> ObjectId | None:
@@ -92,6 +121,12 @@ def district_matches(vet_district: str | None, farm_location_district: str | Non
         return False
     if normalized_vet == "all_districts":
         return True
+    # A vet profile may store "Matara District" while a farm stores just
+    # "Matara" -- compare on the bare district name.
+    if normalized_vet.endswith(" district"):
+        normalized_vet = normalized_vet[: -len(" district")].strip()
+    if not normalized_vet or normalized_vet == "district":
+        return False
     return normalized_vet in normalized_farm
 
 
@@ -138,7 +173,7 @@ class MongoOperationalDataPort:
         }
 
         documents = []
-        async for farm_doc in self._farms.find(query):
+        async for farm_doc in self._farms.find(query, FARM_PROJECTION):
             documents.append(farm_doc)
         return documents
 
@@ -175,18 +210,29 @@ class MongoOperationalDataPort:
         query = {"verified": True, "farm_id": {"$in": farm_ids}}
 
         cases: list[HostDiagnosticCase] = []
-        async for case_doc in self._diagnostic_cases.find(query):
+        async for case_doc in self._diagnostic_cases.find(query, CASE_PROJECTION):
             cases.append(
                 HostDiagnosticCase(
                     case_id=str(case_doc["_id"]),
                     farm_id=case_doc.get("farm_id"),
                     disease_name=case_doc.get("disease_name"),
                     verified=bool(case_doc.get("verified", False)),
-                    created_at=case_doc.get("created_at"),
-                    verified_at=case_doc.get("verified_at"),
+                    created_at=host_timestamp_text(case_doc.get("created_at")),
+                    verified_at=host_timestamp_text(case_doc.get("verified_at")),
                 )
             )
         return cases
+
+    async def get_national_case_documents(self) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+        """National case surveillance (read-only): every diagnostic case and
+        the GPS/district of every farm. Only the fields the national map
+        record needs are projected -- no names, emails, notes or images ever
+        leave Mongo. Privacy reduction happens in
+        `services/operational/national_cases.py`."""
+        case_projection = {"case_number": 1, "disease_name": 1, "verified": 1, "status": 1, "created_at": 1, "verified_at": 1, "farm_id": 1, "severity": 1, "stage": 1, "confidence": 1}
+        cases = [doc async for doc in self._diagnostic_cases.find({}, case_projection)]
+        farms = {str(doc["_id"]): doc async for doc in self._farms.find({}, {"latitude": 1, "longitude": 1, "location_district": 1})}
+        return cases, farms
 
     async def get_vet_district(self, vet: AuthenticatedVetContext) -> str | None:
         """GEO29A Phase 4: the vet's own registered district, straight off
@@ -212,7 +258,7 @@ class MongoOperationalDataPort:
         `district_matches` function, never as a second, divergent Mongo
         query shape) and matching happens in Python."""
         documents = []
-        async for farm_doc in self._farms.find({}):
+        async for farm_doc in self._farms.find({}, FARM_PROJECTION):
             if district_matches(district, farm_doc.get("location_district")):
                 documents.append(farm_doc)
         return [

@@ -128,3 +128,28 @@ describe('GEO-VISUAL-POLISH-02: useNationalOutbreaks resolution-stage counts', (
     expect(result.current.failedOriginCount).toBe(0)
   })
 })
+
+describe('disease switch never exposes the previous disease origins', () => {
+  it('the render carrying the new disease already returns no LSD origins (no stale LSD id can reach FMD-only /fmd-risk)', async () => {
+    const { fetchOriginTriggerSources } = await import('../api/geospatialApi')
+    fetchOrigins.mockImplementation(({ disease }) => Promise.resolve(disease === 'lsd'
+      ? { origins: [origin('ORIGIN:Sri Lanka:2020-10-28', '2020-10-28')], n_origins: 1 }
+      : new Promise(() => {})))
+    fetchAnalysisSources.mockResolvedValue(featureCollection(1))
+    fetchOriginTriggerSources.mockReturnValue(new Promise(() => {}))
+
+    const seen = []
+    const { result, rerender } = renderHook(({ disease }) => {
+      const state = useNationalOutbreaks(disease, 'Sri Lanka')
+      seen.push([disease, state.originsWithSources.map((o) => o.outbreakId)])
+      return state
+    }, { initialProps: { disease: DISEASE_CODE.LSD } })
+    await waitFor(() => expect(result.current.status).toBe(NATIONAL_STATUS.READY))
+    expect(result.current.originsWithSources.map((o) => o.outbreakId)).toEqual(['ORIGIN:Sri Lanka:2020-10-28'])
+
+    rerender({ disease: DISEASE_CODE.FMD })
+    const fmdRenders = seen.filter(([disease]) => disease === DISEASE_CODE.FMD)
+    expect(fmdRenders.length).toBeGreaterThan(0)
+    for (const [, ids] of fmdRenders) expect(ids).toEqual([])
+  })
+})

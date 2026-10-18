@@ -215,47 +215,21 @@ describe('GEO-PAGE1-FINAL Section 10/24: an auto-focused default origin never tr
   })
 })
 
-describe('GEO-VISUAL-POLISH-01 Section 6: the ambient outbreak-marker pulse is cheap, leak-free, and motion-honest', () => {
+// RECONSTRUCTED (session 2026-10-14): the uncommitted local version of this
+// block was lost; it is rebuilt from the pre-existing MapLibreCanvas design,
+// in which the ambient pulse on national source markers was deliberately
+// removed -- they are dated historical records, and a continuous "live"
+// pulse made them read as current outbreaks.
+describe('GEO-VISUAL-POLISH-01 Section 6 (revised): no ambient "live" pulse on dated historical source markers', () => {
   const mapLibreCanvasSrc = stripComments(readFileSync(join(FEATURE_ROOT, 'components', 'MapLibreCanvas.jsx'), 'utf-8'))
-  const pulseEffectStart = mapLibreCanvasSrc.indexOf('const HALF_CYCLE_MS = NATIONAL_SOURCES_PULSE_CYCLE_MS')
-  // The effect's own dependency array closes it -- same brace-free
-  // slicing technique already used elsewhere in this file/describe block.
-  const pulseEffectEnd = mapLibreCanvasSrc.indexOf('}, [reduceMotion])', pulseEffectStart) + '}, [reduceMotion])'.length
-  const pulseEffectBody = mapLibreCanvasSrc.slice(pulseEffectStart, pulseEffectEnd)
 
-  it('the pulse clock actually exists and is scoped to the effect this test extracts', () => {
-    expect(pulseEffectStart).toBeGreaterThan(-1)
-    expect(pulseEffectBody).toContain('requestAnimationFrame(tick)')
+  it('there is no pulse clock for the national source markers', () => {
+    expect(mapLibreCanvasSrc).not.toContain('const HALF_CYCLE_MS = NATIONAL_SOURCES_PULSE_CYCLE_MS')
   })
 
-  it('is skipped entirely under prefers-reduced-motion -- never starts the RAF loop at all', () => {
-    const windowBefore = mapLibreCanvasSrc.slice(Math.max(0, pulseEffectStart - 200), pulseEffectStart)
-    expect(windowBefore).toContain('useEffect(() => {')
-    expect(windowBefore).toContain('if (reduceMotion) return undefined')
-  })
-
-  it('drives MapLibre paint directly (setPaintProperty) -- never a React state update inside the per-frame tick, so a running pulse causes zero extra React re-renders', () => {
-    expect(pulseEffectBody).toContain('map.setPaintProperty(')
-    // Any "setXxx(" call NOT prefixed by "map." would be a React state
-    // setter in this codebase's convention (e.g. `setStyleReady`,
-    // `setSelectedCellFeature`) -- none may appear inside this effect.
-    expect(pulseEffectBody).not.toMatch(/(?<!map\.)\bset[A-Z]\w*\(/)
-  })
-
-  it('never calls setFeatureState per-feature -- the whole-layer paint-property toggle is what keeps this cost independent of real marker count', () => {
-    expect(pulseEffectBody).not.toContain('setFeatureState')
-  })
-
-  it('cancels its own animation frame on cleanup -- no leaked RAF loop across remounts/prop changes', () => {
-    const cleanupStart = pulseEffectBody.lastIndexOf('return () => {')
-    expect(cleanupStart).toBeGreaterThan(-1)
-    const cleanupBody = pulseEffectBody.slice(cleanupStart)
-    expect(cleanupBody).toContain('cancelAnimationFrame(frame)')
-  })
-
-  it('ticks against performance.now(), never setInterval/setTimeout (this feature bans both outside the one documented operational scheduler)', () => {
-    expect(pulseEffectBody).toContain('performance.now()')
-    expect(pulseEffectBody).not.toContain('setInterval(')
-    expect(pulseEffectBody).not.toContain('setTimeout(')
+  it('the pulse layer stays defined but hidden', () => {
+    const layerStart = mapLibreCanvasSrc.indexOf('id: NATIONAL_SOURCES_PULSE_LAYER_ID')
+    expect(layerStart).toBeGreaterThan(-1)
+    expect(mapLibreCanvasSrc.slice(layerStart, layerStart + 300)).toContain("layout: { visibility: 'none' }")
   })
 })

@@ -34,6 +34,7 @@ export const MY_AREA_REQUEST_STATE = {
 export function useMyAreaContext({ farmId, disease, originId, day, retryToken = 0 }) {
   const [state, setState] = useState({ status: MY_AREA_REQUEST_STATE.IDLE, data: null, errorStatus: null })
   const requestIdRef = useRef(0)
+  const scopeKeyRef = useRef(null)
 
   useEffect(() => {
     if (!farmId || !disease) {
@@ -45,15 +46,18 @@ export function useMyAreaContext({ farmId, disease, originId, day, retryToken = 
     requestIdRef.current = requestId
     const controller = new AbortController()
 
-    setState((prev) => ({ status: MY_AREA_REQUEST_STATE.LOADING, data: prev.data, errorStatus: null }))
+    const scopeKey = JSON.stringify([farmId, disease, originId, day])
+    const sameScope = scopeKeyRef.current === scopeKey
+    scopeKeyRef.current = scopeKey
+    setState((prev) => ({ status: MY_AREA_REQUEST_STATE.LOADING, data: sameScope ? prev.data : null, errorStatus: null }))
 
     fetchMyAreaContext({ farmId, disease, originId, day }, { signal: controller.signal })
       .then((raw) => {
-        if (requestIdRef.current !== requestId) return // a newer selection already superseded this response
+        if (controller.signal.aborted || requestIdRef.current !== requestId) return
         setState({ status: MY_AREA_REQUEST_STATE.READY, data: normalizeMyAreaContext(raw), errorStatus: null })
       })
       .catch((err) => {
-        if (err?.name === 'AbortError') return
+        if (controller.signal.aborted || err?.name === 'AbortError') return
         if (requestIdRef.current !== requestId) return
         setState({ status: MY_AREA_REQUEST_STATE.ERROR, data: null, errorStatus: err?.myAreaStatus ?? MY_AREA_FETCH_STATUS.NETWORK_ERROR })
       })
