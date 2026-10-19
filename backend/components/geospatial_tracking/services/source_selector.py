@@ -91,6 +91,8 @@ def _historical_eligible(
     if record.latitude is None or record.longitude is None:
         return None
 
+    # Availability asks when evidence could enter an analysis, which may differ
+    # from biological onset. The selected mode decides which dates are defensible.
     avail_date_str, avail_quality = record.effective_availability(temporal_mode)
     if avail_date_str is None:
         return None

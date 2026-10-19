@@ -40,6 +40,7 @@ ALL_FEATURES = BASE_FEATURES + SURVEILLANCE_FEATURES
 
 
 def shift(period: Period, months: int) -> Period:
+    # A linear month index handles year boundaries (January - 1 = last December).
     index = period[0] * 12 + (period[1] - 1) + months
     return index // 12, index % 12 + 1
 
@@ -75,6 +76,7 @@ class FeatureSources:
 
 
 def _density(sources: FeatureSources, district: str, year: int):
+    # Use the latest density entry at or before the target year, never a later one.
     rows = [r for r in sources.density.get(district, []) if r[0] <= year]
     if not rows:
         return None, None
@@ -83,6 +85,8 @@ def _density(sources: FeatureSources, district: str, year: int):
 
 
 def _neighbour_status(sources: FeatureSources, district: str, period: Period):
+    # A missing neighbor observation makes the aggregate unknown; treating it as
+    # zero would make incomplete surveillance look like lower outbreak activity.
     statuses = [sources.surveillance(n, *period) for n in ADJACENCY[district]]
     if any(s is None for s in statuses):
         return None, None
@@ -97,9 +101,12 @@ def build_features(district: str, year: int, month: int, sources: FeatureSources
     float or None; `missing` lists the names whose inputs were unavailable.
     """
     target = (year, month)
+    # t1/t2/t3 mean one/two/three months before the target. These lags prevent
+    # target-month observations from leaking into their own forecast inputs.
     t1, t2, t3 = shift(target, -1), shift(target, -2), shift(target, -3)
     pcode = DISTRICTS[district]["pcode"]
 
+    # Sine/cosine encode the annual cycle smoothly, keeping December near January.
     f: Dict[str, Optional[float]] = {
         "sin_month": math.sin(2 * math.pi * month / 12),
         "cos_month": math.cos(2 * math.pi * month / 12),
@@ -131,5 +138,7 @@ def build_features(district: str, year: int, month: int, sources: FeatureSources
     f["neighbour_fraction_t1"], f["neighbour_count_t1"] = _neighbour_status(sources, district, t1)
     f["neighbour_fraction_t2"], _ = _neighbour_status(sources, district, t2)
 
+    # Report missingness as well as values so model selection can use a supported
+    # fallback and the saved forecast can explain which inputs were unavailable.
     missing = [name for name in ALL_FEATURES if f.get(name) is None]
     return f, missing

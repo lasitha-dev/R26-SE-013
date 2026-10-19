@@ -1,3 +1,6 @@
+# API data contracts: Pydantic checks incoming values and defines the JSON
+# returned by detection and reasoning. Follow DetectResponse -> ReasoningRequest
+# -> ReasoningResponse to explain how evidence moves through the backend.
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from typing import List, Dict, Optional, Literal
 
@@ -7,6 +10,8 @@ class ClinicalObservations(BaseModel):
     model_config = ConfigDict(extra="forbid")
     disease: Literal["foot_and_mouth", "mastitis"]
     vet_confirmed: StrictBool = False
+    # None means the finding was not supplied; False means an examined negative.
+    # StrictBool prevents strings or numbers from becoming clinical findings.
     milk_abnormal: Optional[StrictBool] = None
     udder_inflammation: Optional[StrictBool] = None
     systemic_illness: Optional[StrictBool] = None
@@ -19,6 +24,7 @@ class ClinicalObservations(BaseModel):
 
     @model_validator(mode="after")
     def check_disease_fields(self):
+        # Reject a mixed checklist so another disease's signs cannot affect grading.
         mastitis = ("milk_abnormal", "udder_inflammation", "systemic_illness")
         fmd = ("affected_feet", "mouth_lesion_cm", "appetite", "mentation", "heel_and_coronary_involved", "unable_to_stand")
         other = fmd if self.disease == "mastitis" else mastitis
@@ -28,12 +34,14 @@ class ClinicalObservations(BaseModel):
 
 
 class Detection(BaseModel):
+    # Detector boxes use original-image pixels; detector confidence is on 0..1.
     bbox: List[float]
     confidence: float
     class_name: str
 
 
 class BoundingBoxNormalized(BaseModel):
+    # Dividing pixel coordinates by image dimensions gives display ratios (0..1).
     x1: float
     y1: float
     x2: float
@@ -47,6 +55,7 @@ class BestDetection(BaseModel):
 
 
 class Disease(BaseModel):
+    # ViT probabilities use percentages (0..100), unlike detector confidence.
     name: str
     confidence: float
     all_probabilities: Dict[str, float]
@@ -60,6 +69,8 @@ class ClinicalRecommendation(BaseModel):
 
 
 class VisualSeverityAssessment(BaseModel):
+    # This measures predicted lesion burden in the crop. The policy version and
+    # hash identify the exact threshold rules used to assign the visual grade.
     grade: str = "Unassessable"
     coverage_pct: Optional[float] = None
     assessment_target: str = "predicted_lesion_burden_in_analyzed_crop"
@@ -75,6 +86,8 @@ class VisualSeverityAssessment(BaseModel):
 
 
 class SeverityMetrics(BaseModel):
+    # Shared result for several assessment paths: source and assessment_target
+    # identify whether a grade came from image rules, clinical findings or reasoning.
     # Clinical rules use ordinal 1/2/3 (or null); legacy image scores retain their scale.
     score: Optional[float] = 0.0
     grade: str  # "Severe" | "Moderate" | "Mild" | "Unassessable" | legacy baseline values
@@ -106,6 +119,8 @@ class SeverityMetrics(BaseModel):
 
 
 class SegmentationAssessment(BaseModel):
+    # Status separates an unavailable measurement from a completed mask with
+    # zero regions; both must remain distinguishable in later reasoning.
     status: Literal["unavailable", "failed", "skipped", "completed_no_regions", "completed_with_regions"]
     lesion_coverage_pct: Optional[float] = None
     cluster_count: Optional[int] = None
@@ -128,6 +143,8 @@ class ReviewAssessment(BaseModel):
 
 
 class DetectResponse(BaseModel):
+    # One response bundles predictions, image evidence and review flags. The crop
+    # transform lets a presenter relate model measurements to the original photo.
     cattle_detected: bool
     detections: List[Detection]
     best_detection: Optional[BestDetection]
@@ -182,6 +199,8 @@ class ExplanationPoint(BaseModel):
 
 
 class GroundedExplanation(BaseModel):
+    # Evidence/reference IDs connect each explanation point to supplied facts;
+    # hashes record which evidence and reference pack supported the explanation.
     version: str = "grounded_explanation_v1"
     origin: Literal["llm_selected", "template"]
     summary: str

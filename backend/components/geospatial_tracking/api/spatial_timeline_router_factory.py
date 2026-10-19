@@ -47,6 +47,8 @@ def create_spatial_timeline_router(
     get_historical_source_reader: Callable[..., HistoricalSourceReader],
     snapshot_store: SnapshotStore10B | None = None,
 ) -> APIRouter:
+    # The host supplies authentication and data readers. This factory keeps the
+    # map API independent of the host's token handling and database implementation.
     # `is None`, not `or`: an empty SnapshotStore10B is falsy (it defines __len__).
     store = snapshot_store if snapshot_store is not None else SnapshotStore10B(ttl_seconds=SPATIAL_TIMELINE_CACHE_TTL_SECONDS)
     router = APIRouter(prefix="/api/geospatial", tags=["geospatial-spatial-timeline"])
@@ -67,6 +69,8 @@ def create_spatial_timeline_router(
             raise HTTPException(status_code=401, detail="Authentication required.")
         if not vet.is_vet():
             raise HTTPException(status_code=403, detail="Veterinarian account required.")
+        # Pass validated request parameters to the application service; the route
+        # handles HTTP status/headers while the service assembles the analysis.
         service = SpatialTimelineService(operational_port, historical_reader, store)
         try:
             timeline, cache_status = await service.get_timeline(
@@ -78,6 +82,7 @@ def create_spatial_timeline_router(
             raise HTTPException(
                 status_code=500, detail={"status": "ANALYSIS_INTERNAL_ERROR", "message": "spatial timeline computation failed"},
             ) from exc
+        # Snapshot identity helps relate a displayed map to the response that built it.
         response.headers["X-Spatial-Timeline-Cache"] = cache_status
         response.headers["X-Spatial-Timeline-Snapshot"] = timeline["snapshot_id"]
         return timeline

@@ -1,3 +1,5 @@
+# HTTP workflow: uploaded photo -> detector crop -> disease classification ->
+# lesion measurements -> severity policy. /api/reason then explains the evidence.
 import logging
 
 from fastapi import APIRouter, UploadFile, File, Request, HTTPException, Form
@@ -70,6 +72,7 @@ async def detect(request: Request, image: UploadFile = File(...),
 
     if (body_site and len(body_site) > 120) or (observed_symptoms and len(observed_symptoms) > 1000):
         raise HTTPException(422, "Observation text is too long.")
+    # Decode and orient the photo before any model produces pixel coordinates.
     pil = image_service.open_image_from_bytes(await image.read())
     detector = getattr(request.app.state, "detector", None)
     classifier = getattr(request.app.state, "classifier", None)
@@ -77,6 +80,7 @@ async def detect(request: Request, image: UploadFile = File(...),
     if detector is None or classifier is None:
         raise HTTPException(503, detail={"code": "required_model_unavailable", "message": "Detection/classification models are not configured."})
     try:
+        # Model inference is blocking work; a worker thread keeps the async API responsive.
         detections = await run_in_threadpool(detector.predict, pil)
     except Exception as exc:
         logger.exception("Detector failed")
@@ -89,10 +93,12 @@ async def detect(request: Request, image: UploadFile = File(...),
             review=ReviewAssessment(required=True, reasons=["no_supported_region_detected"]))
 
     # Preserve the highest-confidence single-ROI policy.
+    # A region of interest (ROI) is the part of the photo passed to later models.
     best = max(detections, key=lambda item: item["confidence"])
     coords = np.asarray(best["bbox"], dtype=float)
     if coords.shape != (4,) or not np.isfinite(coords).all():
         raise HTTPException(502, "Detector returned an invalid bounding box.")
+    # Clamp the selected box to the actual photo, then reject an empty crop.
     x1, y1 = max(0, int(coords[0])), max(0, int(coords[1]))
     x2, y2 = min(pil.width, int(coords[2])), min(pil.height, int(coords[3]))
     if x2 <= x1 or y2 <= y1:
@@ -100,6 +106,8 @@ async def detect(request: Request, image: UploadFile = File(...),
     crop_box = [x1, y1, x2, y2]
     cropped = image_service.crop_image(pil, crop_box)
     try:
+        # ViT labels the same crop used for segmentation; attention is an optional
+        # view of model focus, while the mask supplies lesion-area measurements.
         predict = getattr(classifier, "predict_with_attention", classifier.predict)
         prediction = await run_in_threadpool(predict, cropped)
         disease = Disease(name=prediction["name"], confidence=prediction["confidence"],
@@ -111,6 +119,8 @@ async def detect(request: Request, image: UploadFile = File(...),
         logger.exception("Classifier failed")
         raise HTTPException(503 if isinstance(exc, ModelUnavailable) else 502,
             detail={"code": "classifier_unavailable", "message": "Trained disease classification could not be completed."}) from exc
+    # A healthy-class prediction skips lesion segmentation. A missing/failed
+    # segmenter has its own status and must not be reported as zero lesion area.
     healthy = disease.name.lower() in ("cattle", "cattle (healthy)", "healthy")
     metrics = {"status": "skipped" if healthy else "unavailable"}
     symptoms = None
@@ -143,6 +153,7 @@ async def detect(request: Request, image: UploadFile = File(...),
         predicted_class="cattle" if healthy else disease.name, predicted_display=disease.name,
         lesion_coverage_pct=segmentation.lesion_coverage_pct, cluster_count=segmentation.cluster_count,
         mean_intensity=segmentation.mean_intensity, spatial_correlation=spatial)
+    # Thresholds come from a versioned policy so the basis for the grade is traceable.
     policy = load_severity_policy(settings.SEVERITY_POLICY_PATH)
     severity = compute_composite_severity(signals, policy)
     severity.spatial_correlation = spatial
@@ -153,6 +164,8 @@ async def detect(request: Request, image: UploadFile = File(...),
         severity.attention_coverage_pct = None
         severity.attention_cluster_count = None
 
+    # Image quality and model limitations can request human review even when
+    # classification succeeds; these flags travel alongside the prediction.
     reasons = list(severity.visual_assessment.review_reasons) if severity.visual_assessment else []
     if min(cropped.size) < policy.review.minimum_crop_side_px:
         reasons.append("small_analyzed_region")
@@ -175,6 +188,7 @@ async def detect(request: Request, image: UploadFile = File(...),
     model_metadata = dict(classifier_device=str(getattr(classifier, "_device", None) or "unknown"),
         segmenter_architecture="ResNet50 U-Net", segmenter_device=str(getattr(segmenter, "_device", None) or "unknown"), segmentation_policy=segmentation.policy_version,
         training_contract=segmentation.contract_status)
+    # Include both crop and original-image coordinates so overlays can be aligned.
     return DetectResponse(cattle_detected=True, detections=[Detection(**item) for item in detections],
         best_detection=BestDetection(bbox=crop_box, confidence=best["confidence"],
             bbox_normalized=BoundingBoxNormalized(x1=x1/pil.width, y1=y1/pil.height, x2=x2/pil.width, y2=y2/pil.height)),
@@ -216,6 +230,7 @@ async def reason(body: ReasoningRequest):
                 mean_intensity=body.segmentation.mean_intensity if body.segmentation else None,
                 spatial_correlation=body.spatial_correlation))
         else:
+            # Optional reported clinical findings use a separate disease checklist.
             try:
                 sev = assess_clinical_severity(body.disease.name, body.clinical_observations,
                     body.severity.model_dump() if body.severity else None)
@@ -294,6 +309,8 @@ async def reason(body: ReasoningRequest):
 
     import asyncio
     from .config import settings
+    # Bound the reasoning wait. If generation fails, the fallback below renders
+    # a reference summary while retaining the assessment already computed here.
     try:
         return await asyncio.wait_for(run_in_threadpool(generate_report_result, vision_results, farm_metadata),
                                       timeout=settings.REASONING_TIMEOUT_SECONDS + 1)

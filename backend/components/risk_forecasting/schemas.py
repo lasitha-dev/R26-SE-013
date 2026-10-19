@@ -318,6 +318,9 @@ class GenerateForecastRecordRequest(BaseModel):
 
 
 class ForecastDecisionRecord(BaseModel):
+    # Stored decision snapshot: prediction + actual input provenance + lifecycle.
+    # Advisories and follow-ups reference its ID, making later actions traceable
+    # to the forecast that was available when the decision was made.
     forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Unique forecast decision record identifier.")
     disease: Literal["FMD", "LSD"] = Field(..., description="Disease type ('FMD' or 'LSD').")
     district: str = Field(..., description="Target Sri Lankan district name.")
@@ -349,6 +352,8 @@ class ForecastDecisionRecord(BaseModel):
     created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
     updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC last update timestamp.")
 
+    # In v2, issue_date is when we ran the forecast, data_cutoff is the observation
+    # boundary, and target_year/month is the period being predicted.
     # v2 forecast provenance (absent on v1 records)
     model_version: Optional[str] = Field(default=None, description="Versioned model artifact, e.g. 'fmd_v2.0'.")
     forecaster: Optional[str] = Field(default=None, description="Deployed forecaster: model variant ('A', 'S') or 'climatology'.")
@@ -410,6 +415,7 @@ class RecipientResolvedPreview(BaseModel):
 
 
 class FarmerAdvisoryRecord(BaseModel):
+    # Human-reviewed advice is a separate record from the statistical prediction.
     advisory_id: str = Field(..., example="adv_f1e2d3c4b5", description="Unique advisory record identifier.")
     forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Referenced immutable forecast decision record ID.")
     advisory_type: Literal[
@@ -646,6 +652,7 @@ class FollowUpActorContext(BaseModel):
 
 
 class ForecastFollowUpRecord(BaseModel):
+    # Track responsibility and action status without rewriting the forecast result.
     """
     Authoritative domain record representing DAPH operational follow-up instruction
     issued to a Veterinary Officer for an official disease forecast.

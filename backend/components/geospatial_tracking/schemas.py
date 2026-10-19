@@ -41,6 +41,7 @@ from enum import Enum
 
 
 class GpsQuality(str, Enum):
+    # A quality label describes positional precision, not whether coordinates exist.
     EXACT = "EXACT"
     APPROXIMATE = "APPROXIMATE"
     COARSE = "COARSE"
@@ -81,6 +82,8 @@ class ValidationMode(str, Enum):
     operational availability.
     """
 
+    # Keep actual system availability separate from research proxy dates; this
+    # choice controls what can be treated as known at an analysis cutoff.
     STRICT_OPERATIONAL = "STRICT_OPERATIONAL"
     RETROSPECTIVE_PROXY = "RETROSPECTIVE_PROXY"
 

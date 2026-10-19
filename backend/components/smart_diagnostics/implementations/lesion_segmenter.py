@@ -21,10 +21,13 @@ def threshold_mask(probabilities, threshold, min_region_fraction):
     if np.any(probabilities < 0) or np.any(probabilities > 1):
         raise InvalidModelOutput("Mask values must be probabilities in [0,1].")
     from scipy.ndimage import label
+    # Convert pixel probabilities into a mask, then group touching pixels using
+    # eight-neighbor connectivity and remove regions below the size policy.
     binary = probabilities >= threshold
     labels, _ = label(binary, structure=np.ones((3, 3), dtype=np.uint8))
     sizes = np.bincount(labels.ravel())
     keep = sizes >= max(1, math.ceil(binary.size * min_region_fraction))
+    # Label zero is background and must never count as a lesion region.
     keep[0] = False
     return keep[labels], int(np.count_nonzero(keep))
 
@@ -97,6 +100,7 @@ class LesionSegmenter:
         rgb = image.convert("RGB")
         tensor = np.asarray(rgb.resize((self.image_size, self.image_size)), dtype=np.float32)[None] / 255.0
         probabilities = self._select_mask(self.model.predict(tensor, verbose=0))
+        # Restore crop resolution before measuring coverage and drawing an overlay.
         return np.asarray(Image.fromarray(probabilities).resize(rgb.size, Image.Resampling.BILINEAR))
 
     def predict_with_metrics(self, image: Image.Image):
@@ -113,6 +117,8 @@ class LesionSegmenter:
             rgb = image.convert("RGB")
             resized = self.predict_probabilities(rgb)
             binary, cluster_count = threshold_mask(resized, self.threshold, self.min_region_fraction)
+            # Coverage = retained foreground pixels / all analyzed crop pixels.
+            # Connected regions are image regions, not a count of clinical nodules.
             pixels = int(binary.sum())
             overlay = np.zeros((rgb.height, rgb.width, 4), dtype=np.uint8)
             overlay[binary] = [255, 0, 0, 128]

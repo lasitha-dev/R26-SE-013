@@ -99,6 +99,8 @@ def disease_key(name: Any) -> str | None:
 
 
 def assess_visual_severity(signals: dict[str, Any], policy: SeverityPolicy | None = None) -> VisualSeverityAssessment:
+    # First check whether the mask and prediction meet the evidence gates.
+    # Confidence decides whether grading is possible; coverage determines the grade.
     policy = policy or load_severity_policy(settings.SEVERITY_POLICY_PATH)
     digest = hashlib.sha256(json.dumps(policy.model_dump(), sort_keys=True).encode()).hexdigest()
     key = disease_key(signals.get("predicted_class")) or disease_key(signals.get("predicted_display"))
@@ -128,6 +130,7 @@ def assess_visual_severity(signals: dict[str, Any], policy: SeverityPolicy | Non
     thresholds = {}
     if profile is not None:
         thresholds = {"moderate_min_pct": profile.moderate_min_pct, "severe_min_pct": profile.severe_min_pct}
+    # A grade is assigned only after the required evidence checks have passed.
     if not reasons and coverage is not None and profile is not None:
         grade = ("No visible regions" if coverage == 0 else "Severe" if coverage >= profile.severe_min_pct
                  else "Moderate" if coverage >= profile.moderate_min_pct else "Mild")
@@ -189,6 +192,8 @@ def combine_reasoned_severity(assessment: SeverityMetrics, grade: str, evidence:
     weight = policy.reasoning.llm_weight
     if weight == 0:
         return assessment
+    # Map grades to ordinal values 1/2/3, blend using the configured weight,
+    # then apply ordinal cutoffs. This score is not a probability or mask area.
     score = round((1 - weight) * GRADE_SCORES[assessment.grade] + weight * GRADE_SCORES[grade], 12)
     final_grade = ("Severe" if score >= policy.reasoning.severe_min_score else
                    "Moderate" if score >= policy.reasoning.moderate_min_score else "Mild")

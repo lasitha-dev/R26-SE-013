@@ -92,9 +92,11 @@ class ViTClassifier(ClassifierInterface):
             raise ModelUnavailable("The trained disease classifier checkpoint is incompatible or unreadable.") from e
 
         vit.to(device)
+        # Evaluation mode disables training behavior such as dropout during inference.
         vit.eval()
         self._model = vit
         self.load_state = "loaded"
+        # Resize and normalize crops with the deployed model's preprocessing.
         self._transform = transforms.Compose([
             transforms.Resize((self.image_size, self.image_size)),
             transforms.ToTensor(),
@@ -113,6 +115,8 @@ class ViTClassifier(ClassifierInterface):
         import torch
 
         tensor = self._transform(image).unsqueeze(0).to(self._device)
+        # No gradients are needed for prediction; softmax turns logits into
+        # class probabilities before converting them to API percentages.
         with torch.no_grad():
             outputs = self._model(tensor)
             if outputs.shape != (1, len(self.class_names)) or not torch.isfinite(outputs).all():
@@ -153,6 +157,8 @@ class ViTClassifier(ClassifierInterface):
             probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             top_conf, top_idx = torch.max(probabilities, dim=0)
 
+            # The gap between the two leading classes describes ambiguity:
+            # a small margin means the classifier has similar competing predictions.
             # Top-2 margin
             sorted_probs, _ = torch.sort(probabilities, descending=True)
             top1_val = float(sorted_probs[0].item())
@@ -171,6 +177,7 @@ class ViTClassifier(ClassifierInterface):
         top_key = self.class_names[top_idx] if top_idx < len(self.class_names) else f"Class_{top_idx}"
         top_display = self.display_names.get(top_key, top_key) if hasattr(self, 'display_names') else top_key
 
+        # Attention shows model focus, not a lesion mask or a clinical severity grade.
         # Extract attention rollout
         try:
             attn_data = extract_attention_rollout(

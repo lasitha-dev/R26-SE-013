@@ -49,6 +49,8 @@ class DistrictObservation:
 
     @property
     def outbreak(self) -> Optional[int]:
+        # Three-state target: observed outbreak (1), recorded negative (0), or
+        # unknown (None). Only known states can support outcome scoring.
         if self.status in KNOWN_POSITIVE:
             return 1
         if self.status in KNOWN_NEGATIVE:
@@ -102,6 +104,7 @@ def app_month_observations(db, disease: str, year: int, month: int) -> Dict[str,
             farm_district[str(farm["_id"])] = district
             if farm.get("email"):
                 email_district[farm["email"]] = district
+    # Registered farms indicate app coverage, not complete district surveillance.
     covered = set(farm_district.values())
 
     def district_of(record) -> Optional[str]:
@@ -120,6 +123,7 @@ def app_month_observations(db, disease: str, year: int, month: int) -> Dict[str,
 
     cases = {d: 0 for d in DISTRICT_NAMES}
     deaths = {d: 0 for d in DISTRICT_NAMES}
+    # Only vet-verified diagnostic cases contribute positive case evidence here.
     case_query = {"verified": True, "disease_name": {"$regex": pattern.pattern, "$options": "i"},
                   **_in_month(["verified_at", "created_at"], start, end, start_s, end_s)}
     for case in db["diagnostic_cases"].find(case_query):

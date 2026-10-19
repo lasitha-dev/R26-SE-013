@@ -31,6 +31,8 @@ class _StrictModel(BaseModel):
 
 
 class RiskSchema(_StrictModel):
+    # The numeric score travels with status and meaning. None signals unavailable
+    # output; zero is a computed value and has a different interpretation.
     raw_c0_score: float | None
     score_status: str
     semantics: str
@@ -38,6 +40,8 @@ class RiskSchema(_StrictModel):
 
 
 class DirectionSchema(_StrictModel):
+    # Bearing describes geometry; clarity describes directional agreement among
+    # contributions. It is not the probability that infection will travel that way.
     method_id: str | None
     method_version: str | None
     bearing_deg: float | None

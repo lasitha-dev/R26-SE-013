@@ -66,6 +66,8 @@ def accumulate_cell_hazard(
     gap becomes an explicit `missing_requirements` entry
     (`"geometry missing for source <id>"`), never a silent omission
     from the sum."""
+    # Check completeness BEFORE summing: dropping a source with missing geometry
+    # would incorrectly reduce the cell's reported hazard.
     missing_geometry = sorted(set(eligible_source_ids) - set(contributions.keys()))
     sorted_ids = sorted(contributions.keys())
     sorted_contributions = [contributions[sid] for sid in sorted_ids]

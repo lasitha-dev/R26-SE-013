@@ -73,6 +73,8 @@ def create_outbreak_repository() -> OutbreakRepository:
     factory (Checkpoint GEO-MONGODB-NATIVE-INTEGRATION-24B) -- the
     default SQLite path is completely unchanged when no override is
     installed."""
+    # Storage is chosen at this boundary: the running host can inject MongoDB,
+    # while standalone research uses the configured SQLite dataset.
     if _repository_factory_override is not None:
         return _repository_factory_override()
     db_path = default_sqlite_db_path()

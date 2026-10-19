@@ -342,6 +342,8 @@ def _geodesic_disc(lat: float, lon: float, radius_km: float):
 
 
 def bounded_score(raw: float | None) -> float | None:
+    # Compress the additive score to 0..1 for display while retaining its order.
+    # A bounded number alone does not make this an infection probability.
     return None if raw is None else 1.0 - math.exp(-raw)
 
 
@@ -585,6 +587,8 @@ def build_spatial_timeline(
     scope: TimelineScope, source_exclusions: dict | None = None, source_statuses: dict | None = None,
     source_selection: dict | None = None, wind_lookup=None,
 ) -> dict:
+    # Timeline workflow: identify the input snapshot, build a local scientific
+    # grid, score its cells, then assemble zones, paths and daily frames.
     sources = sorted(sources, key=lambda s: s.source_id)
     snapshot_id = snapshot_identity(disease_display=disease_display, scope=scope, as_of=as_of, horizon_days=horizon_days, sources=sources)
     provenance = {**runtime_provenance_10a(), "engine_version": ENGINE_VERSION, "tier_rule": TIER_RULE,
@@ -650,6 +654,8 @@ def build_spatial_timeline(
     if not sources:
         return {**base, **empty, "status": STATUS_NO_ELIGIBLE_SOURCES}
 
+    # Build the analysis domain around eligible sources. Land outside the scored
+    # domain has no model result; it must not be interpreted as a low-risk area.
     points = [EligibleSourcePoint(source_id=s.source_id, latitude=s.latitude, longitude=s.longitude) for s in sources]
     domain = build_scientific_evaluation_domain(
         forecast_origin_id=f"SPATIAL_TIMELINE:{scope.key}:{as_of.isoformat()}", t0=as_of.isoformat(), sources=points,
@@ -661,6 +667,8 @@ def build_spatial_timeline(
 
     cell_dicts = sorted((cell.as_dict() for _, cell in cells_with_component),
                         key=lambda c: c["scientific_cell_id"] or c["grid_cell_id"])
+    # Frozen C0 adds distance-decaying contributions from sources. Wind is absent
+    # from this baseline score; later display paths record their own inputs.
     c0_spec = next(c for c in build_candidate_registry_7c() if c.family == C0_FAMILY)
     scores = {c.grid_cell_id: c for c in score_origin_candidates_7c(
         grid_cells=cell_dicts, sources=points, candidates=(c0_spec,), wind=None)[c0_spec.candidate_id]}
@@ -811,6 +819,8 @@ def build_spatial_timeline(
     source_index = {s.source_id: i for i, s in enumerate(sources)}
     source_index.update({p["id"]: len(sources) + k for k, p in enumerate(possible)})
     drawable_land = ScoredLand(unary_union(drawable_parts) if drawable_parts else None)
+    # Each day reuses the observed as-of source set. Modeled district arrivals
+    # below are display constructs, separate from confirmed source records.
     for day, frame_date in frame_dates(as_of, horizon_days):
         reach = reach_for_day(day)
         frame = {"day": day, "date": frame_date.isoformat(), "horizon_status": horizon_status(day),

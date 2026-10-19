@@ -90,6 +90,8 @@ def operational_farm_key(farm_id: str) -> str:
 
 @dataclass(frozen=True)
 class TimelineSource:
+    # Common model input for two evidence domains. Preserve domain, provenance
+    # and member records so each point can be traced back to its own source.
     source_id: str
     record_domain: str
     disease: str  # canonical display name, e.g. "Lumpy skin disease"

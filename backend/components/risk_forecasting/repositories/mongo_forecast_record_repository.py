@@ -41,6 +41,8 @@ class MongoForecastRecordRepository(ForecastRecordRepository):
             if self._indexes_initialized:
                 return
             try:
+                # The database enforces retry uniqueness across processes, beyond
+                # this adapter's local lock used during index initialization.
                 self.collection.create_index(
                     [("idempotency_key", 1)],
                     unique=True,

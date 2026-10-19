@@ -104,6 +104,8 @@ class ForecastV2Service:
         """Compute (not persist) v2 forecasts for every district for the target month."""
         issued_at = self.clock()
         now = issued_at.isoformat()
+        # The target period and evidence period are deliberately separate:
+        # a forecast for month t uses completed observations from t-1 or earlier.
         prev = shift((year, month), -1)
         # A forecast issued after its target month has ended is retrospective: it is labelled
         # BACKFILL and never presented (or scored) as a prospective forecast.
@@ -123,6 +125,8 @@ class ForecastV2Service:
                 prediction = predictor.predict(district, month, features)
                 climate_missing = [m for m in missing if m in BASE_FEATURES]
                 observation = previous[district]
+                # Save the estimate together with model version, exact features,
+                # missing inputs and source status so a decision can be reviewed.
                 records.append(ForecastDecisionRecord(
                     forecast_id=self.id_generator(),
                     disease=disease,
@@ -212,6 +216,8 @@ class ForecastV2Service:
             stats["hits"] += int(alert and outcome == 1)
             stats["missed_outbreaks"] += int(not alert and outcome == 1)
             stats["false_alarms"] += int(alert and outcome == 0)
+            # Brier score is the mean squared probability error against 0/1
+            # outcomes; smaller values indicate better probabilistic predictions.
             stats["brier_sum"] += (record.probability - outcome) ** 2
             if outcome == 1 and observation.cases is not None and observation.deaths is not None:
                 band = observed_severity(observation.cases, observation.deaths)
@@ -300,6 +306,7 @@ class ForecastV2Service:
             key = f"{r.disease}:{r.forecaster}"
             summary["by_forecaster"][key] = summary["by_forecaster"].get(key, 0) + 1
             summary["by_risk_level"][r.risk_level] = summary["by_risk_level"].get(r.risk_level, 0) + 1
+        # Preview returns computed records and the replacement plan before writes.
         if dry_run:
             return {"summary": summary, "records": records}
 
@@ -310,6 +317,8 @@ class ForecastV2Service:
                 raise StalePreview(expected_supersede_count, len(plan.to_supersede))
 
         repository = self.repository_getter()
+        # Persist the new set first. If any save fails, return before superseding
+        # older records; retries reuse the same per-period idempotency keys.
         saved: List[ForecastDecisionRecord] = []
         for record in records:
             try:

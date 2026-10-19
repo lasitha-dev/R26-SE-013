@@ -347,10 +347,13 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
     cov_for_rec = baseline.lesion_coverage_pct if baseline else None
     rec = generate_clinical_recommendation(primary_name, grade_for_rec, cov_for_rec)
 
+    # Assemble case facts and reference choices before calling the language model.
+    # The response selects evidence IDs; the backend validates and renders them.
     context = build_context(vision_results, baseline, farm_metadata)
     model_name = None
 
     def fallback(code, message, status="fallback"):
+        # A deterministic template keeps the evidence available if generation fails.
         explanation = assemble_explanation(context, default_selection(context), "template")
         return ReasoningResponse(status=status, error_code=code, model_name=model_name,
             reasoning_report=message + "\n\n" + render_report(explanation), severity_assessment=baseline,
@@ -378,6 +381,8 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
         try:
             if len(content) > 16000 or response.choices[0].finish_reason in ("length", "content_filter"):
                 raise ValueError("Incomplete or oversized explanation")
+            # Accept structured output only; a fluent report alone is insufficient
+            # to establish that the explanation refers to this case's evidence.
             selection = ExplanationSelection.model_validate_json(content)
             # Validate all selected IDs before accepting any severity influence.
             explanation = assemble_explanation(context, selection, "llm_selected")

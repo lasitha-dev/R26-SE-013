@@ -72,6 +72,8 @@ class V2Predictor:
         return cls(json.loads(path.read_text(encoding="utf-8")))
 
     def baseline(self, district: str, month: int) -> float:
+        # Fall back from local seasonal history to national seasonal history,
+        # then the overall baseline when a more specific estimate is absent.
         table = self.climatology
         return table["district_month"].get(
             f"{district}|{month}", table["national_month"].get(str(month), table["overall"]))
@@ -93,6 +95,8 @@ class V2Predictor:
         return features.get("own_t1") is not None and features.get("own_t2") is not None
 
     def choose(self, features: Dict[str, Optional[float]]) -> dict:
+        # The artifact records which model is deployed for each surveillance
+        # state. We select that policy first, then verify its required inputs.
         deployment = self.artifact["deployment"]
         if self.surveillance_known(features):
             key = "surveillance_known"
@@ -120,6 +124,8 @@ class V2Predictor:
                 low, high, level = interval[0], interval[1], self.climatology["intervals"]["level"]
         else:
             variant = self.artifact["variants"][choice["forecaster"]]
+            # Logistic regression: standardize each input with TRAINING statistics,
+            # add coefficient-weighted terms to the intercept, then apply sigmoid.
             z = variant["intercept"]
             names = list(variant["features"])
             scaled_values = []
@@ -134,6 +140,8 @@ class V2Predictor:
                 contributions.append({"feature": "climatology_logit", "value": base, "contribution_log_odds": term})
                 z += term
             probability = 1 / (1 + math.exp(-z))
+            # Saved coefficient replicates describe uncertainty in the estimated
+            # probability; their quantiles do not predict a range of case counts.
             replicates = (variant.get("interval") or {}).get("replicates")
             if replicates:
                 inputs = scaled_values + ([_logit(base)] if variant["uses_climatology_prior"] else [])
@@ -142,6 +150,8 @@ class V2Predictor:
                 low = draws[int(math.floor(tail * (len(draws) - 1)))]
                 high = draws[int(math.ceil((1 - tail) * (len(draws) - 1)))]
                 level = variant["interval"]["level"]
+        # Relative risk compares this estimate with the district-month baseline.
+        # A log-odds contribution explains the model calculation, not causation.
         relative = probability / base if base > 0 else 0.0
         contributions.sort(key=lambda c: abs(c["contribution_log_odds"]), reverse=True)
         return Prediction(

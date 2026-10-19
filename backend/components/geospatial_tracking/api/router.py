@@ -128,6 +128,8 @@ from .websocket_schemas import (
     SnapshotRefreshMessage,
 )
 
+# Historical analysis entry point: the same snapshot supplies summary, cells
+# and sources, keeping the map's layers tied to one scientific computation.
 router = APIRouter(prefix="/api/geospatial", tags=["geospatial"])
 
 # Checkpoint 10B Part 3/8: ONE shared snapshot store backs both HTTP and

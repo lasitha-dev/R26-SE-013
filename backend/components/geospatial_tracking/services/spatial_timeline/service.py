@@ -163,6 +163,8 @@ class SpatialTimelineService:
         disease_code = _DISEASE_CODE_BY_DISPLAY[disease_display]
         if not 0 <= horizon_days <= MAX_HORIZON_DAYS:
             raise SpatialTimelineError("INVALID_HORIZON", 422, f"horizon_days must be 0..{MAX_HORIZON_DAYS}")
+        # as_of fixes the evidence cutoff; horizon_days controls subsequent display
+        # frames. Future frames must not import future verified observations.
         as_of_date = parse_as_of(as_of, today=today or today_in_sri_lanka())
 
         context = await OperationalContextService(self._operational_port).get_operational_context(vet)
@@ -212,6 +214,8 @@ class SpatialTimelineService:
             except ScientificDatasetUnavailableError:
                 collection.historical_status = "SCIENTIFIC_DATASET_UNAVAILABLE"
 
+        # A source just outside a district can still influence cells inside it.
+        # Relevance uses model reach, rather than requiring the farm to be inside.
         collection.sources, relevance_exclusions = district_relevant_sources(collection.sources, timeline_scope, horizon_days)
         collection.exclusions.update(relevance_exclusions)
         selection = {
@@ -227,6 +231,8 @@ class SpatialTimelineService:
 
         # The response also reports why records were excluded (pending, no GPS,
         # other disease...), so a change there is a new snapshot too.
+        # Source content and selection statuses participate in cache identity so
+        # a changed evidence set cannot reuse an older timeline accidentally.
         key = (snapshot_identity(disease_display=disease_display, scope=timeline_scope, as_of=as_of_date,
                                  horizon_days=horizon_days, sources=collection.sources),
                collection.historical_status, collection.operational_status,

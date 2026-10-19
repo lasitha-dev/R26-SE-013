@@ -36,6 +36,8 @@ def assess_clinical_severity(name: str, observations: ClinicalObservations | dic
     signals = signals or {}
     required = (("milk_abnormal", "udder_inflammation", "systemic_illness") if disease == "mastitis" else
                 ("affected_feet", "mouth_lesion_cm", "appetite", "mentation", "heel_and_coronary_involved", "unable_to_stand"))
+    # A checklist needs complete findings and vet confirmation before grading;
+    # unknown signs are never filled in from the image model's confidence.
     missing = [field for field in required if obs is None or getattr(obs, field) is None]
     if obs is None or not obs.vet_confirmed:
         missing.insert(0, "vet_confirmed")
@@ -63,6 +65,8 @@ def assess_clinical_severity(name: str, observations: ClinicalObservations | dic
                         f"Largest measured oral lesion: {obs.mouth_lesion_cm:g} cm ({GRADES[mouth_band]} size band).",
                         f"Appetite: {obs.appetite}; mentation: {obs.mentation}.",
                         f"Heel and coronary involvement: {obs.heel_and_coronary_involved}; unable to stand: {obs.unable_to_stand}."]
+            # The FMD adaptation requires all four bands to agree; mixed signs
+            # remain unassessable instead of being averaged into a clinical grade.
             if len(set(bands)) == 1:
                 candidate = bands[0]
                 if obs.affected_feet == 0 and obs.mouth_lesion_cm == 0:

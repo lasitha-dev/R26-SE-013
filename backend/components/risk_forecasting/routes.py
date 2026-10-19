@@ -4,6 +4,9 @@ Defines endpoints for FMD and LSD outbreak risk prediction, severity classificat
 all-district climatological forecasts, district metadata, and health checks.
 """
 
+# Presentation path: routes validate HTTP input, services compute predictions or
+# manage decisions, and repositories store the resulting records. The /v2 routes
+# use the availability-aware monthly pipeline; /predict uses the earlier services.
 from typing import Optional, Literal, List
 from fastapi import APIRouter, Body, Depends, HTTPException, Header, Query, status
 from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
@@ -29,6 +32,8 @@ from components.risk_forecasting.services.forecast_record_service import forecas
 import sys
 
 def setup_production_services():
+    # Connect service dependencies to MongoDB adapters at application startup;
+    # the same service interfaces can use other adapters in isolated tests.
     from components.risk_forecasting.repositories.mongo_forecast_record_repository import MongoForecastRecordRepository
     from components.risk_forecasting.repositories.mongo_advisory_repository import MongoAdvisoryRepository
     from components.risk_forecasting.repositories.mongo_follow_up_repository import MongoFollowUpRepository
@@ -1380,6 +1385,7 @@ def _forecast_dependency_counter(forecast_id: str):
 
 
 def get_forecast_v2_service():
+    # Construct the v2 workflow with storage and dependency checks supplied here.
     global _v2_service
     if _v2_service is None:
         from components.risk_forecasting.services.forecast_v2_service import ForecastV2Service
