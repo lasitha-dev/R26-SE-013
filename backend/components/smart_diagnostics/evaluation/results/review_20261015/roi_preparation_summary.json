@@ -1,0 +1,13 @@
+{
+  "validation_records": 1557,
+  "changed_geometry": 246,
+  "unchanged_original_crops": 1311,
+  "classes_changed": {
+    "cattle": 198,
+    "lumpy_skin": 48
+  },
+  "manifest_sha256": "915035b2890f8581caac6d4c2940e5ff209fc89977c23e1bd2b975eef3798d40",
+  "protocol_sha256": "de6be46ae79bda6823bf93cd3164935a614bf80a8fe425a6bdbb32ea75012d07",
+  "independent": false,
+  "reviewed_lesion_masks": 0
+}

@@ -404,4 +404,41 @@ describe('Protected Demo Forecasting API Module', () => {
     expect(res.fmd.data).toEqual(fmdMock);
     expect(res.lsd.data).toEqual(lsdMock);
   });
+
+  it('reports unavailable forecasts as errors and never substitutes generated values', async () => {
+    writeDemoAccessToken('test_jwt_token_123');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+
+    const res = await fetchAuthorizedDiseaseForecasts({ year: 2025, targetMonth: 2 });
+
+    expect(res.overallStatus).toBe('error');
+    expect(res.fmd.status).toBe('error');
+    expect(res.lsd.status).toBe('error');
+    expect(res.fmd.data).toBeNull();
+    expect(res.lsd.data).toBeNull();
+    expect(res.fmd.category).toBe(DEMO_FORECASTING_ERROR_CATEGORIES.UNAVAILABLE);
+  });
+
+  it('reports partial status when only one disease forecast is available', async () => {
+    writeDemoAccessToken('test_jwt_token_123');
+    const fmdMock = {
+      disease: 'FMD',
+      target_year: 2024,
+      target_month: 1,
+      districts: [{ district: 'Jaffna', probability_pct: 50, risk_level: 'MEDIUM' }],
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (url.includes('/fmd')) {
+        return { ok: true, status: 200, json: async () => fmdMock };
+      }
+      return { ok: false, status: 503, json: async () => ({}) };
+    });
+
+    const res = await fetchAuthorizedDiseaseForecasts({ year: 2024, targetMonth: 1, district: 'Jaffna' });
+
+    expect(res.overallStatus).toBe('partial');
+    expect(res.fmd.data).toEqual(fmdMock);
+    expect(res.lsd.status).toBe('error');
+    expect(res.lsd.data).toBeNull();
+  });
 });

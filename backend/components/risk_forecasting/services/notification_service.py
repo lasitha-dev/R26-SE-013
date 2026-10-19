@@ -77,6 +77,8 @@ class NotificationService:
         Creates frozen delivery payloads for all resolved recipients.
         Makes ZERO provider calls.
         """
+        # The outbox separates preparing deliveries from sending them. It freezes
+        # approved content so later dispatch/retry uses the recorded message.
         # 1. Fetch Authoritative Advisory Record
         adv_record = self.advisory_repo.get_by_id(advisory_id)
         if not adv_record:

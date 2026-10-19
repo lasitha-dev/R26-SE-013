@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   ROLES,
@@ -8,8 +8,18 @@ import {
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
 import { DemoForecastingAuthContext } from '../../context/DemoForecastingAuthContext.jsx';
-import { useAuthorizedDemoForecast } from '../../hooks/useAuthorizedDemoForecast.js';
-import { createForecastRecord } from '../../services/riskForecastingWorkflowApi.js';
+import { listForecastRecords } from '../../services/riskForecastingWorkflowApi.js';
+import { newestPreferringV2 } from '../../services/storedForecastApi.js';
+import { getDefaultTargetPeriod } from '../../config/forecastPeriod.js';
+import { ForecastSourceBadge } from '../ForecastSourceBadge.jsx';
+import { TierBasisNote } from '../TierBasisNote.jsx';
+import {
+  BASELINE_BADGE,
+  formatProbabilityInterval,
+  formatRelativeRisk,
+  isActiveRecord,
+  isBaselineRecord,
+} from '../forecastPresentation.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -53,7 +63,8 @@ const WORKSPACE_CARDS = [
   },
 ];
 
-function getRiskBadge(riskLevel) {
+function getRiskBadge(riskLevel, record) {
+  if (isBaselineRecord(record)) return BASELINE_BADGE;
   const norm = (riskLevel || '').toUpperCase();
   switch (norm) {
     case 'HIGH':
@@ -87,7 +98,6 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
   const assignedDistrict = authorizedDistricts.length > 0 ? authorizedDistricts[0] : null;
 
   const isAccessAllowed = Boolean(isVetRole && isAllowedScope && assignedDistrict);
-  const actorId = validation.valid ? validation.normalizedContext.userId : 'vet_officer_01';
 
   // 2. Demo Auth Context & Protected Forecast Hook
   const authContext = useContext(DemoForecastingAuthContext);
@@ -96,36 +106,48 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
     (authContext?.isDemoAuthenticated || authContext?.status === 'authenticated')
   );
 
-  const {
-    status,
-    fmdForecast,
-    lsdForecast,
-    error,
-    requestForecast,
-  } = useAuthorizedDemoForecast();
-
-  // Form selections
-  const [selectedMonth, setSelectedMonth] = useState(1);
-  const [selectedYear, setSelectedYear] = useState(2024);
+  // Form selections (default: the month after the reference month)
+  const defaultPeriod = getDefaultTargetPeriod();
+  const [selectedMonth, setSelectedMonth] = useState(defaultPeriod.month);
+  const [selectedYear, setSelectedYear] = useState(defaultPeriod.year);
   const [selectedDistrictChoice, setSelectedDistrictChoice] = useState('ALL');
 
-  // Save states per disease: { [disease]: { status: 'idle'|'saving'|'saved'|'error', record: object, error: string } }
-  const [saveState, setSaveState] = useState({});
+  // Stored (official) forecasts for the selected period. Nothing is computed on demand.
+  const [forecastState, setForecastState] = useState({ status: 'idle', fmd: [], lsd: [], error: null });
+  const requestIdRef = useRef(0);
+  const { status, error } = forecastState;
 
-  // Reset stale save state when period selections change
-  useEffect(() => {
-    setSaveState({});
-  }, [selectedMonth, selectedYear, selectedDistrictChoice]);
+  const loadStoredForecasts = async (year, month, districts) => {
+    const requestId = ++requestIdRef.current;
+    setForecastState({ status: 'loading', fmd: [], lsd: [], error: null });
+    try {
+      const forDisease = (disease) =>
+        Promise.all(
+          districts.map(async (district) => {
+            const response = await listForecastRecords({
+              disease, district, target_year: year, target_month: month, limit: 50,
+            });
+            const active = (response?.records || []).filter(isActiveRecord);
+            return { district, record: active.length ? newestPreferringV2(active) : null };
+          })
+        );
+      const [fmd, lsd] = await Promise.all([forDisease('FMD'), forDisease('LSD')]);
+      if (requestId !== requestIdRef.current) return;
+      setForecastState({ status: 'success', fmd, lsd, error: null });
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      setForecastState({ status: 'error', fmd: [], lsd: [], error: 'Stored forecasts could not be loaded. Please try again.' });
+    }
+  };
 
-  // Automatically request initial forecast for authorized districts on mount in demo mode
+  // Load the stored forecasts for the authorized districts on mount in connected mode
   useEffect(() => {
     if (isAccessAllowed && isDemoActive && authorizedDistricts.length > 0) {
-      requestForecast({
-        year: 2024,
-        targetMonth: 1,
-        districts: authorizedDistricts,
-      });
+      loadStoredForecasts(defaultPeriod.year, defaultPeriod.month, authorizedDistricts);
     }
+    return () => {
+      requestIdRef.current++;
+    };
   }, [isAccessAllowed, isDemoActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isAccessAllowed) {
@@ -139,62 +161,66 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
     );
   }
 
-  // Handle form submission
+  // Handle form submission: re-reads the stored forecasts for the chosen period
   const handleSubmit = (e) => {
     e.preventDefault();
     if (status === 'loading') return;
-
-    setSaveState({}); // Clear stale save state on new prediction request
-    if (selectedDistrictChoice === 'ALL' || authorizedDistricts.length === 1) {
-      requestForecast({
-        year: selectedYear,
-        targetMonth: selectedMonth,
-        districts: authorizedDistricts,
-      });
-    } else {
-      requestForecast({
-        year: selectedYear,
-        targetMonth: selectedMonth,
-        district: selectedDistrictChoice,
-      });
-    }
+    const districts =
+      selectedDistrictChoice === 'ALL' || authorizedDistricts.length === 1
+        ? authorizedDistricts
+        : [selectedDistrictChoice];
+    loadStoredForecasts(selectedYear, selectedMonth, districts);
   };
 
-  // Handle saving official record
-  const handleSaveOfficialRecord = async (diseaseCode, targetDistrictStr) => {
-    const diseaseDistKey = `${diseaseCode}_${targetDistrictStr}`;
-    const currentState = saveState[diseaseDistKey];
-    if (currentState?.status === 'saving') return;
-
-    setSaveState((prev) => ({
-      ...prev,
-      [diseaseDistKey]: { status: 'saving', record: null, error: null },
-    }));
-
-    const idempotencyKey = `${actorId}_${targetDistrictStr}_${diseaseCode}_${selectedYear}_${selectedMonth}_manual_save`;
-
-    try {
-      const record = await createForecastRecord({
-        disease: diseaseCode,
-        district: targetDistrictStr,
-        year: selectedYear,
-        month: selectedMonth,
-        trigger_type: 'MANUAL',
-        generated_by: actorId,
-        idempotency_key: idempotencyKey,
-      });
-
-      setSaveState((prev) => ({
-        ...prev,
-        [diseaseDistKey]: { status: 'saved', record, error: null },
-      }));
-    } catch (err) {
-      setSaveState((prev) => ({
-        ...prev,
-        [diseaseDistKey]: { status: 'error', record: null, error: err.message || 'Failed to save official forecast record.' },
-      }));
-    }
-  };
+  const renderDiseaseSection = (code, title, icon, iconClass, items) => (
+    <section aria-labelledby={`vet-${code.toLowerCase()}-section-heading`} className="space-y-4">
+      <h2 id={`vet-${code.toLowerCase()}-section-heading`} className="text-lg font-bold text-on-surface flex items-center gap-2">
+        <span className={`material-symbols-outlined ${iconClass}`} aria-hidden="true">{icon}</span>
+        <span>{title}</span>
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {items.map(({ district, record }) => {
+          if (!record) {
+            return (
+              <div key={district} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow space-y-2">
+                <h3 className="font-semibold text-on-surface">{district} District</h3>
+                <p className="text-sm text-on-surface-variant italic">
+                  No {code} forecast has been issued for {MONTH_NAMES[selectedMonth - 1]} {selectedYear}.
+                </p>
+              </div>
+            );
+          }
+          const badge = getRiskBadge(record.risk_level, record);
+          return (
+            <div key={district} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-on-surface">{district} District</h3>
+                <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`} title={badge.title}>
+                  {badge.label}
+                </span>
+              </div>
+              <div className="text-2xl font-extrabold text-on-surface">
+                {typeof record.probability_pct === 'number' ? record.probability_pct.toFixed(1) : record.probability_pct}%
+              </div>
+              {formatProbabilityInterval(record) && (
+                <p className="text-xs text-on-surface-variant" title="Uncertainty of the probability estimate">
+                  {formatProbabilityInterval(record)}
+                </p>
+              )}
+              {formatRelativeRisk(record.relative_risk) && (
+                <p className="text-xs text-on-surface-variant">{formatRelativeRisk(record.relative_risk)} for this district and month</p>
+              )}
+              <TierBasisNote record={record} />
+              <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                <span>Target: {MONTH_NAMES[selectedMonth - 1]} {selectedYear}</span>
+                <ForecastSourceBadge record={record} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 text-on-surface">
@@ -403,21 +429,11 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
           {/* Status Live Region */}
           <div role="status" aria-live="polite" className="sr-only">
             {status === 'loading' && 'Fetching district forecasting estimates…'}
-            {status === 'forbidden' && 'Access to the requested district is forbidden.'}
             {status === 'error' && error}
             {status === 'success' && 'District forecasts updated successfully.'}
           </div>
 
           {/* Accessible Status Messages */}
-          {status === 'forbidden' && (
-            <div role="alert" className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm flex items-center gap-3">
-              <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
-                lock
-              </span>
-              <span>{error || 'Forecast access to the requested district is forbidden.'}</span>
-            </div>
-          )}
-
           {status === 'error' && (
             <div role="alert" className="p-4 bg-error-container/20 border border-error/30 rounded-xl text-error text-sm flex items-center gap-3">
               <span className="material-symbols-outlined text-xl shrink-0" aria-hidden="true">
@@ -437,159 +453,11 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
 
           {status === 'success' && (
             <div className="space-y-8">
-              {/* FMD Results Section */}
-              <section aria-labelledby="vet-fmd-section-heading" className="space-y-4">
-                <h2 id="vet-fmd-section-heading" className="text-lg font-bold text-on-surface flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-400" aria-hidden="true">coronavirus</span>
-                  <span>Foot-and-Mouth Disease (FMD) District Forecasts</span>
-                </h2>
-
-                {fmdForecast?.districts && fmdForecast.districts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {fmdForecast.districts.map((item) => {
-                      const badge = getRiskBadge(item.risk_level);
-                      const keyStr = `FMD_${item.district}`;
-                      const fmdSave = saveState[keyStr];
-                      const isSaving = fmdSave?.status === 'saving';
-                      const isSaved = fmdSave?.status === 'saved';
-                      const hasSaveError = fmdSave?.status === 'error';
-
-                      return (
-                        <div key={item.district} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-on-surface">{item.district} District</h3>
-                            <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
-                              {badge.label}
-                            </span>
-                          </div>
-
-                          <div className="text-2xl font-extrabold text-on-surface">
-                            {typeof item.probability_pct === 'number' ? item.probability_pct.toFixed(1) : item.probability_pct}%
-                          </div>
-
-                          <p className="text-xs text-on-surface-variant">
-                            Target: {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
-                          </p>
-
-                          {/* Save as Official Record Action */}
-                          <div className="pt-2 border-t border-outline-variant/30 space-y-3">
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleSaveOfficialRecord('FMD', item.district)}
-                              className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50 font-semibold text-xs rounded-xl flex items-center gap-2 min-h-[38px] transition-all"
-                            >
-                              <span className="material-symbols-outlined text-sm" aria-hidden="true">
-                                {isSaving ? 'sync' : 'save'}
-                              </span>
-                              <span>{isSaving ? 'Saving Official Record…' : 'Save as Official Forecast Record'}</span>
-                            </button>
-
-                            {isSaved && (
-                              <div role="status" className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 space-y-1">
-                                <div className="flex items-center gap-1.5 font-bold">
-                                  <span className="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span>
-                                  <span>Official Record Saved</span>
-                                </div>
-                                <p className="font-mono text-[11px]">ID: {fmdSave.record?.forecast_id}</p>
-                                <p className="text-[11px]">Status: {fmdSave.record?.status || 'GENERATED'}</p>
-                                <p className="text-[11px] text-emerald-400/80 italic pt-1">
-                                  Advisory creation will reference this forecast record ID.
-                                </p>
-                              </div>
-                            )}
-
-                            {hasSaveError && (
-                              <div role="alert" className="p-3 bg-error-container/20 border border-error/30 rounded-xl text-xs text-error">
-                                {fmdSave.error}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-on-surface-variant italic">No FMD forecast data returned for authorized district.</p>
-                )}
-              </section>
-
-              {/* LSD Results Section */}
-              <section aria-labelledby="vet-lsd-section-heading" className="space-y-4">
-                <h2 id="vet-lsd-section-heading" className="text-lg font-bold text-on-surface flex items-center gap-2">
-                  <span className="material-symbols-outlined text-purple-400" aria-hidden="true">vaccines</span>
-                  <span>Lumpy Skin Disease (LSD) District Forecasts</span>
-                </h2>
-
-                {lsdForecast?.districts && lsdForecast.districts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {lsdForecast.districts.map((item) => {
-                      const badge = getRiskBadge(item.risk_level);
-                      const keyStr = `LSD_${item.district}`;
-                      const lsdSave = saveState[keyStr];
-                      const isSaving = lsdSave?.status === 'saving';
-                      const isSaved = lsdSave?.status === 'saved';
-                      const hasSaveError = lsdSave?.status === 'error';
-
-                      return (
-                        <div key={item.district} className="p-5 rounded-xl bg-surface-container border border-outline-variant/30 shadow space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-on-surface">{item.district} District</h3>
-                            <span className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${badge.class}`}>
-                              {badge.label}
-                            </span>
-                          </div>
-
-                          <div className="text-2xl font-extrabold text-on-surface">
-                            {typeof item.probability_pct === 'number' ? item.probability_pct.toFixed(1) : item.probability_pct}%
-                          </div>
-
-                          <p className="text-xs text-on-surface-variant">
-                            Target: {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
-                          </p>
-
-                          {/* Save as Official Record Action */}
-                          <div className="pt-2 border-t border-outline-variant/30 space-y-3">
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleSaveOfficialRecord('LSD', item.district)}
-                              className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50 font-semibold text-xs rounded-xl flex items-center gap-2 min-h-[38px] transition-all"
-                            >
-                              <span className="material-symbols-outlined text-sm" aria-hidden="true">
-                                {isSaving ? 'sync' : 'save'}
-                              </span>
-                              <span>{isSaving ? 'Saving Official Record…' : 'Save as Official Forecast Record'}</span>
-                            </button>
-
-                            {isSaved && (
-                              <div role="status" className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 space-y-1">
-                                <div className="flex items-center gap-1.5 font-bold">
-                                  <span className="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span>
-                                  <span>Official Record Saved</span>
-                                </div>
-                                <p className="font-mono text-[11px]">ID: {lsdSave.record?.forecast_id}</p>
-                                <p className="text-[11px]">Status: {lsdSave.record?.status || 'GENERATED'}</p>
-                                <p className="text-[11px] text-emerald-400/80 italic pt-1">
-                                  Advisory creation will reference this forecast record ID.
-                                </p>
-                              </div>
-                            )}
-
-                            {hasSaveError && (
-                              <div role="alert" className="p-3 bg-error-container/20 border border-error/30 rounded-xl text-xs text-error">
-                                {lsdSave.error}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-on-surface-variant italic">No LSD forecast data returned for authorized district.</p>
-                )}
-              </section>
+              {renderDiseaseSection('FMD', 'Foot-and-Mouth Disease (FMD) District Forecasts', 'coronavirus', 'text-rose-400', forecastState.fmd)}
+              {renderDiseaseSection('LSD', 'Lumpy Skin Disease (LSD) District Forecasts', 'vaccines', 'text-purple-400', forecastState.lsd)}
+              <p className="text-xs text-on-surface-variant">
+                These are the official stored forecasts. Forecasts are issued by the monthly forecasting run, not calculated on this page.
+              </p>
             </div>
           )}
         </>
@@ -610,7 +478,7 @@ export function VeterinaryDistrictForecasts({ viewerContext }) {
           These results are epidemiological risk forecasts and are not diagnoses or laboratory confirmation of disease. Disease risk forecasts are district-level early-warning estimates. They do not confirm disease on an individual farm, nor do they constitute a confirmed outbreak alert. Clinical diagnosis requires authorized veterinary field investigation or laboratory confirmation.
         </p>
         <p className="text-xs text-on-surface-variant/80 leading-relaxed">
-          Forecast results are generated from existing trained forecasting models and climatological data. Synthetic operational records are strictly isolated and not used as model inputs.
+          Forecast results are the stored outputs of the monthly forecasting run, built from public climate data and verified surveillance. Synthetic operational records are strictly isolated and not used as model inputs.
         </p>
       </section>
 

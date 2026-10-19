@@ -1,0 +1,34 @@
+/* Case hover summary on the Outbreak Map (dark ADRS shell). */
+.geo-case-hover .maplibregl-popup-content {
+  background: rgba(15, 23, 42, 0.96);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  box-shadow: 0 10px 28px -10px rgba(2, 6, 23, 0.9);
+  pointer-events: none;
+}
+.geo-case-hover .maplibregl-popup-content strong { color: #f8fafc; }
+.geo-cluster-popup .maplibregl-popup-content { pointer-events: auto; white-space: pre-line; padding-right: 22px; }
+.geo-case-hover.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.geo-case-hover.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.geo-case-hover.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: rgba(15, 23, 42, 0.96); }
+.geo-case-hover.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.geo-case-hover.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.geo-case-hover.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: rgba(15, 23, 42, 0.96); }
+.geo-case-hover.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: rgba(15, 23, 42, 0.96); }
+.geo-case-hover.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: rgba(15, 23, 42, 0.96); }
+
+/* Risk Zones hover card (riskHoverCard.js). */
+.geo-risk-hover .maplibregl-popup-content { min-width: 230px; max-width: 280px; padding: 10px 12px; }
+.geo-risk-hover__title { font: 700 10px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.geo-risk-hover__score { display: flex; align-items: center; gap: 8px; margin: 6px 0 4px; }
+.geo-risk-hover__score strong { font-size: 18px; color: #f8fafc; }
+.geo-risk-hover__badge { border: 1px solid; border-radius: 4px; padding: 1px 6px; font: 700 10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.geo-risk-hover__row { margin-top: 2px; }
+.geo-risk-hover__section { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); color: #f8fafc; font-weight: 600; }
+.geo-risk-hover__case { display: flex; justify-content: space-between; gap: 12px; margin-top: 2px; }
+.geo-risk-hover__muted { color: #94a3b8; }
+.geo-risk-hover__note { margin-top: 6px; color: #94a3b8; font-size: 10.5px; }

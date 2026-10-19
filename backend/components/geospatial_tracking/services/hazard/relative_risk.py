@@ -75,6 +75,8 @@ def compute_relative_risk_index(total_hazard: float, *, prior_relative_risk: flo
     if total_hazard == 0.0:
         return RelativeRiskResult(0.0, FINITE_INTERIOR)  # Part 20: exact zero, no epsilon floor
 
+    # A monotonic bounded index summarizes accumulated hazard. Its 0..1 range
+    # is a mathematical transformation, not epidemiological probability calibration.
     r = -math.expm1(-total_hazard)
     if math.isnan(r) or r < 0.0 or r > 1.0:
         raise ValueError(f"relative_risk_index evaluated outside [0, 1] ({r!r}) — never silently clamped")

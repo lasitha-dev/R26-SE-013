@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { deleteDiagnosticCase, verifyDiagnosticCase } from '../services/api'
+import { SYMPTOM_OVERLAY_LABEL } from '../modelInfo'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 export default function VetClinicalRecords() {
   const navigate = useNavigate()
@@ -89,14 +90,7 @@ export default function VetClinicalRecords() {
       setTimeout(() => setFeedbackMessage(null), 4000)
     } catch (err) {
       console.error("Delete error:", err)
-      setCases(prev => prev.filter(c => (c.id || c.case_number) !== (caseToDelete.id || caseToDelete.case_number)))
-      if (selectedCase && (selectedCase.id || selectedCase.case_number) === (caseToDelete.id || caseToDelete.case_number)) {
-        setSelectedCase(null)
-      }
-      setFeedbackMessage({
-        type: 'success',
-        text: `Case record ${caseToDelete.case_number || caseToDelete.id} deleted from view.`
-      })
+      setFeedbackMessage({ type: 'error', text: err.message || 'The case could not be deleted. The record has been retained.' })
       setTimeout(() => setFeedbackMessage(null), 4000)
     } finally {
       setIsDeleting(false)
@@ -112,8 +106,7 @@ export default function VetClinicalRecords() {
       const caseId = selectedCase.id
       const payload = {
         clinical_notes: verificationNotes || selectedCase.clinical_notes,
-        prescription: verificationPrescription || undefined,
-        health_status: 'Alert'
+        prescription: verificationPrescription || undefined
       }
       const updatedCase = await verifyDiagnosticCase(caseId, payload)
       setCases(prev => prev.map(c => c.id === caseId ? { ...c, ...updatedCase, verified: true, status: 'Verified' } : c))
@@ -547,7 +540,7 @@ export default function VetClinicalRecords() {
                           onClick={() => setActiveImageTab('symptoms')}
                           className={`px-2 py-1 rounded transition-all ${activeImageTab === 'symptoms' ? 'bg-primary text-black font-bold' : 'text-slate-400 hover:text-white'}`}
                         >
-                          Pathology
+                          Symptom Overlay
                         </button>
                         {selectedCase.cropped_image && (
                           <button
@@ -569,7 +562,7 @@ export default function VetClinicalRecords() {
                     />
                     <div className="absolute top-2 left-2 px-2 py-1 rounded bg-black/70 backdrop-blur-sm text-[10px] font-mono text-emerald-400 font-bold border border-white/10 flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                      <span>{activeImageTab === 'symptoms' ? 'Mask R-CNN Segmentation' : 'Bovine ROI Detection'}</span>
+                      <span>{selectedCase.symptoms_image && displayModalImage === selectedCase.symptoms_image ? SYMPTOM_OVERLAY_LABEL : 'Bovine ROI Detection'}</span>
                     </div>
                   </div>
 
@@ -593,7 +586,7 @@ export default function VetClinicalRecords() {
                       <h3 className="text-xl font-extrabold text-white tracking-tight">{selectedCase.disease_name || 'Cattle (Healthy)'}</h3>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <span className="px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-3xs font-mono font-bold border border-amber-500/30 uppercase">
-                          Severity: {selectedCase.severity || 'Moderate'}
+                          Severity: {selectedCase.severity || 'Not assessed'}
                         </span>
                         <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-3xs font-mono font-bold border border-emerald-500/30 uppercase">
                           Prognosis: {selectedCase.prognosis || 'Favorable'}

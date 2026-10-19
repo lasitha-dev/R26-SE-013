@@ -451,6 +451,8 @@ class AdvisoryService:
         Transitions advisory status to APPROVED and records approver metadata.
         Approved content becomes immutable.
         """
+        # expected_version prevents approval of an older draft after another edit.
+        # The repository records the approver and enforces the status transition.
         now_dt = self.clock()
         now_iso = now_dt.isoformat()
 

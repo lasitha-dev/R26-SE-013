@@ -1,0 +1,21 @@
+{
+  "record": "https://zenodo.org/records/11003967",
+  "doi": "10.5281/zenodo.11003967",
+  "license": "cc-by-4.0",
+  "creators": [
+    {
+      "name": "Francesco Branda",
+      "affiliation": "Universit\u00e0 Campus Bio-Medico",
+      "orcid": "0000-0002-9485-3877"
+    }
+  ],
+  "outer_publisher_md5": "md5:81d77de795a5aaf5c446b872335f64d5",
+  "outer_checksum_verified": false,
+  "retrieval": "HTTP ranges of selected member; complete outer archive was not downloaded",
+  "selected_member": "LumpySkinDisease_DataHub/data-processed/lumpy_unbalanced.zip",
+  "member_crc32": "5fd87c31",
+  "member_crc32_verified": true,
+  "inner_member_crcs_verified": true,
+  "selected_sha256": "0464af69ae23dce19c8bb381888a035e8afab8a9c6788b67bbffe7881ddd4b2e",
+  "selected_bytes": 161418730
+}

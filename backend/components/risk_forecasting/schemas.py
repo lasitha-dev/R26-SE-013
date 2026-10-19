@@ -3,8 +3,8 @@ Pydantic Request and Response Schemas for the Risk Forecasting Component API.
 Provides validation and documentation for FMD and LSD prediction and forecast endpoints.
 """
 
-from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Any, Dict, List, Optional, Literal
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator, computed_field
 from components.risk_forecasting.config import SRI_LANKA_DISTRICTS, MONTH_NAMES
 from components.risk_forecasting.integrations.vet_directory import VeterinaryOfficerSummary
 
@@ -318,6 +318,9 @@ class GenerateForecastRecordRequest(BaseModel):
 
 
 class ForecastDecisionRecord(BaseModel):
+    # Stored decision snapshot: prediction + actual input provenance + lifecycle.
+    # Advisories and follow-ups reference its ID, making later actions traceable
+    # to the forecast that was available when the decision was made.
     forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Unique forecast decision record identifier.")
     disease: Literal["FMD", "LSD"] = Field(..., description="Disease type ('FMD' or 'LSD').")
     district: str = Field(..., description="Target Sri Lankan district name.")
@@ -339,15 +342,37 @@ class ForecastDecisionRecord(BaseModel):
         default="GENERATED",
         description="Forecast decision record lifecycle status."
     )
-    trigger_type: Literal["MANUAL", "SCHEDULED"] = Field(
+    trigger_type: Literal["MANUAL", "SCHEDULED", "BACKFILL"] = Field(
         default="MANUAL",
-        description="Trigger type for record generation."
+        description="Trigger type for record generation. BACKFILL marks a forecast issued after its target month began to be over (retrospective, not a prospective forecast)."
     )
     generated_by: Optional[str] = Field(default=None, description="Optional actor/user reference ID.")
     disclaimer: str = Field(..., description="Mandatory scientific disclaimer for model prediction.")
     idempotency_key: Optional[str] = Field(default=None, description="Idempotency key associated with this record.")
     created_at: str = Field(..., description="Timezone-aware ISO 8601 UTC creation timestamp.")
     updated_at: str = Field(..., description="Timezone-aware ISO 8601 UTC last update timestamp.")
+
+    # In v2, issue_date is when we ran the forecast, data_cutoff is the observation
+    # boundary, and target_year/month is the period being predicted.
+    # v2 forecast provenance (absent on v1 records)
+    model_version: Optional[str] = Field(default=None, description="Versioned model artifact, e.g. 'fmd_v2.0'.")
+    forecaster: Optional[str] = Field(default=None, description="Deployed forecaster: model variant ('A', 'S') or 'climatology'.")
+    deployment_status: Optional[str] = Field(default=None, description="'back_tested' (beat the baseline in rolling back-testing, not yet confirmed on future data), 'exploratory' or 'baseline' (see model card).")
+    issue_date: Optional[str] = Field(default=None, description="Actual UTC date this record was generated (YYYY-MM-DD).")
+    data_cutoff: Optional[str] = Field(default=None, description="Last day of the most recent month whose observations were used (YYYY-MM-DD).")
+    retrospective: Optional[bool] = Field(default=None, description="True when generated after the target month ended; such a record is not a prospective forecast.")
+    baseline_probability: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="District-month climatological outbreak probability.")
+    probability_low: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Lower bound of the probability interval.")
+    probability_high: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Upper bound of the probability interval.")
+    interval_level: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Nominal level of the interval (0.8 = 10th-90th percentile). Reflects uncertainty in the probability estimate, not in the 0/1 outcome.")
+    relative_risk: Optional[float] = Field(default=None, ge=0.0, description="probability / baseline_probability.")
+    input_quality: Optional[str] = Field(default=None, description="'COMPLETE' or 'DEGRADED' (missing climate inputs).")
+    missing_inputs: Optional[List[str]] = Field(default=None, description="Feature names whose inputs were unavailable.")
+    surveillance_status: Optional[str] = Field(default=None, description="Previous-month surveillance status used for the forecast.")
+    surveillance_source: Optional[str] = Field(default=None, description="Where outbreak history came from (curated dataset or app records).")
+    feature_snapshot: Optional[Dict[str, Optional[float]]] = Field(default=None, description="Exact feature values used.")
+    contributions: Optional[List[Dict[str, Any]]] = Field(default=None, description="Top linear log-odds contributions.")
+    previous_month_observation: Optional[Dict[str, Any]] = Field(default=None, description="Observed verified cases/deaths in month t-1 and observed severity.")
 
 
 class ForecastRecordListResponse(BaseModel):
@@ -390,6 +415,7 @@ class RecipientResolvedPreview(BaseModel):
 
 
 class FarmerAdvisoryRecord(BaseModel):
+    # Human-reviewed advice is a separate record from the statistical prediction.
     advisory_id: str = Field(..., example="adv_f1e2d3c4b5", description="Unique advisory record identifier.")
     forecast_id: str = Field(..., example="fdr_a1b2c3d4e5", description="Referenced immutable forecast decision record ID.")
     advisory_type: Literal[
@@ -626,6 +652,7 @@ class FollowUpActorContext(BaseModel):
 
 
 class ForecastFollowUpRecord(BaseModel):
+    # Track responsibility and action status without rewriting the forecast result.
     """
     Authoritative domain record representing DAPH operational follow-up instruction
     issued to a Veterinary Officer for an official disease forecast.
@@ -703,3 +730,50 @@ class EligibleVetListResponse(BaseModel):
     district: str = Field(..., description="Target Sri Lankan district name.")
     total_count: int = Field(..., ge=0, description="Total count of active eligible Veterinary Officers.")
     veterinary_officers: List[VeterinaryOfficerSummary] = Field(..., description="List of active eligible Veterinary Officers.")
+
+
+class SeasonalOutlookRecord(BaseModel):
+    """Immutable climatology-based outlook for the NEXT month (contract: docs/v2/SEASONAL_OUTLOOK_CONTRACT.md).
+
+    Deliberately has no risk tier, relative risk, contributions or severity, and stores only `probability`
+    (the percentage is derived when serving)."""
+    model_config = ConfigDict(extra="forbid")
+
+    outlook_id: str = Field(..., description="Unique outlook identifier (out_<12 hex>).")
+    product_type: Literal["SEASONAL_OUTLOOK"] = "SEASONAL_OUTLOOK"
+    disease: Literal["FMD", "LSD"]
+    district: str
+    target_year: int = Field(..., ge=2017, le=2030)
+    target_month: int = Field(..., ge=1, le=12)
+    probability: float = Field(..., ge=0.0, le=1.0, description="District-month climatological outbreak probability.")
+    interval_type: Literal["BETA_POSTERIOR_CREDIBLE_APPROX"] = "BETA_POSTERIOR_CREDIBLE_APPROX"
+    interval_level: float = Field(0.8, ge=0.0, le=1.0)
+    probability_low: float = Field(..., ge=0.0, le=1.0)
+    probability_high: float = Field(..., ge=0.0, le=1.0)
+    years_observed: int = Field(..., ge=1, description="Training years behind this district-month.")
+    positive_years: int = Field(..., ge=0, description="Years in which this district-month was an outbreak month.")
+    method: Literal["DISTRICT_MONTH_CLIMATOLOGY"] = "DISTRICT_MONTH_CLIMATOLOGY"
+    method_version: str
+    source_artifact_version: str
+    source_artifact_hash: str
+    data_cutoff: str = Field(..., description="Last month of the training data (YYYY-MM).")
+    issue_date: str = Field(..., description="Real UTC issue date (YYYY-MM-DD).")
+    generated_at: str
+    lead_days: int = Field(..., description="Days from the issue date to the first day of the target month.")
+    status: Literal["ACTIVE", "VOIDED", "CORRECTED"] = "ACTIVE"
+    replaces_outlook_id: Optional[str] = None
+    disclaimer_version: str = "seasonal_outlook_v1"
+    idempotency_key: str
+
+    @model_validator(mode="after")
+    def _interval_brackets_probability(self):
+        if not (self.probability_low <= self.probability <= self.probability_high):
+            raise ValueError("probability must lie within [probability_low, probability_high]")
+        if self.positive_years > self.years_observed:
+            raise ValueError("positive_years cannot exceed years_observed")
+        return self
+
+    @computed_field
+    @property
+    def probability_pct(self) -> float:
+        return round(self.probability * 100, 1)

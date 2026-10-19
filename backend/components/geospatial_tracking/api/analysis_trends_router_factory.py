@@ -34,6 +34,7 @@ ANALYSIS_TRENDS_ROUTE_PATH = "/analysis-trends"
 _HTTP_STATUS_BY_ANALYSIS_TRENDS_STATUS = {
     AnalysisTrendsStatus.UNSUPPORTED_DISEASE.value: 422,
     AnalysisTrendsStatus.ORIGIN_NOT_FOUND.value: 404,
+    AnalysisTrendsStatus.SCIENTIFIC_DATASET_UNAVAILABLE.value: 503,
     AnalysisTrendsStatus.ANALYSIS_INTERNAL_ERROR.value: 500,
 }
 

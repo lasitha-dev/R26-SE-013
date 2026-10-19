@@ -81,15 +81,25 @@ function operationalSeverity(state) {
  * blend with the scientific/historical snapshot state, which has its own
  * separate wording inside the expanded panel. See the module docstring
  * above for the exact priority-ordered contract. */
-function liveStatusLabel({ operationalState, pushState, pushTransportMode, pushIsStale, lastGenuineUpdateAt, now }) {
+// After this many consecutive failed reconnects the header stops saying
+// RECONNECTING (the client keeps retrying quietly with backoff).
+export const RECONNECT_ATTEMPTS_BEFORE_UNAVAILABLE = 3
+
+function liveStatusLabel({ operationalState, pushState, pushTransportMode, pushIsStale, pushReconnectAttempt = 0, lastGenuineUpdateAt, now }) {
   if (OPERATIONAL_FAILURE_STATES.has(operationalState)) return 'LIVE DATA UNAVAILABLE'
 
   if (lastGenuineUpdateAt != null && now - lastGenuineUpdateAt < LIVE_UPDATE_DISPLAY_MS) {
     return 'LIVE UPDATE'
   }
 
-  const pushHealthy = pushState === EVENT_STREAM_STATE.CONNECTED && pushTransportMode === TRANSPORT_MODE.PUSH && !pushIsStale
-  if (!pushHealthy) return 'RECONNECTING'
+  if (pushState === EVENT_STREAM_STATE.CONNECTING) return 'CONNECTING'
+  const connected = pushState === EVENT_STREAM_STATE.CONNECTED && !pushIsStale
+  // A healthy stream on the honest delta-refresh fallback is connected, just
+  // not live push -- never "reconnecting".
+  if (connected && pushTransportMode === TRANSPORT_MODE.DELTA_REFRESH) return 'PERIODIC REFRESH'
+  // Connected, but on no recognised live transport (e.g. a fixture backend).
+  if (connected && pushTransportMode !== TRANSPORT_MODE.PUSH) return 'LIVE UPDATES UNAVAILABLE'
+  if (!connected) return pushReconnectAttempt >= RECONNECT_ATTEMPTS_BEFORE_UNAVAILABLE ? 'LIVE UPDATES UNAVAILABLE' : 'RECONNECTING'
 
   const reconciliationRecovering = operationalState === OPERATIONAL_STATE.LOADING || operationalState === OPERATIONAL_STATE.STALE
   if (reconciliationRecovering) return 'SYNCING'
@@ -118,6 +128,7 @@ export default function StatusDiagnosticsMenu({
   pushState,
   pushTransportMode,
   pushIsStale,
+  pushReconnectAttempt = 0,
   lastGenuineUpdateAt,
   // GEO-VISUAL-POLISH-02 Section 2/10: an honest, non-blocking trace of
   // the real database -> forecast-origin -> per-origin-geometry ->
@@ -139,6 +150,7 @@ export default function StatusDiagnosticsMenu({
     pushState,
     pushTransportMode,
     pushIsStale,
+    pushReconnectAttempt,
     lastGenuineUpdateAt,
     now: Date.now(),
   })

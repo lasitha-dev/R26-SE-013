@@ -7,13 +7,10 @@ import {
   isWithinObservationWindow,
 } from '../adapters/observationWindow'
 
-// `verification_time` carries no timezone marker (Section 6), so both
-// `NOW` and `isoAgo` are expressed in the SAME local-time reference frame
-// here -- otherwise the missing-timezone parse in `verificationTime.js`
-// (which necessarily reads a bare "no offset" string as local time) would
-// make this test's own expected/actual clocks disagree by the runner's
-// UTC offset instead of testing the real day-boundary logic.
-const NOW = new Date(2026, 7, 30, 12, 0, 0).getTime()
+// Legacy `verification_time` text carries no timezone marker but is UTC
+// (the host wrote it with `datetime.utcnow()`), so `isoAgo` renders the
+// naive text in UTC -- independent of the test runner's own timezone.
+const NOW = Date.UTC(2026, 7, 30, 12, 0, 0)
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
@@ -23,7 +20,7 @@ function pad(n) {
 
 function isoAgo(ms) {
   const d = new Date(NOW - ms)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
 }
 
 describe('GEO26B Section 6/25: isWithinObservationWindow', () => {
@@ -77,7 +74,7 @@ describe('GEO26B Section 9: classifyRecency', () => {
 
 describe('GEO26B: OBSERVATION_WINDOW_OPTIONS / default', () => {
   it('exposes exactly Today / 7 / 14 / 30 days, in that order', () => {
-    expect(OBSERVATION_WINDOW_OPTIONS.map((o) => o.days)).toEqual([1, 7, 14, 30])
+    expect(OBSERVATION_WINDOW_OPTIONS.map((o) => o.days)).toEqual([-1, 1, 7, 14, 30, Infinity])
   })
 
   it('defaults to 14 days', () => {

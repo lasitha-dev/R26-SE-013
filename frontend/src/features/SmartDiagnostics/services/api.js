@@ -1,9 +1,12 @@
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-export async function detectImage(file) {
+export async function detectImage(file, context = {}) {
   const url = `${API_BASE}/api/detect`
   const form = new FormData()
   form.append('image', file)
+  for (const field of ['body_site', 'observed_symptoms']) {
+    if (context[field]) form.append(field, context[field])
+  }
 
   const res = await fetch(url, { method: 'POST', body: form })
   if (!res.ok) {
@@ -14,7 +17,7 @@ export async function detectImage(file) {
 }
 
 /**
- * Request a Tier 3 LLM clinical reasoning report from the backend.
+ * Request a clinical checklist assessment or Tier 3 reasoning from the backend.
  *
  * @param {object} detectionResult - The full response from /api/detect.
  * @param {object} [farmMetadata]  - Optional farm context (herd_size, etc.)
@@ -30,6 +33,13 @@ export async function fetchReasoning(detectionResult, farmMetadata = null) {
     disease: detectionResult.disease || null,
     image_size: detectionResult.image_size || null,
     farm_metadata: farmMetadata,
+    severity: detectionResult.severity || null,
+    spatial_correlation: detectionResult.spatial_correlation || null,
+    segmentation: detectionResult.segmentation || null,
+    review: detectionResult.review || null,
+    body_site: detectionResult.body_site || null,
+    observed_symptoms: detectionResult.observed_symptoms || null,
+    ...(detectionResult.clinical_observations ? { clinical_observations: detectionResult.clinical_observations } : {}),
   }
 
   const res = await fetch(url, {

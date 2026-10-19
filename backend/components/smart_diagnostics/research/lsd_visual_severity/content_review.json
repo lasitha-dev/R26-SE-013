@@ -1,0 +1,262 @@
+{
+  "date": "2026-10-14",
+  "reviewer": "Codex assistant visual content audit; not a veterinarian",
+  "policy": "Review all 1019 thumbnails and 13 relaxed-hash candidate pairs before training. Exclude obvious non-photographs, multi-panel figures, screenshots and large instructional/news graphics. Do not relabel uncertain photographs. Group confidently matching source photographs/crops; do not claim all same-animal images were recovered.",
+  "candidate_rule": "Additional review candidates pHash<=12 and dHash<=16; all 13 pairs visually accepted, not an automatic threshold change.",
+  "excluded_files": {
+    "Mild_112.png": "microscopy_not_cattle_photograph",
+    "Mild_115.png": "illustration",
+    "Mild_116.png": "multi_panel_figure",
+    "Mild_120.png": "embedded_figure_with_caption",
+    "Mild_122.png": "multi_panel_figure",
+    "Mild_124.png": "illustration",
+    "Mild_146.png": "multi_panel_figure",
+    "Mild_148.png": "multi_panel_figure",
+    "Mild_149.png": "multi_panel_figure",
+    "Mild_164.png": "news_or_promotional_graphic",
+    "Mild_165.png": "multi_panel_figure",
+    "Mild_166.png": "multi_panel_figure",
+    "Mild_17.png": "multi_panel_figure",
+    "Mild_173.png": "product_not_cattle_photograph",
+    "Mild_175.png": "microscopy_not_cattle_photograph",
+    "Mild_176.png": "news_or_promotional_graphic",
+    "Mild_180.png": "multi_panel_figure",
+    "Mild_186.png": "news_or_promotional_graphic",
+    "Mild_200.png": "multi_panel_figure",
+    "Mild_203.png": "illustration",
+    "Mild_211.png": "multi_panel_figure",
+    "Mild_219.png": "news_or_promotional_graphic",
+    "Mild_224.png": "news_or_promotional_graphic",
+    "Mild_3.png": "news_or_promotional_graphic",
+    "Mild_43.png": "multi_panel_figure",
+    "Mild_46.png": "illustration",
+    "Mild_58.png": "news_or_promotional_graphic",
+    "Mild_85.png": "multi_panel_figure",
+    "Mild_93.png": "embedded_figure_with_caption",
+    "Mild_94.png": "multi_panel_figure",
+    "Normal_Skin_103.png": "illustration_toy_or_art",
+    "Normal_Skin_109.png": "illustration_toy_or_art",
+    "Normal_Skin_11.png": "illustration_toy_or_art",
+    "Normal_Skin_12.png": "illustration_toy_or_art",
+    "Normal_Skin_124.png": "illustration_toy_or_art",
+    "Normal_Skin_142.png": "multi_panel_figure",
+    "Normal_Skin_146.png": "illustration_toy_or_art",
+    "Normal_Skin_151.png": "promotional_graphic",
+    "Normal_Skin_18.png": "illustration_toy_or_art",
+    "Normal_Skin_188.png": "website_screenshot",
+    "Normal_Skin_189.png": "illustration_toy_or_art",
+    "Normal_Skin_21.png": "illustration_toy_or_art",
+    "Normal_Skin_210.png": "illustration_toy_or_art",
+    "Normal_Skin_227.png": "website_screenshot",
+    "Normal_Skin_23.png": "illustration_toy_or_art",
+    "Normal_Skin_232.png": "illustration_toy_or_art",
+    "Normal_Skin_234.png": "illustration_toy_or_art",
+    "Normal_Skin_26.png": "illustration_toy_or_art",
+    "Normal_Skin_267.png": "illustration_toy_or_art",
+    "Normal_Skin_284.png": "illustration_toy_or_art",
+    "Normal_Skin_308.png": "instructional_graphic",
+    "Normal_Skin_311.png": "instructional_graphic",
+    "Normal_Skin_349.png": "multi_panel_figure",
+    "Normal_Skin_356.png": "promotional_graphic",
+    "Normal_Skin_361.png": "graphic_composite",
+    "Normal_Skin_372.png": "illustration_toy_or_art",
+    "Normal_Skin_41.png": "graphic_composite",
+    "Normal_Skin_419.png": "promotional_graphic",
+    "Normal_Skin_445.png": "illustration_toy_or_art",
+    "Normal_Skin_458.png": "multi_panel_figure",
+    "Normal_Skin_469.png": "illustration_toy_or_art",
+    "Normal_Skin_491.png": "illustration_toy_or_art",
+    "Normal_Skin_505.png": "multi_panel_figure",
+    "Normal_Skin_51.png": "illustration_toy_or_art",
+    "Normal_Skin_517.png": "illustration_toy_or_art",
+    "Normal_Skin_544.png": "website_screenshot",
+    "Normal_Skin_56.png": "illustration_toy_or_art",
+    "Normal_Skin_560.png": "instructional_graphic",
+    "Normal_Skin_589.png": "illustration_toy_or_art",
+    "Normal_Skin_590.png": "instructional_graphic",
+    "Normal_Skin_599.png": "illustration_toy_or_art",
+    "Normal_Skin_619.png": "illustration_toy_or_art",
+    "Normal_Skin_639.png": "illustration_toy_or_art",
+    "Normal_Skin_66.png": "instructional_graphic",
+    "Normal_Skin_672.png": "illustration_toy_or_art",
+    "Normal_Skin_673.png": "promotional_graphic",
+    "Normal_Skin_677.png": "illustration_toy_or_art",
+    "Normal_Skin_683.png": "illustration_toy_or_art",
+    "Normal_Skin_684.png": "illustration_toy_or_art",
+    "Normal_Skin_693.png": "illustration_toy_or_art",
+    "Normal_Skin_77.png": "multi_panel_figure",
+    "Severe_23.png": "instructional_annotation",
+    "Severe_27.png": "illustration",
+    "Severe_40.png": "multi_panel_figure",
+    "Severe_41.png": "multi_panel_figure",
+    "Severe_44.png": "instructional_annotation"
+  },
+  "same_source_groups": [
+    [
+      "Normal_Skin_297.png",
+      "Mild_41.png"
+    ],
+    [
+      "Normal_Skin_524.png",
+      "Mild_98.png"
+    ],
+    [
+      "Mild_96.png",
+      "Mild_6.png"
+    ],
+    [
+      "Severe_83.png",
+      "Severe_50.png",
+      "Severe_36.png"
+    ],
+    [
+      "Normal_Skin_161.png",
+      "Normal_Skin_141.png"
+    ],
+    [
+      "Normal_Skin_6.png",
+      "Normal_Skin_472.png"
+    ],
+    [
+      "Severe_87.png",
+      "Severe_62.png"
+    ],
+    [
+      "Mild_78.png",
+      "Mild_167.png",
+      "Mild_222.png"
+    ],
+    [
+      "Normal_Skin_489.png",
+      "Normal_Skin_180.png",
+      "Severe_15.png",
+      "Severe_21.png",
+      "Severe_76.png",
+      "Mild_182.png"
+    ],
+    [
+      "Severe_68.png",
+      "Severe_10.png"
+    ],
+    [
+      "Mild_36.png",
+      "Mild_201.png"
+    ],
+    [
+      "Mild_102.png",
+      "Mild_63.png",
+      "Severe_17.png",
+      "Severe_78.png",
+      "Severe_84.png"
+    ],
+    [
+      "Mild_196.png",
+      "Mild_210.png",
+      "Mild_69.png"
+    ],
+    [
+      "Mild_10.png",
+      "Mild_147.png"
+    ],
+    [
+      "Mild_100.png",
+      "Mild_228.png",
+      "Mild_54.png",
+      "Mild_23.png"
+    ],
+    [
+      "Mild_194.png",
+      "Mild_206.png"
+    ],
+    [
+      "Mild_208.png",
+      "Mild_178.png",
+      "Mild_66.png"
+    ],
+    [
+      "Mild_138.png",
+      "Mild_221.png"
+    ],
+    [
+      "Severe_1.png",
+      "Severe_48.png"
+    ],
+    [
+      "Severe_20.png",
+      "Severe_3.png"
+    ],
+    [
+      "Severe_13.png",
+      "Severe_39.png",
+      "Severe_4.png",
+      "Severe_85.png"
+    ],
+    [
+      "Severe_37.png",
+      "Severe_60.png",
+      "Severe_88.png"
+    ],
+    [
+      "Severe_6.png",
+      "Severe_70.png",
+      "Severe_9.png"
+    ],
+    [
+      "Severe_43.png",
+      "Severe_71.png"
+    ],
+    [
+      "Severe_66.png",
+      "Severe_59.png"
+    ],
+    [
+      "Severe_12.png",
+      "Severe_62.png",
+      "Severe_87.png"
+    ],
+    [
+      "Severe_64.png",
+      "Severe_91.png"
+    ],
+    [
+      "Severe_67.png",
+      "Severe_7.png"
+    ],
+    [
+      "Severe_72.png",
+      "Severe_89.png",
+      "Severe_90.png"
+    ],
+    [
+      "Normal_Skin_101.png",
+      "Normal_Skin_475.png"
+    ],
+    [
+      "Normal_Skin_303.png",
+      "Normal_Skin_3.png"
+    ],
+    [
+      "Normal_Skin_30.png",
+      "Normal_Skin_198.png"
+    ],
+    [
+      "Normal_Skin_129.png",
+      "Normal_Skin_114.png",
+      "Normal_Skin_400.png"
+    ],
+    [
+      "Normal_Skin_158.png",
+      "Normal_Skin_100.png",
+      "Normal_Skin_301.png"
+    ],
+    [
+      "Normal_Skin_61.png",
+      "Normal_Skin_575.png"
+    ]
+  ],
+  "limitations": [
+    "Single assistant content review; no veterinary regrading.",
+    "Photographs with watermarks, stock composition and uncertain clinical provenance remain.",
+    "Thumbnails and hashes cannot identify every crop or same-animal case."
+  ]
+}

@@ -93,6 +93,7 @@ export default function AddNewAnimal() {
   const [photoBase64, setPhotoBase64] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedGender, setSelectedGender] = useState('')
 
   // Get current date in YYYY-MM-DD format for HTML max attribute
   const todayDateString = new Date().toISOString().split('T')[0]
@@ -130,7 +131,8 @@ export default function AddNewAnimal() {
     const breed = formData.get('breed')
     const weightVal = formData.get('weight')
 
-    const calvingDateVal = formData.get('calving_date')
+    const isMale = (gender || '').toLowerCase() === 'male'
+    const calvingDateVal = isMale ? null : formData.get('calving_date')
 
     // 1. Required fields validation
     if (!identifier || !gender || !dob || !breed || !weightVal) {
@@ -155,8 +157,8 @@ export default function AddNewAnimal() {
       return
     }
 
-    // 4. Calving date validation (optional)
-    if (calvingDateVal) {
+    // 4. Calving date validation (optional for female cattle)
+    if (!isMale && calvingDateVal) {
       const calvingDate = new Date(calvingDateVal)
       calvingDate.setHours(0, 0, 0, 0)
       if (calvingDate > today) {
@@ -178,7 +180,7 @@ export default function AddNewAnimal() {
       breed,
       weight,
       profile_photo: photoBase64 || null,
-      calving_date: calvingDateVal || null,
+      calving_date: isMale ? null : (calvingDateVal || null),
       status: 'Healthy',
     }
 
@@ -293,7 +295,8 @@ export default function AddNewAnimal() {
                   <div className="relative">
                     <select
                       className="w-full appearance-none bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
-                      defaultValue=""
+                      value={selectedGender}
+                      onChange={(e) => setSelectedGender(e.target.value)}
                       name="gender"
                       required
                     >
@@ -377,20 +380,22 @@ export default function AddNewAnimal() {
                 </div>
               </div>
 
-              {/* Last Calving Date (Optional) */}
-              <div className="space-y-2">
-                <label className="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">
-                  Last Calving Date (Optional)
-                </label>
-                <div className="relative">
-                  <input
-                    className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all [color-scheme:dark]"
-                    name="calving_date"
-                    type="date"
-                    max={todayDateString}
-                  />
+              {/* Last Calving Date (Optional, Female Only) */}
+              {selectedGender !== 'Male' && (
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-black tracking-[0.1em] text-primary uppercase">
+                    Last Calving Date (Optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-4 py-3.5 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all [color-scheme:dark]"
+                      name="calving_date"
+                      type="date"
+                      max={todayDateString}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Buttons */}
               <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4">

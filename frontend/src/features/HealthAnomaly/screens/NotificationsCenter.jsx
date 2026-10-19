@@ -45,7 +45,8 @@ export default function NotificationsCenter() {
     fetchCattle()
   }, [])
 
-  const alerts = cattleList.filter(c => c.health_status === 'Alert' || c.status === 'Alert')
+  const alertStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk']
+  const alerts = cattleList.filter(c => alertStates.includes(c.health_status) || alertStates.includes(c.status))
 
   return (
     <div className="space-y-8">

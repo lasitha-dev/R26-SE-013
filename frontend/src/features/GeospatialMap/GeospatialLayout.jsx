@@ -1,6 +1,7 @@
-import React from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import GeospatialRouteBoundary from './components/GeospatialRouteBoundary'
 import { GeospatialProvider } from './context/GeospatialContext'
 
 /**
@@ -46,8 +47,30 @@ function geospatialTabClassName({ isActive }) {
   ].join(' ')
 }
 
+/** Bumps when the signed-in session changes in another tab (the `storage`
+ * event never fires in the tab that made the change; same-tab sign-in goes
+ * through the login route, which unmounts this layout anyway). Used as a
+ * React key so every cached Geospatial query, selection and stream is
+ * dropped and rebuilt for the new identity -- the token itself is never
+ * stored or displayed. */
+function useSessionGeneration() {
+  const [generation, setGeneration] = useState(0)
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const onStorage = (event) => {
+      if (event.key === null || event.key === 'token' || event.key === 'role') setGeneration((g) => g + 1)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+  return generation
+}
+
 export default function GeospatialLayout() {
+  const sessionGeneration = useSessionGeneration()
+  const { pathname } = useLocation()
   return (
+    <React.Fragment key={sessionGeneration}>
     <GeospatialProvider>
       <nav
         aria-label="Geospatial Intelligence sections"
@@ -59,7 +82,12 @@ export default function GeospatialLayout() {
           </NavLink>
         ))}
       </nav>
-      <Outlet />
+      {/* A page render error stays inside this area: the host shell and the
+          tabs above remain usable (see GeospatialRouteBoundary). */}
+      <GeospatialRouteBoundary resetKey={pathname}>
+        <Outlet />
+      </GeospatialRouteBoundary>
     </GeospatialProvider>
+    </React.Fragment>
   )
 }

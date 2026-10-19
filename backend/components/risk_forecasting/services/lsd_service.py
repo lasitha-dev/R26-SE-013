@@ -227,6 +227,8 @@ class LSDService:
                 feature_row[col] = 0.0
 
         # Stage 1 Inference
+        # Preserve training column order and use the scaler paired with the chosen
+        # checkpoint. This earlier path uses zero fill; v2 handles missingness separately.
         x_stage1 = feature_row[feat_cols].fillna(0.0).astype(float)
         x_stage1_scaled = scaler.transform(x_stage1.values)
         prob = float(model.predict_proba(x_stage1_scaled)[:, 1][0])
@@ -245,6 +247,8 @@ class LSDService:
         severity_code = 0
         evaluated = False
 
+        # The suppressor needs observed previous-month activity (lag-1). Its
+        # evaluated flag distinguishes a computed result from a skipped stage.
         if lag1_status == "UNAVAILABLE":
             notes = "Stage 2 evaluation bypassed because previous-month target autocorrelation lag-1 surveillance data is unavailable."
         elif prob < GLOBAL_DECISION_THRESHOLD:

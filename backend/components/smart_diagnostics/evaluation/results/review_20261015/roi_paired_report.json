@@ -1,0 +1,666 @@
+{
+  "partition": "val",
+  "independent": false,
+  "labels": "inherited, pending review",
+  "thresholds_changed": false,
+  "test_partition_evaluated": false,
+  "protocol_sha256": "de6be46ae79bda6823bf93cd3164935a614bf80a8fe425a6bdbb32ea75012d07",
+  "cohorts": {
+    "all_validation": {
+      "n": 1557,
+      "original": {
+        "n": 1557,
+        "accuracy": 0.8965960179833012,
+        "macro_f1": 0.8297340935475834,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            848,
+            10,
+            40,
+            66,
+            0
+          ],
+          [
+            0,
+            208,
+            0,
+            0,
+            0
+          ],
+          [
+            35,
+            5,
+            295,
+            2,
+            0
+          ],
+          [
+            3,
+            0,
+            0,
+            45,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 964,
+            "precision": 0.9571106094808126,
+            "recall": 0.8796680497925311,
+            "f1": 0.9167567567567567
+          },
+          "foot_and_mouth": {
+            "support": 208,
+            "precision": 0.9327354260089686,
+            "recall": 1.0,
+            "f1": 0.9651972157772621
+          },
+          "lumpy_skin": {
+            "support": 337,
+            "precision": 0.8805970149253731,
+            "recall": 0.8753709198813057,
+            "f1": 0.8779761904761905
+          },
+          "mastitis": {
+            "support": 48,
+            "precision": 0.39823008849557523,
+            "recall": 0.9375,
+            "f1": 0.5590062111801242
+          }
+        }
+      },
+      "corrected_envelope": {
+        "n": 1557,
+        "accuracy": 0.8985228002569043,
+        "macro_f1": 0.8259700855132401,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            842,
+            10,
+            34,
+            78,
+            0
+          ],
+          [
+            0,
+            208,
+            0,
+            0,
+            0
+          ],
+          [
+            26,
+            5,
+            304,
+            2,
+            0
+          ],
+          [
+            3,
+            0,
+            0,
+            45,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 964,
+            "precision": 0.9667049368541906,
+            "recall": 0.8734439834024896,
+            "f1": 0.9177111716621253
+          },
+          "foot_and_mouth": {
+            "support": 208,
+            "precision": 0.9327354260089686,
+            "recall": 1.0,
+            "f1": 0.9651972157772621
+          },
+          "lumpy_skin": {
+            "support": 337,
+            "precision": 0.8994082840236687,
+            "recall": 0.9020771513353115,
+            "f1": 0.9007407407407407
+          },
+          "mastitis": {
+            "support": 48,
+            "precision": 0.36,
+            "recall": 0.9375,
+            "f1": 0.5202312138728323
+          }
+        }
+      },
+      "accuracy_delta": 0.0019267822736031004,
+      "wrong_to_correct": 30,
+      "correct_to_wrong": 27,
+      "accuracy_delta_bootstrap": {
+        "lower": -0.007700761187517171,
+        "upper": 0.01206720475248736,
+        "groups": 946,
+        "repetitions": 300,
+        "seed": 13013,
+        "interpretation": "photo-lineage bootstrap; not verified animal/farm uncertainty"
+      }
+    },
+    "polygon_geometry_changed": {
+      "n": 246,
+      "original": {
+        "n": 246,
+        "accuracy": 0.8373983739837398,
+        "macro_f1": 0.7865394883743508,
+        "all_classes_supported": false,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            169,
+            1,
+            24,
+            4,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            11,
+            0,
+            37,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 198,
+            "precision": 0.9388888888888889,
+            "recall": 0.8535353535353535,
+            "f1": 0.8941798941798942
+          },
+          "foot_and_mouth": {
+            "support": 0,
+            "precision": 0.0,
+            "recall": null,
+            "f1": 0.0
+          },
+          "lumpy_skin": {
+            "support": 48,
+            "precision": 0.6065573770491803,
+            "recall": 0.7708333333333334,
+            "f1": 0.6788990825688074
+          },
+          "mastitis": {
+            "support": 0,
+            "precision": 0.0,
+            "recall": null,
+            "f1": 0.0
+          }
+        }
+      },
+      "corrected_envelope": {
+        "n": 246,
+        "accuracy": 0.8495934959349594,
+        "macro_f1": 0.859750098386462,
+        "all_classes_supported": false,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            163,
+            1,
+            18,
+            16,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            46,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 198,
+            "precision": 0.9878787878787879,
+            "recall": 0.8232323232323232,
+            "f1": 0.8980716253443526
+          },
+          "foot_and_mouth": {
+            "support": 0,
+            "precision": 0.0,
+            "recall": null,
+            "f1": 0.0
+          },
+          "lumpy_skin": {
+            "support": 48,
+            "precision": 0.71875,
+            "recall": 0.9583333333333334,
+            "f1": 0.8214285714285714
+          },
+          "mastitis": {
+            "support": 0,
+            "precision": 0.0,
+            "recall": null,
+            "f1": 0.0
+          }
+        }
+      },
+      "accuracy_delta": 0.012195121951219523,
+      "wrong_to_correct": 30,
+      "correct_to_wrong": 27,
+      "accuracy_delta_bootstrap": {
+        "lower": -0.049913551644247725,
+        "upper": 0.06914783427495286,
+        "groups": 207,
+        "repetitions": 300,
+        "seed": 13013,
+        "interpretation": "photo-lineage bootstrap; not verified animal/farm uncertainty"
+      }
+    },
+    "original_box_crops_unchanged": {
+      "n": 1311,
+      "original": {
+        "n": 1311,
+        "accuracy": 0.9077040427154843,
+        "macro_f1": 0.8449408165058313,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            679,
+            9,
+            16,
+            62,
+            0
+          ],
+          [
+            0,
+            208,
+            0,
+            0,
+            0
+          ],
+          [
+            24,
+            5,
+            258,
+            2,
+            0
+          ],
+          [
+            3,
+            0,
+            0,
+            45,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 766,
+            "precision": 0.9617563739376771,
+            "recall": 0.8864229765013055,
+            "f1": 0.9225543478260869
+          },
+          "foot_and_mouth": {
+            "support": 208,
+            "precision": 0.9369369369369369,
+            "recall": 1.0,
+            "f1": 0.9674418604651163
+          },
+          "lumpy_skin": {
+            "support": 289,
+            "precision": 0.9416058394160584,
+            "recall": 0.8927335640138409,
+            "f1": 0.91651865008881
+          },
+          "mastitis": {
+            "support": 48,
+            "precision": 0.41284403669724773,
+            "recall": 0.9375,
+            "f1": 0.5732484076433121
+          }
+        }
+      },
+      "corrected_envelope": {
+        "n": 1311,
+        "accuracy": 0.9077040427154843,
+        "macro_f1": 0.8449408165058313,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            679,
+            9,
+            16,
+            62,
+            0
+          ],
+          [
+            0,
+            208,
+            0,
+            0,
+            0
+          ],
+          [
+            24,
+            5,
+            258,
+            2,
+            0
+          ],
+          [
+            3,
+            0,
+            0,
+            45,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 766,
+            "precision": 0.9617563739376771,
+            "recall": 0.8864229765013055,
+            "f1": 0.9225543478260869
+          },
+          "foot_and_mouth": {
+            "support": 208,
+            "precision": 0.9369369369369369,
+            "recall": 1.0,
+            "f1": 0.9674418604651163
+          },
+          "lumpy_skin": {
+            "support": 289,
+            "precision": 0.9416058394160584,
+            "recall": 0.8927335640138409,
+            "f1": 0.91651865008881
+          },
+          "mastitis": {
+            "support": 48,
+            "precision": 0.41284403669724773,
+            "recall": 0.9375,
+            "f1": 0.5732484076433121
+          }
+        }
+      },
+      "accuracy_delta": 0.0,
+      "wrong_to_correct": 0,
+      "correct_to_wrong": 0,
+      "accuracy_delta_bootstrap": {
+        "lower": 0.0,
+        "upper": 0.0,
+        "groups": 759,
+        "repetitions": 300,
+        "seed": 13013,
+        "interpretation": "photo-lineage bootstrap; not verified animal/farm uncertainty"
+      }
+    },
+    "conservative_clean": {
+      "n": 1375,
+      "original": {
+        "n": 1375,
+        "accuracy": 0.893090909090909,
+        "macro_f1": 0.7987027374140295,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            764,
+            10,
+            39,
+            59,
+            0
+          ],
+          [
+            0,
+            204,
+            0,
+            0,
+            0
+          ],
+          [
+            31,
+            4,
+            234,
+            2,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            26,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 872,
+            "precision": 0.958594730238394,
+            "recall": 0.8761467889908257,
+            "f1": 0.9155182744158179
+          },
+          "foot_and_mouth": {
+            "support": 204,
+            "precision": 0.9357798165137615,
+            "recall": 1.0,
+            "f1": 0.966824644549763
+          },
+          "lumpy_skin": {
+            "support": 271,
+            "precision": 0.8571428571428571,
+            "recall": 0.8634686346863468,
+            "f1": 0.8602941176470589
+          },
+          "mastitis": {
+            "support": 28,
+            "precision": 0.2988505747126437,
+            "recall": 0.9285714285714286,
+            "f1": 0.45217391304347826
+          }
+        }
+      },
+      "corrected_envelope": {
+        "n": 1375,
+        "accuracy": 0.896,
+        "macro_f1": 0.7963065583989889,
+        "all_classes_supported": true,
+        "confusion_rows": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis"
+        ],
+        "confusion_columns": [
+          "cattle",
+          "foot_and_mouth",
+          "lumpy_skin",
+          "mastitis",
+          "miss_or_wrong_roi"
+        ],
+        "confusion_matrix": [
+          [
+            759,
+            10,
+            33,
+            70,
+            0
+          ],
+          [
+            0,
+            204,
+            0,
+            0,
+            0
+          ],
+          [
+            22,
+            4,
+            243,
+            2,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            26,
+            0
+          ]
+        ],
+        "per_class": {
+          "cattle": {
+            "support": 872,
+            "precision": 0.9693486590038314,
+            "recall": 0.8704128440366973,
+            "f1": 0.9172205438066465
+          },
+          "foot_and_mouth": {
+            "support": 204,
+            "precision": 0.9357798165137615,
+            "recall": 1.0,
+            "f1": 0.966824644549763
+          },
+          "lumpy_skin": {
+            "support": 271,
+            "precision": 0.8804347826086957,
+            "recall": 0.8966789667896679,
+            "f1": 0.8884826325411335
+          },
+          "mastitis": {
+            "support": 28,
+            "precision": 0.2653061224489796,
+            "recall": 0.9285714285714286,
+            "f1": 0.4126984126984127
+          }
+        }
+      },
+      "accuracy_delta": 0.0029090909090909722,
+      "wrong_to_correct": 29,
+      "correct_to_wrong": 25,
+      "accuracy_delta_bootstrap": {
+        "lower": -0.008168849658027666,
+        "upper": 0.013558403843568118,
+        "groups": 815,
+        "repetitions": 300,
+        "seed": 13013,
+        "interpretation": "photo-lineage bootstrap; not verified animal/farm uncertainty"
+      }
+    }
+  }
+}

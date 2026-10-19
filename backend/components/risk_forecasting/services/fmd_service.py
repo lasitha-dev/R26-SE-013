@@ -214,7 +214,7 @@ class FMDService:
             scaler = self.models["stage1_31_scaler"]
             feat_cols = list(self.models["stage1_31_cols"])
             variant_name = "31_feature_autocorrelation"
-        elif use_31feat_requested:
+        elif use_31feat_requested and has_31feat_artifacts:
             model = self.models["stage1_30_model"]
             scaler = self.models["stage1_30_scaler"]
             feat_cols = list(self.models["stage1_30_cols"])
@@ -250,6 +250,9 @@ class FMDService:
             if col not in x_raw.columns:
                 x_raw[col] = 0.0
 
+        # The saved column order and scaler are part of the trained model contract.
+        # This earlier inference path fills missing feature cells with zero;
+        # the separate v2 pipeline preserves unknown values for fallback selection.
         x_stage1 = x_raw[feat_cols].fillna(0.0).astype(float)
         x_stage1_scaled = scaler.transform(x_stage1.values)
 
@@ -270,6 +273,8 @@ class FMDService:
         severity_pred_str = "LOW"
         notes = "Stage 2 evaluation bypassed because Stage 1 outbreak risk is below decision threshold (t=0.40)."
 
+        # Stage 2 is conditional: an unevaluated result must be interpreted using
+        # its evaluated flag and notes, rather than the default severity label alone.
         if prob >= GLOBAL_DECISION_THRESHOLD and "stage2_model" in self.models:
             evaluated = True
             s2_cols = list(self.models["stage2_cols"])

@@ -127,6 +127,9 @@ def run_st_clustering(
     if not usable_points:
         return {}, []
 
+    # Explain the algorithm as: build neighbors -> identify dense core points ->
+    # connect cores -> attach border points -> retain remaining points as noise.
+    # These groups provide space/time context rather than proven transmission links.
     point_lookup = {p[0]: (p[1], p[2], p[3]) for p in usable_points}
     graph = build_neighbor_graph(usable_points, eps_space_km=eps_space_km, eps_time_days=eps_time_days)
 

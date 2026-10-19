@@ -31,7 +31,7 @@ from __future__ import annotations
 import time
 from typing import AsyncIterator
 
-from ...domain.operational_events import CaseChangeKind, RawCaseChange, VerifiedClinicalEvent
+from ...domain.operational_events import CaseChangeKind, GeospatialDataChangedEvent, RawCaseChange, VerifiedClinicalEvent
 from ...domain.operational_models import AuthenticatedVetContext, HostDiagnosticCase, OperationalFarm
 from ...repositories.case_event_port import CaseEventSource
 from ...repositories.operational_port import OperationalDataPort
@@ -65,6 +65,20 @@ class OperationalEventStreamService:
 
     def transport_mode(self) -> str:
         return self._source.describe_transport()
+
+    async def primed_data_version(self) -> str | None:
+        """Version after the source's first authoritative poll (never None for a
+        delta-polling source), so the SSE `ready` frame is always comparable."""
+        primer = getattr(self._source, "ensure_primed", None)
+        if primer is not None:
+            await primer()
+        return self.data_version()
+
+    def data_version(self) -> str | None:
+        """Current dataset version (delta-polling sources only), for the SSE
+        `ready` frame -- lets a reconnecting client detect missed changes."""
+        getter = getattr(self._source, "current_data_version", None)
+        return getter() if getter is not None else None
 
     async def _resolve_assigned_farms(self, vet: AuthenticatedVetContext) -> dict[str, OperationalFarm]:
         raw_farms = await self._port.get_assigned_farms(vet)
@@ -154,6 +168,11 @@ class OperationalEventStreamService:
                 yield event
 
         async for raw_change in self._source.watch():
+            if isinstance(raw_change, GeospatialDataChangedEvent):
+                # Privacy-safe invalidation signal for EVERY vet (national
+                # source pool): no farm id, case id or clinical detail.
+                yield raw_change
+                continue
             if self._clock() - farms_resolved_at >= _ASSIGNED_FARM_CACHE_TTL_SECONDS:
                 relevant_farms_by_id = await self._resolve_relevant_farms(vet)
                 farms_resolved_at = self._clock()

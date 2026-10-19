@@ -74,6 +74,72 @@ const MOCK_FILE = new File(['test-image-data'], 'cow.jpg', { type: 'image/jpeg' 
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('useDetection', () => {
+  it('retains structured fallback evidence and clears it before a new image completes', async () => {
+    const { detectImage, fetchReasoning } = await getApi();
+    detectImage.mockResolvedValue(MOCK_DETECTION_RESULT);
+    const explanation = { origin: 'template', summary: 'Original image reference summary' };
+    fetchReasoning.mockResolvedValue({ ...MOCK_REASONING_RESULT, status: 'fallback', explanation });
+    const { result } = renderHook(() => useDetection());
+    await act(async () => { await result.current.detect(MOCK_FILE); });
+    expect(result.current.explanation).toEqual(explanation);
+    expect(result.current.reasoningStatus).toBe('fallback');
+    let resolveImage;
+    detectImage.mockImplementationOnce(() => new Promise(resolve => { resolveImage = resolve; }));
+    let next;
+    act(() => { next = result.current.detect(MOCK_FILE); });
+    expect(result.current.explanation).toBeNull();
+    fetchReasoning.mockResolvedValueOnce({ ...MOCK_REASONING_RESULT, explanation: { origin: 'llm_selected', summary: 'New image' } });
+    await act(async () => { resolveImage(MOCK_DETECTION_RESULT); await next; });
+    expect(result.current.explanation.summary).toBe('New image');
+    act(() => result.current.reset());
+    expect(result.current.explanation).toBeNull();
+  });
+
+  it('retains clinical observations when explanation is retried', async () => {
+    const { detectImage, fetchReasoning } = await getApi();
+    detectImage.mockResolvedValue({ ...MOCK_DETECTION_RESULT, disease: {name:'Mastitis'} });
+    fetchReasoning.mockResolvedValue(MOCK_REASONING_RESULT);
+    const {result} = renderHook(() => useDetection());
+    await act(async () => { await result.current.detect(MOCK_FILE); });
+    const observations = {disease:'mastitis',vet_confirmed:true,milk_abnormal:true,udder_inflammation:false,systemic_illness:false};
+    await act(async () => { await result.current.assessClinicalObservations(observations); });
+    await act(async () => { await result.current.retryReasoning(); });
+    expect(fetchReasoning.mock.calls.at(-1)[0].clinical_observations).toEqual(observations);
+    expect(detectImage).toHaveBeenCalledTimes(1);
+  });
+  it('discards an assessment arriving after the observations are edited', async () => {
+    const { detectImage, fetchReasoning } = await getApi();
+    detectImage.mockResolvedValue({ ...MOCK_DETECTION_RESULT, disease: { name: 'Mastitis' } });
+    fetchReasoning.mockResolvedValueOnce(MOCK_REASONING_RESULT);
+    const { result } = renderHook(() => useDetection());
+    await act(async () => { await result.current.detect(MOCK_FILE); });
+    let finish;
+    fetchReasoning.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    let pending;
+    act(() => { pending = result.current.assessClinicalObservations({ disease: 'mastitis', milk_abnormal: true }); });
+    act(() => result.current.invalidateClinicalAssessment());
+    await act(async () => {
+      finish({ status: 'ok', reasoning_report: 'Old assessment', severity_assessment: { grade: 'Mild' } });
+      await pending;
+    });
+    expect(result.current.severityAssessment).toBeNull();
+    expect(result.current.reasoning).toBeNull();
+    expect(result.current.reasoningStatus).toBe('idle');
+  });
+
+  it('discards results arriving after reset', async () => {
+    const { detectImage } = await getApi();
+    let finish;
+    detectImage.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const { result } = renderHook(() => useDetection());
+    let pending;
+    act(() => { pending = result.current.detect(MOCK_FILE); });
+    act(() => result.current.reset());
+    await act(async () => { finish(MOCK_DETECTION_RESULT); await pending; });
+    expect(result.current.status).toBe('idle');
+    expect(result.current.result).toBeNull();
+  });
+
   it('test_usedetection_initial_state_is_idle', () => {
     const { result } = renderHook(() => useDetection());
 

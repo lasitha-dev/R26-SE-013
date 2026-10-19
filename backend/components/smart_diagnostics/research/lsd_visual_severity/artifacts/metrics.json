@@ -1,0 +1,344 @@
+{
+  "target": "visual_lsd_lesion_grade",
+  "clinical_severity_supported": false,
+  "selected_candidate": "neural_best",
+  "temperature": 1.0769597697439521,
+  "validation_linear_probe_uncalibrated": {
+    "n": 177,
+    "accuracy": 0.8305084745762712,
+    "balanced_accuracy": 0.7496031746031746,
+    "macro_f1": 0.7501073483017676,
+    "weighted_kappa": 0.7253630395862343,
+    "ordinal_mae": 0.1864406779661017,
+    "nll": 0.6304763773814724,
+    "multiclass_brier": 0.2763815763971546,
+    "confusion_matrix": [
+      [
+        111,
+        14,
+        1
+      ],
+      [
+        7,
+        26,
+        2
+      ],
+      [
+        2,
+        4,
+        10
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.925,
+        "recall": 0.8809523809523809,
+        "f1-score": 0.9024390243902439,
+        "support": 126.0
+      },
+      "mild": {
+        "precision": 0.5909090909090909,
+        "recall": 0.7428571428571429,
+        "f1-score": 0.6582278481012658,
+        "support": 35.0
+      },
+      "severe": {
+        "precision": 0.7692307692307693,
+        "recall": 0.625,
+        "f1-score": 0.6896551724137931,
+        "support": 16.0
+      },
+      "accuracy": 0.8305084745762712,
+      "macro avg": {
+        "precision": 0.7617132867132868,
+        "recall": 0.7496031746031746,
+        "f1-score": 0.7501073483017676,
+        "support": 177.0
+      },
+      "weighted avg": {
+        "precision": 0.8448559914661611,
+        "recall": 0.8305084745762712,
+        "f1-score": 0.8349139803126312,
+        "support": 177.0
+      }
+    }
+  },
+  "validation_neural_uncalibrated": {
+    "n": 177,
+    "accuracy": 0.8587570621468926,
+    "balanced_accuracy": 0.7972222222222222,
+    "macro_f1": 0.7882864349059125,
+    "weighted_kappa": 0.7801066004087684,
+    "ordinal_mae": 0.15254237288135594,
+    "nll": 0.3501987962179356,
+    "multiclass_brier": 0.20671581176557496,
+    "confusion_matrix": [
+      [
+        111,
+        15,
+        0
+      ],
+      [
+        2,
+        31,
+        2
+      ],
+      [
+        2,
+        4,
+        10
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.9652173913043478,
+        "recall": 0.8809523809523809,
+        "f1-score": 0.921161825726141,
+        "support": 126.0
+      },
+      "mild": {
+        "precision": 0.62,
+        "recall": 0.8857142857142857,
+        "f1-score": 0.7294117647058823,
+        "support": 35.0
+      },
+      "severe": {
+        "precision": 0.8333333333333334,
+        "recall": 0.625,
+        "f1-score": 0.7142857142857143,
+        "support": 16.0
+      },
+      "accuracy": 0.8587570621468926,
+      "macro avg": {
+        "precision": 0.8061835748792271,
+        "recall": 0.7972222222222222,
+        "f1-score": 0.7882864349059125,
+        "support": 177.0
+      },
+      "weighted avg": {
+        "precision": 0.8850323425857692,
+        "recall": 0.8587570621468926,
+        "f1-score": 0.864544481552379,
+        "support": 177.0
+      }
+    }
+  },
+  "validation_selected_calibrated": {
+    "n": 177,
+    "accuracy": 0.8587570621468926,
+    "balanced_accuracy": 0.7972222222222222,
+    "macro_f1": 0.7882864349059125,
+    "weighted_kappa": 0.7801066004087684,
+    "ordinal_mae": 0.15254237288135594,
+    "nll": 0.34925310409602633,
+    "multiclass_brier": 0.20664661775272866,
+    "confusion_matrix": [
+      [
+        111,
+        15,
+        0
+      ],
+      [
+        2,
+        31,
+        2
+      ],
+      [
+        2,
+        4,
+        10
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.9652173913043478,
+        "recall": 0.8809523809523809,
+        "f1-score": 0.921161825726141,
+        "support": 126.0
+      },
+      "mild": {
+        "precision": 0.62,
+        "recall": 0.8857142857142857,
+        "f1-score": 0.7294117647058823,
+        "support": 35.0
+      },
+      "severe": {
+        "precision": 0.8333333333333334,
+        "recall": 0.625,
+        "f1-score": 0.7142857142857143,
+        "support": 16.0
+      },
+      "accuracy": 0.8587570621468926,
+      "macro avg": {
+        "precision": 0.8061835748792271,
+        "recall": 0.7972222222222222,
+        "f1-score": 0.7882864349059125,
+        "support": 177.0
+      },
+      "weighted avg": {
+        "precision": 0.8850323425857692,
+        "recall": 0.8587570621468926,
+        "f1-score": 0.864544481552379,
+        "support": 177.0
+      }
+    }
+  },
+  "test_selected_calibrated": {
+    "n": 189,
+    "accuracy": 0.9047619047619048,
+    "balanced_accuracy": 0.8783988629189867,
+    "macro_f1": 0.8775148311455462,
+    "weighted_kappa": 0.8846623270951993,
+    "ordinal_mae": 0.09523809523809523,
+    "nll": 0.2780881109596045,
+    "multiclass_brier": 0.15224003301576602,
+    "confusion_matrix": [
+      [
+        124,
+        9,
+        0
+      ],
+      [
+        6,
+        32,
+        1
+      ],
+      [
+        0,
+        2,
+        15
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.9538461538461539,
+        "recall": 0.9323308270676691,
+        "f1-score": 0.9429657794676806,
+        "support": 133.0
+      },
+      "mild": {
+        "precision": 0.7441860465116279,
+        "recall": 0.8205128205128205,
+        "f1-score": 0.7804878048780488,
+        "support": 39.0
+      },
+      "severe": {
+        "precision": 0.9375,
+        "recall": 0.8823529411764706,
+        "f1-score": 0.9090909090909091,
+        "support": 17.0
+      },
+      "accuracy": 0.9047619047619048,
+      "macro avg": {
+        "precision": 0.878510733452594,
+        "recall": 0.8783988629189867,
+        "f1-score": 0.8775148311455462,
+        "support": 189.0
+      },
+      "weighted avg": {
+        "precision": 0.9091126681242961,
+        "recall": 0.9047619047619048,
+        "f1-score": 0.9063916323491581,
+        "support": 189.0
+      }
+    }
+  },
+  "test_always_normal_baseline": {
+    "n": 189,
+    "accuracy": 0.7037037037037037,
+    "balanced_accuracy": 0.3333333333333333,
+    "macro_f1": 0.2753623188405797,
+    "weighted_kappa": 0.0,
+    "ordinal_mae": 0.3862433862433862,
+    "nll": 10.67960100418286,
+    "multiclass_brier": 0.5925925925925926,
+    "confusion_matrix": [
+      [
+        133,
+        0,
+        0
+      ],
+      [
+        39,
+        0,
+        0
+      ],
+      [
+        17,
+        0,
+        0
+      ]
+    ],
+    "classification_report": {
+      "normal": {
+        "precision": 0.7037037037037037,
+        "recall": 1.0,
+        "f1-score": 0.8260869565217391,
+        "support": 133.0
+      },
+      "mild": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 39.0
+      },
+      "severe": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 17.0
+      },
+      "accuracy": 0.7037037037037037,
+      "macro avg": {
+        "precision": 0.23456790123456792,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.2753623188405797,
+        "support": 189.0
+      },
+      "weighted avg": {
+        "precision": 0.49519890260631005,
+        "recall": 0.7037037037037037,
+        "f1-score": 0.5813204508856683,
+        "support": 189.0
+      }
+    }
+  },
+  "test_95pct_group_bootstrap": {
+    "accuracy": {
+      "low_95": 0.8571251768033946,
+      "high_95": 0.9485816326530613
+    },
+    "macro_f1": {
+      "low_95": 0.7947955316379156,
+      "high_95": 0.9383570933741877
+    },
+    "ordinal_mae": {
+      "low_95": 0.051418367346938776,
+      "high_95": 0.14287482319660536
+    },
+    "severe_recall": {
+      "low_95": 0.6421703296703297,
+      "high_95": 1.0
+    }
+  },
+  "test_groups": 157,
+  "training_counts": {
+    "mild": 110,
+    "normal": 377,
+    "severe": 40
+  },
+  "manifest_sha256": "e4715c4d6c8d68b6fb544d6d8dc9ddde5da0b3024cb1c0590876a0668a84e4dc",
+  "total_seconds": 89.9768872000277,
+  "model_sha256": "787cc93393e166e346bc957306cc099e000dfce72f8521d31b7cf985a308c4ee",
+  "limitations": [
+    "No animal/farm identifiers; image-group separation is not proof of animal independence.",
+    "Filename labels are inherited, not independently regraded by a veterinarian.",
+    "Near-duplicate hashes can miss crops or same-animal photos and can merge similar scenes.",
+    "Normal means this dataset's normal-skin class, not freedom from all diseases.",
+    "No pixel lesion masks, temporal stages, or case-level clinical observations are provided."
+  ],
+  "runtime": {
+    "torch": "2.11.0+cu130",
+    "device": "cuda"
+  }
+}

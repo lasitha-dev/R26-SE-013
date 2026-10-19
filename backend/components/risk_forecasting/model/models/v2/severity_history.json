@@ -1,0 +1,809 @@
+{
+ "artifact_version": "1.0",
+ "generated_at": "2026-10-14T10:58:22+00:00",
+ "method": "district class frequencies shrunk toward the national frequencies (k=2); near-ties within 5% show the more severe class; descriptive, not a forecast",
+ "diseases": {
+  "FMD": {
+   "label_unit": "annual district-year",
+   "score_definition": "cases * outbreak_months / 12 + 10 * deaths (LOW < 50, MEDIUM < 300, HIGH >= 300)",
+   "source_file": "severity_labels.csv",
+   "source_sha256": "944a696f94b2eea33104b714e8fbafe211bb7a1d917cb1f2994f6717502a554f",
+   "years": [
+    2017,
+    2024
+   ],
+   "n_district_years": 115,
+   "national": {
+    "counts": {
+     "LOW": 72,
+     "MEDIUM": 31,
+     "HIGH": 12
+    },
+    "probabilities": {
+     "LOW": 0.6261,
+     "MEDIUM": 0.2696,
+     "HIGH": 0.1043
+    }
+   },
+   "districts": {
+    "Ampara": {
+     "outbreak_years": 8,
+     "counts": {
+      "LOW": 3,
+      "MEDIUM": 5,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.4252,
+      "MEDIUM": 0.5539,
+      "HIGH": 0.0209
+     },
+     "typical": "MEDIUM",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Anuradhapura": {
+     "outbreak_years": 8,
+     "counts": {
+      "LOW": 2,
+      "MEDIUM": 3,
+      "HIGH": 3
+     },
+     "probabilities": {
+      "LOW": 0.3252,
+      "MEDIUM": 0.3539,
+      "HIGH": 0.3209
+     },
+     "typical": "HIGH",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Badulla": {
+     "outbreak_years": 7,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 3,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5836,
+      "MEDIUM": 0.3932,
+      "HIGH": 0.0232
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Batticaloa": {
+     "outbreak_years": 7,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 2,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.5836,
+      "MEDIUM": 0.2821,
+      "HIGH": 0.1343
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Colombo": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.4504,
+      "MEDIUM": 0.1078,
+      "HIGH": 0.4417
+     },
+     "typical": "HIGH",
+     "first_year": 2017,
+     "last_year": 2022
+    },
+    "Galle": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.7507,
+      "MEDIUM": 0.1797,
+      "HIGH": 0.0696
+     },
+     "typical": "LOW",
+     "first_year": 2022,
+     "last_year": 2022
+    },
+    "Gampaha": {
+     "outbreak_years": 5,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.7503,
+      "MEDIUM": 0.2199,
+      "HIGH": 0.0298
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2022
+    },
+    "Hambantota": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.8754,
+      "MEDIUM": 0.0899,
+      "HIGH": 0.0348
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2022
+    },
+    "Jaffna": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 3,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.8504,
+      "MEDIUM": 0.1078,
+      "HIGH": 0.0417
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2019
+    },
+    "Kalutara": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.8754,
+      "MEDIUM": 0.0899,
+      "HIGH": 0.0348
+     },
+     "typical": "LOW",
+     "first_year": 2020,
+     "last_year": 2024
+    },
+    "Kandy": {
+     "outbreak_years": 8,
+     "counts": {
+      "LOW": 5,
+      "MEDIUM": 3,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.6252,
+      "MEDIUM": 0.3539,
+      "HIGH": 0.0209
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Kegalle": {
+     "outbreak_years": 5,
+     "counts": {
+      "LOW": 5,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.8932,
+      "MEDIUM": 0.077,
+      "HIGH": 0.0298
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2022
+    },
+    "Kilinochchi": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.4174,
+      "MEDIUM": 0.513,
+      "HIGH": 0.0696
+     },
+     "typical": "MEDIUM",
+     "first_year": 2019,
+     "last_year": 2019
+    },
+    "Kurunegala": {
+     "outbreak_years": 7,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 1,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.5836,
+      "MEDIUM": 0.171,
+      "HIGH": 0.2454
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Mannar": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 3,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.8504,
+      "MEDIUM": 0.1078,
+      "HIGH": 0.0417
+     },
+     "typical": "LOW",
+     "first_year": 2019,
+     "last_year": 2024
+    },
+    "Matale": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 3,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.3754,
+      "MEDIUM": 0.5899,
+      "HIGH": 0.0348
+     },
+     "typical": "MEDIUM",
+     "first_year": 2018,
+     "last_year": 2022
+    },
+    "Monaragala": {
+     "outbreak_years": 7,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 2,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.5836,
+      "MEDIUM": 0.2821,
+      "HIGH": 0.1343
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Mullaitivu": {
+     "outbreak_years": 5,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.7503,
+      "MEDIUM": 0.2199,
+      "HIGH": 0.0298
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Nuwara Eliya": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 2,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.6504,
+      "MEDIUM": 0.3078,
+      "HIGH": 0.0417
+     },
+     "typical": "LOW",
+     "first_year": 2018,
+     "last_year": 2021
+    },
+    "Polonnaruwa": {
+     "outbreak_years": 8,
+     "counts": {
+      "LOW": 6,
+      "MEDIUM": 1,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.7252,
+      "MEDIUM": 0.1539,
+      "HIGH": 0.1209
+     },
+     "typical": "LOW",
+     "first_year": 2017,
+     "last_year": 2024
+    },
+    "Puttalam": {
+     "outbreak_years": 6,
+     "counts": {
+      "LOW": 3,
+      "MEDIUM": 2,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.5315,
+      "MEDIUM": 0.3174,
+      "HIGH": 0.1511
+     },
+     "typical": "LOW",
+     "first_year": 2018,
+     "last_year": 2024
+    },
+    "Trincomalee": {
+     "outbreak_years": 6,
+     "counts": {
+      "LOW": 4,
+      "MEDIUM": 1,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.6565,
+      "MEDIUM": 0.1924,
+      "HIGH": 0.1511
+     },
+     "typical": "LOW",
+     "first_year": 2018,
+     "last_year": 2024
+    },
+    "Vavuniya": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.563,
+      "MEDIUM": 0.3848,
+      "HIGH": 0.0522
+     },
+     "typical": "LOW",
+     "first_year": 2018,
+     "last_year": 2019
+    }
+   }
+  },
+  "LSD": {
+   "label_unit": "annual district-year",
+   "score_definition": "cases + 5 * outbreak_months + 10 * deaths (LOW < 63, MEDIUM < 460, HIGH >= 460)",
+   "source_file": "LSD_severity_labels.csv",
+   "source_sha256": "6a14ad178653dcbf03452091aa484439284af5f0590ef59b9d8f25160275d878",
+   "years": [
+    2020,
+    2024
+   ],
+   "n_district_years": 56,
+   "national": {
+    "counts": {
+     "LOW": 19,
+     "MEDIUM": 18,
+     "HIGH": 19
+    },
+    "probabilities": {
+     "LOW": 0.3393,
+     "MEDIUM": 0.3214,
+     "HIGH": 0.3393
+    }
+   },
+   "districts": {
+    "Ampara": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.1357,
+      "MEDIUM": 0.3286,
+      "HIGH": 0.5357
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Anuradhapura": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 2,
+      "MEDIUM": 1,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.4464,
+      "MEDIUM": 0.2738,
+      "HIGH": 0.2798
+     },
+     "typical": "LOW",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Badulla": {
+     "outbreak_years": 5,
+     "counts": {
+      "LOW": 3,
+      "MEDIUM": 0,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.5255,
+      "MEDIUM": 0.0918,
+      "HIGH": 0.3827
+     },
+     "typical": "LOW",
+     "first_year": 2020,
+     "last_year": 2024
+    },
+    "Batticaloa": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.2798,
+      "MEDIUM": 0.2738,
+      "HIGH": 0.4464
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2024
+    },
+    "Galle": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.4196,
+      "MEDIUM": 0.4107,
+      "HIGH": 0.1696
+     },
+     "typical": "MEDIUM",
+     "first_year": 2023,
+     "last_year": 2024
+    },
+    "Gampaha": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5595,
+      "MEDIUM": 0.2143,
+      "HIGH": 0.2262
+     },
+     "typical": "LOW",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Hambantota": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5595,
+      "MEDIUM": 0.2143,
+      "HIGH": 0.2262
+     },
+     "typical": "LOW",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Jaffna": {
+     "outbreak_years": 4,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.2798,
+      "MEDIUM": 0.2738,
+      "HIGH": 0.4464
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2024
+    },
+    "Kalutara": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.2262,
+      "MEDIUM": 0.5476,
+      "HIGH": 0.2262
+     },
+     "typical": "MEDIUM",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Kandy": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.2262,
+      "MEDIUM": 0.5476,
+      "HIGH": 0.2262
+     },
+     "typical": "MEDIUM",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Kegalle": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5595,
+      "MEDIUM": 0.2143,
+      "HIGH": 0.2262
+     },
+     "typical": "LOW",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Kilinochchi": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 0,
+      "HIGH": 3
+     },
+     "probabilities": {
+      "LOW": 0.1357,
+      "MEDIUM": 0.1286,
+      "HIGH": 0.7357
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Kurunegala": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.4196,
+      "MEDIUM": 0.1607,
+      "HIGH": 0.4196
+     },
+     "typical": "HIGH",
+     "first_year": 2023,
+     "last_year": 2024
+    },
+    "Mannar": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 2,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.3357,
+      "MEDIUM": 0.5286,
+      "HIGH": 0.1357
+     },
+     "typical": "MEDIUM",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Matale": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.2262,
+      "MEDIUM": 0.5476,
+      "HIGH": 0.2262
+     },
+     "typical": "MEDIUM",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Matara": {
+     "outbreak_years": 1,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5595,
+      "MEDIUM": 0.2143,
+      "HIGH": 0.2262
+     },
+     "typical": "LOW",
+     "first_year": 2023,
+     "last_year": 2023
+    },
+    "Monaragala": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.3357,
+      "MEDIUM": 0.3286,
+      "HIGH": 0.3357
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Mullaitivu": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 2,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.1357,
+      "MEDIUM": 0.5286,
+      "HIGH": 0.3357
+     },
+     "typical": "MEDIUM",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Nuwara Eliya": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.4196,
+      "MEDIUM": 0.4107,
+      "HIGH": 0.1696
+     },
+     "typical": "MEDIUM",
+     "first_year": 2021,
+     "last_year": 2023
+    },
+    "Polonnaruwa": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 2,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.1696,
+      "MEDIUM": 0.6607,
+      "HIGH": 0.1696
+     },
+     "typical": "MEDIUM",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Puttalam": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 1,
+      "MEDIUM": 0,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.4196,
+      "MEDIUM": 0.1607,
+      "HIGH": 0.4196
+     },
+     "typical": "HIGH",
+     "first_year": 2021,
+     "last_year": 2023
+    },
+    "Ratnapura": {
+     "outbreak_years": 3,
+     "counts": {
+      "LOW": 2,
+      "MEDIUM": 1,
+      "HIGH": 0
+     },
+     "probabilities": {
+      "LOW": 0.5357,
+      "MEDIUM": 0.3286,
+      "HIGH": 0.1357
+     },
+     "typical": "LOW",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Trincomalee": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 1,
+      "HIGH": 1
+     },
+     "probabilities": {
+      "LOW": 0.1696,
+      "MEDIUM": 0.4107,
+      "HIGH": 0.4196
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2023
+    },
+    "Vavuniya": {
+     "outbreak_years": 2,
+     "counts": {
+      "LOW": 0,
+      "MEDIUM": 0,
+      "HIGH": 2
+     },
+     "probabilities": {
+      "LOW": 0.1696,
+      "MEDIUM": 0.1607,
+      "HIGH": 0.6696
+     },
+     "typical": "HIGH",
+     "first_year": 2020,
+     "last_year": 2023
+    }
+   }
+  }
+ }
+}

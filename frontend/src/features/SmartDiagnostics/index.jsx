@@ -1,9 +1,15 @@
+import ImageEvidenceStatus from './components/ImageEvidenceStatus';
+import ImageEvidenceViewer from './components/ImageEvidenceViewer';
+import SegmenterDetails from './components/SegmenterDetails';
+import { SEGMENTER_NAME, SYMPTOM_OVERLAY_LABEL } from './modelInfo';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import UploadDropzone from './components/UploadDropzone';
 import ReasoningBriefing from './components/ReasoningBriefing';
 import useDetection from './hooks/useDetection';
-import { getDiseaseProfile } from './diseaseProfiles';
+import ClinicalChecklist from './components/ClinicalChecklist';
+import ClinicalRecommendationCard from './components/ClinicalRecommendationCard';
+import { clinicalDiseaseKey, resolveSeverity } from './clinicalSeverity';
 import { reportDiagnosticCase, verifyDiagnosticCase } from './services/api';
 
 /**
@@ -16,6 +22,7 @@ import { reportDiagnosticCase, verifyDiagnosticCase } from './services/api';
  * - Model Reasoning & Evidence (rationale + confidence score)
  */
 const SmartDiagnostics = () => {
+  const API_BASE = import.meta.env.VITE_API_URL || '';
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const cattleId = searchParams.get('cattle_id');
@@ -33,7 +40,8 @@ const SmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, recommendation, retryReasoning,
+    assessClinicalObservations, invalidateClinicalAssessment,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
@@ -51,7 +59,7 @@ const SmartDiagnostics = () => {
       setLoadingContext(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://127.0.0.1:8000/api/cattle/${cattleId}`, {
+        const res = await fetch(`${API_BASE}/api/cattle/${cattleId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {
@@ -60,7 +68,7 @@ const SmartDiagnostics = () => {
         }
 
         if (farmId) {
-          const farmRes = await fetch(`http://127.0.0.1:8000/api/vet/farms/${farmId}/cattle`, {
+          const farmRes = await fetch(`${API_BASE}/api/vet/farms/${farmId}/cattle`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
           });
           if (farmRes.ok) {
@@ -70,7 +78,7 @@ const SmartDiagnostics = () => {
         }
 
         // Fetch existing diagnostic case for this cattle
-        const casesRes = await fetch(`http://127.0.0.1:8000/api/vet/cases`, {
+        const casesRes = await fetch(`${API_BASE}/api/vet/cases`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (casesRes.ok) {
@@ -115,15 +123,20 @@ const SmartDiagnostics = () => {
 
   // Authoritative clinical severity & profile resolution from vision & LLM reasoning pipeline
   const disease = result?.disease;
-  const staticProfile = getDiseaseProfile(disease?.name);
 
-  const effectiveSeverity = severityAssessment || result?.severity;
+  const clinicalKey = clinicalDiseaseKey(disease?.name);
+  const effectiveSeverity = resolveSeverity(result, severityAssessment);
+  const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
+  const modelReasoned = effectiveSeverity?.source === 'model_llm_reasoning';
+  const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
+  const clinicalReady = !usesClinicalChecklist || (effectiveSeverity?.assessment_status === 'provisional' && ['done', 'fallback', 'unavailable'].includes(reasoningStatus));
   const dynamicSeverity = effectiveSeverity;
   const dynamicSpatialCorrelation = result?.spatial_correlation || effectiveSeverity?.spatial_correlation;
 
-  const severityGrade = effectiveSeverity?.grade || (staticProfile.severity.split('/')[1] || '').trim() || 'Moderate';
-  const severityDescription = effectiveSeverity?.description || staticProfile.rationale;
-  const severityFormatted = effectiveSeverity?.formatted || effectiveSeverity?.grade || staticProfile.severity;
+  const severityGrade = effectiveSeverity?.grade || 'Unassessable';
+  const severityDescription = effectiveSeverity?.description || 'No severity assessment is available.';
+  const severityFormatted = effectiveSeverity?.formatted || effectiveSeverity?.grade || 'Unassessable';
+  const activeRecommendation = recommendation || effectiveSeverity?.recommendation || explanation?.recommendation || null;
 
   const gradeLower = (severityGrade || '').toLowerCase();
   const severityColor = gradeLower.includes('severe') || gradeLower.includes('high')
@@ -134,16 +147,16 @@ const SmartDiagnostics = () => {
     ? 'text-teal-400'
     : 'text-primary';
 
-  const spatialCorrelation = dynamicSpatialCorrelation || staticProfile.spatialCorrelation;
-  const rationale = effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
+  const spatialCorrelation = clinicalKey ? 'Image highlighting is visual evidence; clinical lesion extent must be assessed in person.' : dynamicSpatialCorrelation || 'Body site has not been assessed.';
+  const rationale = effectiveSeverity?.diagnostic_rationale || 'Interpretation requires clinical review.';
 
-  const confidenceLevel = effectiveSeverity?.confidence_level || 'High';
-  const needsReview = Boolean(effectiveSeverity?.needs_review);
+  const confidenceLevel = effectiveSeverity?.confidence_level || 'Unknown';
+  const needsReview = Boolean(effectiveSeverity?.needs_review || result?.review?.required);
   const attentionCoverage = effectiveSeverity?.attention_coverage_pct ?? 0;
   const attentionClusters = effectiveSeverity?.attention_cluster_count ?? 0;
   const compositeScore = effectiveSeverity?.composite_score;
   
-  const rawPrognosis = effectiveSeverity?.prognosis || staticProfile.prognosis;
+  const rawPrognosis = effectiveSeverity?.prognosis || 'Not assessed';
   const prognosis = rawPrognosis;
   const progLower = (rawPrognosis || '').toLowerCase();
   const prognosisColor = progLower.includes('guarded') || progLower.includes('poor')
@@ -152,13 +165,13 @@ const SmartDiagnostics = () => {
     ? 'text-[#f59e0b]'
     : 'text-primary';
 
-  const evidenceItems = staticProfile.evidenceItems;
+  const evidenceItems = [];
 
   const confidence = disease?.confidence
     ? disease.confidence.toFixed(1)
     : '0.0';
 
-  // Get best detection bounding box and Mask R-CNN segmentation image
+  // Get best detection bounding box and ResNet50 U-Net segmentation image
   const bestBbox = result?.best_detection?.bbox_normalized;
   const symptomsImage = result?.symptoms_image;
   const croppedImage = result?.cropped_image;
@@ -178,7 +191,7 @@ const SmartDiagnostics = () => {
   };
 
   const handleVerifyAndReport = async () => {
-    if (!result) return;
+    if (!result || !clinicalReady) return;
     setIsReporting(true);
     setReportError(null);
     try {
@@ -190,13 +203,19 @@ const SmartDiagnostics = () => {
         breed: cattleInfo?.breed || 'Dairy Breed',
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
-        severity: severityGrade,
+        severity: automaticVisual ? severityFormatted : severityGrade,
         prognosis: prognosis,
         rationale: rationale,
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
+        clinical_notes: usesClinicalChecklist
+          ? `Veterinary checklist reviewed; provisional rule-based assessment. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, rubric_id: effectiveSeverity.rubric_id, assessment_status: effectiveSeverity.assessment_status, clinical_observations: effectiveSeverity.clinical_observations, evidence: effectiveSeverity.evidence, references: effectiveSeverity.references })}`
+          : modelReasoned
+            ? `Automated severity estimate reviewed for this case. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment, reasoning_assessment: effectiveSeverity.reasoning_assessment })}`
+          : automaticVisual
+            ? `Automatic visual estimate reviewed for this case; clinical severity is not established. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
+            : `Clinical verification completed by authorized veterinary practitioner. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade}. Pathological assessment: ${severityDescription}`,
         llm_reasoning: reasoning,
         verified: true,
       };
@@ -222,7 +241,7 @@ const SmartDiagnostics = () => {
               Diagnostic Intake &amp; Visual Triage
             </span>
             <span className="text-outline text-3xs">•</span>
-            <span className="text-tertiary text-3xs font-mono">CV Pipeline v3.2</span>
+            <span className="text-tertiary text-3xs font-mono">YOLOv8 · ViT · {SEGMENTER_NAME}</span>
           </div>
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight">
             AI-Powered Smart Diagnosis System
@@ -252,6 +271,8 @@ const SmartDiagnostics = () => {
           )}
         </div>
       </div>
+
+      <SegmenterDetails />
 
       {/* Subject Animal Clinical Context Card */}
       {cattleInfo && (
@@ -392,9 +413,9 @@ const SmartDiagnostics = () => {
           <div className="space-y-6" data-testid="success-view">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-              {/* Column 1: Symptom Analysis (7/12 on desktop) */}
-              <div className="lg:col-span-7">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 h-full flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle">
+              {/* Column 1: Symptom Analysis & Clinical Recommendations (7/12 on desktop) */}
+              <div className="lg:col-span-7 flex flex-col space-y-6">
+                <div className={`bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle ${!activeRecommendation && reasoningStatus !== 'loading' ? 'flex-1' : ''}`}>
                   {/* Section header */}
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3 md:mb-4 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
@@ -407,17 +428,17 @@ const SmartDiagnostics = () => {
                       {symptomsImage ? (
                         <span className="px-2 py-0.5 bg-rose-500/15 text-rose-400 text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-rose-500/30 flex items-center gap-1.5 shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
-                          Mask R-CNN Active
+                          {SEGMENTER_NAME} Active
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 bg-primary/15 text-primary text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-primary/30 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                          Live Scan
+                          Segmentation not displayed
                         </span>
                       )}
                     </div>
                     <div className="text-3xs font-mono text-outline">
-                      {symptomsImage ? 'MASK_RCNN_LAYER_03' : 'YOLO_LAYER_01'}
+                      {symptomsImage ? 'LESION_MASK_LAYER_03' : 'YOLO_LAYER_01'}
                     </div>
                   </div>
 
@@ -455,7 +476,7 @@ const SmartDiagnostics = () => {
                       </button>
                     </div>
 
-                    {/* Mask R-CNN Symptom Overlay Toggle */}
+                    {/* ResNet50 U-Net Symptom Overlay Toggle */}
                     {symptomsImage && (
                       <button
                         type="button"
@@ -467,164 +488,33 @@ const SmartDiagnostics = () => {
                         }`}
                         id="toggle-symptom-mask-btn"
                         data-testid="toggle-symptom-mask-btn"
+                        title={SYMPTOM_OVERLAY_LABEL}
+                        aria-label={`Show ${SYMPTOM_OVERLAY_LABEL}`}
+                        aria-pressed={showSymptomMask}
                       >
                         <span className="material-symbols-outlined text-xs">
                           {showSymptomMask ? 'layers' : 'layers_clear'}
                         </span>
-                        Symptom Mask: <span className="font-bold">{showSymptomMask ? 'VISIBLE' : 'HIDDEN'}</span>
+                        Symptom Overlay: <span className="font-bold">{showSymptomMask ? 'VISIBLE' : 'HIDDEN'}</span>
                       </button>
                     )}
                   </div>
 
-                  {/* Image Viewer Container */}
-                  <div
-                    className="relative flex-1 min-h-[280px] md:min-h-[420px] rounded-xl overflow-hidden group scanning bg-surface-container-lowest/90 border border-outline-variant/20 select-none flex items-center justify-center"
-                    id="image-container"
-                  >
-                    {/* Clinical Framing Corner Brackets */}
-                    <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-primary z-20 pointer-events-none" />
-                    <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-primary z-20 pointer-events-none" />
-                    <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-primary z-20 pointer-events-none" />
-                    <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-primary z-20 pointer-events-none" />
-
-                    {/* Scan Line */}
-                    <div className="scan-line" />
-
-                    {/* ===== FULL SCAN VIEW ===== */}
-                    {activeView === 'full' && (
-                      <>
-                        {/* Cattle Image (darkened to draw contrast to detected region) */}
-                        <img
-                          className="w-full h-full object-cover transition-all duration-700 image-dimmed"
-                          src={imagePreview}
-                          alt="Uploaded clinical image"
-                        />
-
-                        {/* Bounding box / lesion spotlight overlay */}
-                        {bestBbox && (
-                          <div className="absolute inset-0 opacity-100 transition-opacity duration-500 pointer-events-none">
-                            {/* High-illumination spotlight area & Mask R-CNN overlay */}
-                            <div
-                              className={`absolute rounded-xl border-2 transition-all duration-300 overflow-hidden ${
-                                symptomsImage && showSymptomMask
-                                  ? 'border-rose-400 symptom-mask-container'
-                                  : 'border-primary animate-pulse lesion-spotlight lesion-focused'
-                              }`}
-                              style={{
-                                left: `${bestBbox.x1 * 100}%`,
-                                top: `${bestBbox.y1 * 100}%`,
-                                width: `${(bestBbox.x2 - bestBbox.x1) * 100}%`,
-                                height: `${(bestBbox.y2 - bestBbox.y1) * 100}%`,
-                              }}
-                            >
-                              {/* Mask R-CNN pixel segmentation overlay (red symptom heatmap) */}
-                              {symptomsImage && showSymptomMask ? (
-                                <img
-                                  src={symptomsImage}
-                                  alt="Mask R-CNN Symptom Segmentation Overlay"
-                                  className="w-full h-full object-cover pointer-events-none opacity-95 transition-opacity duration-300"
-                                  data-testid="mask-rcnn-overlay"
-                                />
-                              ) : croppedImage ? (
-                                <img
-                                  src={croppedImage}
-                                  alt="Cropped lesion region"
-                                  className="w-full h-full object-cover pointer-events-none opacity-90 transition-opacity duration-300"
-                                  data-testid="raw-crop-overlay"
-                                />
-                              ) : null}
-
-                              {/* Inner corner reticle accents */}
-                              <div className={`absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t-2 border-l-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
-                              <div className={`absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t-2 border-r-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
-                              <div className={`absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b-2 border-l-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
-                              <div className={`absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-2 border-r-2 ${symptomsImage && showSymptomMask ? 'border-rose-400 shadow-glow-sm' : 'border-primary shadow-glow-sm'}`} />
-                            </div>
-
-                            {/* Label Badge */}
-                            <div
-                              className="absolute pointer-events-auto z-30"
-                              style={{
-                                left: `${Math.min(bestBbox.x2 * 100, 68)}%`,
-                                top: `${Math.max(bestBbox.y1 * 100 - 5, 2)}%`,
-                              }}
-                            >
-                              <div className="bg-surface-container-highest/95 backdrop-blur-md px-2.5 py-1 rounded-lg text-3xs md:text-2xs border border-primary/60 shadow-xl whitespace-nowrap flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${symptomsImage && showSymptomMask ? 'bg-rose-400 animate-ping' : 'bg-primary animate-pulse'}`} />
-                                <span className="text-primary font-mono font-bold">
-                                  {symptomsImage && showSymptomMask ? 'MASK_RCNN_LESION' : 'LESION_01'}
-                                </span>
-                                <span className="hidden sm:inline text-on-surface-variant font-medium">
-                                  {symptomsImage && showSymptomMask ? ': Symptom segmented' : ': Detected region'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {/* ===== LESION FOCUS (ZOOMED CROP INSPECTION) ===== */}
-                    {activeView === 'lesion' && (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center p-4 lesion-crop-container">
-                        <div className="relative max-w-md max-h-[340px] rounded-xl overflow-hidden border-2 border-rose-500/50 shadow-2xl symptom-mask-glow">
-                          <img
-                            src={showSymptomMask && symptomsImage ? symptomsImage : (croppedImage || imagePreview)}
-                            alt="Lesion High-Resolution Focus"
-                            className="w-full h-full object-contain"
-                            data-testid="lesion-focus-image"
-                          />
-                          <div className="absolute top-2 left-2 bg-surface-container-highest/90 px-2 py-0.5 rounded text-3xs font-mono text-primary border border-primary/30">
-                            MAGNIFIED LESION ROI (224×224)
-                          </div>
-                        </div>
-
-                        {/* Pathology Legend */}
-                        <div className="mt-3 flex flex-wrap items-center justify-center gap-4 bg-surface-container-highest/80 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-outline-variant/20 text-3xs font-mono">
-                          <div className="flex items-center gap-1.5 text-rose-300">
-                            <span className="w-2.5 h-2.5 rounded bg-rose-500 inline-block" />
-                            <span>Mask R-CNN Pathological Area</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-primary">
-                            <span className="w-2.5 h-2.5 rounded border border-primary inline-block" />
-                            <span>YOLO Bounding Margin</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Confidence footer badge */}
-                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center glass-panel px-3.5 py-2.5 rounded-xl border border-white/10 shadow-lg z-20">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                        <span className="text-3xs md:text-2xs font-mono font-bold tracking-tight text-on-surface uppercase">
-                          AI DIAGNOSTIC CONFIDENCE: {confidence}%
-                        </span>
-                        {symptomsImage && (
-                          <span className="hidden md:inline text-rose-400 text-3xs font-mono font-bold">
-                            • MASK R-CNN SEGMENTATION VERIFIED
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveView((prev) => (prev === 'full' ? 'lesion' : 'full'))}
-                        className="text-tertiary hover:text-on-surface flex items-center gap-1 text-3xs font-mono"
-                        title="Toggle View Mode"
-                      >
-                        <span className="material-symbols-outlined text-sm">
-                          {activeView === 'full' ? 'zoom_in' : 'aspect_ratio'}
-                        </span>
-                        <span className="hidden sm:inline">{activeView === 'full' ? 'Focus Lesion' : 'Full Scan'}</span>
-                      </button>
-                    </div>
-                  </div>
+                  <ImageEvidenceViewer result={result} original={imagePreview} cropped={croppedImage}
+                    overlay={symptomsImage} view={activeView} showMask={showSymptomMask} />
                 </div>
+
+                {/* Actionable Clinical Recommendations (LLM Decision Support) */}
+                <ClinicalRecommendationCard
+                  recommendation={activeRecommendation}
+                  loading={reasoningStatus === 'loading'}
+                  className="flex-1"
+                />
               </div>
 
               {/* Column 2: AI Logic Trace (5/12 on desktop) */}
-              <div className="lg:col-span-5">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col border border-outline-variant/15 shadow-card-subtle h-full">
+              <div className="lg:col-span-5 flex flex-col">
+                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex-1 flex flex-col justify-between border border-outline-variant/15 shadow-card-subtle">
                   {/* Section header */}
                   <div className="flex items-center justify-between mb-4 md:mb-5 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
@@ -635,11 +525,11 @@ const SmartDiagnostics = () => {
                         03 AI Logic Trace
                       </span>
                     </div>
-                    <span className="text-3xs font-mono text-outline">AUTO-VERIFIED</span>
+                    <span className="text-3xs font-mono text-outline">MODEL OUTPUT</span>
                   </div>
 
                   {/* Step-by-step trace */}
-                  <div className="space-y-3 mb-5 md:mb-6 flex-1">
+                  <div className="space-y-3 mb-5 md:mb-6">
                     {/* Step 1 */}
                     <div className={`p-2.5 rounded-xl bg-surface-container/60 border border-outline-variant/10 transition-all duration-500 flex items-center gap-3 ${visibleSteps >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                       <div className="w-6 h-6 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
@@ -647,10 +537,10 @@ const SmartDiagnostics = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-on-surface">
-                          Pre-Validation: <span className="text-primary font-mono">Passed</span>
+                          Image Intake: <span className="text-primary font-mono">Decoded</span>
                         </p>
                       </div>
-                      <span className="text-3xs font-mono text-outline">0.12s</span>
+                      <span className="text-3xs font-mono text-outline">COMPLETED</span>
                     </div>
 
                     {/* Step 2 */}
@@ -660,10 +550,10 @@ const SmartDiagnostics = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-on-surface">
-                          Preprocessing: <span className="text-on-surface-variant font-mono">Filters Applied</span>
+                          Preprocessing: <span className="text-on-surface-variant font-mono">RGB Model Input</span>
                         </p>
                       </div>
-                      <span className="text-3xs font-mono text-outline">0.24s</span>
+                      <span className="text-3xs font-mono text-outline">COMPLETED</span>
                     </div>
 
                     {/* Step 3 */}
@@ -676,10 +566,23 @@ const SmartDiagnostics = () => {
                           Feature Extraction: <span className="text-primary font-mono">Complete</span>
                         </p>
                       </div>
-                      <span className="text-3xs font-mono text-outline">0.38s</span>
+                      <span className="text-3xs font-mono text-outline">COMPLETED</span>
                     </div>
                   </div>
 
+                  {clinicalKey && <details className="rounded-xl border border-outline-variant/20 p-3">
+                    <summary className="cursor-pointer text-xs text-on-surface">Optional clinical assessment</summary>
+                    <p className="my-2 text-xs text-on-surface-variant">The visual severity estimate is generated automatically. Add examination findings only if you want a separate clinical assessment.</p>
+                    <ClinicalChecklist key={`${clinicalKey}:${imagePreview}`}
+                      diseaseKey={clinicalKey} busy={reasoningStatus === 'loading'}
+                      onAssess={assessClinicalObservations}
+                      onEdit={() => { invalidateClinicalAssessment(); setCaseReport(null); }} />
+                    {usesClinicalChecklist && result?.severity?.source === 'visual_thresholds' && <button type="button"
+                      className="mt-2 text-xs text-primary underline"
+                      onClick={() => { invalidateClinicalAssessment(); setCaseReport(null); }}>Use automatic visual estimate</button>}
+                  </details>}
+
+                  <ImageEvidenceStatus result={result} />
                   {/* Inference Results Card */}
                   <div className={`bg-surface-container-highest/80 backdrop-blur-sm rounded-xl p-4 md:p-5 border-l-4 border-primary border border-outline-variant/15 shadow-lg transition-all duration-500 ${visibleSteps >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/15">
@@ -709,11 +612,54 @@ const SmartDiagnostics = () => {
                         )}
                       </div>
 
+                      {/* Clinical Severity (LLM Reasoned) Section */}
+                      <div className="pt-2 pb-1 border-t border-outline-variant/15">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-3xs text-outline uppercase font-bold tracking-wider flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-primary">neurology</span>
+                            Clinical Severity (LLM Reasoned)
+                          </span>
+                          <span className={`text-xs font-mono font-black uppercase px-2 py-0.5 rounded border ${
+                            gradeLower.includes('severe') || gradeLower.includes('high')
+                              ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                              : gradeLower.includes('moderate')
+                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                              : 'bg-teal-500/15 border-teal-500/30 text-teal-300'
+                          }`}>
+                            {severityGrade}
+                          </span>
+                        </div>
+                        <p className="font-bold text-sm text-amber-300" data-testid="clinical-checklist-grade">{severityFormatted}</p>
+
+                        {/* Model Inference Telemetry Sent to LLM */}
+                        <div className="mt-2 grid grid-cols-2 gap-2 p-2 rounded-lg bg-surface-container/60 border border-outline-variant/10 text-3xs font-mono">
+                          <div>
+                            <span className="text-outline block">Model Lesion Burden</span>
+                            <span className="text-on-surface font-semibold">
+                              {effectiveSeverity?.visual_assessment?.coverage_pct != null
+                                ? `${effectiveSeverity.visual_assessment.coverage_pct}% crop coverage`
+                                : result?.severity?.coverage_pct != null
+                                ? `${result.severity.coverage_pct}% crop coverage`
+                                : result?.coverage_pct != null
+                                ? `${result.coverage_pct}% crop coverage`
+                                : 'Visual metrics analyzed'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-outline block">Model Confidence</span>
+                            <span className="text-on-surface font-semibold">
+                              {confidence}% (ViT)
+                              {result?.best_detection?.confidence ? ` · ${(result.best_detection.confidence * 100).toFixed(0)}% (YOLO)` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Needs Review Alert Banner */}
                       {needsReview && (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
-                          <span className="font-medium">Uncertainty Flag: Severity score near decision threshold. In-person clinical validation recommended.</span>
+                          <span className="font-medium">{usesClinicalChecklist ? 'Clinical checklist requires veterinary review. Application accuracy has not been validated.' : 'Assessment checks: inspect the evidence and image quality notes below.'}</span>
                         </div>
                       )}
 
@@ -722,7 +668,7 @@ const SmartDiagnostics = () => {
                         <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-1.5 flex items-center justify-between">
                           <span className="flex items-center gap-1">
                             <span className="material-symbols-outlined text-xs text-primary">clinical_notes</span>
-                            Pathological Severity Assessment
+                            {usesClinicalChecklist ? (clinicalKey === 'foot_and_mouth' ? 'FMD field triage assessment' : 'Clinical checklist assessment') : modelReasoned ? 'Severity from model findings and LLM reasoning' : automaticVisual ? 'Automatic visual severity estimate' : 'Existing Image Assessment'}
                           </span>
                           {reasoningStatus === 'loading' ? (
                             <span className="inline-flex items-center gap-1 text-[9px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 animate-pulse" data-testid="synthesising-badge">
@@ -731,33 +677,18 @@ const SmartDiagnostics = () => {
                             </span>
                           ) : (
                             <span className="text-[9px] font-mono text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10">
-                              {severityAssessment ? 'AI CLINICAL REASONING' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
+                              {usesClinicalChecklist ? 'CLINICAL CHECKLIST · PROVISIONAL' : automaticVisual ? 'AUTOMATIC · PROVISIONAL' : severityAssessment ? 'MODEL EXPLANATION' : dynamicSeverity?.source === 'composite_scoring' ? 'CLINICAL SYNTHESIS' : 'AI REASONER'}
                             </span>
                           )}
                         </p>
 
-                        {reasoningStatus === 'loading' ? (
-                          <div className="space-y-1.5 py-1.5 animate-pulse" data-testid="synthesising-placeholder">
-                            <div className="flex items-center gap-1.5 text-2xs text-amber-300/90 font-medium">
-                              <span className="material-symbols-outlined text-xs animate-spin">sync</span>
-                              <span>Synthesising clinical telemetry &amp; pathological evidence...</span>
-                            </div>
-                            <div className="h-2 bg-surface-variant/40 rounded w-5/6" />
-                            <div className="h-2 bg-surface-variant/20 rounded w-4/6" />
-                          </div>
-                        ) : (
-                          <p className="text-2xs text-on-surface-variant leading-relaxed" data-testid="severity-narrative">
-                            {severityDescription || 'Pathological telemetry evaluated.'}
-                          </p>
-                        )}
+                        <p className="text-2xs text-on-surface-variant leading-relaxed" data-testid="severity-narrative">{severityDescription}</p>
                       </div>
                     </div>
                   </div>
 
-
-
                   {/* Vet Action & Verification Area */}
-                  <div className={`mt-5 md:mt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                  <div className={`mt-auto pt-5 md:pt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                     {caseReport && caseReport.verified ? (
                       <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-3 animate-fadeIn" data-testid="verified-case-banner">
                         <div className="flex items-center justify-between">
@@ -798,7 +729,7 @@ const SmartDiagnostics = () => {
                         )}
                         <button
                           onClick={handleVerifyAndReport}
-                          disabled={isReporting}
+                          disabled={isReporting || !clinicalReady}
                           className="w-full primary-gradient text-on-primary py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-primary/15 hover:shadow-primary/30 hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50"
                           id="vet-verify-btn"
                           data-testid="vet-verify-btn"
@@ -854,7 +785,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {effectiveSeverity?.diagnostic_rationale ? 'COMPOSITE SCORER' : 'VISION INFERENCE'}
+                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : modelReasoned ? 'MODEL FINDINGS + LLM REASONING' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="diagnostic-rationale">
@@ -870,7 +801,7 @@ const SmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {effectiveSeverity?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
+                        {effectiveSeverity?.spatial_correlation ? 'REPORTED / IMAGE GEOMETRY' : 'ANALYZED REGION'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed" data-testid="spatial-correlation">
@@ -882,7 +813,7 @@ const SmartDiagnostics = () => {
                 {/* Right: Confidence score + evidence list */}
                 <div className="bg-surface-container-highest/40 backdrop-blur-sm rounded-xl p-5 md:p-6 flex flex-col justify-center border border-primary/15">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-on-surface-variant">Evidence Confidence Score</span>
+                    <span className="text-xs font-bold text-on-surface-variant">Disease class probability (uncalibrated)</span>
                     <span className="text-xl md:text-2xl font-black text-primary font-mono tracking-tight" data-testid="confidence-score">
                       {confidence}%
                     </span>
@@ -912,11 +843,13 @@ const SmartDiagnostics = () => {
             </div>
 
             {/* Tier 3 — AI Clinical Briefing (LLM Reasoning) */}
+            <div className="mb-3"><button type="button" onClick={retryReasoning} disabled={reasoningStatus === 'loading'} className="text-xs text-primary disabled:opacity-50">Retry explanation</button></div>
             <ReasoningBriefing
               reasoning={reasoning}
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
               severityAssessment={effectiveSeverity}
+              explanation={explanation}
             />
           </div>
         )}

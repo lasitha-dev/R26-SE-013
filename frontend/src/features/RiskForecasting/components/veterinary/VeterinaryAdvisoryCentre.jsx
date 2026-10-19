@@ -18,6 +18,32 @@ import {
   forwardToAssignedFarmers,
 } from '../../services/riskForecastingWorkflowApi';
 import { SimulatedDeliveryPanel } from './SimulatedDeliveryPanel';
+import { getReferencePeriod, shiftPeriod, isSamePeriod } from '../../config/forecastPeriod';
+import { describeRiskPlain, periodLabel, selectOfficialRecords } from '../forecastPresentation';
+
+const TAB_ORDER = ['PREVIOUS', 'CURRENT', 'NEXT'];
+const TAB_BUTTON_LABELS = Object.freeze({ PREVIOUS: 'Earlier months', CURRENT: 'This month', NEXT: 'Next month' });
+const TAB_ACTIVE_CLASS = Object.freeze({
+  PREVIOUS: 'bg-slate-800 text-white shadow',
+  CURRENT: 'bg-emerald-900/60 text-emerald-300 shadow',
+  NEXT: 'bg-amber-900/60 text-amber-300 shadow',
+});
+
+// Which timeframe tab a stored forecast belongs to ("current" is the configured reference month).
+function periodMatchesTab(rec, tab) {
+  const current = getReferencePeriod();
+  const next = shiftPeriod(current, 1);
+  const period = { year: rec.target_year, month: rec.target_month };
+  if (tab === 'CURRENT') return isSamePeriod(period, current);
+  if (tab === 'NEXT') return isSamePeriod(period, next);
+  return period.year * 12 + period.month < current.year * 12 + current.month;
+}
+
+const TIMEFRAME_LABELS = Object.freeze({
+  PREVIOUS: 'previous months',
+  CURRENT: 'the current month',
+  NEXT: 'the next-month forecast period',
+});
 
 function sanitizeErrorMessage(err, defaultMsg) {
   if (!err) return defaultMsg;
@@ -61,7 +87,11 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
   const [forecastRecords, setForecastRecords] = useState([]);
   const [selectedForecast, setSelectedForecast] = useState(null);
   const [loadingForecasts, setLoadingForecasts] = useState(false);
-  const [timeframeTab, setTimeframeTab] = useState('CURRENT'); // 'PREVIOUS', 'CURRENT', 'NEXT'
+  const [timeframeTab, setTimeframeTab] = useState('NEXT'); // 'PREVIOUS', 'CURRENT', 'NEXT' — preferred tab
+  const tabsWithForecasts = TAB_ORDER.filter((tab) => forecastRecords.some((rec) => periodMatchesTab(rec, tab)));
+  const activeTab = tabsWithForecasts.includes(timeframeTab)
+    ? timeframeTab
+    : (tabsWithForecasts.includes('CURRENT') ? 'CURRENT' : tabsWithForecasts[0] || timeframeTab);
 
   // Step 2 State: Recipient Selection
   const [recipientList, setRecipientList] = useState([]);
@@ -108,7 +138,8 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
         );
 
         const recordSets = await Promise.all(fetchPromises);
-        const allRecords = recordSets.flat();
+        // Superseded records stay in history; one official record per disease, district and month (v2 first).
+        const allRecords = selectOfficialRecords(recordSets.flat());
 
         // Deterministic newest-first ordering: target_year desc, target_month desc, generated_at desc
         const sorted = allRecords.sort((a, b) => {
@@ -321,6 +352,15 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
     }
   };
 
+  // A lifecycle step refused because of the advisory's current status reads as guidance, not as an error code.
+  const friendlyLifecycleError = (err, fallback) => {
+    const text = String(err?.message || '');
+    if (/forbidden|must be in|status/i.test(text) && /\b(DRAFT|REVIEW_READY|APPROVED|CANCELLED)\b/.test(text)) {
+      return "This step can't be done yet. Please finish the previous step first.";
+    }
+    return sanitizeErrorMessage(err, fallback);
+  };
+
   const handleMarkReadyForReview = async () => {
     if (!currentAdvisory || lifecyclePending) return;
 
@@ -332,7 +372,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
       setCurrentAdvisory(updated);
       setInfoMessage('Advisory marked as READY FOR REVIEW.');
     } catch (err) {
-      setError(sanitizeErrorMessage(err, 'Failed to transition advisory to ready for review.'));
+      setError(friendlyLifecycleError(err, 'Failed to transition advisory to ready for review.'));
     } finally {
       setLifecyclePending(false);
     }
@@ -352,7 +392,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
       setCurrentAdvisory(updated);
       setInfoMessage('Advisory APPROVED. Recipient snapshot and advisory text are now frozen.');
     } catch (err) {
-      setError(sanitizeErrorMessage(err, 'Failed to approve advisory.'));
+      setError(friendlyLifecycleError(err, 'Failed to approve advisory.'));
     } finally {
       setLifecyclePending(false);
     }
@@ -477,29 +517,39 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               </p>
             </div>
             
-            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('PREVIOUS')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'PREVIOUS' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Previous Months
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('CURRENT')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'CURRENT' ? 'bg-emerald-900/60 text-emerald-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Current Month
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframeTab('NEXT')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${timeframeTab === 'NEXT' ? 'bg-amber-900/60 text-amber-300 shadow' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                Next Month (Forecast)
-              </button>
-            </div>
+            {(() => {
+              // The label of a tab is the month it holds when it holds exactly one; one tab alone is just a label.
+              const labelFor = (tab) => {
+                const periods = [...new Set(forecastRecords.filter((rec) => periodMatchesTab(rec, tab)).map((rec) => `${rec.target_year}-${rec.target_month}`))];
+                if (periods.length === 1) {
+                  const [year, month] = periods[0].split('-').map(Number);
+                  return periodLabel(year, month);
+                }
+                return TAB_BUTTON_LABELS[tab];
+              };
+              if (tabsWithForecasts.length === 1) {
+                return (
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-amber-300" data-testid="advisory-period">
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">calendar_month</span>
+                    {labelFor(tabsWithForecasts[0])}
+                  </span>
+                );
+              }
+              return (
+                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                  {tabsWithForecasts.map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setTimeframeTab(tab)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === tab ? TAB_ACTIVE_CLASS[tab] : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      {labelFor(tab)}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {loadingForecasts ? (
@@ -508,32 +558,15 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
               <p>Loading official forecast decision records...</p>
             </div>
           ) : (() => {
-            const currentDate = new Date();
-            const currentYear = currentDate.getFullYear();
-            const currentMonth = currentDate.getMonth() + 1; // e.g. August 2026
-
-            const filteredForecasts = forecastRecords.filter(rec => {
-              const recYear = rec.target_year;
-              const recMonth = rec.target_month;
-              
-              const isCurrent = recYear === currentYear && recMonth === currentMonth;
-              const isNext = (recYear === currentYear && recMonth === currentMonth + 1) || (recMonth === 1 && currentMonth === 12 && recYear === currentYear + 1);
-              
-              if (timeframeTab === 'CURRENT') return isCurrent;
-              if (timeframeTab === 'NEXT') return isNext;
-              if (timeframeTab === 'PREVIOUS') return !isCurrent && !isNext;
-              return true;
-            });
+            // "Current" is the configured reference month (today unless pinned for a demonstration);
+            // "Next" is the forecast target month that follows it.
+            const filteredForecasts = forecastRecords.filter((rec) => periodMatchesTab(rec, activeTab));
 
             if (filteredForecasts.length === 0) {
               return (
-                <div className="p-8 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-3">
-                  <span className="material-symbols-outlined text-3xl text-amber-400" aria-hidden="true">assignment_late</span>
-                  <h4 className="text-base font-semibold text-slate-200">No Records Found</h4>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    No forecast decision records are currently available for the selected timeframe ({timeframeTab}).
-                  </p>
-                </div>
+                <p className="py-6 text-sm text-slate-400">
+                  Forecasts for your district will appear here as soon as they are issued.
+                </p>
               );
             }
 
@@ -544,8 +577,10 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   const isHigh = rec.risk_level === 'HIGH';
                   const isMed = rec.risk_level === 'MEDIUM';
 
+                  const plain = describeRiskPlain(rec, rec.district, rec.target_month);
                   let riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-                  if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
+                  if (plain.level === 'USUAL') riskBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+                  else if (isHigh) riskBadgeClass = 'bg-red-950/70 text-red-300 border-red-800';
                   else if (isMed) riskBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-800';
                   else riskBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-800';
 
@@ -564,7 +599,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                           {rec.disease} — {rec.district}
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${riskBadgeClass}`}>
-                          {rec.risk_level} RISK ({rec.probability_pct}%)
+                          {plain.label} ({rec.probability_pct}%)
                         </span>
                       </div>
 
@@ -572,9 +607,11 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                         Target: {rec.target_year}-{String(rec.target_month).padStart(2, '0')}
                       </div>
 
-                      <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
-                        <span>Severity: {rec.predicted_severity || 'N/A'}</span>
-                      </div>
+                      {rec.predicted_severity && (
+                        <div className="text-xs text-slate-400 mt-1 flex items-center justify-between gap-2">
+                          <span>Severity: {rec.predicted_severity}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -886,6 +923,36 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
             )}
           </div>
 
+          {/* Where the advisory is in its review */}
+          <ol className="flex items-center gap-2 text-xs" aria-label="Advisory progress" data-testid="advisory-progress">
+            {[
+              { key: 'DRAFT', label: 'Draft saved', icon: 'edit_note' },
+              { key: 'REVIEW_READY', label: 'Ready for review', icon: 'rate_review' },
+              { key: 'APPROVED', label: 'Approved', icon: 'verified' },
+            ].map((step, index, steps) => {
+              const order = ['DRAFT', 'REVIEW_READY', 'APPROVED'];
+              const position = order.indexOf(currentAdvisory.status);
+              const done = position > index || currentAdvisory.status === 'APPROVED';
+              const current = position === index && currentAdvisory.status !== 'APPROVED';
+              return (
+                <li key={step.key} className="flex flex-1 items-center gap-2">
+                  <span
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold transition ${
+                      done ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
+                        : current ? 'border-blue-400/60 bg-blue-950/60 text-blue-200 shadow-[0_0_12px_rgba(96,165,250,0.35)]'
+                          : 'border-slate-700 bg-slate-900 text-slate-500'
+                    }`}
+                    aria-current={current ? 'step' : undefined}
+                  >
+                    <span className="material-symbols-outlined text-sm" aria-hidden="true">{done ? 'check_circle' : step.icon}</span>
+                    {step.label}
+                  </span>
+                  {index < steps.length - 1 && <span className={`h-px flex-1 ${done ? 'bg-emerald-500/50' : 'bg-slate-700'}`} aria-hidden="true" />}
+                </li>
+              );
+            })}
+          </ol>
+
           {/* Lifecycle Action Toolbar */}
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
@@ -894,7 +961,7 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                   type="button"
                   onClick={handleMarkReadyForReview}
                   disabled={lifecyclePending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white ring-2 ring-blue-400/40 disabled:opacity-50 transition"
                 >
                   Mark Ready for Review
                 </button>
@@ -904,8 +971,9 @@ export function VeterinaryAdvisoryCentre({ viewerContext }) {
                 <button
                   type="button"
                   onClick={handleApproveAdvisory}
-                  disabled={lifecyclePending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
+                  disabled={lifecyclePending || currentAdvisory.status !== 'REVIEW_READY'}
+                  title={currentAdvisory.status !== 'REVIEW_READY' ? 'Mark the advisory ready for review first.' : undefined}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:hover:bg-slate-800 transition-colors"
                 >
                   Approve Advisory
                 </button>

@@ -1,0 +1,19 @@
+{
+  "manifest_sha256": "d138786e378c7f0aa5a2712835a75eb80312ca247b73e124729cd8bbca451677",
+  "predictions_sha256": "150589959acca8ee21eaa2b21d97b5ea22bea535fb7fc29dc0fcc2824ac1f877",
+  "checkpoint_sha256": {
+    "vit": "ee684b699363193f04184299b2586e5e03f05ba801fa0103caa8e3f2528e2f41",
+    "yolo": "b7269367dc0dc54575e11f2e8fa513ecdc562c9a60137d5515fbe237f1169d57"
+  },
+  "selection_partition": "val",
+  "detector_threshold": 0.25,
+  "classifier_review_confidence": 0.6,
+  "classifier_review_margin": 0.15,
+  "classifier_selection": "unchanged defaults; candidate risk/coverage reported, acceptable risk not specified",
+  "mask_threshold": 0.5,
+  "mask_min_region_fraction": 0.00029894770408163266,
+  "mask_selection": "not validated: reference masks/independence/class coverage incomplete",
+  "deployment": "offline candidate only; runtime configuration unchanged",
+  "clinical_thresholds": "not evaluated; require independently veterinary-graded observations",
+  "selection_code_sha256": "633876bada4a35f30dfb5da72dde358a6509fe4b3ac633d4cd42053c0bdcc121"
+}

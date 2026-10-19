@@ -17,13 +17,12 @@
  * (disease + observation-window filtered), never on farm/district
  * selection itself.
  */
-import { parseVerificationTime } from './verificationTime'
+import { parseVerificationTime, sriLankaDateKey } from './verificationTime'
 
+// Replay days are Asia/Colombo calendar dates -- the same basis as the
+// backend's as_of/source eligibility -- never the browser's own timezone.
 function toDateKey(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return sriLankaDateKey(date)
 }
 
 /**

@@ -1,0 +1,254 @@
+{
+ "generated_at": "2026-10-14T07:35:55.218354+00:00",
+ "cache_dir": "model/data/cache",
+ "files": {
+  "chirps_lka_subnat_full.csv": {
+   "bytes": 6829106,
+   "sha256": "30b6fc028b99c2a62f040aec7e35bb0aaba325fed6b9ec6348ba2310b3dab6c9"
+  },
+  "nasa_power_monthly_LK11_2016_2024.json": {
+   "bytes": 6513,
+   "sha256": "e63e7133690082d5f3e8276cea2b68b3c3117719a8b848c7ee06715d47b6086a"
+  },
+  "nasa_power_monthly_LK12_2016_2024.json": {
+   "bytes": 6513,
+   "sha256": "878d291b969505bb4c9c11caacf3a15bb49a405b1368fc0dec7cdc84e3886c07"
+  },
+  "nasa_power_monthly_LK13_2016_2024.json": {
+   "bytes": 6495,
+   "sha256": "66a9893ca43c05a9f7dbaa4cc96de7fc6ceb54e8fa4cc2b5651908fa0d480c17"
+  },
+  "nasa_power_monthly_LK21_2016_2024.json": {
+   "bytes": 6510,
+   "sha256": "20af2b21ded36afa5c7fb2f5fae63c827dcbfb156ac012d2852e68b602a7513e"
+  },
+  "nasa_power_monthly_LK22_2016_2024.json": {
+   "bytes": 6509,
+   "sha256": "6f7bf56ca1da3cadda364cddced479f47d4da46628013c3093efd443c413e5ce"
+  },
+  "nasa_power_monthly_LK23_2016_2024.json": {
+   "bytes": 6496,
+   "sha256": "5f151528e0abb05db3ec2301e649c7aedc3158d8d13005624f0b671375507fda"
+  },
+  "nasa_power_monthly_LK31_2016_2024.json": {
+   "bytes": 6504,
+   "sha256": "addd001dd0ccf7cd4e88945fdd4aa8e33ead280b3d4bc319163906156b7b4284"
+  },
+  "nasa_power_monthly_LK32_2016_2024.json": {
+   "bytes": 6504,
+   "sha256": "abd82c574efc4aa7183f6740f413e6b34edb5e5c07acd401c2c32097f223e444"
+  },
+  "nasa_power_monthly_LK33_2016_2024.json": {
+   "bytes": 6504,
+   "sha256": "9e5a098c64c537fc3236ba8d136375cadcb4cdb821e077ad9f45a401dd6418c0"
+  },
+  "nasa_power_monthly_LK41_2016_2024.json": {
+   "bytes": 6504,
+   "sha256": "42c24193c3fa8400172058476ad52a8c1fb32ed0adeb501f21a1c5f7c1d71626"
+  },
+  "nasa_power_monthly_LK42_2016_2024.json": {
+   "bytes": 6496,
+   "sha256": "81c7f39c5e46dcb02d5aa5375ab2b74143c86a0730ab0b18c72c8011aff6fd25"
+  },
+  "nasa_power_monthly_LK43_2016_2024.json": {
+   "bytes": 6503,
+   "sha256": "82a1f86140a5e0e82f85185de136c81220a7a6ec27eba46a0844afac82379aef"
+  },
+  "nasa_power_monthly_LK44_2016_2024.json": {
+   "bytes": 6500,
+   "sha256": "f99d0636cff7502da69adfb44bd411f48e9daa3165196a20be8908b9fbed08ec"
+  },
+  "nasa_power_monthly_LK45_2016_2024.json": {
+   "bytes": 6498,
+   "sha256": "20785b4f7b5966a8745213301dc5bb7158b4ebbdfd9b16447fd3d0ca94f6f76c"
+  },
+  "nasa_power_monthly_LK51_2016_2024.json": {
+   "bytes": 6500,
+   "sha256": "78984f2bc390f669db2a80777d6c4ca9b62b0601b912db2f43fd2e3d63e16726"
+  },
+  "nasa_power_monthly_LK52_2016_2024.json": {
+   "bytes": 6502,
+   "sha256": "72d2409382d500f045e249dd274fdf1efc07790faf1ca49dc2d8bfaf90fc6a7b"
+  },
+  "nasa_power_monthly_LK53_2016_2024.json": {
+   "bytes": 6489,
+   "sha256": "4adb1d4330ac078e9cdb868bb42b73edf3bc331651647b04cc36b9efbea62aed"
+  },
+  "nasa_power_monthly_LK61_2016_2024.json": {
+   "bytes": 6510,
+   "sha256": "4554f9bf2fc6fd7fb709a86e27afbe4f276bcae79568c4b7564e03a9a4d0d55f"
+  },
+  "nasa_power_monthly_LK62_2016_2024.json": {
+   "bytes": 6494,
+   "sha256": "fd7ec724c0bfbf7c94fb0182a1cc433788f64e2f909ce6199bb6e8ccfd251ed0"
+  },
+  "nasa_power_monthly_LK71_2016_2024.json": {
+   "bytes": 6502,
+   "sha256": "ad721c73ba28dc49b318255b01f0adf2add2b37eb6b0e21a3d7fb1cbcb58b2ed"
+  },
+  "nasa_power_monthly_LK72_2016_2024.json": {
+   "bytes": 6493,
+   "sha256": "4b68447184f5ff71e15d2e2ed1739d0879aa39021619c7796a7180bfab71042d"
+  },
+  "nasa_power_monthly_LK81_2016_2024.json": {
+   "bytes": 6505,
+   "sha256": "d9cbdd0d82d90a41016cecb3f75ab4d15509d4fe75c631fe3419c0b059c4a00a"
+  },
+  "nasa_power_monthly_LK82_2016_2024.json": {
+   "bytes": 6505,
+   "sha256": "6e1b7326cc98d80c785c3cb3cf559b8e7c41dadcafa2752c18fa607b09384e58"
+  },
+  "nasa_power_monthly_LK91_2016_2024.json": {
+   "bytes": 6513,
+   "sha256": "9301627d61208de53f63c43fecc8db8225881f8067849761c68ce900bed87f05"
+  },
+  "nasa_power_monthly_LK92_2016_2024.json": {
+   "bytes": 6510,
+   "sha256": "eda7c171254fa572f29ae3fd39672fe927ea909b0bae7e3e6736f91ebca7f545"
+  },
+  "nasa_power_soil_monthly_LK11_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "8d243f82d6baacb19aa6e04c2935a82f117dbf46e250bee59b9deb690fdfedf4"
+  },
+  "nasa_power_soil_monthly_LK12_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "d3d0f18dd3c15bec7755b64a82ea39fea99ee5449dba43da83f5219f85fa7178"
+  },
+  "nasa_power_soil_monthly_LK13_2016_2024.json": {
+   "bytes": 2380,
+   "sha256": "f4ea625fd1c3d98b0195ff6f6e4d6b07ffdcbad363a89f1b14df95f3d9a4f7fb"
+  },
+  "nasa_power_soil_monthly_LK21_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "b9ceaf3f1f0180344370ab635a82a3f05ca0041ebf7393d6ae1f1f6aed587190"
+  },
+  "nasa_power_soil_monthly_LK22_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "fec75baf9abe2fd90802a1f75739570dffff5a046fcb82ecd46c8f5298a00af3"
+  },
+  "nasa_power_soil_monthly_LK23_2016_2024.json": {
+   "bytes": 2390,
+   "sha256": "a980aa7ff892d7b2104d2bc6c104073d2395972d8c12ecb7e05b8a945786de3d"
+  },
+  "nasa_power_soil_monthly_LK31_2016_2024.json": {
+   "bytes": 2388,
+   "sha256": "71705cd4cb6e571cd4e7a62fe5330e9a34422e794c33ea11a97a77580d8a8a24"
+  },
+  "nasa_power_soil_monthly_LK32_2016_2024.json": {
+   "bytes": 2396,
+   "sha256": "692a136bb969021cd8c6a9a738f80d5ea9cd8909ab0693041e99dbe5cdd2c0ff"
+  },
+  "nasa_power_soil_monthly_LK33_2016_2024.json": {
+   "bytes": 2387,
+   "sha256": "369fa5cd4290f4edf85f3f9449a2ab8180ee9069eeb573bcd23b898be4e1598f"
+  },
+  "nasa_power_soil_monthly_LK41_2016_2024.json": {
+   "bytes": 2385,
+   "sha256": "1a0e78eeddbfce52295c0e4898b49c6701faee43f8224d5da36d2f84cd4f8cc4"
+  },
+  "nasa_power_soil_monthly_LK42_2016_2024.json": {
+   "bytes": 2386,
+   "sha256": "9be9ad2aa4b2774e5a3491ae8e436f6b0b57b91e6b5ed271b6274fa6e2531fb4"
+  },
+  "nasa_power_soil_monthly_LK43_2016_2024.json": {
+   "bytes": 2385,
+   "sha256": "05c85d730fb5c6b8c9b692626e78cc3c9b5c9e48c0d3a292df8c45e8734b2f1e"
+  },
+  "nasa_power_soil_monthly_LK44_2016_2024.json": {
+   "bytes": 2388,
+   "sha256": "8d10b5d3ee964d6ca85adaea03c89abc13b13497f03d04ee486b5be00e4a98e3"
+  },
+  "nasa_power_soil_monthly_LK45_2016_2024.json": {
+   "bytes": 2388,
+   "sha256": "5c4cb7682ea8655fee7537ad7030e6e6978c76424d3da0b753dafaf45307e3a5"
+  },
+  "nasa_power_soil_monthly_LK51_2016_2024.json": {
+   "bytes": 2388,
+   "sha256": "7c5533745afb0f02c0f45ad44b631979b3a3e8c07fa631565b5bb0426152f392"
+  },
+  "nasa_power_soil_monthly_LK52_2016_2024.json": {
+   "bytes": 2390,
+   "sha256": "7d8ff0bf62c2f48077642f85dbf2a5129ead8415e09c2569e328cacd85da4106"
+  },
+  "nasa_power_soil_monthly_LK53_2016_2024.json": {
+   "bytes": 2388,
+   "sha256": "fd3957c18bbfdbbffc66d0feace0614e739329ed0a24308ea5e564517cfebd2a"
+  },
+  "nasa_power_soil_monthly_LK61_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "82f6d2878df8d3d1ef90774da0b9c2f18f3343afd869d15bbdabaeff9646fdcc"
+  },
+  "nasa_power_soil_monthly_LK62_2016_2024.json": {
+   "bytes": 2395,
+   "sha256": "025149ab5dea5c13bacef1653f4f71aaa33d449fe9ff1335a0a4b10374507eee"
+  },
+  "nasa_power_soil_monthly_LK71_2016_2024.json": {
+   "bytes": 2390,
+   "sha256": "0266869be5e8f8319555ca42b18391211646ccb09bb1fa1e397b45fb43be81ff"
+  },
+  "nasa_power_soil_monthly_LK72_2016_2024.json": {
+   "bytes": 2393,
+   "sha256": "46ca62cec5ff5cb7b4dc54c1ced86f0155b4d456e4ef30952b91d71eb84ef5f9"
+  },
+  "nasa_power_soil_monthly_LK81_2016_2024.json": {
+   "bytes": 2393,
+   "sha256": "38d44aed1741c0fd90b166af7141291afdba16fa10ef0bb7661d3459a45f1d23"
+  },
+  "nasa_power_soil_monthly_LK82_2016_2024.json": {
+   "bytes": 2393,
+   "sha256": "9aa21cd439a7820eb6b618eb833bbf62b85bfa8254390c4323110570ca87c751"
+  },
+  "nasa_power_soil_monthly_LK91_2016_2024.json": {
+   "bytes": 2386,
+   "sha256": "bc077d9564fdadf0f6075383b4fc091f09a1e57af8075e8abc5113c7ebb467eb"
+  },
+  "nasa_power_soil_monthly_LK92_2016_2024.json": {
+   "bytes": 2394,
+   "sha256": "714da49b794583fc71d42eb845d44e8b9451f1e927d13aaf17f57f4cefba57f2"
+  },
+  "nina34.data": {
+   "bytes": 8290,
+   "sha256": "b1264ad32c931b738a8ef337e3de400267c365a6d6b2582b7769cdf578bc37b7"
+  },
+  "v2_FMD_dataset.csv": {
+   "bytes": 462886,
+   "sha256": "3bfdc17db80cc4565b50ce6fa911052cb15c9c29867f245b86644ff2b8a5492c"
+  },
+  "v2_LSD_dataset.csv": {
+   "bytes": 327549,
+   "sha256": "bb5005e0c7624602af30daf9e19d680a355ec759a2ad44b5afc2187e01771dc6"
+  }
+ },
+ "stage2_severity_inputs": {
+  "source": "DAPH annual outbreak records 2017-2024 (copied from the pre-v2 project archive; tracked in git since 2026-10-14)",
+  "label_unit": "annual district-year totals (cases, deaths, outbreak months); NOT monthly",
+  "severity_score_formula": "cases * (outbreak_months / 12) + 10 * deaths; LOW < 50, MEDIUM < 300, HIGH >= 300 (design choice, not clinically validated)",
+  "files": {
+   "severity_labels.csv": {
+    "bytes": 4799,
+    "sha256": "944a696f94b2eea33104b714e8fbafe211bb7a1d917cb1f2994f6717502a554f",
+    "rows": 115,
+    "note": "FMD district-years, 23 districts, 2017-2024"
+   },
+   "LSD_severity_labels.csv": {
+    "bytes": 1881,
+    "sha256": "6a14ad178653dcbf03452091aa484439284af5f0590ef59b9d8f25160275d878",
+    "rows": 56,
+    "note": "LSD district-years, 2020-2024, 24 districts"
+   },
+   "daph_severity_dataset.xlsx": {
+    "bytes": 13091,
+    "sha256": "6b46392c2862bc6d133d33498f7c2e180f1685edc5b88fcde110945c6789a2f5",
+    "rows": 115,
+    "note": "DAPH sheet used to build the FMD labels"
+   }
+  },
+  "evaluation": "docs/v2/severity_evaluation.json (script: scripts/v2/evaluate_severity.py)"
+ },
+ "severity_history_artifact": {
+  "file": "models/v2/severity_history.json",
+  "sha256": "4aaa2c4c01e9c7c1f59880bc2053bc7fa9a379a1ea6aa2c47afb044ca5128ea7",
+  "built_by": "scripts/v2/build_severity_history.py",
+  "inputs": "stage2_severity_inputs.files"
+ }
+}

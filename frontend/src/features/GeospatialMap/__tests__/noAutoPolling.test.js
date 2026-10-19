@@ -81,6 +81,11 @@ describe('GEO-HYBRID-LIVE-SYNC-08 Phase 5: setTimeout is scoped to exactly one f
     expect(src).toContain('setTimeout(runFetch, REFRESH_INTERVAL_MS)')
   })
 
+  it('REFRESH_INTERVAL_MS is a local binding (imported), not only re-exported -- otherwise the scheduler throws', () => {
+    const src = readFileSync(join(FEATURE_ROOT, OPERATIONAL_SCHEDULER_FILE), 'utf-8')
+    expect(src).toMatch(/^import \{[^}]*\bREFRESH_INTERVAL_MS\b[^}]*\} from '\.\/operationalRefreshReducer'/m)
+  })
+
   it('useOperationalContext.js never calls setInterval and never uses requestAnimationFrame as a polling clock', () => {
     const src = readFileSync(join(FEATURE_ROOT, OPERATIONAL_SCHEDULER_FILE), 'utf-8')
     expect(src.includes('setInterval(')).toBe(false)

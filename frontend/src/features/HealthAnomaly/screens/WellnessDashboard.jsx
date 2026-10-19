@@ -101,9 +101,11 @@ export default function WellnessDashboard() {
   // Dynamic Herd Statistics
   const totalCattle = cattleData.length
   const healthyCount = cattleData.filter(
-    c => c.status === 'Healthy' || c.health_status === 'Healthy'
+    c => (c.status === 'Healthy' || c.health_status === 'Healthy') && c.status !== 'Deceased' && c.health_status !== 'Deceased'
   ).length
-  const atRiskCount = Math.max(0, totalCattle - healthyCount)
+  const atRiskCount = cattleData.filter(
+    c => ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'].includes(c.health_status) || ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'].includes(c.status)
+  ).length
 
   // Dynamic BCS Assessments Table Data
   const bcsCattle = cattleData

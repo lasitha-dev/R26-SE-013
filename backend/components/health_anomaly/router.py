@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, status, Header, File, UploadFile, Form
-from typing import Optional
+from typing import Optional, Union
 import jwt
 import os
 import numpy as np
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
+import joblib
+import pandas as pd
 
 try:
     import cv2
@@ -25,11 +27,14 @@ from components.health_anomaly.database import (
     breed_settings_collection, bcs_logs_collection, vets_collection,
     diagnostic_cases_collection, death_logs_collection, vet_notifications_collection
 )
+from components.health_anomaly.wellness_monitoring import (
+    normalize_date_str, import_daily_logs, owned_cattle, living_cattle_filter, farm_cattle_filter
+)
 from components.health_anomaly.schemas import (
-    FarmRegister, FarmLogin, TokenResponse,
+    FarmRegister, FarmLogin, TokenResponse, FarmProfileUpdate, FarmProfileResponse,
     VetRegister, VetLogin, VetTokenResponse, VetProfileUpdate,
     VetSearchResponse, AssignVetRequest, UnassignVetRequest, FarmSummaryResponse,
-    CattleCreate, CattleResponse, DailyLogCreate, DailyLogResponse, TriagePredictPayload,
+    CattleCreate, CattleResponse, DailyLogCreate, DailyLogBulkItem, DailyLogResponse, TriagePredictPayload,
     DiagnosticCaseCreate, DiagnosticCaseResponse, DiagnosticCaseVerifyRequest,
     CattleDeathLog, CattleDeathLogResponse, DeclareDeceasedRequest, OutbreakStatusResponse,
     VetNotificationResponse
@@ -42,13 +47,28 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 YOLO_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 BCS_MODEL_PATH = os.path.join(BASE_DIR, "Cow_BCS_Final_Master.h5")
 LATE_FUSION_MODEL_PATH = os.path.join(BASE_DIR, "adrs_late_fusion_model.h5")
+LATE_FUSION_SCALERS_PATH = os.path.join(BASE_DIR, "late_fusion_scalers.pkl")
 
 yolo_model = None
 bcs_model = None
 late_fusion_model = None
+late_fusion_scalers = None
 
+# ==============================================================================
+# FUNCTION: load_ai_models
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Loads all deep learning model files (YOLOv8, Keras BCS Regressor, Late-Fusion
+#   BiLSTM model, and training scalers) into server memory on startup.
+#
+# Why we need it:
+#   Loading deep neural networks takes several seconds. Preloading them into global
+#   memory ensures API endpoints make predictions instantly in real time.
+# ==============================================================================
 def load_ai_models():
-    global yolo_model, bcs_model, late_fusion_model
+    global yolo_model, bcs_model, late_fusion_model, late_fusion_scalers
+
+    # Step 1: Load YOLOv8 object detector for cow cropping (best.pt)
     if YOLO is not None:
         try:
             if os.path.exists(YOLO_MODEL_PATH):
@@ -58,6 +78,8 @@ def load_ai_models():
                 print(f"YOLO model not found at {YOLO_MODEL_PATH}")
         except Exception as e:
             print(f"Error loading YOLO model: {e}")
+
+    # Step 2: Load Keras CNN BCS regression model and 7-day Late Fusion model
     if tf is not None:
         try:
             if os.path.exists(BCS_MODEL_PATH):
@@ -76,6 +98,17 @@ def load_ai_models():
         except Exception as e:
             print(f"Error loading Late Fusion model: {e}")
 
+    # Step 3: Load fitted MinMaxScalers and column definitions for late fusion inference
+    try:
+        if os.path.exists(LATE_FUSION_SCALERS_PATH):
+            import joblib
+            late_fusion_scalers = joblib.load(LATE_FUSION_SCALERS_PATH)
+            print(f"Late Fusion Scalers loaded successfully from {LATE_FUSION_SCALERS_PATH}")
+        else:
+            print(f"Late Fusion Scalers not found at {LATE_FUSION_SCALERS_PATH}")
+    except Exception as e:
+        print(f"Error loading Late Fusion scalers: {e}")
+
 # Load models once
 load_ai_models()
 
@@ -90,27 +123,51 @@ def _invalidate_forecast_cache():
     except Exception:
         pass
 
+
+# ==============================================================================
+# FUNCTION: get_last_conv_layer
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Finds and extracts the final convolutional layer of the BCS neural network.
+#
+# Why we need it:
+#   Grad-CAM needs the final convolutional layer because it preserves the 2D
+#   spatial features (spine, ribs, hook bones) before flattening into a number.
+# ==============================================================================
 def get_last_conv_layer(model):
     """Forcefully extract the last convolution layer by string matching, bypassing output_shape."""
+    # Step 1: Iterate through model layers in reverse to find the last conv layer
     for layer in reversed(model.layers):
+        # Step 2: If the layer is a nested sub-model (like MobileNetV2), search recursively
         if isinstance(layer, tf.keras.models.Model):
             nested_layer, nested_model = get_last_conv_layer(layer)
             if nested_layer is not None:
                 return nested_layer, nested_model
 
-        # String match works across all Keras versions and wrapper types
+        # Step 3: Match layer name or class name containing 'conv' or 'conv2d'
         layer_name = layer.name.lower()
         class_name = layer.__class__.__name__.lower()
         if 'conv' in layer_name or 'conv2d' in class_name:
             return layer, model
 
+    # Step 4: Return None if no convolutional layer is detected
     return None, None
 
 
+# ==============================================================================
+# FUNCTION: make_gradcam_heatmap
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Generates an Explainable AI (XAI) Grad-CAM heatmap showing where the BCS CNN
+#   looked on the cow's body to calculate the Body Condition Score.
+#
+# Why we need it:
+#   Veterinarians need visual proof that the AI evaluated real anatomical landmarks
+#   (short ribs, spine, pin bones) rather than background dirt or shadows.
+# ==============================================================================
 def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=None):
     try:
-        # Keras 3 restricts .output/.inputs access on Sequential models that haven't been called yet.
-        # We manually trace through layers to build a Functional extraction model instead.
+        # Step 1: Build a sub-model that outputs both the last conv activations and predictions
         if isinstance(target_model, tf.keras.Sequential):
             inputs = tf.keras.Input(shape=target_model.input_shape[1:])
             x = inputs
@@ -126,12 +183,12 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
 
             grad_model = tf.keras.Model(inputs, [last_conv_output, x])
         else:
-            # Standard Functional API approach
             grad_model = tf.keras.Model(
                 target_model.inputs,
                 [target_model.get_layer(target_layer_name).output, target_model.output]
             )
 
+        # Step 2: Compute gradients of the prediction with respect to the conv layer features
         img_tensor = tf.cast(img_array, tf.float32)
         with tf.GradientTape() as tape:
             tape.watch(img_tensor)
@@ -141,6 +198,7 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
             else:
                 class_channel = preds[:, pred_index]
 
+        # Step 3: Pool gradients across spatial dimensions to get feature importance weights
         grads = tape.gradient(class_channel, last_conv_layer_output)
         if grads is None:
             print("[GRAD-CAM] Gradients evaluated to None.")
@@ -151,9 +209,10 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
         heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
 
-        # Linear Regression heatmap magnitude extraction — tf.abs preserves negative gradient signal
+        # Step 4: Use absolute value for regression task so positive and negative signals both highlight
         heatmap = tf.abs(heatmap)
 
+        # Step 5: Normalize heatmap between 0.0 and 1.0
         max_heat = tf.math.reduce_max(heatmap)
         if max_heat == 0:
             return np.zeros((img_array.shape[1], img_array.shape[2]))
@@ -266,12 +325,22 @@ async def login_farm(credentials: FarmLogin):
     }
     access_token = create_access_token(data=token_data)
     
+    location_district = farm.get("location_district")
+    lat = farm.get("latitude")
+    lon = farm.get("longitude")
+    loc = farm.get("location") or location_district
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "owner_name": farm["owner_name"],
         "email": farm["email"],
-        "veterinarian_name": farm["veterinarian_name"]
+        "veterinarian_name": farm.get("veterinarian_name", ""),
+        "location_district": location_district,
+        "district": location_district,
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lon) if lon is not None else None,
+        "location": loc
     }
 
 @router.post("/vet/register", status_code=status.HTTP_201_CREATED)
@@ -789,47 +858,28 @@ async def get_assigned_farm_cattle(
 
 # ─── Diagnostic Case Reporting & Verification Endpoints ──────────────────────
 
+def _diagnostic_access():
+    from .diagnostic_access import DiagnosticAccess
+    return DiagnosticAccess(farms_collection, vets_collection, cattles_collection, get_current_user_email)
+
+
 @router.post("/vet/cases", response_model=DiagnosticCaseResponse, status_code=status.HTTP_201_CREATED)
 async def report_diagnostic_case(
     payload: DiagnosticCaseCreate,
     authorization: Optional[str] = Header(None)
 ):
     """Report a new AI diagnostic case by veterinarian or farmer for a selected animal."""
-    user_email = None
-    vet = None
-    farm = None
-    user_role = "farmer"
-
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            user_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": user_email})
-            if vet:
-                user_role = "vet"
-            else:
-                farm = await farms_collection.find_one({"email": user_email})
-                if farm:
-                    user_role = "farmer"
-        except Exception:
-            pass
-
-    cattle = None
-    if payload.cattle_id and ObjectId.is_valid(payload.cattle_id):
-        cattle = await cattles_collection.find_one({"_id": ObjectId(payload.cattle_id)})
-        if cattle and cattle.get("status") == "Deceased":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot create diagnostic case for deceased cattle. Disease reporting is locked for deceased subjects."
-            )
-        if cattle and not farm:
-            owner_email = cattle.get("owner_email")
-            if owner_email:
-                farm = await farms_collection.find_one({"email": owner_email})
-
-    animal_id_str = payload.animal_identifier or (cattle.get("identifier") if cattle else "COW-UNASSIGNED")
-    farm_name_str = payload.farm_name or ((farm.get("owner_name") + "'s Farm") if farm else "Regional Agro Estate")
-    farm_id_str = payload.farm_id or (str(farm["_id"]) if farm else None)
-    breed_str = payload.breed or (cattle.get("breed") if cattle else "Dairy Breed")
+    access = _diagnostic_access()
+    actor = await access.actor(authorization)
+    user_email, vet = actor['email'], actor['vet']
+    user_role = "vet" if vet else "farmer"
+    cattle, farm = await access.creation(actor, payload.cattle_id, payload.farm_id)
+    if cattle and (cattle.get('status') == 'Deceased' or cattle.get('health_status') == 'Deceased'):
+        raise HTTPException(400, 'Cannot report disease for deceased cattle.')
+    animal_id_str = cattle.get('identifier') if cattle else payload.animal_identifier or 'COW-UNASSIGNED'
+    farm_name_str = (farm.get('owner_name', 'Farm') + "'s Farm") if farm else None
+    farm_id_str = str(farm['_id']) if farm else None
+    breed_str = cattle.get('breed') if cattle else payload.breed
 
     now = datetime.utcnow()
     
@@ -878,9 +928,9 @@ async def report_diagnostic_case(
         "breed": breed_str,
         "disease_name": payload.disease_name,
         "confidence": round(payload.confidence, 2),
-        "severity": payload.severity or "Moderate",
-        "stage": payload.stage or "Acute",
-        "prognosis": payload.prognosis or "Good",
+        "severity": payload.severity,
+        "stage": payload.stage,
+        "prognosis": payload.prognosis,
         "rationale": payload.rationale,
         "spatial_correlation": payload.spatial_correlation,
         "symptoms_image": payload.symptoms_image,
@@ -904,7 +954,7 @@ async def report_diagnostic_case(
     case_id_str = str(result.inserted_id)
 
     # When a farmer reports a case, create a notification for the assigned veterinarian
-    if reported_by == "farmer":
+    if reported_by == "farmer" and assigned_vet:
         notif_doc = {
             "vet_id": assigned_vet_id,
             "vet_email": assigned_vet.get("email") if assigned_vet else None,
@@ -914,7 +964,7 @@ async def report_diagnostic_case(
             "farm_name": farm_name_str,
             "animal_identifier": animal_id_str,
             "disease_name": payload.disease_name,
-            "severity": payload.severity or "Moderate",
+            "severity": payload.severity,
             "message": f"New disease report from {farm_name_str} for cattle {animal_id_str}: {payload.disease_name} ({payload.severity or 'Moderate'}). Awaiting clinical verification.",
             "read": False,
             "created_at": now.strftime("%Y-%m-%d %H:%M:%S")
@@ -980,94 +1030,28 @@ async def list_diagnostic_cases(
     authorization: Optional[str] = Header(None)
 ):
     """List diagnostic cases. Allows filtering by cattle, farm, or reported_by."""
-    query = {}
+    access = _diagnostic_access()
+    actor = await access.actor(authorization)
+    scope = await access.list_scope(actor)
+    filters = {}
+    if farm_id:
+        farm = await access.farm(farm_id)
+        access.authorize(actor, farm)
+        filters['farm_id'] = {'$in': [str(farm['_id']), farm.get('email')]}
     if cattle_id:
-        query["cattle_id"] = cattle_id
-
+        await access.creation(actor, cattle_id, farm_id)
+        filters['cattle_id'] = cattle_id
     if reported_by:
-        query["reported_by"] = reported_by
-
-    # Resolve assigned farms if authorized
-    email = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            email = await get_current_user_email(authorization)
-        except Exception:
-            pass
-
-    if email:
-        # Check if user is a veterinarian
-        vet = await vets_collection.find_one({"email": email})
-        if vet:
-            vet_id_str = str(vet["_id"])
-            assigned_f_ids = [ObjectId(f) for f in vet.get("assigned_farm_ids", []) if ObjectId.is_valid(f)]
-            assigned_f_emails = vet.get("assigned_farms", [])
-            
-            farms_query = {
-                "$or": [
-                    {"_id": {"$in": assigned_f_ids}},
-                    {"email": {"$in": assigned_f_emails}},
-                    {"assigned_vet_ids": vet_id_str},
-                    {"assigned_vet_emails": vet["email"]}
-                ]
-            }
-            
-            assigned_farm_ids_str = []
-            assigned_farm_names = []
-            async for f_doc in farms_collection.find(farms_query):
-                assigned_farm_ids_str.append(str(f_doc["_id"]))
-                if f_doc.get("owner_name"):
-                    assigned_farm_names.append(f_doc["owner_name"])
-                    assigned_farm_names.append(f_doc["owner_name"] + "'s Farm")
-                if f_doc.get("email"):
-                    assigned_farm_ids_str.append(f_doc["email"])
-
-            # Filter by matching farm_id or farm_name
-            if farm_id:
-                if farm_id in assigned_farm_ids_str:
-                    query["farm_id"] = farm_id
-                else:
-                    # Explicit farm requested and not in assigned farms
-                    return []
-            else:
-                # No specific farm_id provided, default to all assigned farms
-                if not assigned_farm_ids_str:
-                    return []
-                query["$or"] = [
-                    {"farm_id": {"$in": assigned_farm_ids_str}},
-                    {"farm_name": {"$in": assigned_farm_names}}
-                ]
-        else:
-            # Check if user is a farmer
-            farm = await farms_collection.find_one({"email": email})
-            if farm:
-                farm_id_str = str(farm["_id"])
-                farm_email = farm.get("email")
-                farm_name = farm.get("owner_name")
-                
-                allowed_ids = [farm_id_str]
-                if farm_email:
-                    allowed_ids.append(farm_email)
-                
-                if farm_id:
-                    if farm_id in allowed_ids:
-                        query["farm_id"] = farm_id
-                    else:
-                        return []
-                else:
-                    query["$or"] = [
-                        {"farm_id": {"$in": allowed_ids}},
-                        {"farm_name": farm_name if farm_name else "NO_MATCH"}
-                    ]
-            else:
-                return []
-    else:
-        if farm_id:
-            query["farm_id"] = farm_id
+        filters['reported_by'] = reported_by
+    query = {'$and': [scope, filters]}
 
     cursor = diagnostic_cases_collection.find(query).sort("_id", -1).limit(100)
     cases = []
     async for doc in cursor:
+        try:
+            await access.case(actor, doc)
+        except HTTPException:
+            continue  # Legacy records with inconsistent ownership are not exposed.
         cases.append(DiagnosticCaseResponse(
             id=str(doc["_id"]),
             case_number=doc.get("case_number", f"REC-2026-{str(doc['_id'])[-4:]}"),
@@ -1109,19 +1093,9 @@ async def verify_diagnostic_case(
     authorization: Optional[str] = Header(None)
 ):
     """Verify and approve an AI diagnostic report. Strictly restricted to veterinarians."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can verify diagnostic cases."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     if not ObjectId.is_valid(case_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Case ID format.")
@@ -1129,6 +1103,8 @@ async def verify_diagnostic_case(
     case_doc = await diagnostic_cases_collection.find_one({"_id": ObjectId(case_id)})
     if not case_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case not found.")
+
+    await access.case(actor, case_doc)
 
     now_dt = datetime.utcnow()
     now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -1209,19 +1185,9 @@ async def delete_diagnostic_case(
     authorization: Optional[str] = Header(None)
 ):
     """Delete a clinical diagnostic case record. Strictly restricted to veterinarians."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can delete diagnostic cases."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     query = {}
     if ObjectId.is_valid(case_id):
@@ -1233,7 +1199,9 @@ async def delete_diagnostic_case(
     if not case_doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnostic case record not found.")
 
-    delete_result = await diagnostic_cases_collection.delete_one(query)
+    await access.case(actor, case_doc)
+
+    delete_result = await diagnostic_cases_collection.delete_one({"_id": case_doc["_id"]})
     if delete_result.deleted_count == 0:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete diagnostic case.")
 
@@ -1251,31 +1219,28 @@ async def list_vet_notifications(
     authorization: Optional[str] = Header(None)
 ):
     """List clinical notifications for the authenticated veterinarian."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only authorized veterinary officers can access clinical notifications."
-        )
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     vet_id_str = str(vet["_id"])
     query = {
         "$or": [
             {"vet_id": vet_id_str},
-            {"vet_email": vet.get("email")},
-            {"vet_id": None}
+            {"vet_email": vet.get("email")}
         ]
     }
     cursor = vet_notifications_collection.find(query).sort("created_at", -1).limit(50)
     notifications = []
     async for doc in cursor:
+        if doc.get('case_id') and ObjectId.is_valid(doc['case_id']):
+            case = await diagnostic_cases_collection.find_one({'_id': ObjectId(doc['case_id'])})
+            if not case:
+                continue
+            try:
+                await access.case(actor, case)
+            except HTTPException:
+                continue
         notifications.append(VetNotificationResponse(
             id=str(doc["_id"]),
             vet_id=doc.get("vet_id"),
@@ -1300,9 +1265,21 @@ async def mark_notification_read(
     authorization: Optional[str] = Header(None)
 ):
     """Mark a clinical notification as read."""
+    access = _diagnostic_access()
+    actor = await access.actor(authorization, vet_only=True)
     if not ObjectId.is_valid(notification_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid notification ID.")
 
+    notification = await vet_notifications_collection.find_one({'_id': ObjectId(notification_id)})
+    if not notification:
+        raise HTTPException(404, 'Notification not found.')
+    if notification.get('vet_id') != str(actor['vet']['_id']) and notification.get('vet_email') != actor['email']:
+        raise HTTPException(403, 'This notification is outside your account scope.')
+    if notification.get('case_id') and ObjectId.is_valid(notification['case_id']):
+        case = await diagnostic_cases_collection.find_one({'_id': ObjectId(notification['case_id'])})
+        if not case:
+            raise HTTPException(404, 'Case not found.')
+        await access.case(actor, case)
     await vet_notifications_collection.update_one(
         {"_id": ObjectId(notification_id)},
         {"$set": {"read": True}}
@@ -1315,16 +1292,8 @@ async def mark_all_notifications_read(
     authorization: Optional[str] = Header(None)
 ):
     """Mark all clinical notifications as read for current veterinarian."""
-    vet = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            vet_email = await get_current_user_email(authorization)
-            vet = await vets_collection.find_one({"email": vet_email})
-        except Exception:
-            pass
-
-    if not vet:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized")
+    actor = await _diagnostic_access().actor(authorization, vet_only=True)
+    vet = actor['vet']
 
     vet_id_str = str(vet["_id"])
     await vet_notifications_collection.update_many(
@@ -1395,26 +1364,67 @@ async def get_cattle(id: str):
             detail=f"Database error while retrieving cattle details: {str(e)}"
         )
 
+
+
+# ==============================================================================
+# ENDPOINT: create_daily_log (POST /api/monitor/daily-logs)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Validates and records a single day's health observation (milk yield and body weight)
+#   for a specific cow.
+#
+# Why we need it:
+#   Continuous daily recording allows the system to track yield trends, detect sudden
+#   drops, and immediately update the animal's current weight.
+# ==============================================================================
 @router.post("/daily-logs", response_model=DailyLogResponse, status_code=status.HTTP_201_CREATED)
 async def create_daily_log(log_data: DailyLogCreate):
-    # Check for duplicate daily log entry
+    from bson import ObjectId
+
+    # Step 1: Reject male cattle (milk yield logs apply only to female dairy cows)
+    if ObjectId.is_valid(log_data.cattle_id):
+        cow = await cattles_collection.find_one({"_id": ObjectId(log_data.cattle_id)})
+        if cow and str(cow.get("gender", "")).strip().lower() == "male":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Daily lactation/milk logs cannot be added for male cattle."
+            )
+
+    # Step 2: Standardize the input date to YYYY-MM-DD
+    norm_date = normalize_date_str(log_data.date)
+
+    # Step 3: Prevent duplicate log entries for the same animal on the same day
     existing_log = await daily_logs_collection.find_one({
         "cattle_id": log_data.cattle_id,
-        "date": log_data.date
+        "date": norm_date
     })
     if existing_log:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A daily log entry already exists for this animal on this date."
+            detail=f"A daily log entry already exists for this cattle on date {norm_date}. Please delete the existing entry from the Daily Logs Registry below before re-entering."
         )
 
     try:
         from bson import ObjectId
         doc = log_data.model_dump()
+        doc["date"] = norm_date
+
+        # Step 4: Insert the daily log record into MongoDB
         result = await daily_logs_collection.insert_one(doc)
         
-        # Propagate latest weight
+        # Step 5: Automatically synchronize the animal's master profile weight with this latest entry
         await propagate_latest_weight(log_data.cattle_id)
+
+        # Step 6: Update the cow's last_monitored_date if this log is the most recent
+        if ObjectId.is_valid(log_data.cattle_id):
+            await cattles_collection.update_one(
+                {"_id": ObjectId(log_data.cattle_id), "$or": [
+                    {"last_monitored_date": {"$exists": False}},
+                    {"last_monitored_date": None},
+                    {"last_monitored_date": {"$lte": norm_date}}
+                ]},
+                {"$set": {"last_monitored_date": norm_date}}
+            )
         
         doc["id"] = str(result.inserted_id)
         doc.pop("_id", None)
@@ -1425,30 +1435,260 @@ async def create_daily_log(log_data: DailyLogCreate):
             detail=f"Database error while saving daily log: {str(e)}"
         )
 
-@router.post("/daily-logs/bulk", status_code=status.HTTP_201_CREATED)
-async def create_daily_logs_bulk(logs_data: list[DailyLogCreate]):
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
+loaded_model = None
+
+# ==============================================================================
+# FUNCTION: get_predict_model
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Loads and returns the pre-trained 54-feature Random Forest Persistent Monitoring
+#   model (`adrs_persistent_monitoring_model_final1.pkl`).
+#
+# Why we need it:
+#   Implements lazy-loading with caching: the model is unpickled once into memory
+#   on first call and reused for all subsequent predictions without re-reading the disk.
+# ==============================================================================
+def get_predict_model():
+    global loaded_model
+    # Step 1: Check if the model has already been loaded into global memory
+    if loaded_model is None:
+        # Step 2: Verify the .pkl file exists on disk
+        if not os.path.exists(MODEL_PATH):
+            raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
+        # Step 3: Unpickle the Random Forest classifier
+        loaded_model = joblib.load(MODEL_PATH)
+    # Step 4: Return cached model instance
+    return loaded_model
+
+BREED_DEFAULTS = {
+    'Holstein-Friesian': {'milk': 25.0, 'weight': 600.0},
+    'Jersey': {'milk': 16.0, 'weight': 410.0},
+    'Ayrshire': {'milk': 19.0, 'weight': 480.0},
+    'Brown_Swiss': {'milk': 21.0, 'weight': 550.0},
+    'Guernsey': {'milk': 17.0, 'weight': 450.0},
+    'Fleckvieh': {'milk': 22.0, 'weight': 650.0},
+    'Montbeliarde': {'milk': 20.0, 'weight': 600.0},
+    'Simmental': {'milk': 20.0, 'weight': 650.0},
+    'Milking_Shorthorn': {'milk': 18.0, 'weight': 550.0},
+    'Normande': {'milk': 18.0, 'weight': 600.0},
+    'Danish_Red': {'milk': 19.0, 'weight': 550.0},
+    'Norwegian_Red': {'milk': 19.0, 'weight': 550.0},
+    'Illawarra_Shorthorn': {'milk': 18.0, 'weight': 550.0},
+    'Sahiwal': {'milk': 10.0, 'weight': 380.0},
+    'Gir': {'milk': 12.0, 'weight': 400.0},
+    'Tharparkar': {'milk': 9.0, 'weight': 380.0},
+    'Red_Sindhi': {'milk': 10.0, 'weight': 350.0},
+    'Kankrej': {'milk': 8.0, 'weight': 450.0},
+    'Hariana': {'milk': 7.0, 'weight': 400.0},
+    'Ongole': {'milk': 6.0, 'weight': 450.0},
+    'Deoni': {'milk': 7.0, 'weight': 400.0},
+    'Gangatiri': {'milk': 6.0, 'weight': 350.0},
+    'Krishna_Valley': {'milk': 6.0, 'weight': 400.0},
+    'Rathi': {'milk': 8.0, 'weight': 380.0},
+    'Ankole': {'milk': 5.0, 'weight': 450.0},
+    'Boran': {'milk': 6.0, 'weight': 400.0},
+    'Africander': {'milk': 5.0, 'weight': 450.0},
+    'NDama': {'milk': 3.0, 'weight': 250.0},
+    'White_Fulani': {'milk': 5.0, 'weight': 350.0},
+    'Butana': {'milk': 7.0, 'weight': 350.0},
+    'Kenana': {'milk': 7.0, 'weight': 350.0},
+    'Red_Poll_Africa': {'milk': 8.0, 'weight': 450.0},
+    'Exotic_Local_Cross': {'milk': 12.0, 'weight': 400.0},
+    'Girolando': {'milk': 15.0, 'weight': 450.0},
+    'Holstein_Zebu_Cross': {'milk': 18.0, 'weight': 480.0},
+    'Jersey_Zebu_Cross': {'milk': 14.0, 'weight': 400.0},
+    'Australian_Friesian_Sahiwal': {'milk': 15.0, 'weight': 450.0},
+    'Australian_Milking_Zebu': {'milk': 12.0, 'weight': 420.0},
+    'Zebu_Cross_Brazil': {'milk': 14.0, 'weight': 450.0},
+    'Tipo_Carora': {'milk': 14.0, 'weight': 450.0}
+}
+
+MONITOR_FEATURE_NAMES = [
+    'Age_Months', 'Weight_kg', 'Milk_Yield_L', 'Days_in_Milk',
+    'Previous_Week_Avg_Yield', 'Breed_Avg_Milk', 'Breed_Avg_Weight',
+    'Day_Minus_3_Milk', 'Day_Minus_3_Weight', 'Milk_Drop_Percent',
+    'Weight_Drop_Percent', 'Baseline_Milk_Drop_Percent',
+    'Baseline_Weight_Drop_Percent', 'Breed_Ankole',
+    'Breed_Australian_Friesian_Sahiwal', 'Breed_Australian_Milking_Zebu',
+    'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss', 'Breed_Butana',
+    'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
+    'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando',
+    'Breed_Guernsey', 'Breed_Hariana', 'Breed_Holstein-Friesian',
+    'Breed_Holstein_Zebu_Cross', 'Breed_Illawarra_Shorthorn', 'Breed_Jersey',
+    'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej', 'Breed_Kenana',
+    'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
+    'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole',
+    'Breed_Rathi', 'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal',
+    'Breed_Simmental', 'Breed_Tharparkar', 'Breed_Tipo_Carora',
+    'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil', 'Lactation_Stage_Late',
+    'Lactation_Stage_Mid'
+]
+
+# ==============================================================================
+# FUNCTION: evaluate_cow_persistent_monitoring
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Calculates dynamic health metrics (age, lactation stage, 3-day drop, 7-day drop,
+#   baseline drops) and runs the 54-feature Random Forest model to detect health anomalies.
+#
+# Why we need it:
+#   A single low milk yield day might be normal noise, but a persistent 3-day drop
+#   or drop below breed averages signals mastitis, ketosis, or metabolic disease.
+# ==============================================================================
+def evaluate_cow_persistent_monitoring(
+    cow: dict,
+    latest_log: dict,
+    historical_logs: list[dict],
+    custom_milk: Optional[float] = None,
+    custom_weight: Optional[float] = None
+) -> dict:
+    model = get_predict_model()
+
+    norm_latest_date = normalize_date_str(latest_log.get("date"))
     try:
-        from bson import ObjectId
-        if not logs_data:
-            return {"message": "No logs provided.", "count": 0}
-        
-        docs = [log.model_dump() for log in logs_data]
-        result = await daily_logs_collection.insert_many(docs)
-        
-        # Update weights for all affected cattle
-        affected_cattle = set(log.cattle_id for log in logs_data)
-        for cattle_id in affected_cattle:
-            await propagate_latest_weight(cattle_id)
-                
-        return {
-            "message": f"Successfully imported {len(result.inserted_ids)} logs and updated cattle weights.",
-            "count": len(result.inserted_ids)
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error during bulk import: {str(e)}"
+        log_date = datetime.strptime(norm_latest_date, "%Y-%m-%d")
+    except Exception:
+        log_date = datetime.now()
+
+    # Step 1: Calculate age in months from the cow's birth date (DOB)
+    age_months = 36
+    if cow.get("dob"):
+        try:
+            dob_dt = datetime.strptime(str(cow["dob"])[:10], "%Y-%m-%d")
+            age_months = max(0, (log_date.year - dob_dt.year) * 12 + (log_date.month - dob_dt.month))
+        except Exception:
+            pass
+
+    # Step 2: Calculate days in milk (DIM) and assign lactation stage (Early, Mid, Late)
+    days_in_milk = 100
+    if cow.get("calving_date"):
+        try:
+            calv_dt = datetime.strptime(str(cow["calving_date"])[:10], "%Y-%m-%d")
+            days_in_milk = max(0, (log_date - calv_dt).days)
+        except Exception:
+            pass
+
+    if days_in_milk <= 100:
+        lactation_stage = "Early"
+    elif days_in_milk <= 200:
+        lactation_stage = "Mid"
+    else:
+        lactation_stage = "Late"
+
+    # Step 3: Determine breed benchmark averages (or farmer custom overrides)
+    breed = cow.get("breed", "Jersey")
+    breed_info = BREED_DEFAULTS.get(breed, {"milk": 15.0, "weight": 450.0})
+    breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
+    breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
+
+    current_milk = float(latest_log["milk_yield"])
+    current_weight = float(latest_log["weight"])
+
+    # Step 4: Calculate 7-day historical average milk yield
+    log_date_str = norm_latest_date
+    seven_days_ago_str = (log_date - timedelta(days=7)).strftime("%Y-%m-%d")
+    week_logs = [l for l in historical_logs if seven_days_ago_str <= normalize_date_str(l.get("date", "")) < log_date_str]
+    if week_logs:
+        prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in week_logs) / len(week_logs)
+    else:
+        prior_logs = [l for l in historical_logs if normalize_date_str(l.get("date", "")) < log_date_str]
+        if prior_logs:
+            recent_priors = prior_logs[-6:]
+            prev_week_avg = sum(float(l.get("milk_yield", 0.0)) for l in recent_priors) / len(recent_priors)
+        else:
+            prev_week_avg = float(breed_avg_milk)
+
+    # Step 5: Locate the 3-day prior milk yield and weight (Day - 3)
+    three_days_ago_str = (log_date - timedelta(days=3)).strftime("%Y-%m-%d")
+    day3_log = next((l for l in historical_logs if normalize_date_str(l.get("date", "")) == three_days_ago_str), None)
+    if not day3_log:
+        prior_and_current = [l for l in historical_logs if normalize_date_str(l.get("date", "")) <= log_date_str]
+        if len(prior_and_current) >= 4:
+            day3_log = prior_and_current[-4]
+
+    if day3_log:
+        day_minus_3_milk = float(day3_log.get("milk_yield", current_milk))
+        day_minus_3_weight = float(day3_log.get("weight", current_weight))
+    else:
+        day_minus_3_milk = current_milk
+        day_minus_3_weight = current_weight
+
+    # Step 6: Compute percentage drops (rolling 3-day drop and baseline drop)
+    prev_milk_3d = day_minus_3_milk if day_minus_3_milk > 0 else current_milk
+    milk_drop = ((prev_milk_3d - current_milk) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
+
+    prev_wt = day_minus_3_weight if day_minus_3_weight > 0 else current_weight
+    weight_drop = ((prev_wt - current_weight) / prev_wt) * 100.0 if prev_wt > 0 else 0.0
+
+    baseline_milk_drop = ((breed_avg_milk - current_milk) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
+    baseline_weight_drop = ((breed_avg_weight - current_weight) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
+
+    # Step 7: Build the 54-feature vector matching the trained model's feature order
+    row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
+    row['Age_Months'] = float(age_months)
+    row['Weight_kg'] = float(current_weight)
+    row['Milk_Yield_L'] = float(current_milk)
+    row['Days_in_Milk'] = float(days_in_milk)
+    row['Previous_Week_Avg_Yield'] = float(prev_week_avg)
+    row['Breed_Avg_Milk'] = float(breed_avg_milk)
+    row['Breed_Avg_Weight'] = float(breed_avg_weight)
+    row['Day_Minus_3_Milk'] = float(day_minus_3_milk)
+    row['Day_Minus_3_Weight'] = float(day_minus_3_weight)
+    row['Milk_Drop_Percent'] = float(milk_drop)
+    row['Weight_Drop_Percent'] = float(weight_drop)
+    row['Baseline_Milk_Drop_Percent'] = float(baseline_milk_drop)
+    row['Baseline_Weight_Drop_Percent'] = float(baseline_weight_drop)
+
+    breed_col = f"Breed_{breed}"
+    if breed_col in row:
+        row[breed_col] = 1.0
+
+    stage_col = f"Lactation_Stage_{lactation_stage}"
+    if stage_col in row:
+        row[stage_col] = 1.0
+
+    # Step 8: Run Random Forest inference and format output status
+    df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
+    prediction = model.predict(df)[0]
+    is_anomaly = bool(prediction == 1 or prediction == "1")
+    new_status = "Alert" if is_anomaly else "Healthy"
+
+    return {
+        "is_anomaly": is_anomaly,
+        "new_status": new_status,
+        "milk_yield": current_milk,
+        "weight": current_weight,
+        "date": norm_latest_date
+    }
+
+# ==============================================================================
+# ENDPOINT: create_daily_logs_bulk (POST /api/monitor/daily-logs/bulk)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Processes bulk CSV daily log uploads for an entire herd in a single HTTP request.
+#
+# Why we need it:
+#   Entering records cow-by-cow is impractical for commercial dairy farms;
+#   bulk uploading processes hundreds of daily entries in seconds.
+# ==============================================================================
+@router.post("/daily-logs/bulk", status_code=status.HTTP_201_CREATED)
+async def create_daily_logs_bulk(
+    logs_data: list[DailyLogBulkItem],
+    authorization: Optional[str] = Header(None)
+):
+    # Step 1: Identify the farm owner from the authorization JWT token
+    email = await get_current_user_email(authorization)
+    try:
+        # Step 2: Delegate ingestion, validation, and AI inference to import_daily_logs
+        return await import_daily_logs(
+            logs_data, email, cattles_collection, daily_logs_collection,
+            breed_settings_collection, evaluate_cow_persistent_monitoring
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Bulk import failed: {e}. Retrying the same CSV safely replaces matching records.")
 
 @router.get("/cattle/{id}/daily-logs", response_model=list[DailyLogResponse])
 async def get_cattle_daily_logs(id: str):
@@ -1467,20 +1707,16 @@ async def get_cattle_daily_logs(id: str):
         )
 
 @router.get("/daily-logs", response_model=list[DailyLogResponse])
-async def list_daily_logs():
-    try:
-        cursor = daily_logs_collection.find({}).sort("date", -1)
-        logs = []
-        async for doc in cursor:
-            doc["id"] = str(doc["_id"])
-            doc.pop("_id", None)
-            logs.append(doc)
-        return logs
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error while listing daily logs: {str(e)}"
-        )
+async def list_daily_logs(authorization: Optional[str] = Header(None)):
+    email = await get_current_user_email(authorization)
+    farm_cows = await cattles_collection.find(farm_cattle_filter(email)).to_list(None)
+    cow_ids = [str(c["_id"]) for c in farm_cows]
+    cursor = daily_logs_collection.find({"cattle_id": {"$in": cow_ids}}).sort("date", -1)
+    logs = []
+    async for doc in cursor:
+        doc["id"] = str(doc.pop("_id"))
+        logs.append(doc)
+    return logs
 
 @router.put("/daily-logs/{id}", response_model=DailyLogResponse)
 async def update_daily_log(id: str, log_data: DailyLogCreate):
@@ -1578,6 +1814,49 @@ async def delete_daily_log(id: str):
         
         # 3. Propagate latest weight to cattle
         await propagate_latest_weight(cattle_id)
+
+        # 4. Re-evaluate cattle health status based on remaining daily logs
+        if ObjectId.is_valid(cattle_id):
+            remaining_logs = await daily_logs_collection.find(
+                {"cattle_id": cattle_id}
+            ).sort("date", 1).to_list(1000)
+            cow = await cattles_collection.find_one({"_id": ObjectId(cattle_id)})
+            if cow:
+                if remaining_logs:
+                    latest_rem = remaining_logs[-1]
+                    farm_email = cow.get("owner_email")
+                    custom_setting = await breed_settings_collection.find_one({
+                        "farm_email": farm_email,
+                        "breed": cow.get("breed")
+                    }) if farm_email else None
+                    c_milk = custom_setting.get("avg_milk") if custom_setting else None
+                    c_wt = custom_setting.get("avg_weight") if custom_setting else None
+
+                    inf_res = evaluate_cow_persistent_monitoring(
+                        cow=cow,
+                        latest_log=latest_rem,
+                        historical_logs=remaining_logs,
+                        custom_milk=c_milk,
+                        custom_weight=c_wt
+                    )
+                    new_status = inf_res["new_status"]
+                    await cattles_collection.update_one(
+                        {"_id": ObjectId(cattle_id)},
+                        {"$set": {
+                            "health_status": new_status,
+                            "status": new_status,
+                            "last_monitored_date": latest_rem["date"]
+                        }}
+                    )
+                else:
+                    await cattles_collection.update_one(
+                        {"_id": ObjectId(cattle_id)},
+                        {"$set": {
+                            "health_status": "Healthy",
+                            "status": "Healthy",
+                            "last_monitored_date": None
+                        }}
+                    )
         
         return {"message": "Daily log deleted successfully."}
     except HTTPException:
@@ -1752,7 +2031,7 @@ async def list_death_logs(
 
 # ─── User Profile & Settings Endpoints ────────────────────────────────────────
 
-@router.get("/user/profile")
+@router.get("/user/profile", response_model=FarmProfileResponse)
 async def get_user_profile(authorization: Optional[str] = Header(None)):
     email = await get_current_user_email(authorization)
     farm = await farms_collection.find_one({"email": email})
@@ -1761,12 +2040,18 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Farm profile not found."
         )
+    lat = farm.get("latitude")
+    lon = farm.get("longitude")
+    loc_district = farm.get("location_district")
+    loc = farm.get("location") or loc_district
     return {
         "owner_name": farm.get("owner_name"),
         "email": farm.get("email"),
-        "location_district": farm.get("location_district"),
-        "latitude": farm.get("latitude"),
-        "longitude": farm.get("longitude"),
+        "location_district": loc_district,
+        "district": loc_district,
+        "location": loc,
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lon) if lon is not None else None,
         "registration_number": farm.get("registration_number"),
         "veterinarian_name": farm.get("veterinarian_name"),
         "profile_photo": farm.get("profile_photo"),
@@ -1774,22 +2059,40 @@ async def get_user_profile(authorization: Optional[str] = Header(None)):
     }
 
 @router.put("/user/profile")
-async def update_user_profile(profile_data: dict, authorization: Optional[str] = Header(None)):
+async def update_user_profile(profile_data: Union[FarmProfileUpdate, dict], authorization: Optional[str] = Header(None)):
     email = await get_current_user_email(authorization)
+    data = profile_data.dict() if hasattr(profile_data, "dict") else dict(profile_data)
     
     update_fields = {}
-    if "owner_name" in profile_data:
-        update_fields["owner_name"] = profile_data["owner_name"]
-    if "veterinarian_name" in profile_data:
-        update_fields["veterinarian_name"] = profile_data["veterinarian_name"]
-    if "profile_photo" in profile_data:
-        update_fields["profile_photo"] = profile_data["profile_photo"]
-    if "location_district" in profile_data:
-        update_fields["location_district"] = profile_data["location_district"]
-    if "latitude" in profile_data and profile_data["latitude"] is not None:
-        update_fields["latitude"] = float(profile_data["latitude"])
-    if "longitude" in profile_data and profile_data["longitude"] is not None:
-        update_fields["longitude"] = float(profile_data["longitude"])
+    if data.get("owner_name") is not None:
+        update_fields["owner_name"] = data["owner_name"]
+    if data.get("veterinarian_name") is not None:
+        update_fields["veterinarian_name"] = data["veterinarian_name"]
+    if data.get("profile_photo") is not None:
+        update_fields["profile_photo"] = data["profile_photo"]
+
+    district_val = data.get("location_district") or data.get("district")
+    if district_val is not None and str(district_val).strip() != "":
+        update_fields["location_district"] = str(district_val)
+
+    if data.get("location") is not None and str(data["location"]).strip() != "":
+        update_fields["location"] = str(data["location"])
+        if "location_district" not in update_fields:
+            update_fields["location_district"] = str(data["location"])
+
+    lat_val = data.get("latitude")
+    if lat_val is not None and str(lat_val).strip() != "":
+        try:
+            update_fields["latitude"] = float(lat_val)
+        except (ValueError, TypeError):
+            pass
+
+    lon_val = data.get("longitude")
+    if lon_val is not None and str(lon_val).strip() != "":
+        try:
+            update_fields["longitude"] = float(lon_val)
+        except (ValueError, TypeError):
+            pass
         
     if not update_fields:
         return {"message": "No changes submitted."}
@@ -1799,7 +2102,7 @@ async def update_user_profile(profile_data: dict, authorization: Optional[str] =
             {"email": email},
             {"$set": update_fields}
         )
-        return {"message": "Profile updated successfully."}
+        return {"message": "Profile updated successfully.", "updated": update_fields}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1849,36 +2152,28 @@ async def change_password(pass_data: dict, authorization: Optional[str] = Header
 
 # ─── AI Anomaly Detection Prediction & Breed Settings Endpoints ──────────────
 
-import os
-import joblib
-import pandas as pd
-from bson import ObjectId
 from components.health_anomaly.schemas import PredictPayload, PredictResponse
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
-loaded_model = None
-
-def get_predict_model():
-    global loaded_model
-    if loaded_model is None:
-        if not os.path.exists(MODEL_PATH):
-            raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
-        loaded_model = joblib.load(MODEL_PATH)
-    return loaded_model
-
+# ==============================================================================
+# ENDPOINT: predict_health_anomaly (POST /api/monitor/predict)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Takes current cow parameters and historical drops, runs the 54-feature
+#   Persistent Monitoring Random Forest classifier, and returns anomaly status.
+#
+# Why we need it:
+#   Provides on-demand wellness evaluation from the frontend interface and
+#   automatically flags sick cows with an "Alert" badge in the herd registry.
+# ==============================================================================
 @router.post("/monitor/predict", response_model=PredictResponse)
 async def predict_health_anomaly(payload: PredictPayload, authorization: Optional[str] = Header(None)):
+    # Step 1: Verify farm ownership of this cattle record
+    email = await get_current_user_email(authorization)
+    cow = await owned_cattle(cattles_collection, email, payload.cattle_id)
     try:
-        email = None
-        if authorization:
-            try:
-                email = await get_current_user_email(authorization)
-            except Exception:
-                pass
-
         model = get_predict_model()
         
-        # 1. Fetch custom overrides if logged in
+        # Step 2: Fetch custom breed benchmark overrides (if set by the farmer)
         custom_milk = None
         custom_weight = None
         if email:
@@ -1887,55 +2182,11 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
                 custom_milk = custom_setting.get("avg_milk")
                 custom_weight = custom_setting.get("avg_weight")
         
-        # Determine Breed defaults if manual values are null
-        breed_defaults = {
-            'Holstein-Friesian': {'milk': 25.0, 'weight': 600.0},
-            'Jersey': {'milk': 16.0, 'weight': 410.0},
-            'Ayrshire': {'milk': 19.0, 'weight': 480.0},
-            'Brown_Swiss': {'milk': 21.0, 'weight': 550.0},
-            'Guernsey': {'milk': 17.0, 'weight': 450.0},
-            'Fleckvieh': {'milk': 22.0, 'weight': 650.0},
-            'Montbeliarde': {'milk': 20.0, 'weight': 600.0},
-            'Simmental': {'milk': 20.0, 'weight': 650.0},
-            'Milking_Shorthorn': {'milk': 18.0, 'weight': 550.0},
-            'Normande': {'milk': 18.0, 'weight': 600.0},
-            'Danish_Red': {'milk': 19.0, 'weight': 550.0},
-            'Norwegian_Red': {'milk': 19.0, 'weight': 550.0},
-            'Illawarra_Shorthorn': {'milk': 18.0, 'weight': 550.0},
-            'Sahiwal': {'milk': 10.0, 'weight': 380.0},
-            'Gir': {'milk': 12.0, 'weight': 400.0},
-            'Tharparkar': {'milk': 9.0, 'weight': 380.0},
-            'Red_Sindhi': {'milk': 10.0, 'weight': 350.0},
-            'Kankrej': {'milk': 8.0, 'weight': 450.0},
-            'Hariana': {'milk': 7.0, 'weight': 400.0},
-            'Ongole': {'milk': 6.0, 'weight': 450.0},
-            'Deoni': {'milk': 7.0, 'weight': 400.0},
-            'Gangatiri': {'milk': 6.0, 'weight': 350.0},
-            'Krishna_Valley': {'milk': 6.0, 'weight': 400.0},
-            'Rathi': {'milk': 8.0, 'weight': 380.0},
-            'Ankole': {'milk': 5.0, 'weight': 450.0},
-            'Boran': {'milk': 6.0, 'weight': 400.0},
-            'Africander': {'milk': 5.0, 'weight': 450.0},
-            'NDama': {'milk': 3.0, 'weight': 250.0},
-            'White_Fulani': {'milk': 5.0, 'weight': 350.0},
-            'Butana': {'milk': 7.0, 'weight': 350.0},
-            'Kenana': {'milk': 7.0, 'weight': 350.0},
-            'Red_Poll_Africa': {'milk': 8.0, 'weight': 450.0},
-            'Exotic_Local_Cross': {'milk': 12.0, 'weight': 400.0},
-            'Girolando': {'milk': 15.0, 'weight': 450.0},
-            'Holstein_Zebu_Cross': {'milk': 18.0, 'weight': 480.0},
-            'Jersey_Zebu_Cross': {'milk': 14.0, 'weight': 400.0},
-            'Australian_Friesian_Sahiwal': {'milk': 15.0, 'weight': 450.0},
-            'Australian_Milking_Zebu': {'milk': 12.0, 'weight': 420.0},
-            'Zebu_Cross_Brazil': {'milk': 14.0, 'weight': 450.0},
-            'Tipo_Carora': {'milk': 14.0, 'weight': 450.0}
-        }
-        
-        breed_info = breed_defaults.get(payload.Breed, {"milk": 15.0, "weight": 450.0})
+        breed_info = BREED_DEFAULTS.get(payload.Breed, {"milk": 15.0, "weight": 450.0})
         breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
         breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
         
-        # 2. Compute drop percentages (FIXED: Using Day_Minus_3_Milk)
+        # Step 3: Compute percentage drops between current values and 3 days ago (Day - 3)
         prev_milk_3d = payload.Day_Minus_3_Milk if payload.Day_Minus_3_Milk > 0 else payload.Milk_Yield_L
         milk_drop = ((prev_milk_3d - payload.Milk_Yield_L) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
         
@@ -1945,29 +2196,8 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         baseline_milk_drop = ((breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
         baseline_weight_drop = ((breed_avg_weight - payload.Weight_kg) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
         
-        # 3. Construct input feature row matching exactly model's expectations (54 features)
-        feature_names = [
-            'Age_Months', 'Weight_kg', 'Milk_Yield_L', 'Days_in_Milk',
-            'Previous_Week_Avg_Yield', 'Breed_Avg_Milk', 'Breed_Avg_Weight',
-            'Day_Minus_3_Milk', 'Day_Minus_3_Weight', 'Milk_Drop_Percent',
-            'Weight_Drop_Percent', 'Baseline_Milk_Drop_Percent',
-            'Baseline_Weight_Drop_Percent', 'Breed_Ankole',
-            'Breed_Australian_Friesian_Sahiwal', 'Breed_Australian_Milking_Zebu',
-            'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss', 'Breed_Butana',
-            'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
-            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando',
-            'Breed_Guernsey', 'Breed_Hariana', 'Breed_Holstein-Friesian',
-            'Breed_Holstein_Zebu_Cross', 'Breed_Illawarra_Shorthorn', 'Breed_Jersey',
-            'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej', 'Breed_Kenana',
-            'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
-            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole',
-            'Breed_Rathi', 'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal',
-            'Breed_Simmental', 'Breed_Tharparkar', 'Breed_Tipo_Carora',
-            'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil', 'Lactation_Stage_Late',
-            'Lactation_Stage_Mid'
-        ]
-        
-        row = {f: 0.0 for f in feature_names}
+        # Step 4: Populate the 54-feature dictionary
+        row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
         row['Age_Months'] = float(payload.Age_Months)
         row['Weight_kg'] = float(payload.Weight_kg)
         row['Milk_Yield_L'] = float(payload.Milk_Yield_L)
@@ -1982,30 +2212,29 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         row['Baseline_Milk_Drop_Percent'] = float(baseline_milk_drop)
         row['Baseline_Weight_Drop_Percent'] = float(baseline_weight_drop)
         
-        # Set breed one-hot column
+        # Step 5: Set one-hot encoded breed and lactation stage indicators
         breed_col = f"Breed_{payload.Breed}"
         if breed_col in row:
             row[breed_col] = 1.0
             
-        # Set lactation stage one-hot column
         stage_col = f"Lactation_Stage_{payload.Lactation_Stage}"
         if stage_col in row:
             row[stage_col] = 1.0
             
-        df = pd.DataFrame([row], columns=feature_names)
+        # Step 6: Execute model prediction (0 = Healthy, 1 = Anomaly/Alert)
+        df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
         prediction = model.predict(df)[0]
         
         is_anomaly = bool(prediction == 1 or prediction == "1")
         
-        # Update cattle status inside database
+        # Step 7: Update cattle status inside database and return response
         new_status = "Alert" if is_anomaly else "Healthy"
-        if ObjectId.is_valid(payload.cattle_id):
-            await cattles_collection.update_one(
-                {"_id": ObjectId(payload.cattle_id)},
-                {"$set": {"health_status": new_status, "status": new_status}}
-            )
+        await cattles_collection.update_one(
+            living_cattle_filter(cow),
+            {"$set": {"health_status": new_status, "status": new_status}}
+        )
 
-        return {"is_anomaly": is_anomaly}
+        return {"is_anomaly": is_anomaly, "status": new_status}
         
     except Exception as e:
         raise HTTPException(
@@ -2098,6 +2327,18 @@ async def reset_breed_settings(breed: str, authorization: Optional[str] = Header
             detail=f"Database error while deleting breed settings: {str(e)}"
         )
 
+# ==============================================================================
+# ENDPOINT: predict_bcs (POST /api/monitor/predict-bcs)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Accepts a top-down camera photo of a cow, detects and crops the animal with YOLOv8,
+#   predicts its Body Condition Score (1.0 to 5.0) using CNN regression, and generates
+#   a Grad-CAM XAI visual explanation.
+#
+# Why we need it:
+#   Manual body condition scoring by hand is subjective, labor-intensive, and prone
+#   to human bias. This automated 2D vision pipeline provides objective, standardized BCS.
+# ==============================================================================
 @router.post("/monitor/predict-bcs")
 async def predict_bcs(
     file: UploadFile = File(...),
@@ -2106,7 +2347,8 @@ async def predict_bcs(
     photo_date: Optional[str] = Form(None)
 ):
     global yolo_model, bcs_model, cv2
-    # Lazy reload check in case modules were imported as None originally
+
+    # Step 1: Ensure required computer vision libraries (OpenCV, YOLO, Keras) are initialized
     if cv2 is None:
         try:
             import cv2 as cv2_imported
@@ -2123,7 +2365,7 @@ async def predict_bcs(
             detail="AI models or OpenCV libraries are not loaded. Please ensure cv2, best.pt, and Cow_BCS_Final_Master.h5 are present."
         )
 
-    # 1. Read uploaded image bytes
+    # Step 2: Read uploaded image bytes and decode into an OpenCV BGR matrix
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -2135,7 +2377,7 @@ async def predict_bcs(
 
     h, w, _ = img_bgr.shape
 
-    # 2. Run YOLO prediction
+    # Step 3: Run YOLOv8 object detector to localize the cow in the frame
     results = yolo_model.predict(img_bgr, conf=confidence, verbose=False)
     boxes = results[0].boxes
     if boxes is None or len(boxes) == 0:
@@ -2332,19 +2574,34 @@ async def get_bcs_logs(id: str):
             detail=f"Database error while loading BCS history logs: {str(e)}"
         )
 
+# ==============================================================================
+# ENDPOINT: predict_7day (POST /api/monitor/predict-7day)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Runs multi-modal deep learning triage using the trained Late-Fusion BiLSTM network
+#   to classify 7 days of vital signals into Healthy, Heat Stress, or Unhealthy.
+#
+# Why we need it:
+#   Combines 3 distinct data modalities (7-day time series vitals, static cow traits,
+#   and 2D BCS computer vision score) without manual heuristic rule overrides.
+# ==============================================================================
 @router.post("/monitor/predict-7day")
-async def predict_7day(payload: TriagePredictPayload):
-    global late_fusion_model
-    if late_fusion_model is None:
+async def predict_7day(payload: TriagePredictPayload, authorization: Optional[str] = Header(None)):
+    cow = None
+    if payload.cattle_id:
+        email = await get_current_user_email(authorization)
+        cow = await owned_cattle(cattles_collection, email, payload.cattle_id)
+    global late_fusion_model, late_fusion_scalers
+    if late_fusion_model is None or late_fusion_scalers is None:
         load_ai_models()
-    if late_fusion_model is None:
+    if late_fusion_model is None or late_fusion_scalers is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Late Fusion model is not loaded. Please ensure adrs_late_fusion_model.h5 is present."
+            detail="Late Fusion model or scalers not loaded. Please ensure adrs_late_fusion_model.h5 and late_fusion_scalers.pkl are present."
         )
 
     try:
-        # Validate time series lengths
+        # Step 1: Validate that all 8 time series feature arrays have exactly 7 daily values
         if (len(payload.ambient_temp) != 7 or len(payload.humidity) != 7 or len(payload.thi) != 7 or
             len(payload.body_temp) != 7 or len(payload.milk_yield) != 7 or len(payload.water_intake) != 7 or
             len(payload.feed_intake) != 7 or len(payload.weight) != 7):
@@ -2353,37 +2610,30 @@ async def predict_7day(payload: TriagePredictPayload):
                 detail="All time series arrays must have exactly 7 elements."
             )
 
-        # 1. Construct X_ts: shape (1, 7, 8)
-        ts_data = []
-        for i in range(7):
-            ts_data.append([
-                float(payload.ambient_temp[i]) / 50.0,
-                float(payload.humidity[i]) / 100.0,
-                float(payload.thi[i]) / 100.0,
-                float(payload.body_temp[i]) / 50.0,
-                float(payload.milk_yield[i]) / 50.0,
-                float(payload.water_intake[i]) / 150.0,
-                float(payload.feed_intake[i]) / 50.0,
-                float(payload.weight[i]) / 1000.0
-            ])
-        X_ts = np.array([ts_data], dtype=np.float32)
+        scaler_ts = late_fusion_scalers['scaler_ts']
+        scaler_static = late_fusion_scalers['scaler_static']
+        scaler_visual = late_fusion_scalers['scaler_visual']
+        dummy_columns = late_fusion_scalers['dummy_columns']
+        ts_cols = late_fusion_scalers['ts_cols']
 
         import pandas as pd
-        # 2. Construct X_static: exact 45 columns matching drop_first=True training schema
-        dummy_columns = [
-            'Age_Months', 'Days_in_Milk', 'Breed_Ankole', 'Breed_Australian_Friesian_Sahiwal',
-            'Breed_Australian_Milking_Zebu', 'Breed_Ayrshire', 'Breed_Boran', 'Breed_Brown_Swiss',
-            'Breed_Butana', 'Breed_Danish_Red', 'Breed_Deoni', 'Breed_Exotic_Local_Cross',
-            'Breed_Fleckvieh', 'Breed_Gangatiri', 'Breed_Gir', 'Breed_Girolando', 'Breed_Guernsey',
-            'Breed_Hariana', 'Breed_Holstein-Friesian', 'Breed_Holstein_Zebu_Cross',
-            'Breed_Illawarra_Shorthorn', 'Breed_Jersey', 'Breed_Jersey_Zebu_Cross', 'Breed_Kankrej',
-            'Breed_Kenana', 'Breed_Krishna_Valley', 'Breed_Milking_Shorthorn', 'Breed_Montbeliarde',
-            'Breed_NDama', 'Breed_Normande', 'Breed_Norwegian_Red', 'Breed_Ongole', 'Breed_Rathi',
-            'Breed_Red_Poll_Africa', 'Breed_Red_Sindhi', 'Breed_Sahiwal', 'Breed_Simmental',
-            'Breed_Tharparkar', 'Breed_Tipo_Carora', 'Breed_White_Fulani', 'Breed_Zebu_Cross_Brazil',
-            'Genetic_Group_B', 'Genetic_Group_C', 'Lactation_Stage_Late', 'Lactation_Stage_Mid'
-        ]
+        # Step 2: Construct 56-feature time series DataFrame and scale with MinMaxScaler to shape (1, 7, 8)
+        ts_row = {}
+        for d in range(1, 8):
+            idx = d - 1
+            ts_row[f"Ambient_Temp_Day_{d}"] = float(payload.ambient_temp[idx])
+            ts_row[f"Humidity_Day_{d}"] = float(payload.humidity[idx])
+            ts_row[f"THI_Day_{d}"] = float(payload.thi[idx])
+            ts_row[f"Body_Temp_Day_{d}"] = float(payload.body_temp[idx])
+            ts_row[f"Milk_Yield_Day_{d}"] = float(payload.milk_yield[idx])
+            ts_row[f"Water_Intake_Day_{d}"] = float(payload.water_intake[idx])
+            ts_row[f"Feed_Intake_Day_{d}"] = float(payload.feed_intake[idx])
+            ts_row[f"Weight_Day_{d}"] = float(payload.weight[idx])
 
+        df_ts = pd.DataFrame([ts_row])[ts_cols]
+        X_ts_scaled = scaler_ts.transform(df_ts).reshape(1, 7, 8)
+
+        # Step 3: Construct static cow attributes (one-hot encoded to 45 columns) and scale
         cow_static_df = pd.DataFrame([{
             'Age_Months': float(payload.age_months),
             'Days_in_Milk': float(payload.days_in_milk),
@@ -2391,23 +2641,47 @@ async def predict_7day(payload: TriagePredictPayload):
             'Genetic_Group': payload.genetic_group,  # Must be 'A', 'B', or 'C'
             'Lactation_Stage': payload.lactation_stage.split(' ')[0].title()  # 'Early', 'Mid', or 'Late'
         }])
+        cow_dummy = pd.get_dummies(cow_static_df).reindex(columns=dummy_columns, fill_value=0)
+        X_stat_scaled = scaler_static.transform(cow_dummy)
 
-        cow_dummy = pd.get_dummies(cow_static_df)
-        cow_dummy = cow_dummy.reindex(columns=dummy_columns, fill_value=0)
+        # Step 4: Scale the 2D visual BCS score
+        df_vis = pd.DataFrame([[float(payload.bcs_score)]], columns=['Day_7_BCS'])
+        X_vis_scaled = scaler_visual.transform(df_vis)
 
-        X_static = cow_dummy.values.astype(np.float32)
-        X_static[0, 0] = X_static[0, 0] / 100.0   # Scale Age_Months
-        X_static[0, 1] = X_static[0, 1] / 305.0   # Scale Days_in_Milk
-
-        # 3. Construct X_vis: shape (1, 1)
-        X_vis = np.array([[float(payload.bcs_score) / 5.0]], dtype=np.float32)
-
-        # 4. Predict
-        preds = late_fusion_model.predict([X_ts, X_static, X_vis], verbose=False)
+        # Step 5: Run pure Late-Fusion BiLSTM multi-branch neural network inference
+        preds = late_fusion_model.predict([X_ts_scaled, X_stat_scaled, X_vis_scaled], verbose=False)
         pred_class = int(np.argmax(preds[0]))
 
-        return {"class": pred_class}
+        # Step 6: Map predicted class index to clinical triage diagnosis
+        status_map = {
+            0: "Healthy",
+            1: "Heat Stress",
+            2: "Unhealthy"
+        }
+        new_status = status_map.get(pred_class, "Healthy")
 
+        # Step 7: Persist new health status to MongoDB cattle collection
+        from bson import ObjectId
+        if cow is not None:
+            await cattles_collection.update_one(
+                living_cattle_filter(cow),
+                {"$set": {"health_status": new_status, "status": new_status}}
+            )
+
+        # Step 8: Return class index, status, confidence score, and probability distribution
+        return {
+            "class": pred_class,
+            "status": new_status,
+            "confidence": float(preds[0][pred_class]),
+            "probabilities": {
+                "healthy": float(preds[0][0]),
+                "heat_stress": float(preds[0][1]),
+                "unhealthy": float(preds[0][2])
+            }
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

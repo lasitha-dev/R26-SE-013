@@ -6,6 +6,9 @@ import {
   getAuthorizedDistricts,
 } from '../../contracts/viewerContext.js';
 import { AccessContextUnavailable } from '../AccessContextUnavailable.jsx';
+import { isV2Record, buildRecentObservations } from '../forecastPresentation';
+import { loadSeverityHistory, severityFor, NO_SEVERITY_HISTORY } from '../../services/severityHistoryLoader';
+import { SeverityPanel } from '../SeverityPanel';
 import {
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
@@ -118,6 +121,13 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
   // 2. Component State
   const [followUps, setFollowUps] = useState([]);
+  const [severityHistory, setSeverityHistory] = useState(NO_SEVERITY_HISTORY);
+
+  useEffect(() => {
+    let active = true;
+    loadSeverityHistory().then((history) => { if (active) setSeverityHistory(history); });
+    return () => { active = false; };
+  }, []);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
 
@@ -381,15 +391,21 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
             <dt className="text-on-surface-variant">Risk Probability:</dt>
             <dd className="font-extrabold text-primary">{formatProbability(probabilityVal)}</dd>
           </div>
-          <div>
-            <dt className="text-on-surface-variant">Predicted Severity:</dt>
-            <dd className="font-semibold text-on-surface">{record.predicted_severity || 'N/A'}</dd>
-          </div>
+          {isV2Record(record) || !record.predicted_severity ? (
+            <div className="col-span-2 sm:col-span-3">
+              <SeverityPanel entry={severityFor(severityHistory, record.disease, record.district)} recent={buildRecentObservations(record)} />
+            </div>
+          ) : (
+            <div>
+              <dt className="text-on-surface-variant">Severity:</dt>
+              <dd className="font-semibold text-on-surface">{record.predicted_severity}</dd>
+            </div>
+          )}
         </dl>
 
         {record.fallback_applied && (
           <div className="text-xs text-on-surface-variant italic mt-2">
-            Historical proxy data used
+            {isV2Record(record) ? 'Historical baseline (no model features applied)' : 'Historical proxy data used'}
           </div>
         )}
       </div>
@@ -681,7 +697,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
               </span>
               <h3 className="text-base font-semibold text-on-surface">No Assigned Follow-Ups Found</h3>
               <p className="max-w-md mx-auto text-xs text-on-surface-variant/80">
-                No DAPH operational follow-up tasks match the selected filter criteria for officer {actorId}.
+                You have no follow-up tasks that match these filters.
               </p>
             </div>
           ) : (
@@ -905,7 +921,7 @@ export function VeterinaryAssignedFollowUps({ viewerContext }) {
 
             {activeActionModal === 'ACKNOWLEDGE' && (
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                Recording acknowledgement registers that officer <strong className="text-on-surface">{actorId}</strong> has received this DAPH operational follow-up instruction in the standalone workflow.
+                Recording acknowledgement confirms that you have received this DAPH operational follow-up instruction.
               </p>
             )}
 

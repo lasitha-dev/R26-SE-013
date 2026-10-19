@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import SmartDiagnostics from './index';
@@ -46,6 +46,89 @@ const getFetchReasoning = async () => {
 };
 
 describe('SmartDiagnostics', () => {
+  it.each(['Mastitis', 'Foot and Mouth Disease', 'Lumpy Skin Disease'])('shows and saves severity from model findings and LLM reasoning for %s', async (name) => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const visual = { grade: 'Mild', source: 'visual_thresholds', needs_review: false };
+    const combined = { grade: 'Moderate', formatted: 'Moderate severity estimate',
+      source: 'model_llm_reasoning', needs_review: false,
+      description: 'Moderate severity estimated from model findings and LLM reasoning.',
+      diagnostic_rationale: 'Visual Mild plus LLM Severe; weighted score 1.6.',
+      reasoning_assessment: { llm_grade: 'Severe', weighted_score: 1.6, llm_weight: .3 } };
+    api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
+      disease: { name, confidence: 90 }, severity: visual, review: { required: false } });
+    api.fetchReasoning.mockResolvedValue({ status: 'ok', severity_assessment: combined });
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate severity estimate');
+    expect(screen.getByTestId('diagnostic-rationale')).toHaveTextContent('Visual Mild plus LLM Severe');
+    expect(screen.queryByTestId('needs-review-banner')).not.toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Vet: Verify & Report/ })); });
+    expect(api.reportDiagnosticCase).toHaveBeenCalledWith(expect.objectContaining({
+      severity: 'Moderate', clinical_notes: expect.stringContaining('reasoning_assessment'),
+    }));
+  });
+
+  it('allows an optional clinical assessment and restores the automatic estimate when findings change', async () => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const automatic = { grade: 'Moderate', formatted: 'Moderate visual burden (provisional)', source: 'visual_thresholds', assessment_status: 'provisional' };
+    api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
+      disease: { name: 'Mastitis', confidence: 99 },
+      severity: automatic });
+    api.fetchReasoning.mockResolvedValueOnce({ status: 'ok', severity_assessment: automatic });
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
+    const verify = screen.getByRole('button', { name: /Vet: Verify & Report/ });
+    expect(verify).toBeEnabled();
+    fireEvent.click(screen.getByText('Optional clinical assessment'));
+    const form = screen.getByRole('form', { name: 'Veterinary clinical checklist' });
+    const selects = form.querySelectorAll('select');
+    selects.forEach((element, index) => fireEvent.change(element, { target: { value: index === 0 ? 'true' : 'false' } }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /confirmed by the reviewing veterinarian/ }));
+    const observations = { disease: 'mastitis', vet_confirmed: true, milk_abnormal: true, udder_inflammation: false, systemic_illness: false };
+    api.fetchReasoning.mockResolvedValueOnce({ status: 'ok', reasoning_report: 'Clinical checklist', severity_assessment: {
+      grade: 'Mild', formatted: 'Mild (provisional)', source: 'clinical_rules', assessment_status: 'provisional',
+      rubric_id: 'mastitis_idf_signs_v1', clinical_observations: observations, prognosis: 'Not assessed',
+    } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Assess clinical observations' })); });
+    expect(verify).toBeEnabled();
+    expect(api.fetchReasoning.mock.calls.at(-1)[0].clinical_observations).toEqual(observations);
+    await act(async () => { fireEvent.click(verify); });
+    expect(api.reportDiagnosticCase).toHaveBeenCalledWith(expect.objectContaining({ severity: 'Mild', prognosis: 'Not assessed' }));
+    expect(api.reportDiagnosticCase.mock.calls[0][0].clinical_notes).toContain('mastitis_idf_signs_v1');
+    expect(api.reportDiagnosticCase.mock.calls[0][0].clinical_notes).toContain('clinical_observations');
+    fireEvent.change(selects[0], { target: { value: '' } });
+    expect(screen.getByRole('button', { name: /Vet: Verify & Report/ })).toBeEnabled();
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate visual burden (provisional)');
+  });
+
+  it.each(['Mastitis', 'Foot and Mouth Disease'])('automatically shows and reports visual severity for %s without checklist input', async (name) => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const severity = { grade: 'Moderate', source: 'visual_thresholds',
+      formatted: 'Moderate visual burden (provisional)', assessment_status: 'provisional',
+      assessment_target: 'predicted_lesion_burden_in_analyzed_crop',
+      description: 'Provisional visual estimate from predicted lesion coverage.', needs_review: true,
+      visual_assessment: { grade: 'Moderate', coverage_pct: 20, policy_version: 'crop_visual_burden_v1',
+        policy_sha256: 'example-policy-hash', thresholds_pct: { moderate_min_pct: 10, severe_min_pct: 30 } } };
+    api.detectImage.mockResolvedValue({ cattle_detected: true, detections: [],
+      disease: { name, confidence: 90 }, severity });
+    api.fetchReasoning.mockResolvedValue({ status: 'ok', severity_assessment: severity });
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => { await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' })); });
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate visual burden (provisional)');
+    expect(screen.getByText('Automatic visual assessment')).toBeInTheDocument();
+    expect(screen.getByText('Optional clinical assessment').closest('details')).not.toHaveAttribute('open');
+    expect(api.fetchReasoning.mock.calls[0][0].clinical_observations).toBeUndefined();
+    const verify = screen.getByRole('button', { name: /Vet: Verify & Report/ });
+    expect(verify).toBeEnabled();
+    await act(async () => { fireEvent.click(verify); });
+    expect(api.reportDiagnosticCase).toHaveBeenCalledWith(expect.objectContaining({
+      severity: 'Moderate visual burden (provisional)', clinical_notes: expect.stringContaining('example-policy-hash'),
+    }));
+  });
+
   it('renders the page title and dropzone in idle state', () => {
     renderWithRouter(<SmartDiagnostics />);
     expect(screen.getByText('AI-Powered Smart Diagnosis System')).toBeInTheDocument();
@@ -208,9 +291,9 @@ describe('SmartDiagnostics', () => {
     expect(screen.getByText('AI-Powered Smart Diagnosis System')).toBeInTheDocument();
   });
 
-  it('renders the pipeline version indicator', () => {
+  it('identifies the models used in the vision pipeline', () => {
     renderWithRouter(<SmartDiagnostics />);
-    expect(screen.getByText('CV Pipeline v3.2')).toBeInTheDocument();
+    expect(screen.getByText('YOLOv8 · ViT · ResNet50 U-Net')).toBeInTheDocument();
   });
 
   it('displays confidence as a percentage without double multiplication', async () => {
@@ -296,10 +379,10 @@ describe('SmartDiagnostics', () => {
     });
 
     // The bounding box overlay div should exist with LESION_01 label
-    expect(screen.getByText('LESION_01')).toBeInTheDocument();
+    expect(screen.getByText('ANALYZED_ROI')).toBeInTheDocument();
   });
 
-  it('renders ReasoningBriefing with clinical report after successful detection + reasoning', async () => {
+  it('shows clinical checklist review instead of image-only LLM claims for mastitis', async () => {
     const detectImage = await getDetectImage();
     const fetchReasoning = await getFetchReasoning();
     detectImage.mockResolvedValue({
@@ -337,7 +420,8 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByTestId('reasoning-briefing')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('AI Clinical Briefing')).toBeInTheDocument();
+    expect(screen.getByText('Clinical checklist briefing')).toBeInTheDocument();
+    expect(screen.queryByText('Mastitis confirmed with high certainty.')).not.toBeInTheDocument();
   });
 
   it('shows reasoning loading skeleton while LLM reasoning is in progress', async () => {
@@ -378,7 +462,7 @@ describe('SmartDiagnostics', () => {
     // ReasoningBriefing should show loading skeleton and Inference Results should show Synthesising badge
     expect(screen.getByText(/Generating Clinical Briefing/)).toBeInTheDocument();
     expect(screen.getByTestId('synthesising-badge')).toHaveTextContent('Synthesising');
-    expect(screen.getByTestId('synthesising-placeholder')).toBeInTheDocument();
+    expect(screen.getByTestId('severity-narrative')).toBeInTheDocument();
   });
 
   it('shows reasoning error fallback when LLM reasoning API fails', async () => {
@@ -421,7 +505,7 @@ describe('SmartDiagnostics', () => {
     });
   });
 
-  it('renders Mask R-CNN symptom overlay when symptoms_image is provided', async () => {
+  it('renders ResNet50 U-Net symptom overlay when symptoms_image is provided', async () => {
     const detectImage = await getDetectImage();
     const fetchReasoning = await getFetchReasoning();
     detectImage.mockResolvedValue({
@@ -460,15 +544,15 @@ describe('SmartDiagnostics', () => {
       expect(screen.getByTestId('success-view')).toBeInTheDocument();
     });
 
-    // Mask R-CNN overlay image should be rendered
-    const maskOverlay = screen.getByTestId('mask-rcnn-overlay');
+    // ResNet50 U-Net overlay image should be rendered
+    const maskOverlay = screen.getByTestId('symptom-overlay-img');
     expect(maskOverlay).toBeInTheDocument();
-    expect(maskOverlay).toHaveAttribute('src', 'data:image/jpeg;base64,mock-symptoms-mask-base64');
-    expect(screen.getByText('Mask R-CNN Active')).toBeInTheDocument();
-    expect(screen.getByText('MASK_RCNN_LESION')).toBeInTheDocument();
+    expect(maskOverlay).toHaveAttribute('href', 'data:image/jpeg;base64,mock-symptoms-mask-base64');
+    expect(screen.getByText('ResNet50 U-Net Active')).toBeInTheDocument();
+    expect(screen.getByText('LESION_MASK')).toBeInTheDocument();
   });
 
-  it('toggles Mask R-CNN symptom overlay visibility', async () => {
+  it('toggles ResNet50 U-Net symptom overlay visibility', async () => {
     const detectImage = await getDetectImage();
     const fetchReasoning = await getFetchReasoning();
     detectImage.mockResolvedValue({
@@ -509,18 +593,18 @@ describe('SmartDiagnostics', () => {
 
     const toggleBtn = screen.getByTestId('toggle-symptom-mask-btn');
     expect(toggleBtn).toHaveTextContent('VISIBLE');
-    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+    expect(screen.getByTestId('symptom-overlay-img')).toBeInTheDocument();
 
     // Click toggle to hide mask
     await userEvent.click(toggleBtn);
     expect(toggleBtn).toHaveTextContent('HIDDEN');
-    expect(screen.queryByTestId('mask-rcnn-overlay')).not.toBeInTheDocument();
-    expect(screen.getByTestId('raw-crop-overlay')).toBeInTheDocument();
+    expect(screen.queryByTestId('symptom-overlay-img')).not.toBeInTheDocument();
+    expect(screen.getByTestId('full-image-evidence')).toBeInTheDocument();
 
     // Click toggle again to restore mask
     await userEvent.click(toggleBtn);
     expect(toggleBtn).toHaveTextContent('VISIBLE');
-    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+    expect(screen.getByTestId('symptom-overlay-img')).toBeInTheDocument();
   });
 
   it('switches between Full Scan and Lesion Focus views', async () => {
@@ -571,14 +655,14 @@ describe('SmartDiagnostics', () => {
 
     // Lesion Focus image and pathology legend should be displayed
     expect(screen.getByTestId('lesion-focus-image')).toBeInTheDocument();
-    expect(screen.getByText('Mask R-CNN Pathological Area')).toBeInTheDocument();
-    expect(screen.getByText('YOLO Bounding Margin')).toBeInTheDocument();
+    expect(screen.getByText(/Red: predicted symptom regions/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'ResNet50 U-Net symptom overlay on analyzed region' })).toBeInTheDocument();
 
     // Click "Full Scan" button to switch back
     const fullScanBtn = screen.getByTestId('view-mode-full-btn');
     await userEvent.click(fullScanBtn);
     expect(screen.queryByTestId('lesion-focus-image')).not.toBeInTheDocument();
-    expect(screen.getByTestId('mask-rcnn-overlay')).toBeInTheDocument();
+    expect(screen.getByTestId('symptom-overlay-img')).toBeInTheDocument();
   });
 
   it('renders authoritative composite severity metrics and ensures stability across reasoning resolution', async () => {
@@ -644,8 +728,52 @@ describe('SmartDiagnostics', () => {
     expect(screen.getByTestId('spatial-correlation')).toHaveTextContent(
       'ViT self-attention rollout identified'
     );
-    expect(screen.getAllByText('COMPOSITE SCORER').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('ANATOMICAL TELEMETRY')).toBeInTheDocument();
+    expect(screen.getAllByText('EXISTING IMAGE SCORE').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('REPORTED / IMAGE GEOMETRY')).toBeInTheDocument();
+  });
+
+  it('renders LLM Reasoned Clinical Severity and Clinical Recommendations card when returned by reasoning engine', async () => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const visual = { grade: 'Mild', source: 'visual_thresholds', needs_review: false, coverage_pct: 15.0 };
+    const combined = {
+      grade: 'Moderate',
+      formatted: 'Moderate severity estimate',
+      source: 'model_llm_reasoning',
+      needs_review: false,
+      description: 'Moderate severity reasoned from ViT confidence and U-Net lesion burden.',
+      diagnostic_rationale: 'LLM reasoned from visual and clinical metrics.',
+      recommendation: {
+        triage_level: 'Urgent',
+        biosecurity_protocol: ['Enforce immediate physical isolation in vector-screened enclosure.'],
+        clinical_monitoring: ['Monitor body temperature BID.'],
+        treatment_considerations: 'Supportive antipyretic therapy.'
+      }
+    };
+    api.detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [],
+      disease: { name: 'Lumpy Skin Disease', confidence: 92.5 },
+      severity: visual,
+      review: { required: false }
+    });
+    api.fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      severity_assessment: combined,
+      recommendations: combined.recommendation
+    });
+
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => {
+      await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' }));
+    });
+
+    expect(screen.getByText('Clinical Severity (LLM Reasoned)')).toBeInTheDocument();
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate severity estimate');
+    expect(screen.getByTestId('clinical-recommendation-card')).toBeInTheDocument();
+    expect(screen.getByTestId('recommendation-triage-level')).toHaveTextContent('Triage: Urgent');
+    expect(screen.getByText('Enforce immediate physical isolation in vector-screened enclosure.')).toBeInTheDocument();
+    expect(screen.getByText('Monitor body temperature BID.')).toBeInTheDocument();
   });
 });
 

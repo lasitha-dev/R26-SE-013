@@ -1,0 +1,13 @@
+{
+  "python": "3.12.7 (tags/v3.12.7:0b05ead, Oct  1 2024, 03:06:41) [MSC v.1941 64 bit (AMD64)]",
+  "packages": {
+    "torch": "2.11.0+cu130",
+    "torchvision": "0.26.0+cu130",
+    "numpy": "2.4.1",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.8.0",
+    "Pillow": "12.1.0",
+    "matplotlib": "3.10.8",
+    "pytest": "9.0.3"
+  }
+}

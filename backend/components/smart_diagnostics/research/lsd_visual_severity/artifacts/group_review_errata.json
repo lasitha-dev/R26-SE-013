@@ -1,0 +1,249 @@
+{
+  "date_utc": "2026-10-14",
+  "date_local_asia_colombo": "2026-10-15",
+  "reason": "Final visual QA found that eight manually entered grouping constraints were broader than confirmed copies of a source image. All affected members have the same inherited class; no cross-label exclusion changes.",
+  "frozen_content_review_sha256": "ae454b02e6143db751a69e659007e72fd851c013681b34a46baa593863b550a6",
+  "frozen_manifest_sha256": "e4715c4d6c8d68b6fb544d6d8dc9ddde5da0b3024cb1c0590876a0668a84e4dc",
+  "corrections": [
+    {
+      "constraint_number": 13,
+      "original_members": [
+        "Mild_196.png",
+        "Mild_210.png",
+        "Mild_69.png"
+      ],
+      "correction": "Do not claim a shared source/animal from these different photographs. Keep the frozen joint partition assignment."
+    },
+    {
+      "constraint_number": 15,
+      "original_members": [
+        "Mild_100.png",
+        "Mild_228.png",
+        "Mild_54.png",
+        "Mild_23.png"
+      ],
+      "correction": "Only the retained subset is a confirmed matching-source link; additional members remain conservatively in the same frozen partition.",
+      "confirmed_subset": [
+        "Mild_100.png",
+        "Mild_228.png",
+        "Mild_54.png"
+      ]
+    },
+    {
+      "constraint_number": 18,
+      "original_members": [
+        "Mild_138.png",
+        "Mild_221.png"
+      ],
+      "correction": "Do not claim a shared source/animal from these different photographs. Keep the frozen joint partition assignment."
+    },
+    {
+      "constraint_number": 23,
+      "original_members": [
+        "Severe_6.png",
+        "Severe_70.png",
+        "Severe_9.png"
+      ],
+      "correction": "Only the retained subset is a confirmed matching-source link; additional members remain conservatively in the same frozen partition.",
+      "confirmed_subset": [
+        "Severe_6.png",
+        "Severe_70.png"
+      ]
+    },
+    {
+      "constraint_number": 25,
+      "original_members": [
+        "Severe_66.png",
+        "Severe_59.png"
+      ],
+      "correction": "Do not claim a shared source/animal from these different photographs. Keep the frozen joint partition assignment."
+    },
+    {
+      "constraint_number": 32,
+      "original_members": [
+        "Normal_Skin_30.png",
+        "Normal_Skin_198.png"
+      ],
+      "correction": "Do not claim a shared source/animal from these different photographs. Keep the frozen joint partition assignment."
+    },
+    {
+      "constraint_number": 33,
+      "original_members": [
+        "Normal_Skin_129.png",
+        "Normal_Skin_114.png",
+        "Normal_Skin_400.png"
+      ],
+      "correction": "Only the retained subset is a confirmed matching-source link; additional members remain conservatively in the same frozen partition.",
+      "confirmed_subset": [
+        "Normal_Skin_114.png",
+        "Normal_Skin_400.png"
+      ]
+    },
+    {
+      "constraint_number": 34,
+      "original_members": [
+        "Normal_Skin_158.png",
+        "Normal_Skin_100.png",
+        "Normal_Skin_301.png"
+      ],
+      "correction": "Only the retained subset is a confirmed matching-source link; additional members remain conservatively in the same frozen partition.",
+      "confirmed_subset": [
+        "Normal_Skin_158.png",
+        "Normal_Skin_100.png"
+      ]
+    }
+  ],
+  "confirmed_source_groups": [
+    [
+      "Normal_Skin_297.png",
+      "Mild_41.png"
+    ],
+    [
+      "Normal_Skin_524.png",
+      "Mild_98.png"
+    ],
+    [
+      "Mild_96.png",
+      "Mild_6.png"
+    ],
+    [
+      "Severe_83.png",
+      "Severe_50.png",
+      "Severe_36.png"
+    ],
+    [
+      "Normal_Skin_161.png",
+      "Normal_Skin_141.png"
+    ],
+    [
+      "Normal_Skin_6.png",
+      "Normal_Skin_472.png"
+    ],
+    [
+      "Severe_87.png",
+      "Severe_62.png"
+    ],
+    [
+      "Mild_78.png",
+      "Mild_167.png",
+      "Mild_222.png"
+    ],
+    [
+      "Normal_Skin_489.png",
+      "Normal_Skin_180.png",
+      "Severe_15.png",
+      "Severe_21.png",
+      "Severe_76.png",
+      "Mild_182.png"
+    ],
+    [
+      "Severe_68.png",
+      "Severe_10.png"
+    ],
+    [
+      "Mild_36.png",
+      "Mild_201.png"
+    ],
+    [
+      "Mild_102.png",
+      "Mild_63.png",
+      "Severe_17.png",
+      "Severe_78.png",
+      "Severe_84.png"
+    ],
+    [
+      "Mild_10.png",
+      "Mild_147.png"
+    ],
+    [
+      "Mild_100.png",
+      "Mild_228.png",
+      "Mild_54.png"
+    ],
+    [
+      "Mild_194.png",
+      "Mild_206.png"
+    ],
+    [
+      "Mild_208.png",
+      "Mild_178.png",
+      "Mild_66.png"
+    ],
+    [
+      "Severe_1.png",
+      "Severe_48.png"
+    ],
+    [
+      "Severe_20.png",
+      "Severe_3.png"
+    ],
+    [
+      "Severe_13.png",
+      "Severe_39.png",
+      "Severe_4.png",
+      "Severe_85.png"
+    ],
+    [
+      "Severe_37.png",
+      "Severe_60.png",
+      "Severe_88.png"
+    ],
+    [
+      "Severe_6.png",
+      "Severe_70.png"
+    ],
+    [
+      "Severe_43.png",
+      "Severe_71.png"
+    ],
+    [
+      "Severe_12.png",
+      "Severe_62.png",
+      "Severe_87.png"
+    ],
+    [
+      "Severe_64.png",
+      "Severe_91.png"
+    ],
+    [
+      "Severe_67.png",
+      "Severe_7.png"
+    ],
+    [
+      "Severe_72.png",
+      "Severe_89.png",
+      "Severe_90.png"
+    ],
+    [
+      "Normal_Skin_101.png",
+      "Normal_Skin_475.png"
+    ],
+    [
+      "Normal_Skin_303.png",
+      "Normal_Skin_3.png"
+    ],
+    [
+      "Normal_Skin_114.png",
+      "Normal_Skin_400.png"
+    ],
+    [
+      "Normal_Skin_158.png",
+      "Normal_Skin_100.png"
+    ],
+    [
+      "Normal_Skin_61.png",
+      "Normal_Skin_575.png"
+    ]
+  ],
+  "frozen_split_unchanged": true,
+  "model_and_test_results_unchanged": true,
+  "confirmed_source_group_count_among_retained": 791,
+  "confirmed_source_group_count_by_label": {
+    "normal": 581,
+    "mild": 158,
+    "severe": 52
+  },
+  "cross_partition_confirmed_source_groups": {},
+  "interpretation": "The 782 frozen units are conservative split bundles, not a verified count of animals or source photographs. Corrected matching-source groups stay within them. Keep the reported split fixed and document the overgrouping rather than retuning after seeing results.",
+  "future_action": "Use the corrected source-group list for a new preregistered experiment and obtain a new external test cohort; do not relabel the present results as external/clinical validation."
+}

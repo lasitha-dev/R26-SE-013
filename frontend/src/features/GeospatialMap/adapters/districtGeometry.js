@@ -161,3 +161,12 @@ export function filterOriginsInsideDistrict(originsWithSources, districtFeature)
     return features.some((f) => isPointInsideDistrictFeature(f?.geometry?.coordinates, districtFeature))
   })
 }
+
+/** Display name of the real ADM2 district containing `coordinates`
+ * ([lon, lat]), from the already-fetched collection; `null` when the point
+ * is in none of them (at sea, malformed) -- never the nearest guess. */
+export function districtNameAtPoint(featureCollection, coordinates) {
+  if (!Array.isArray(featureCollection?.features)) return null
+  const feature = featureCollection.features.find((f) => isPointInsideDistrictFeature(coordinates, f))
+  return normalizeDistrictDisplayName(feature?.properties?.shapeName ?? null)
+}

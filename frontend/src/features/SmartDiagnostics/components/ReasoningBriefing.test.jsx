@@ -13,6 +13,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import ReasoningBriefing from './ReasoningBriefing';
 
+it('renders explanation HTML as text while preserving safe Markdown', () => {
+  const { container } = render(<ReasoningBriefing reasoningStatus="done"
+    reasoning={'## 1. <img src=x onerror=alert(1)>\n**Measured evidence** <script>alert(1)</script>'} />);
+  expect(container.querySelector('img')).toBeNull();
+  expect(container.querySelector('script')).toBeNull();
+  expect(container.querySelector('[onerror]')).toBeNull();
+  expect(container.querySelector('strong')).toHaveTextContent('Measured evidence');
+  expect(container.textContent).toContain('<script>alert(1)</script>');
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Test fixtures — sample LLM markdown output
 // ═══════════════════════════════════════════════════════════════════════════
@@ -276,7 +286,7 @@ High certainty.`;
 
     vi.advanceTimersByTime(3000);
 
-    expect(screen.getByText(/Synthesized Severity Grade & Prognosis/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preserved image assessment/i)).toBeInTheDocument();
     expect(screen.getByText(/Multifocal eruptive nodules detected/i)).toBeInTheDocument();
     expect(screen.getByText('Moderate')).toBeInTheDocument();
     expect(screen.getByText('Recoverable')).toBeInTheDocument();

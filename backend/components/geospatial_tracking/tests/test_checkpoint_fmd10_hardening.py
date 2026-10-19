@@ -53,7 +53,7 @@ from components.geospatial_tracking.services.model_development.fmd_frozen_model_
 )
 
 _DB_PATH = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
-_DB_AVAILABLE = _DB_PATH.exists()
+_DB_AVAILABLE = _DB_PATH.exists() and _DB_PATH.stat().st_size > 0  # a 0-byte placeholder file is not a usable DB
 _skip_no_db = pytest.mark.skipif(not _DB_AVAILABLE, reason="dev SQLite DB absent (clean clone)")
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -184,6 +184,7 @@ class TestFmd10FrozenIdentityUnchanged:
 
 
 class TestFmd10ErrorSemantics:
+    @_skip_no_db  # needs a real origin ledger; without a dataset the route correctly answers 503
     def test_fmd10_error_01_unknown_origin_is_404(self):
         r = _client().get("/api/geospatial/analysis/ORIGIN:DOES_NOT_EXIST_XYZ:2099-01-01/fmd-risk")
         assert r.status_code == 404
@@ -270,13 +271,15 @@ class TestFmd10Determinism:
 
 
 class TestFmd10InputValidation:
+    # Ids that reach the route need a real origin ledger (without a dataset
+    # the route correctly answers 503); the others never reach the route.
     @pytest.mark.parametrize("bad_id", [
         "",
-        "not-a-real-origin-id",
-        "ORIGIN:" + "X" * 500,
+        pytest.param("not-a-real-origin-id", marks=_skip_no_db),
+        pytest.param("ORIGIN:" + "X" * 500, marks=_skip_no_db),
         "../../../etc/passwd",
-        "ORIGIN:Afghanistan:not-a-date",
-        "ORIGIN%3AAfghanistan%3A2003-04-29%00",
+        pytest.param("ORIGIN:Afghanistan:not-a-date", marks=_skip_no_db),
+        pytest.param("ORIGIN%3AAfghanistan%3A2003-04-29%00", marks=_skip_no_db),
     ])
     def test_fmd10_valid_01_malformed_origin_id_never_500s(self, bad_id):
         r = _client().get(f"/api/geospatial/analysis/{bad_id}/fmd-risk")

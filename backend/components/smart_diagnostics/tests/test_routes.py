@@ -17,6 +17,7 @@ import pytest
 from PIL import Image
 from fastapi.testclient import TestClient
 
+from components.smart_diagnostics.schemas import ReasoningResponse
 from .conftest import FakeDetector, FakeClassifier, FakeSegmenter
 
 
@@ -138,9 +139,8 @@ class TestDetectEndpoint:
 
         resp = _upload_jpeg(client, dummy_rgb_image_bytes)
 
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["cattle_detected"] is False
+        assert resp.status_code == 503
+        assert resp.json()["detail"]["code"] == "required_model_unavailable"
 
     def test_detect_endpoint_corrupt_image_raises_error(
         self, test_app, dummy_corrupt_image_bytes
@@ -211,14 +211,14 @@ class TestDetectEndpoint:
 class TestReasonEndpoint:
     """Integration tests for the ``/api/reason`` endpoint (Tier 3 LLM)."""
 
-    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_veterinary_report")
+    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_report_result")
     def test_reason_endpoint_success_returns_ok_report(
         self, mock_generate, client
     ):
         """Successful LLM report generation returns status=ok with Markdown content and severity assessment."""
         from components.smart_diagnostics.schemas import SeverityMetrics
         mock_sev = SeverityMetrics(grade="Mild", prognosis="Favorable", confidence_level="High")
-        mock_generate.return_value = ("## 1. Primary Diagnostic Assessment\nAll clear.", mock_sev)
+        mock_generate.return_value = ReasoningResponse(status="ok", reasoning_report="## 1. Primary Diagnostic Assessment\nAll clear.", severity_assessment=mock_sev)
 
         resp = client.post("/api/reason", json={
             "cattle_detected": True,
@@ -238,14 +238,14 @@ class TestReasonEndpoint:
         assert "Primary Diagnostic Assessment" in data["reasoning_report"]
         assert data["severity_assessment"]["grade"] == "Mild"
 
-    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_veterinary_report")
+    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_report_result")
     def test_reason_endpoint_llm_error_returns_error_status(
         self, mock_generate, client
     ):
         """An LLM error report (starting with ⚠) returns status=error."""
         from components.smart_diagnostics.schemas import SeverityMetrics
         mock_sev = SeverityMetrics(grade="Moderate", prognosis="Guarded", confidence_level="Low", needs_review=True)
-        mock_generate.return_value = ("⚠️  **Tier 3 Error — LLM Unreachable**", mock_sev)
+        mock_generate.return_value = ReasoningResponse(status="fallback", reasoning_report="Explanation Unreachable", severity_assessment=mock_sev)
 
         resp = client.post("/api/reason", json={
             "cattle_detected": True,
@@ -255,11 +255,11 @@ class TestReasonEndpoint:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "error"
+        assert data["status"] == "fallback"
         assert "Unreachable" in data["reasoning_report"]
         assert data["severity_assessment"]["needs_review"] is True
 
-    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_veterinary_report")
+    @patch("components.smart_diagnostics.pipeline.llm_reasoner.generate_report_result")
     def test_reason_endpoint_exception_returns_error_gracefully(
         self, mock_generate, client
     ):
@@ -274,8 +274,8 @@ class TestReasonEndpoint:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "error"
-        assert "Unexpected LLM failure" in data["reasoning_report"]
+        assert data["status"] == "fallback"
+        assert data["error_code"] == "reasoning_failed_or_timed_out"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -301,7 +301,7 @@ class TestHealthEndpoint:
         assert data["status"] == "ok"
         assert data["models"]["yolo_detector"]["loaded"] is True
         assert data["models"]["vit_classifier"]["loaded"] is True
-        assert data["models"]["mask_rcnn_segmenter"]["loaded"] is True
+        assert data["models"]["lesion_segmenter"]["loaded"] is True
 
     def test_health_endpoint_partial_load_returns_degraded(self, create_app):
         """When one model is missing (None), health status is 'degraded'."""
@@ -317,4 +317,4 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "degraded"
-        assert data["models"]["mask_rcnn_segmenter"]["registered"] is False
+        assert data["models"]["lesion_segmenter"]["registered"] is False

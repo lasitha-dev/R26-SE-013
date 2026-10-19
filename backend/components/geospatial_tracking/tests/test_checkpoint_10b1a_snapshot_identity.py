@@ -45,7 +45,7 @@ _ORIGIN = "ORIGIN:Afghanistan:2022-05-29"
 _EXPECTED_SNAPSHOT_ID = "cc92c6f716b7c2d04a2f4c18a893e87757876611e1068d9b0c526ae8853e8598"
 
 _DB_PATH = Path(__file__).resolve().parents[1] / DEFAULT_SQLITE_DB_PATH
-_DB_AVAILABLE = _DB_PATH.exists()
+_DB_AVAILABLE = _DB_PATH.exists() and _DB_PATH.stat().st_size > 0  # a 0-byte placeholder file is not a usable DB
 _skip_no_db = pytest.mark.skipif(not _DB_AVAILABLE, reason="dev SQLite DB absent (clean clone)")
 
 

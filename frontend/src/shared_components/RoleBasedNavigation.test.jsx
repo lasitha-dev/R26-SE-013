@@ -17,7 +17,7 @@ describe('Role-Based Navigation Controls', () => {
   })
 
   describe('Farm Owner Navigation (DashboardLayout)', () => {
-    it('only renders Wellness & BCS and Herd Registry for Farm Owner', () => {
+    it('renders the farmer wellness, herd, diagnosis and case-history navigation', () => {
       localStorage.setItem('role', 'farm_owner')
       localStorage.setItem('owner_name', 'Julian Vane')
 
@@ -35,8 +35,9 @@ describe('Role-Based Navigation Controls', () => {
       expect(screen.getByText('Settings')).toBeInTheDocument()
       expect(screen.getByText('Sign Out')).toBeInTheDocument()
 
-      // Must NOT be present in Farm Owner sidebar
-      expect(screen.queryByText('AI Smart Diagnosis')).not.toBeInTheDocument()
+      expect(screen.getByText('AI Smart Diagnosis')).toBeInTheDocument()
+      expect(screen.getByText('Case History')).toBeInTheDocument()
+      // Veterinary workspaces remain separate from the farmer sidebar.
       expect(screen.queryByText('Geospatial Intelligence')).not.toBeInTheDocument()
       expect(screen.queryByText('Seasonal Forecasting')).not.toBeInTheDocument()
     })

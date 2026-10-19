@@ -122,7 +122,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       mockFetchJsonResponse({ follow_up_id: 'ffu_001' });
       const actorContext = { actor_id: 'daph_01', actor_role: 'DAPH_OFFICIAL' };
 
-      await issueFollowUp({ forecast_id: 'fdr_001', assigned_vet_id: 'vet_01', instruction_summary: 'test' }, { actorContext });
+      await issueFollowUp({ forecast_id: 'fdr_001', assigned_vet_ids: ['vet_01'], instruction_summary: 'test' }, { actorContext });
 
       const options = globalThis.fetch.mock.calls[0][1];
       expect(options.headers['X-Actor-ID']).toBe('daph_01');
@@ -842,7 +842,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       const res = await issueFollowUp(
         {
           forecast_id: 'fdr_001',
-          assigned_vet_id: 'vet_officer_01',
+          assigned_vet_ids: ['vet_officer_01'],
           instruction_summary: 'Deploy ring vaccination',
           // Client might attempt to pass identity in payload; test that client strips it
           issued_by_daph_id: 'SPOOFED_DAPH',
@@ -866,7 +866,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
 
       const parsedBody = JSON.parse(opts.body);
       expect(parsedBody.forecast_id).toBe('fdr_001');
-      expect(parsedBody.assigned_vet_id).toBe('vet_officer_01');
+      expect(parsedBody.assigned_vet_ids).toEqual(['vet_officer_01']);
       expect(parsedBody.instruction_summary).toBe('Deploy ring vaccination');
       expect(parsedBody.idempotency_key).toBe('idem_key_123');
       // STRICT SECURITY VERIFICATION: No actor identity in JSON body
@@ -880,7 +880,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       await issueFollowUp(
         {
           forecast_id: 'fdr_001',
-          assigned_vet_id: 'vet_officer_01',
+          assigned_vet_ids: ['vet_officer_01'],
           instruction_summary: 'Ring vaccination',
           idempotencyKey: 'idem_camel_123',
         },
@@ -897,7 +897,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
         issueFollowUp(
           {
             forecast_id: 'fdr_001',
-            assigned_vet_id: 'vet_officer_01',
+            assigned_vet_ids: ['vet_officer_01'],
             instruction_summary: 'Ring vaccination',
             idempotency_key: 'payload_key',
           },
@@ -914,7 +914,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       await expect(
         issueFollowUp({
           forecast_id: 'fdr_001',
-          assigned_vet_id: 'vet_01',
+          assigned_vet_ids: ['vet_01'],
           instruction_summary: 'Summary',
         })
       ).rejects.toThrow(RiskForecastingWorkflowApiError);
@@ -924,7 +924,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
         issueFollowUp(
           {
             forecast_id: 'fdr_001',
-            assigned_vet_id: 'vet_01',
+            assigned_vet_ids: ['vet_01'],
             instruction_summary: 'Summary',
           },
           { actorContext: { userId: '  ', role: 'DAPH_OFFICIAL' } }
@@ -936,7 +936,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
         issueFollowUp(
           {
             forecast_id: 'fdr_001',
-            assigned_vet_id: 'vet_01',
+            assigned_vet_ids: ['vet_01'],
             instruction_summary: 'Summary',
           },
           { actorContext: { userId: 'daph_01', role: '  ' } }
@@ -946,7 +946,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       // Missing forecast_id
       await expect(
         issueFollowUp(
-          { assigned_vet_id: 'vet_01', instruction_summary: 'Summary' },
+          { assigned_vet_ids: ['vet_01'], instruction_summary: 'Summary' },
           { actorContext: validDaphActor }
         )
       ).rejects.toThrow('forecast_id is required');
@@ -1180,7 +1180,7 @@ describe('RiskForecastingWorkflowApi Service Unit Tests', () => {
       );
 
       await expect(
-        issueFollowUp({ forecast_id: 'fdr_01', assigned_vet_id: 'vet_01', instruction_summary: 'Text' }, { actorContext: validDaphActor })
+        issueFollowUp({ forecast_id: 'fdr_01', assigned_vet_ids: ['vet_01'], instruction_summary: 'Text' }, { actorContext: validDaphActor })
       ).rejects.toSatisfy((err) => {
         expect(err).toBeInstanceOf(RiskForecastingWorkflowApiError);
         expect(err.status).toBe(422);

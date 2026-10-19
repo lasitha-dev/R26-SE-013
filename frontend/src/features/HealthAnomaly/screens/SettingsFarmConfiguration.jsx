@@ -4,6 +4,7 @@ import { ProfileContext } from '../../../context/ProfileContext.jsx'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { sriLankanBreeds, allBreeds } from './AddNewAnimal.jsx'
+import { cacheFarmLocation } from '../utils/wellnessData.js'
 
 // Fix default marker icons broken by Vite's asset bundler
 delete L.Icon.Default.prototype._getIconUrl
@@ -134,6 +135,54 @@ export default function SettingsFarmConfiguration() {
   const isInSriLanka = (lat, lon) =>
     lat >= 5.9 && lat <= 9.9 && lon >= 79.5 && lon <= 81.9
 
+  // The farm's GPS as stored in MongoDB (source of truth), or the point the
+  // farmer just picked. Never read back from another account's localStorage.
+  const [farmCoords, setFarmCoords] = useState(null) // { lat, lon } | null
+  const [farmDistrict, setFarmDistrict] = useState('')
+
+  /** Save the farm GPS to MongoDB straight away (the map needs it to place
+   * this farm's cases), so a picked location is never only shown on screen. */
+  const saveFarmLocation = async (lat, lon, locationLabel, district) => {
+    const token = localStorage.getItem('token')
+    const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+      body: JSON.stringify({ location_district: district, location: locationLabel, latitude: lat, longitude: lon }),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.detail || `Saving the farm location failed (${response.status}).`)
+    }
+    cacheFarmLocation({ latitude: lat, longitude: lon, location_district: district, location: locationLabel })
+  }
+
+  /** Reverse-geocode a picked point, show it, and save it to the database. */
+  const applyFarmLocation = async (lat, lon) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !isInSriLanka(lat, lon)) {
+      throw new Error('Please select a location within Sri Lanka.')
+    }
+    let district = 'Unknown District'
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+      if (!res.ok) throw new Error('The location name lookup failed.')
+      const data = await res.json()
+      const addr = data.address || {}
+      // state_district first ("Galle District"): the geospatial district match reads it.
+      district = addr.state_district || addr.city || addr.town || addr.suburb || addr.village || district
+    } catch (err) {
+      console.error(err) // keep the coordinates even if the place name lookup fails
+    }
+    const cleanDistrict = district.replace(/\s+District$/i, '').trim()
+    district = cleanDistrict ? `${cleanDistrict} District` : 'Unknown District'
+    const locationLabel = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
+    await saveFarmLocation(lat, lon, locationLabel, district)
+    setProfile(prev => ({ ...prev, location_district: locationLabel }))
+    setMockCoords(`${lat.toFixed(6)},${lon.toFixed(6)}`)
+    setFarmCoords({ lat, lon })
+    setFarmDistrict(district)
+    return district
+  }
+
   const handleGPSFindLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser.")
@@ -143,30 +192,10 @@ export default function SettingsFarmConfiguration() {
     setMapSuccessMsg('')
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const lat = position.coords.latitude
-        const lon = position.coords.longitude
-        
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-          .then(res => res.json())
-          .then(data => {
-            const address = data.address || {}
-            const district = address.city || address.state_district || address.town || address.suburb || address.village || "Unknown District"
-            
-            const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
-            setProfile(prev => ({ ...prev, location_district: coordsString }))
-            setMockCoords(`${lat},${lon}`)
-            localStorage.setItem('registered_farm_district', district)
-            localStorage.setItem('registered_farm_lat', lat)
-            localStorage.setItem('registered_farm_lon', lon)
-            localStorage.setItem('registered_farm_name', district)
-            setGpsLoading(false)
-            setMapSuccessMsg(`Successfully resolved coordinates to ${district} District!`)
-          })
-          .catch(err => {
-            console.error(err)
-            setGpsLoading(false)
-            alert("Error reverse geocoding coordinates via OpenStreetMap Nominatim.")
-          })
+        applyFarmLocation(position.coords.latitude, position.coords.longitude)
+          .then((district) => setMapSuccessMsg(`Farm location saved: ${district}.`))
+          .catch((err) => { console.error(err); alert(err.message || 'Saving the farm location failed.') })
+          .finally(() => setGpsLoading(false))
       },
       (error) => {
         console.error(error)
@@ -176,26 +205,25 @@ export default function SettingsFarmConfiguration() {
     )
   }
 
+  const handleDoneLocationModal = () => {
+    setIsMapModalOpen(false)
+  }
+
   const handleManualSearch = (query) => {
     if (!query) return
     setMapSuccessMsg('')
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.length > 0) {
-          const lat = data[0].lat
-          const lon = data[0].lon
-          const name = data[0].display_name.split(',')[0]
-          setProfile(prev => ({ ...prev, location_district: name }))
-          setMockCoords(`${lat},${lon}`)
-          setMapSuccessMsg(`Resolved search query to ${name}!`)
-        } else {
-          alert("Location not found.")
-        }
+        if (!(data && data.length > 0)) { alert("Location not found."); return null }
+        const lat = parseFloat(data[0].lat)
+        const lon = parseFloat(data[0].lon)
+        if (!isInSriLanka(lat, lon)) { alert("That place is outside Sri Lanka."); return null }
+        return applyFarmLocation(lat, lon).then((district) => setMapSuccessMsg(`Farm location saved: ${district}.`))
       })
       .catch(err => {
         console.error(err)
-        alert("Error searching location via OpenStreetMap Nominatim.")
+        alert(err.message || "Error searching location via OpenStreetMap Nominatim.")
       })
   }
 
@@ -226,28 +254,16 @@ export default function SettingsFarmConfiguration() {
     const [lat, lon] = tempCoords
     if (!isInSriLanka(lat, lon)) return
     setConfirmLoading(true)
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-      .then(res => res.json())
-      .then(data => {
-        const addr = data.address || {}
-        const district =
-          addr.state_district || addr.city || addr.town ||
-          addr.suburb || addr.village || 'Unknown District'
-        const coordsString = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${district})`
-        setProfile(prev => ({ ...prev, location_district: coordsString }))
-        setMockCoords(`${lat.toFixed(6)},${lon.toFixed(6)}`)
-        localStorage.setItem('registered_farm_district', district)
-        localStorage.setItem('registered_farm_lat', lat)
-        localStorage.setItem('registered_farm_lon', lon)
-        localStorage.setItem('registered_farm_name', district)
-        setConfirmLoading(false)
+    applyFarmLocation(lat, lon)
+      .then((district) => {
         setIsFullMapOpen(false)
+        setSuccessMessage(`Farm location saved: ${district}.`)
       })
       .catch(err => {
         console.error(err)
-        setConfirmLoading(false)
-        alert('Reverse geocoding failed. Please try again.')
+        alert(err.message || 'Saving the farm location failed. Please try again.')
       })
+      .finally(() => setConfirmLoading(false))
   }
 
   // Notifications state toggles
@@ -270,25 +286,30 @@ export default function SettingsFarmConfiguration() {
       })
       if (response.ok) {
         const data = await response.json()
-        const lat = localStorage.getItem('registered_farm_lat')
-        const lon = localStorage.getItem('registered_farm_lon')
-        const name = localStorage.getItem('registered_farm_name')
-        
-        let localDistrict = ''
-        if (lat && lon && name) {
-          localDistrict = `${parseFloat(lat).toFixed(4)}, ${parseFloat(lon).toFixed(4)} (${name})`
-        } else {
-          localDistrict = localStorage.getItem('registered_farm_district')
+        // Show what is really stored for THIS farm -- never a location kept in
+        // the browser from an unsaved pick or from another account.
+        const lat = Number.isFinite(data.latitude) ? data.latitude : null
+        const lon = Number.isFinite(data.longitude) ? data.longitude : null
+        const hasCoords = lat !== null && lon !== null
+        setFarmCoords(hasCoords ? { lat, lon } : null)
+        const storedDistrict = /\(([^)]+)\)/.exec(data.location_district || '')?.[1] || data.location_district || data.district || ''
+        setFarmDistrict(storedDistrict)
+        let displayLocation = data.location || data.location_district || ''
+        if (hasCoords && storedDistrict && (!data.location || data.location === storedDistrict)) {
+          displayLocation = `${lat.toFixed(4)}, ${lon.toFixed(4)} (${storedDistrict})`
         }
+        cacheFarmLocation({ latitude: hasCoords ? lat : null, longitude: hasCoords ? lon : null,
+          location_district: storedDistrict, location: displayLocation })
 
         setProfile({
           owner_name: data.owner_name || '',
           email: data.email || '',
-          location_district: localDistrict || data.location_district || '',
+          location_district: displayLocation,
           registration_number: data.registration_number || '',
           veterinarian_name: data.veterinarian_name || '',
           profile_photo: data.profile_photo || ''
         })
+        setMockCoords(hasCoords ? `${lat},${lon}` : '')
         if (data.profile_photo) {
           setProfilePhoto(data.profile_photo)
         }
@@ -600,12 +621,10 @@ export default function SettingsFarmConfiguration() {
     setSuccessMessage('')
     setLoading(true)
 
-    localStorage.setItem('registered_farm_district', profile.location_district)
-
     try {
       const token = localStorage.getItem('token')
-      const latVal = parseFloat(localStorage.getItem('registered_farm_lat'))
-      const lonVal = parseFloat(localStorage.getItem('registered_farm_lon'))
+      const latVal = farmCoords ? farmCoords.lat : NaN
+      const lonVal = farmCoords ? farmCoords.lon : NaN
 
       const response = await fetch('http://127.0.0.1:8000/api/user/profile', {
         method: 'PUT',
@@ -617,7 +636,8 @@ export default function SettingsFarmConfiguration() {
           owner_name: profile.owner_name,
           veterinarian_name: profile.veterinarian_name,
           profile_photo: profile.profile_photo,
-          location_district: profile.location_district,
+          location_district: farmDistrict || profile.location_district,
+          location: profile.location_district,
           latitude: !isNaN(latVal) ? latVal : null,
           longitude: !isNaN(lonVal) ? lonVal : null
         })
@@ -1584,8 +1604,8 @@ export default function SettingsFarmConfiguration() {
             <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-surface-container-low/30">
               <button
                 type="button"
-                onClick={() => setIsMapModalOpen(false)}
-                className="px-6 py-3 bg-surface-container-highest text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all"
+                onClick={handleDoneLocationModal}
+                className="px-6 py-3 bg-surface-container-highest text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all hover:bg-primary hover:text-on-primary"
               >
                 Done
               </button>

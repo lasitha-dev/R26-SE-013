@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from ...domain.operational_enums import OperationalStatus
+from ...domain.operational_enums import OperationalStatus, SurveillanceStatus
 from ...domain.operational_models import (
     AuthenticatedVetContext,
     OperationalGeospatialContext,
@@ -76,7 +76,7 @@ class OperationalContextService:
         # here degrades to an empty surveillance scope, never disturbing
         # the assigned-farm `status`/`farms`/`clinical_contexts` fields
         # this method already computes exactly as before.
-        vet_district, surveillance_farms, surveillance_contexts = await self._resolve_surveillance(
+        vet_district, surveillance_farms, surveillance_contexts, surveillance_status = await self._resolve_surveillance(
             vet, assigned_farm_ids
         )
 
@@ -88,6 +88,7 @@ class OperationalContextService:
                 vet_district=vet_district,
                 surveillance_farms=surveillance_farms,
                 surveillance_contexts=surveillance_contexts,
+                surveillance_status=surveillance_status,
             )
 
         farms_by_id = {farm.farm_id: farm for farm in farms}
@@ -103,6 +104,7 @@ class OperationalContextService:
                 vet_district=vet_district,
                 surveillance_farms=surveillance_farms,
                 surveillance_contexts=surveillance_contexts,
+                surveillance_status=surveillance_status,
             )
 
         clinical_contexts = [
@@ -129,22 +131,24 @@ class OperationalContextService:
             vet_district=vet_district,
             surveillance_farms=surveillance_farms,
             surveillance_contexts=surveillance_contexts,
+            surveillance_status=surveillance_status,
         )
 
     async def _resolve_surveillance(
         self, vet: AuthenticatedVetContext, assigned_farm_ids: set[str]
-    ) -> tuple[str | None, list, list]:
+    ) -> tuple[str | None, list, list, str]:
         """GEO29A Phase 4/6: builds the registered-district surveillance
         scope. Returns `(vet_district, surveillance_farms,
-        surveillance_contexts)` -- all three default to
-        `(None, [], [])` on ANY failure (no district on file, port
-        exception, etc.), since surveillance is a strictly additive
+        surveillance_contexts, surveillance_status)` -- the first three
+        default to `(None, [], [])` on ANY failure (no district on file, port
+        exception, etc.), with `surveillance_status` saying which one it
+        was, since surveillance is a strictly additive
         enhancement that must never turn a working assigned-farm response
         into an error."""
         try:
             vet_district = await self._port.get_vet_district(vet)
             if not vet_district:
-                return None, [], []
+                return None, [], [], SurveillanceStatus.NO_REGISTERED_DISTRICT.value
 
             raw_district_farms = await self._port.get_district_surveillance_farms(vet, vet_district)
             surveillance_farms = sorted(
@@ -155,7 +159,7 @@ class OperationalContextService:
                 key=lambda f: f.farm_id,
             )
             if not surveillance_farms:
-                return vet_district, [], []
+                return vet_district, [], [], SurveillanceStatus.NO_FARMS_IN_DISTRICT.value
 
             surveillance_farms_by_id = {farm.farm_id: farm for farm in surveillance_farms}
             district_farm_ids = list(surveillance_farms_by_id.keys())
@@ -169,6 +173,6 @@ class OperationalContextService:
                 if ctx is not None
             ]
             surveillance_contexts.sort(key=lambda ctx: ctx.case_id)
-            return vet_district, surveillance_farms, surveillance_contexts
+            return vet_district, surveillance_farms, surveillance_contexts, SurveillanceStatus.DISTRICT_RESOLVED.value
         except Exception:
-            return None, [], []
+            return None, [], [], SurveillanceStatus.DISTRICT_DATA_UNAVAILABLE.value

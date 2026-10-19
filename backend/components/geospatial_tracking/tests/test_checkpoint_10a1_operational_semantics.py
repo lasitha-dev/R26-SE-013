@@ -34,6 +34,7 @@ from components.geospatial_tracking.services.application.frozen_geospatial_analy
 from components.geospatial_tracking.config import ACTIVE_SOURCE_WINDOW_DAYS_DEV_DEFAULT
 from components.geospatial_tracking.domain.enums import RecordDomainScope
 from components.geospatial_tracking.schemas import ValidationMode
+from components.geospatial_tracking.tests._main_import import isolated_main_module
 from components.geospatial_tracking.services.integration.geospatial_api_protocol_10a import (
     geospatial_api_protocol_dict_10a,
     geospatial_api_protocol_hash_10a,
@@ -244,19 +245,18 @@ def test_10a1_evidence_01_10a_evidence_summary_test_count_reconciled():
 # ---------------------------------------------------------------------------
 
 
-def test_10a1_main_01_app_http_integration_verified_safely():
-    import main as main_module
-
-    client = TestClient(main_module.app)
-    r_root = client.get("/")
-    assert r_root.status_code == 200
-    r_protocol = client.get("/api/geospatial/protocol")
-    assert r_protocol.status_code == 200
-    # safe route introspection -- never assumes every route object has `.path`
-    paths = [getattr(route, "path", None) for route in main_module.app.routes]
-    assert "/" in paths
-    non_none = [p for p in paths if p is not None]
-    assert len(non_none) >= 1
+def test_10a1_main_01_app_http_integration_verified_safely(monkeypatch):
+    with isolated_main_module(monkeypatch) as main_module:
+        client = TestClient(main_module.app)
+        r_root = client.get("/")
+        assert r_root.status_code == 200
+        r_protocol = client.get("/api/geospatial/protocol")
+        assert r_protocol.status_code == 200
+        # safe route introspection -- never assumes every route object has `.path`
+        paths = [getattr(route, "path", None) for route in main_module.app.routes]
+        assert "/" in paths
+        non_none = [p for p in paths if p is not None]
+        assert len(non_none) >= 1
 
 
 # ---------------------------------------------------------------------------

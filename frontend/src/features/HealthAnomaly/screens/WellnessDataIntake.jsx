@@ -1,6 +1,20 @@
+import { normalizeLogDate } from '../utils/wellnessData.js'
 import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProfileContext } from '../../../context/ProfileContext'
+
+// ==============================================================================
+// SCREEN: WellnessDataIntake.jsx
+// ------------------------------------------------------------------------------
+// What this component does:
+//   Provides the user interface for farmers to record daily health logs (milk yield
+//   and weight) either one-by-one or via bulk CSV upload, immediately triggering
+//   AI anomaly evaluation.
+//
+// Why we need it:
+//   Serves as the primary data entry gateway for persistent herd wellness tracking,
+//   filtering out non-lactating/male cattle and warning farmers of health drops.
+// ==============================================================================
 
 export default function WellnessDataIntake() {
   const navigate = useNavigate()
@@ -22,10 +36,10 @@ export default function WellnessDataIntake() {
   // CSV states
   const [csvFileName, setCsvFileName] = useState('')
   const [parsedLogs, setParsedLogs] = useState([])
+  const [bulkReportResults, setBulkReportResults] = useState(null)
 
-  // Modal warning triggers (kept for legacy support or bulk modal, but single uses predictionResult)
+  // Modal warning triggers (pops up when anomaly is detected upon submission)
   const [showAnomalyModal, setShowAnomalyModal] = useState(false)
-  const [pendingPayload, setPendingPayload] = useState(null)
 
   // Edit Log states
   const [showEditModal, setShowEditModal] = useState(false)
@@ -38,16 +52,24 @@ export default function WellnessDataIntake() {
   // Default date configuration
   const todayDateString = new Date().toISOString().split('T')[0]
 
+  // ============================================================================
+  // FUNCTION: fetchData
+  // What it does: Loads the farm's cattle profiles and daily logs history.
+  // Why we need it: Populates dropdown selectors and historical log tables.
+  // ============================================================================
   const fetchData = async () => {
+    // Step 1: Read the authentication token from local storage
     try {
       const token = localStorage.getItem('token')
       const headers = { Authorization: token ? `Bearer ${token}` : '' }
       
+      // Step 2: Fetch cattle list and daily logs in parallel
       const [cattleRes, logsRes] = await Promise.all([
         fetch('http://127.0.0.1:8000/api/cattle', { headers }),
         fetch('http://127.0.0.1:8000/api/daily-logs', { headers })
       ])
 
+      // Step 3: Update local React state with retrieved data
       if (cattleRes.ok) {
         const cattleData = await cattleRes.json()
         setCattleList(cattleData || [])
@@ -65,16 +87,25 @@ export default function WellnessDataIntake() {
     fetchData()
   }, [])
 
-  // Filter dropdown subjects so that ONLY cattle in lactation period (within 305 days of calving) are listed
+  // ============================================================================
+  // FILTER: lactationActiveCattle
+  // What it does: Filters the herd to only include female cows in active lactation.
+  // Why we need it: Prevents entering milk yield logs for bulls or dry cows.
+  // ============================================================================
   const lactationActiveCattle = cattleList.filter((c) => {
-    if (!c.calving_date) return false // No calving date means not lactating
+    // Step 1: Exclude male cattle
+    if ((c.gender || '').toLowerCase() === 'male') return false
+    // Step 2: Exclude cows without a recorded calving date
+    if (!c.calving_date) return false
     const calvingDate = new Date(c.calving_date)
     const today = new Date()
     calvingDate.setHours(0, 0, 0, 0)
     today.setHours(0, 0, 0, 0)
     
-    if (today < calvingDate) return false // Future calving date is not in lactation period
+    // Step 3: Exclude future calving dates
+    if (today < calvingDate) return false
     
+    // Step 4: Ensure calving occurred within standard 305 lactation days
     const diffTime = Math.abs(today - calvingDate)
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= 305
@@ -88,6 +119,47 @@ export default function WellnessDataIntake() {
     setPredictionResult(null) // reset prediction banner on subject change
   }
 
+  // ─── Date Normalizer (Supports YYYY-MM-DD, M/D/YY, MM/DD/YYYY, etc.) ───────
+  const normalizeDateString = normalizeLogDate
+
+  // ─── Dynamic Sample CSV Generator (4-column standard format) ─────────────
+  const downloadSampleCSV = () => {
+    const today = new Date()
+    let sampleCows = lactationActiveCattle.length > 0
+      ? lactationActiveCattle
+      : cattleList.filter((c) => (c.gender || '').toLowerCase() !== 'male')
+    if (sampleCows.length === 0) {
+      sampleCows = [
+        { identifier: 'kiri katiya', breed: 'Jersey' },
+        { identifier: 'sudu putha', breed: 'Holstein-Friesian' }
+      ]
+    }
+
+    const headers = 'identifier,date,milk_yield,weight\n'
+    const rows = []
+    const sampleCattleToUse = sampleCows.slice(0, 6)
+
+    for (const cow of sampleCattleToUse) {
+      const defaultMilk = cow.breed === 'Jersey' ? 16.5 : (cow.breed === 'Fleckvieh' ? 22.5 : (cow.breed === 'Ayrshire' ? 19.5 : 15.0))
+      const defaultWeight = cow.breed === 'Jersey' ? 412.0 : (cow.breed === 'Fleckvieh' ? 652.0 : 450.0)
+
+      for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
+        const d = new Date(today)
+        d.setDate(d.getDate() - dayOffset)
+        const dateStr = d.toISOString().split('T')[0]
+        rows.push(`${cow.identifier},${dateStr},${defaultMilk},${defaultWeight}`)
+      }
+    }
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + rows.join('\n') + '\n')
+    const downloadAnchor = document.createElement('a')
+    downloadAnchor.setAttribute('href', csvContent)
+    downloadAnchor.setAttribute('download', `sample_daily_logs.csv`)
+    document.body.appendChild(downloadAnchor)
+    downloadAnchor.click()
+    downloadAnchor.remove()
+  }
+
   // ─── Native CSV Parser ───────────────────────────────────────────────────
   const handleCSVUpload = (e) => {
     const file = e.target.files[0]
@@ -96,6 +168,7 @@ export default function WellnessDataIntake() {
     setCsvFileName(file.name)
     setErrorMessage('')
     setSuccessMessage('')
+    setBulkReportResults(null)
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -107,35 +180,76 @@ export default function WellnessDataIntake() {
           throw new Error('CSV file is empty or has no data rows.')
         }
 
-        // Headers check
-        const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-        const cattleIdIdx = headers.indexOf('cattle_id')
-        const dateIdx = headers.indexOf('date')
-        const milkYieldIdx = headers.indexOf('milk_yield')
-        const weightIdx = headers.indexOf('weight')
+        // Headers check (case-insensitive and trimmed)
+        const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/['"]+/g, ''))
 
-        if (cattleIdIdx === -1 || dateIdx === -1 || milkYieldIdx === -1 || weightIdx === -1) {
-          throw new Error('Invalid CSV headers. Required: cattle_id, date, milk_yield, weight')
+        const cattleIdIdx = headers.findIndex((h) => ['cattle_id', 'cattleid', 'id'].includes(h))
+        const identifierIdx = headers.findIndex((h) => ['identifier', 'tag', 'cow', 'name', 'cow_id'].includes(h))
+
+        if (cattleIdIdx === -1 && identifierIdx === -1) {
+          throw new Error('Invalid CSV headers. Either "identifier" (cow tag/name) or "cattle_id" column is required.')
         }
+
+        const dateIdx = headers.findIndex((h) => ['date', 'log_date', 'logging_date'].includes(h))
+        const milkYieldIdx = headers.findIndex((h) => ['milk_yield', 'milk', 'yield', 'milk_yield_l'].includes(h))
+        const weightIdx = headers.findIndex((h) => ['weight', 'wt', 'weight_kg', 'body_weight'].includes(h))
+
+        if (dateIdx === -1 || milkYieldIdx === -1 || weightIdx === -1) {
+          throw new Error('Invalid CSV headers. Required: (identifier or cattle_id), date, milk_yield, weight')
+        }
+
+        // Optional headers
+        const waterIdx = headers.findIndex((h) => ['water_intake', 'water'].includes(h))
+        const feedIdx = headers.findIndex((h) => ['feed_intake', 'feed'].includes(h))
+        const tempIdx = headers.findIndex((h) => ['body_temp', 'temp', 'temperature'].includes(h))
 
         const logs = []
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map((c) => c.trim())
-          if (cols.length < headers.length) continue
+          const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''))
+          if (cols.length < 3 || cols.every((c) => c === '')) continue
 
           const milkYield = parseFloat(cols[milkYieldIdx])
           const weight = parseFloat(cols[weightIdx])
 
-          if (isNaN(milkYield) || isNaN(weight) || milkYield < 0 || weight < 0.1) {
+          if (!Number.isFinite(milkYield) || !Number.isFinite(weight) || milkYield < 0 || weight < 0.1) {
             throw new Error(`Data validation error at row ${i + 1}. Weight (min 0.1) and Milk (min 0) must be positive values.`)
           }
 
-          logs.push({
-            cattle_id: cols[cattleIdIdx],
-            date: cols[dateIdx],
+          const rawDate = cols[dateIdx]
+          const normalizedDate = normalizeDateString(rawDate)
+          if (!normalizedDate) throw new Error(`Invalid date at row ${i + 1}. Use YYYY-MM-DD or MM/DD/YYYY (month first).`)
+
+          const logItem = {
+            date: normalizedDate,
             milk_yield: milkYield,
             weight: weight
-          })
+          }
+
+          if (identifierIdx !== -1 && cols[identifierIdx]) {
+            logItem.identifier = cols[identifierIdx]
+          }
+          if (cattleIdIdx !== -1 && cols[cattleIdIdx]) {
+            logItem.cattle_id = cols[cattleIdIdx]
+          }
+
+          if (!logItem.cattle_id && !logItem.identifier) {
+            throw new Error(`Row ${i + 1} is missing both cattle identifier and cattle_id.`)
+          }
+
+          if (waterIdx !== -1 && cols[waterIdx]) {
+            const w = parseFloat(cols[waterIdx])
+            if (!isNaN(w)) logItem.water_intake = w
+          }
+          if (feedIdx !== -1 && cols[feedIdx]) {
+            const f = parseFloat(cols[feedIdx])
+            if (!isNaN(f)) logItem.feed_intake = f
+          }
+          if (tempIdx !== -1 && cols[tempIdx]) {
+            const t = parseFloat(cols[tempIdx])
+            if (!isNaN(t)) logItem.body_temp = t
+          }
+
+          logs.push(logItem)
         }
 
         setParsedLogs(logs)
@@ -225,7 +339,17 @@ export default function WellnessDataIntake() {
     }
   }
 
-  // ─── Form Submission Handler ─────────────────────────────────────────────
+  // ============================================================================
+  // HANDLER: handleSubmitSingle
+  // ----------------------------------------------------------------------------
+  // What this function does:
+  //   Validates input values, computes historical drops, sends the observation to
+  //   the AI prediction model, and saves the new daily log to the database.
+  //
+  // Why we need it:
+  //   Ensures the farmer receives instant AI feedback on whether this milk/weight
+  //   change is normal or indicates an urgent health problem.
+  // ============================================================================
   const handleSubmitSingle = async (e) => {
     e.preventDefault()
     setErrorMessage('')
@@ -237,12 +361,32 @@ export default function WellnessDataIntake() {
     const weight = parseFloat(formData.get('weight'))
     const dateVal = formData.get('date')
 
+    // Step 1: Validate required fields and inputs
     if (!selectedCattleId || !selectedCattle) {
       setErrorMessage('Please select a subject animal.')
       return
     }
 
-    // Dynamic validations check (Front-end)
+    if (!dateVal) {
+      setErrorMessage('Please select a valid intake date.')
+      return
+    }
+
+    // Step 2: Prevent duplicate entries for the same animal on the same date
+    const existingLog = dailyLogsList.find(
+      (l) =>
+        (String(l.cattle_id) === String(selectedCattleId) ||
+         (selectedCattle.identifier && String(l.identifier) === String(selectedCattle.identifier))) &&
+        String(l.date) === String(dateVal)
+    )
+    if (existingLog) {
+      setErrorMessage(
+        `A daily log already exists for "${selectedCattle.identifier}" on ${dateVal}. To enter new data for this date, please delete the existing entry from the Daily Logs Registry below first.`
+      )
+      return
+    }
+
+    // Step 3: Validate that logging date is not before milking start date
     if (selectedCattle && selectedCattle.calving_date && dateVal < selectedCattle.calving_date) {
       setErrorMessage(`Logging date cannot be prior to the cow's milking start date (${selectedCattle.calving_date}).`)
       return
@@ -257,15 +401,13 @@ export default function WellnessDataIntake() {
       return
     }
 
-    // Calculate dynamic derived metrics
+    // Step 4: Calculate dynamic derived metrics (Age, Days in Milk, Lactation Stage, 3-day history)
     const ageMonths = calculateAgeMonths(selectedCattle.dob)
     const daysInMilk = getDaysInMilk(selectedCattle.calving_date, dateVal)
     const lactationStage = getLactationStage(daysInMilk)
-
-    // Calculate historical attributes or fall back to current values
     const hist = getHistoricalMetrics(selectedCattleId, dateVal, milkYield, weight)
 
-    // Build the prediction payload
+    // Step 5: Build prediction payload for the Random Forest model
     const predictPayload = {
       cattle_id: selectedCattleId,
       Breed: selectedCattle.breed,
@@ -283,7 +425,7 @@ export default function WellnessDataIntake() {
     try {
       const token = localStorage.getItem('token')
       
-      // 1. Post to predict API
+      // Step 6: Post observation to the AI Persistent Monitoring prediction endpoint
       const predictRes = await fetch('http://127.0.0.1:8000/api/monitor/predict', {
         method: 'POST',
         headers: {
@@ -294,12 +436,13 @@ export default function WellnessDataIntake() {
       })
 
       if (!predictRes.ok) {
-        throw new Error('Prediction service failed to respond.')
+        const errJson = await predictRes.json().catch(() => ({}))
+        throw new Error(errJson.detail || 'Prediction service failed to respond.')
       }
 
       const predictData = await predictRes.json()
 
-      // 2. Post to save daily log API to ensure database persistence
+      // Step 7: Save daily log to database
       const logPayload = {
         cattle_id: selectedCattleId,
         date: dateVal,
@@ -311,19 +454,51 @@ export default function WellnessDataIntake() {
       if (saveRes.ok) {
         setPredictionResult(predictData)
         if (predictData.is_anomaly) {
+          setShowAnomalyModal(true)
           setErrorMessage('Potential health issue detected. Please initiate the 7-Day Triage.')
         } else {
           setSuccessMessage('Data Updated Successfully. Health status is normal.')
         }
         await checkAlertsStatus() // Sync global alerts notification count/status
-        fetchData() // Refresh logs list
+        await fetchData() // Refresh logs list
       } else {
-        const errData = await saveRes.json()
+        const errData = await saveRes.json().catch(() => ({}))
         setErrorMessage(errData.detail || 'Failed to save daily log details.')
       }
 
     } catch (err) {
       setErrorMessage(err.message || 'Cannot connect to server. Ensure backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Delete Log Handler ──────────────────────────────────────────────────
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm('Are you sure you want to delete this daily log entry?')) {
+      return
+    }
+    setLoading(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://127.0.0.1:8000/api/daily-logs/${logId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+      })
+      if (response.ok) {
+        setSuccessMessage('Daily log entry deleted successfully.')
+        await checkAlertsStatus()
+        await fetchData()
+      } else {
+        const errJson = await response.json().catch(() => ({}))
+        setErrorMessage(errJson.detail || 'Failed to delete daily log entry.')
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Error connecting to backend during deletion.')
     } finally {
       setLoading(false)
     }
@@ -336,6 +511,7 @@ export default function WellnessDataIntake() {
     setLoading(true)
     setErrorMessage('')
     setSuccessMessage('')
+    setBulkReportResults(null)
 
     const token = localStorage.getItem('token')
     try {
@@ -350,9 +526,15 @@ export default function WellnessDataIntake() {
       const data = await response.json()
       if (response.ok) {
         setSuccessMessage(data.message || `Bulk upload completed successfully.`)
+        if (data.results && Array.isArray(data.results)) {
+          setBulkReportResults(data)
+        }
         setParsedLogs([])
         setCsvFileName('')
-        fetchData() // Refresh logs list
+        if (checkAlertsStatus) {
+          await checkAlertsStatus()
+        }
+        fetchData() // Refresh logs list and cattle
       } else {
         setErrorMessage(data.detail || 'Bulk upload failed.')
       }
@@ -363,23 +545,20 @@ export default function WellnessDataIntake() {
     }
   }
 
-  // ─── Anomaly Modal Actions (Bulk backup) ──────────────────────────────────
-  const handleModalTriage = async () => {
-    if (!pendingPayload) return
-    setLoading(true)
-    await postDailyLog(pendingPayload)
-    setLoading(false)
+  // ─── Anomaly Modal Actions ────────────────────────────────────────────────
+  const handleModalTriage = () => {
     setShowAnomalyModal(false)
-    navigate('/health/7-day-triage-scan')
+    if (selectedCattleId) {
+      navigate(`/health/7-day-triage-scan?cattle_id=${selectedCattleId}`, {
+        state: { cattleId: selectedCattleId }
+      })
+    } else {
+      navigate('/health/7-day-triage-scan')
+    }
   }
 
-  const handleModalDismiss = async () => {
-    if (!pendingPayload) return
-    setLoading(true)
-    await postDailyLog(pendingPayload)
-    setLoading(false)
+  const handleModalDismiss = () => {
     setShowAnomalyModal(false)
-    fetchData()
   }
 
   // ─── Edit Daily Log Actions ──────────────────────────────────────────────
@@ -649,10 +828,12 @@ export default function WellnessDataIntake() {
                           🚨 ALERT: Potential health issue detected. Please initiate the 7-Day Triage.
                         </p>
                         <Link
-                          to="/health/7-day-triage-scan"
-                          className="px-6 py-2.5 bg-error text-on-error text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-error/95 transition-all"
+                          to={selectedCattleId ? `/health/7-day-triage-scan?cattle_id=${selectedCattleId}` : '/health/7-day-triage-scan'}
+                          state={{ cattleId: selectedCattleId }}
+                          className="px-6 py-2.5 bg-error text-on-error text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-error/95 transition-all inline-flex items-center gap-1.5"
                         >
-                          Start 7-Day Diagnosis
+                          <span>Start 7-Day Diagnosis</span>
+                          <span className="material-symbols-outlined text-xs">arrow_forward</span>
                         </Link>
                       </div>
                     ) : (
@@ -668,6 +849,128 @@ export default function WellnessDataIntake() {
             {/* Bulk Upload CSV Tab */}
             {activeTab === 'bulk' && (
               <div className="space-y-6">
+                {/* Automated Batch Monitoring Report (Rendered at the Top) */}
+                {bulkReportResults && (
+                  <div className="bg-surface-container-low border border-primary/25 rounded-xl p-6 space-y-5 animate-fadeIn shadow-2xl">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="p-2.5 rounded-xl bg-primary/15 text-primary material-symbols-outlined text-2xl">
+                          analytics
+                        </span>
+                        <div>
+                          <h4 className="text-base font-black text-white tracking-tight uppercase font-headline">
+                            Automated Batch Monitoring Report
+                          </h4>
+                          <p className="text-xs text-slate-400">
+                            Random Forest persistent monitoring predictions & updated MongoDB herd health statuses
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1.5 bg-surface-container-lowest text-slate-300 rounded-lg text-xs font-semibold border border-white/5">
+                          Ingested: <strong className="text-white font-mono">{bulkReportResults.inserted_count}</strong>
+                        </span>
+                        <span className="px-3 py-1.5 bg-surface-container-lowest text-slate-300 rounded-lg text-xs font-semibold border border-white/5">
+                          Evaluated: <strong className="text-white font-mono">{bulkReportResults.evaluated_count}</strong>
+                        </span>
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-black border uppercase tracking-wider ${
+                          bulkReportResults.alerts_triggered > 0
+                            ? 'bg-error/20 text-error border-error/30'
+                            : 'bg-[#4edea3]/20 text-[#4edea3] border-[#4edea3]/30'
+                        }`}>
+                          Alerts: <strong className="font-mono">{bulkReportResults.alerts_triggered}</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-surface-container-lowest/60 text-slate-400 text-[10px] uppercase tracking-[0.15em] font-bold">
+                            <th className="px-4 py-3">Cow Identifier</th>
+                            <th className="px-4 py-3">Breed</th>
+                            <th className="px-4 py-3">Latest Date</th>
+                            <th className="px-4 py-3 text-right">Milk (L)</th>
+                            <th className="px-4 py-3 text-right">Weight (KG)</th>
+                            <th className="px-4 py-3 text-center">Prediction</th>
+                            <th className="px-4 py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-xs">
+                          {bulkReportResults.results && bulkReportResults.results.map((res, idx) => (
+                            <tr key={idx} className="hover:bg-surface-container-high/30 transition-colors">
+                              <td className="px-4 py-3.5 font-bold text-white">
+                                {res.identifier || res.cattle_id}
+                                {res.identifier && res.cattle_id && (
+                                  <span className="block text-[10px] text-slate-500 font-mono font-normal">
+                                    {res.cattle_id}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-slate-300">{res.breed}</td>
+                              <td className="px-4 py-3.5 font-mono text-slate-400">{res.date}</td>
+                              <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                                {typeof res.milk_yield === 'number' ? res.milk_yield.toFixed(1) : res.milk_yield} L
+                              </td>
+                              <td className="px-4 py-3.5 text-right font-mono font-bold text-white">
+                                {typeof res.weight === 'number' ? res.weight.toFixed(1) : res.weight} KG
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                {res.is_anomaly ? (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-error/20 text-error border border-error/30 animate-pulse">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                    • ALERT
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#4edea3]/20 text-[#4edea3] border border-[#4edea3]/30">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
+                                    • HEALTHY
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                {res.is_anomaly ? (
+                                  <Link
+                                    to={`/health/7-day-triage-scan?cattle_id=${res.cattle_id}`}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-error text-on-error hover:bg-error/90 font-black text-[11px] uppercase tracking-wider rounded-lg transition-all shadow-lg hover:scale-105 active:scale-95"
+                                  >
+                                    <span>Start 7-Day Diagnosis</span>
+                                    <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                                  </Link>
+                                ) : (
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Optimal
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-container-low p-4 rounded-xl border border-white/5">
+                  <div>
+                    <h4 className="text-xs font-black text-white tracking-widest uppercase">
+                      Batch Cattle Dairy Intake
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Ingest daily records for your herd. Anomaly detection model automatically evaluates every cow.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={downloadSampleCSV}
+                    id="download-sample-csv-btn"
+                    className="px-4 py-2 bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-sm">download</span>
+                    Download Sample CSV
+                  </button>
+                </div>
+
                 <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-surface-container-lowest/50 hover:border-primary/30 transition-colors relative group">
                   <span className="material-symbols-outlined text-5xl text-slate-500 group-hover:text-primary transition-colors mb-3">
                     upload_file
@@ -676,7 +979,7 @@ export default function WellnessDataIntake() {
                     {csvFileName || 'Select or Drag CSV File'}
                   </p>
                   <p className="text-xs text-slate-500 max-w-sm mb-4 leading-relaxed">
-                    Ensure your file contains these columns: <code className="text-primary font-mono font-bold">cattle_id</code>, <code className="text-primary font-mono font-bold">date</code>, <code className="text-primary font-mono font-bold">milk_yield</code>, <code className="text-primary font-mono font-bold">weight</code>
+                    Supported columns: <code className="text-primary font-mono font-bold">identifier</code> (or <code className="text-primary font-mono font-bold">cattle_id</code>), <code className="text-primary font-mono font-bold">date</code>, <code className="text-primary font-mono font-bold">milk_yield</code>, <code className="text-primary font-mono font-bold">weight</code>
                   </p>
                   
                   <input
@@ -695,10 +998,13 @@ export default function WellnessDataIntake() {
                 </div>
 
                 <div className="bg-surface-container-low p-5 rounded-lg border border-white/5 space-y-2">
-                  <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase">CSV File Schema Format</h4>
-                  <pre className="text-xs font-mono text-slate-500 overflow-x-auto bg-surface-container-lowest p-3 rounded border border-white/5">
-                    {"cattle_id,date,milk_yield,weight\n6a525de0a16...,2026-07-11,28.5,340.2\nmock-8842,2026-07-11,4.2,650.0"}
+                  <h4 className="text-xs font-black text-slate-400 tracking-widest uppercase">CSV Schema Reference</h4>
+                  <pre className="text-xs font-mono text-slate-400 overflow-x-auto bg-surface-container-lowest p-3 rounded border border-white/5">
+                    {"identifier,date,milk_yield,weight\nkiri katiya,2026-10-14,9.5,380.0\nsudu putha,2026-10-14,15.2,420.0"}
                   </pre>
+                  <p className="text-[11px] text-slate-500 italic">
+                    Note: Multi-day records in a single CSV are automatically sorted and stored in chronological order.
+                  </p>
                 </div>
 
                 <button
@@ -707,7 +1013,7 @@ export default function WellnessDataIntake() {
                   disabled={loading || parsedLogs.length === 0}
                   type="button"
                 >
-                  <span>{loading ? 'Uploading Data...' : 'Import Bulk Data'}</span>
+                  <span>{loading ? 'Processing Batch Inference...' : 'Import Bulk Data'}</span>
                   <span className="material-symbols-outlined">cloud_upload</span>
                 </button>
               </div>
@@ -740,23 +1046,35 @@ export default function WellnessDataIntake() {
                     </td>
                   </tr>
                 ) : (
-                  dailyLogsList.map((log) => {
-                    const animal = cattleList.find((c) => c.id === log.cattle_id)
+                  [...dailyLogsList]
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .map((log) => {
+                    const animal = cattleList.find((c) => String(c.id) === String(log.cattle_id) || String(c._id) === String(log.cattle_id))
                     return (
                       <tr key={log.id} className="hover:bg-surface-container-high/30 transition-colors">
                         <td className="px-8 py-4 font-bold text-white text-sm">
-                          {animal ? animal.identifier : log.cattle_id}
+                          {animal ? animal.identifier : (log.identifier || 'Registered Cattle')}
                         </td>
                         <td className="px-8 py-4 font-mono text-sm text-slate-400">{log.date}</td>
                         <td className="px-8 py-4 text-sm text-primary font-semibold">{log.milk_yield} L</td>
                         <td className="px-8 py-4 text-sm text-secondary font-semibold">{log.weight} KG</td>
                         <td className="px-8 py-4 text-right">
-                          <button
-                            onClick={() => openEditLogModal(log)}
-                            className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEditLogModal(log)}
+                              className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded hover:bg-primary/20 transition-all active:scale-95"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLog(log.id)}
+                              className="px-3 py-1.5 bg-error/10 border border-error/20 text-error text-xs font-bold rounded hover:bg-error/20 transition-all active:scale-95 flex items-center gap-1"
+                              title="Delete this daily log"
+                            >
+                              <span className="material-symbols-outlined text-xs">delete</span>
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -787,16 +1105,18 @@ export default function WellnessDataIntake() {
               </p>
               <div className="w-full flex flex-col gap-3">
                 <button
+                  data-testid="modal-start-triage"
                   onClick={handleModalTriage}
-                  className="w-full py-3.5 bg-error text-on-error font-black text-xs uppercase tracking-wider rounded-lg hover:bg-error/90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-error text-on-error font-black text-xs uppercase tracking-wider rounded-lg hover:bg-error/90 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-error/20"
                   type="button"
                 >
                   <span className="material-symbols-outlined text-base">emergency_home</span>
                   Start 7-Day Diagnosis
                 </button>
                 <button
+                  data-testid="modal-dismiss"
                   onClick={handleModalDismiss}
-                  className="w-full py-3.5 bg-surface-container-high hover:bg-surface-bright text-slate-300 text-xs font-bold uppercase tracking-wider rounded-lg border border-white/5 active:scale-95 transition-all"
+                  className="w-full py-3.5 bg-surface-container-high hover:bg-surface-bright text-slate-300 hover:text-white text-xs font-bold uppercase tracking-wider rounded-lg border border-white/10 active:scale-95 transition-all cursor-pointer"
                   type="button"
                 >
                   Dismiss

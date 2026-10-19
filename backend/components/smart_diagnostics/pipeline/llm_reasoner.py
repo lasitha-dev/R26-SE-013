@@ -24,66 +24,15 @@ logger = logging.getLogger("smart_diagnostics.pipeline.llm")
 # System prompt — establishes the LLM persona, severity reasoning, and output
 # ═══════════════════════════════════════════════════════════════════════════
 
-_SYSTEM_PROMPT = """\
-You are a **Senior Veterinary Pathologist & Epidemiological Triage Officer** with \
-15+ years of field experience in bovine infectious diseases across South and \
-Southeast Asia.
+from .grounded_reasoning import SYSTEM_PROMPT as _SYSTEM_PROMPT
 
-You are embedded in a 3-tier AI diagnostic pipeline. Upstream computer-vision models \
-have analyzed the animal photograph and provided multi-modal physical telemetry:
-- **YOLOv8s:** Anatomical localization and Region-of-Interest (ROI) framing.
-- **ViT-B/16 & Attention Rollout:** Fine-grained disease classification, prediction certainty, transformer self-attention saliency coverage percentage, focal cluster density, and weighted composite severity score.
-
-Your role is to act as the primary **Clinical Decision Support & Severity Reasoning Engine**.
-You must synthesize all visual evidence, pathological markers, and farm metadata into an actionable **Veterinary Diagnostic Briefing**.
-
-### MANDATORY METADATA HEADER (Line 1):
-Your response MUST begin on the very first line with a structured metadata tag formatted exactly as:
-[SEVERITY_META: Grade=<Severe|Moderate|Mild|Healthy Baseline> | Prognosis=<Guarded|Fair|Favorable|Excellent> | Description=<Concise 1-2 sentence clinical severity narrative synthesizing lesion coverage, cluster density, and disease risk>]
-
-### BRIEFING SECTIONS:
-Following the metadata header, your Markdown output MUST contain exactly these six sections (use level-2 headings):
-
-## 1. Clinical Severity & Pathological Assessment
-Provide an in-depth clinical explanation of the disease severity and pathological presentation. Evaluate how the ViT self-attention saliency coverage percentage, focal cluster count, and composite severity score correlate with the disease's acute vs. chronic manifestations, tissue damage, and transmission risk.
-
-## 2. Primary Diagnostic Assessment & Certainty Level
-State the most likely diagnosis and assign a certainty level: **High** (>85% AI \
-confidence + consistent morphology), **Moderate** (60–85% or minor ambiguity), or \
-**Ambiguous** (<60% or conflicting signals). Justify the certainty level.
-
-## 3. Pathological & Morphological Rationale
-Connect the visual features that the AI vision models detected (e.g., vesicular erosions and salivation for FMD; circumscribed cutaneous nodules and dermal edema for Lumpy Skin; udder inflammation for Mastitis) to the primary prediction. Explain *why* these morphological features support the diagnosis.
-
-## 4. Differential Diagnosis Analysis
-Discuss the runner-up class(es) from the probability distribution. Explain why each \
-was considered and why it is less likely given the available evidence. If two classes \
-are close in confidence, explicitly flag the diagnostic ambiguity.
-
-## 5. Immediate Biosecurity & Triage Protocol
-Provide actionable steps: quarantine radius, herd isolation, notifiable-disease \
-reporting obligations (especially for Foot-and-Mouth Disease and Lumpy Skin Disease), \
-movement restrictions, and vector control if applicable.
-
-## 6. Recommended Confirmatory Laboratory Tests
-List the gold-standard laboratory assays for the suspected disease (e.g., RT-PCR \
-for FMDV serotyping, virus isolation, California Mastitis Test, Skin biopsy with \
-histopathology for LSD). Include specimen type and transport requirements.
-
-Be precise, evidence-based, clinically rigorous, and avoid unsupported speculation.\
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# User prompt builder
-# ═══════════════════════════════════════════════════════════════════════════
 
 def _build_user_prompt(
     detections: List[Dict[str, Any]],
     image_size: Dict[str, int],
     farm_metadata: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Construct the user prompt containing all vision results and metadata."""
+    """Legacy debug formatter; active requests use the complete JSON evidence record."""
 
     lines: List[str] = [
         "## AI Vision Pipeline Output",
@@ -96,7 +45,7 @@ def _build_user_prompt(
 
     for i, det in enumerate(detections, start=1):
         lines.append(f"### Detection {i}")
-        lines.append(f"- **Anatomical site / tag:** {det.get('yolo_class', 'unknown')}")
+        lines.append(f"- **Detector class / tag:** {det.get('yolo_class', 'unknown')}")
         lines.append(
             f"- **Bounding box (x1, y1, x2, y2):** {det.get('bbox', [])}"
         )
@@ -115,13 +64,13 @@ def _build_user_prompt(
         )
 
         # ViT Attention Rollout & Composite Severity Telemetry
-        attn_cov = float(det.get("attention_coverage_pct", 0.0))
-        attn_cls = int(det.get("attention_cluster_count", 0))
+        attn_cov = det.get("attention_coverage_pct")
+        attn_cls = det.get("attention_cluster_count")
         lines.append(
-            f"- **ViT Attention Saliency Coverage:** {attn_cov:.1f}% of anatomical ROI"
+            f"- **ViT Attention Saliency Coverage:** {attn_cov if attn_cov is not None else 'unavailable'} (saliency only, percent of analyzed ROI)"
         )
         lines.append(
-            f"- **ViT Attention Focal Clusters:** {attn_cls} distinct clusters"
+            f"- **ViT Attention Connected Regions:** {attn_cls if attn_cls is not None else 'unavailable'}"
         )
         if det.get("composite_score") is not None:
             lines.append(f"- **Composite Severity Score:** {det.get('composite_score'):.2f}")
@@ -132,6 +81,15 @@ def _build_user_prompt(
 
         if det.get("spatial_correlation"):
             lines.append(f"- **Spatial Morphology Telemetry:** {det.get('spatial_correlation')}")
+
+        lines.append(f"- **Segmentation status:** {det.get('segmentation_status', 'unavailable')}")
+        for field in ('lesion_coverage_pct', 'cluster_count', 'mean_intensity'):
+            value = det.get(field)
+            lines.append(f"- **{field}:** {value if value is not None else 'unavailable / not measured'}")
+        lines.append("- **Mask denominator:** analyzed crop pixels; connected regions are not clinical nodules.")
+        lines.append(f"- **Reported body site:** {det.get('body_site') or 'unknown'}")
+        lines.append(f"- **Reported symptoms:** {det.get('observed_symptoms') or 'not supplied'}")
+        lines.append(f"- **Review required:** {det.get('needs_review', 'unknown')}; reasons: {det.get('review_reasons', [])}")
 
         # Full probability table.
         probs = det.get("vit_probabilities", {})
@@ -159,50 +117,63 @@ def _build_user_prompt(
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _discover_model_name(client) -> str:
-    """Try to dynamically fetch the model name from LM Studio.
-
-    Falls back to ``cfg.LLM_MODEL_NAME`` on any failure.
-    """
-    try:
-        model_list = client.models.list()
-        if model_list and hasattr(model_list, "data") and model_list.data:
-            discovered = model_list.data[0].id
-            logger.info("Dynamically discovered LM Studio model: '%s'", discovered)
-            return discovered
-    except Exception as exc:
-        logger.debug("Model discovery failed (%s), using fallback.", exc)
-
-    logger.info("Using configured model name: '%s'", cfg.LLM_MODEL_NAME)
-    return cfg.LLM_MODEL_NAME
+    """Compatibility name: pin the configured model, never pick the first listed."""
+    from ..config import settings
+    return settings.REASONING_MODEL_NAME
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Clinical Fallback Engine (for offline or unparsed LLM responses)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _clinical_checklist_assessment(vision_results: Dict[str, Any]):
+    """Keep all FMD/mastitis entry points independent of LLM or image-only grades."""
+    from ..implementations.clinical_severity import assess_clinical_severity, clinical_disease_key, clinical_report
+    detections = vision_results.get("detections", [])
+    primary = detections[0] if detections else {}
+    name = (primary.get("vit_predicted_class") if clinical_disease_key(primary.get("vit_predicted_class"))
+            else primary.get("vit_predicted_display"))
+    if not clinical_disease_key(name):
+        return None
+    if vision_results.get("clinical_observations") is None:
+        from ..implementations.severity_scorer import visual_severity_report
+        upstream = vision_results.get("upstream_severity")
+        assessment = (SeverityMetrics.model_validate(upstream) if upstream and upstream.get("source") == "visual_thresholds"
+                      else create_clinical_fallback_severity(vision_results))
+        return visual_severity_report(name, assessment), assessment
+    signals = dict(primary, visual_assessment=(vision_results.get("upstream_severity") or {}).get("visual_assessment"))
+    assessment = assess_clinical_severity(name, vision_results.get("clinical_observations"), signals)
+    return clinical_report(name, assessment), assessment
+
+
 def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> SeverityMetrics:
-    """Generate an objective, clinically grounded severity metric from vision telemetry.
+    """Generate a provisional assessment from measured vision telemetry.
 
     Used when LLM service is offline or in test environments.
     """
     from components.smart_diagnostics.implementations.severity_scorer import compute_composite_severity
+    from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
 
     detections = vision_results.get("detections", [])
     primary_det = detections[0] if detections else {}
 
     signals = {
-        "attention_coverage_pct": primary_det.get("attention_coverage_pct", 0.0),
-        "attention_cluster_count": primary_det.get("attention_cluster_count", 0),
+        "clinical_observations": vision_results.get("clinical_observations"),
+        "attention_coverage_pct": (primary_det.get("attention_coverage_pct") or 0.0),
+        "attention_cluster_count": (primary_det.get("attention_cluster_count") or 0),
         "vit_confidence_pct": primary_det.get("vit_confidence_pct", 0.0),
-        "top2_margin": primary_det.get("top2_margin", 0.0),
+        "top2_margin": (primary_det.get("top2_margin") or 0.0),
         "yolo_detection_count": len(detections),
+        "yolo_confidence": primary_det.get("yolo_confidence"),
+        "segmentation_status": primary_det.get("segmentation_status"),
+        "segmentation_contract_status": primary_det.get("segmentation_contract_status"),
         "yolo_max_bbox_area_pct": primary_det.get("bbox_area_pct", 0.0),
         "predicted_class": primary_det.get("vit_predicted_class", "cattle"),
         "predicted_display": primary_det.get("vit_predicted_display", primary_det.get("vit_predicted_class", "Condition")),
         "spatial_correlation": primary_det.get("spatial_correlation"),
-        "lesion_coverage_pct": float(primary_det.get("lesion_coverage_pct", 0.0)),
-        "cluster_count": int(primary_det.get("cluster_count", 0)),
-        "mean_intensity": float(primary_det.get("mean_intensity", 0.0)),
+        "lesion_coverage_pct": primary_det.get("lesion_coverage_pct"),
+        "cluster_count": primary_det.get("cluster_count"),
+        "mean_intensity": primary_det.get("mean_intensity"),
     }
 
     return compute_composite_severity(signals)
@@ -227,13 +198,16 @@ def parse_llm_severity_assessment(
     """Parse metadata from LLM output supporting multiple formats ([SEVERITY_META], ### SEVERITY META, JSON)
     and clean the Markdown report so no raw metadata tags appear in the UI.
     """
+    clinical = _clinical_checklist_assessment(vision_results)
+    if clinical is not None:
+        return clinical
     detections = vision_results.get("detections", [])
     primary_det = detections[0] if detections else {}
-    lsr = float(primary_det.get("lesion_coverage_pct", 0.0))
-    clusters = int(primary_det.get("cluster_count", 0))
-    attn_cov = float(primary_det.get("attention_coverage_pct", 0.0))
-    attn_clusters = int(primary_det.get("attention_cluster_count", 0))
-    top2_margin = float(primary_det.get("top2_margin", 0.0))
+    lsr = float((primary_det.get("lesion_coverage_pct") or 0.0))
+    clusters = int((primary_det.get("cluster_count") or 0))
+    attn_cov = float((primary_det.get("attention_coverage_pct") or 0.0))
+    attn_clusters = int((primary_det.get("attention_cluster_count") or 0))
+    top2_margin = float((primary_det.get("top2_margin") or 0.0))
     comp_score = primary_det.get("composite_score")
     conf_level = primary_det.get("confidence_level", "High")
     needs_review = bool(primary_det.get("needs_review", False))
@@ -271,10 +245,10 @@ def parse_llm_severity_assessment(
         comp_score = primary_det.get("composite_score")
         conf_level = primary_det.get("confidence_level", "High")
         needs_review = bool(primary_det.get("needs_review", False))
-        attn_cov = float(primary_det.get("attention_coverage_pct", 0.0))
-        attn_clusters = int(primary_det.get("attention_cluster_count", 0))
-        top2_margin = float(primary_det.get("top2_margin", 0.0))
-        intensity = float(primary_det.get("mean_intensity", 0.0))
+        attn_cov = float((primary_det.get("attention_coverage_pct") or 0.0))
+        attn_clusters = int((primary_det.get("attention_cluster_count") or 0))
+        top2_margin = float((primary_det.get("top2_margin") or 0.0))
+        intensity = float((primary_det.get("mean_intensity") or 0.0))
 
         sev_model = SeverityMetrics(
             score=comp_score,
@@ -295,15 +269,18 @@ def parse_llm_severity_assessment(
             formatted=grade,
             source="composite_scoring",
         )
+        from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
+        primary_name = primary_det.get("vit_predicted_display") or primary_det.get("vit_predicted_class")
+        sev_model.recommendation = generate_clinical_recommendation(primary_name, grade, lsr)
         return cleaned_report, sev_model
 
     if match:
         grade = match.group(1).strip()
         prognosis = match.group(2).strip()
         description = match.group(3).strip()
-        attn_cov = float(primary_det.get("attention_coverage_pct", 0.0))
-        attn_clusters = int(primary_det.get("attention_cluster_count", 0))
-        top2_margin = float(primary_det.get("top2_margin", 0.0))
+        attn_cov = float((primary_det.get("attention_coverage_pct") or 0.0))
+        attn_clusters = int((primary_det.get("attention_cluster_count") or 0))
+        top2_margin = float((primary_det.get("top2_margin") or 0.0))
         comp_score = primary_det.get("composite_score")
         conf_level = primary_det.get("confidence_level", "High")
         needs_review = bool(primary_det.get("needs_review", False))
@@ -327,6 +304,9 @@ def parse_llm_severity_assessment(
             formatted=grade,
             source="llm_reasoning",
         )
+        from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
+        primary_name = primary_det.get("vit_predicted_display") or primary_det.get("vit_predicted_class")
+        sev_model.recommendation = generate_clinical_recommendation(primary_name, grade, lsr)
         return cleaned_report, sev_model
 
     # Fallback: extract directly from the report text or compute clinical fallback
@@ -346,69 +326,90 @@ def parse_llm_severity_assessment(
 # Public API — generate_veterinary_report
 # ═══════════════════════════════════════════════════════════════════════════
 
-def generate_veterinary_report(
-    vision_results: Dict[str, Any],
-    farm_metadata: Optional[Dict[str, Any]] = None,
-) -> Tuple[str, SeverityMetrics]:
-    """Generate a structured Veterinary Diagnostic Briefing and Clinical Severity Synthesis via LM Studio.
+def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
+    """Combine model findings with a grounded, configurable LLM recommendation."""
+    from ..schemas import ReasoningResponse
+    from ..config import settings
+    from .grounded_reasoning import (ExplanationSelection, build_context, default_selection,
+        assemble_explanation, selection_prompt, selection_schema, render_report)
+    from ..implementations.clinical_recommendations import generate_clinical_recommendation
 
-    Returns:
-        (report_text, severity_metrics)
-    """
+    clinical = _clinical_checklist_assessment(vision_results) if vision_results.get("clinical_observations") is not None else None
+    upstream = vision_results.get("upstream_severity")
+    baseline = clinical[1] if clinical else SeverityMetrics.model_validate(upstream) if upstream else None
+    if not vision_results.get("detections"):
+        return ReasoningResponse(status="unavailable", error_code="no_analysis_evidence", reasoning_report="No analyzed region is available for explanation.", severity_assessment=baseline)
+    baseline = baseline or create_clinical_fallback_severity(vision_results)
+
+    primary = (vision_results.get("detections") or [{}])[0]
+    primary_name = primary.get("vit_predicted_display") or primary.get("vit_predicted_class") or "Condition"
+    grade_for_rec = baseline.grade if baseline else "Unassessable"
+    cov_for_rec = baseline.lesion_coverage_pct if baseline else None
+    rec = generate_clinical_recommendation(primary_name, grade_for_rec, cov_for_rec)
+
+    # Assemble case facts and reference choices before calling the language model.
+    # The response selects evidence IDs; the backend validates and renders them.
+    context = build_context(vision_results, baseline, farm_metadata)
+    model_name = None
+
+    def fallback(code, message, status="fallback"):
+        # A deterministic template keeps the evidence available if generation fails.
+        explanation = assemble_explanation(context, default_selection(context), "template")
+        return ReasoningResponse(status=status, error_code=code, model_name=model_name,
+            reasoning_report=message + "\n\n" + render_report(explanation), severity_assessment=baseline,
+            explanation=explanation, recommendations=rec)
+
     try:
         from openai import OpenAI
-    except ImportError as exc:
-        err_msg = (
-            "⚠️  **Tier 3 Unavailable:** The `openai` Python package is not "
-            "installed.  Install it with `pip install openai>=1.0` and retry.\n\n"
-            f"Error: {exc}"
-        )
-        return err_msg, create_clinical_fallback_severity(vision_results)
-
-    client = OpenAI(
-        base_url=cfg.LM_STUDIO_BASE_URL,
-        api_key=cfg.LM_STUDIO_API_KEY,
-    )
-
-    model_name = _discover_model_name(client)
-    detections = vision_results.get("detections", [])
-    image_size = vision_results.get("image_size", {})
-    user_prompt = _build_user_prompt(detections, image_size, farm_metadata)
-
-    logger.info(
-        "Sending request to LM Studio  (model=%s, detections=%d) ...",
-        model_name, len(detections),
-    )
-
+    except ImportError:
+        return fallback("reasoner_not_installed", "Explanation service is unavailable. A reference summary is shown; the original assessment is retained.", "unavailable")
     try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.35,  # Clinically grounded reasoning
-            max_tokens=2048,
-            top_p=0.9,
-        )
-
+        client = OpenAI(base_url=cfg.LM_STUDIO_BASE_URL, api_key=cfg.LM_STUDIO_API_KEY,
+                        timeout=settings.REASONING_TIMEOUT_SECONDS, max_retries=settings.REASONING_MAX_RETRIES)
+        model_name = _discover_model_name(client)
+        response = client.chat.completions.create(model=model_name,
+            messages=[{"role": "system", "content": _SYSTEM_PROMPT},
+                      {"role": "user", "content": selection_prompt(context)}],
+            response_format={"type": "json_schema", "json_schema": {"name": "veterinary_explanation", "strict": True,
+                "schema": selection_schema(context)}}, temperature=0.1, max_tokens=800)
         content = response.choices[0].message.content
-        if not content:
-            fallback = create_clinical_fallback_severity(vision_results)
-            return "⚠️  LLM returned an empty response.", fallback
-
-        logger.info("Received LLM response (%d chars).", len(content))
-        cleaned_report, severity_metrics = parse_llm_severity_assessment(content, vision_results)
-        return cleaned_report, severity_metrics
-
+        reported_model = getattr(response, "model", None)
+        if isinstance(reported_model, str) and reported_model:
+            model_name = reported_model
+        if not content or not content.strip():
+            return fallback("empty_explanation", "The explanation service returned no report. A reference summary is shown; the original assessment is retained.")
+        try:
+            if len(content) > 16000 or response.choices[0].finish_reason in ("length", "content_filter"):
+                raise ValueError("Incomplete or oversized explanation")
+            # Accept structured output only; a fluent report alone is insufficient
+            # to establish that the explanation refers to this case's evidence.
+            selection = ExplanationSelection.model_validate_json(content)
+            # Validate all selected IDs before accepting any severity influence.
+            explanation = assemble_explanation(context, selection, "llm_selected")
+            if selection.severity_grade is not None:
+                from ..implementations.severity_scorer import combine_reasoned_severity
+                combined = combine_reasoned_severity(baseline, selection.severity_grade,
+                    [context["evidence"][id]["text"] for id in selection.severity_evidence_ids], context["severity_policy"])
+                combined_rec = generate_clinical_recommendation(primary_name, combined.grade, combined.lesion_coverage_pct)
+                combined.recommendation = combined_rec
+                updated_context = build_context(vision_results, combined, farm_metadata, policy=context["severity_policy"])
+                # The original context has already validated the recommendation;
+                # the final context renders the combined grade and its evidence.
+                rendered_selection = selection.model_copy(update=dict(severity_grade=None, severity_evidence_ids=[]))
+                explanation = assemble_explanation(updated_context, rendered_selection, "llm_selected")
+                explanation.recommendation = combined_rec
+                baseline = combined
+                rec = combined_rec
+        except ValueError:
+            return fallback("invalid_explanation", "The generated explanation could not be verified. A reference summary is shown; the original assessment is retained.")
+        return ReasoningResponse(status="ok", reasoning_report=render_report(explanation), model_name=model_name,
+            severity_assessment=baseline, explanation=explanation, recommendations=rec)
     except Exception as exc:
-        error_type = type(exc).__name__
-        logger.error("LLM request failed (%s): %s", error_type, exc)
-        fallback_sev = create_clinical_fallback_severity(vision_results)
+        logger.warning("Explanation unavailable (%s)", type(exc).__name__)
+        return fallback("explanation_unavailable", "Explanation unavailable. A reference summary is shown. The original image assessment, measurements and review flags are retained; retry explanation separately.")
 
-        err_report = (
-            f"⚠️  **Tier 3 Notice — Local LLM Server Standby**\n\n"
-            f"Automated clinical severity generated from Mask R-CNN & ViT multi-modal telemetry.\n\n"
-            f"*Tier 1 (Localization), Tier 2 (Classification), and Mask R-CNN (Lesion Segmentation) active.*"
-        )
-        return err_report, fallback_sev
+
+def generate_veterinary_report(vision_results: Dict[str, Any], farm_metadata=None):
+    """Compatibility API for CLI callers consuming a report/assessment pair."""
+    result = generate_report_result(vision_results, farm_metadata)
+    return result.reasoning_report, result.severity_assessment

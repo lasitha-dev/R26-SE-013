@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { buildTrendChartGeometry, formatTrendPeriodLabel } from '../components/AnalysisTrendsChart'
 
 describe('GEO-ANALYSIS-02-CHART-01: formatTrendPeriodLabel', () => {
+  it('formats a real DAY period', () => {
+    expect(formatTrendPeriodLabel('2026-08-19', 'DAY')).toBe('19 Aug')
+  })
+
   it('formats a real WEEK period', () => {
     expect(formatTrendPeriodLabel('2020-W37', 'WEEK')).toBe("Wk 37 '20")
   })
@@ -86,5 +90,25 @@ describe('GEO-ANALYSIS-02-CHART-02: buildTrendChartGeometry is pure and determin
     const geometry = buildTrendChartGeometry(years)
     expect(geometry.bars).toHaveLength(11)
     expect(geometry.labelEvery).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('chart axis: every gridline is drawn at the value it is labelled with', () => {
+  const heightOf = (geometry, value) => geometry.paddingTop + geometry.innerHeight * (1 - value / geometry.maxCount)
+
+  it('odd maximum (3): labels 0 / 2 / 3, each at its true height (no "2" drawn at 1.5)', () => {
+    const geometry = buildTrendChartGeometry([{ period: '2020-W37', count: 2 }, { period: '2020-W40', count: 3 }, { period: '2020-W44', count: 1 }])
+    expect(geometry.gridLines.map((l) => l.value)).toEqual([0, 2, 3])
+    for (const line of geometry.gridLines) expect(line.y).toBeCloseTo(heightOf(geometry, line.value))
+  })
+
+  it('maximum 1: no duplicated midpoint label', () => {
+    const geometry = buildTrendChartGeometry([{ period: '2020-W37', count: 1 }])
+    expect(geometry.gridLines.map((l) => l.value)).toEqual([0, 1])
+  })
+
+  it('all-zero data: a single baseline', () => {
+    const geometry = buildTrendChartGeometry([{ period: '2020-W37', count: 0 }])
+    expect(geometry.gridLines.map((l) => l.value)).toEqual([0])
   })
 })

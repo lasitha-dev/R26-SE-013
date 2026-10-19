@@ -166,6 +166,7 @@ class OperationalGeospatialContext:
     vet_district: str | None = None
     surveillance_farms: list[OperationalFarm] = field(default_factory=list)
     surveillance_contexts: list[VerifiedClinicalContext] = field(default_factory=list)
+    surveillance_status: str | None = None  # SurveillanceStatus value; None when no vet was resolved
 
     def as_dict(self) -> dict:
         return {f.name: getattr(self, f.name) for f in fields(self)}

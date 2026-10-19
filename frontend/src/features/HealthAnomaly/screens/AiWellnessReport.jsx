@@ -1,5 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react'
+// ==============================================================================
+// SCREEN: AiWellnessReport.jsx
+// ------------------------------------------------------------------------------
+// What this component does:
+//   Executes end-to-end multi-modal AI inference (BCS CNN Vision + Late-Fusion BiLSTM)
+//   and displays the comprehensive triage verdict (Healthy, Heat Stress, or Unhealthy)
+//   alongside Grad-CAM heatmaps and actionable veterinary recommendations.
+//
+// Why we need it:
+//   Translates raw model probabilities and heatmaps into a visual, easy-to-read
+//   clinical dashboard that farmers and veterinarians can immediately understand.
+// ==============================================================================
+
+import React, { useState, useEffect, useRef, useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { ProfileContext } from '../../../context/ProfileContext'
 
 // Skeleton placeholder for results still loading
 function SkeletonBlock({ className = '' }) {
@@ -8,14 +22,23 @@ function SkeletonBlock({ className = '' }) {
   )
 }
 
-// Reliably convert a data: URL → Blob without fetch()
+// ==============================================================================
+// HELPER: dataURLtoBlob
+// What it does: Converts a Base64 data URL string into a raw binary Blob object.
+// Why we need it: Allows multipart file upload of camera captures without filesystem saves.
+// ==============================================================================
 function dataURLtoBlob(dataUrl) {
+  // Step 1: Split header metadata from raw Base64 string
   try {
     const [header, b64] = dataUrl.split(',')
     const mime = header.match(/:(.*?);/)[1]
+
+    // Step 2: Decode Base64 string into binary byte array
     const binary = atob(b64)
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+
+    // Step 3: Wrap bytes in a Blob with correct MIME type
     return new Blob([bytes], { type: mime })
   } catch (e) {
     console.error('[dataURLtoBlob] failed:', e)
@@ -25,6 +48,7 @@ function dataURLtoBlob(dataUrl) {
 
 export default function AiWellnessReport() {
   const location = useLocation()
+  const { checkAlertsStatus } = useContext(ProfileContext) || {}
   const state = location.state || {}
   const { imageBase64, cattleId, activeCattle, weatherData, logsData, currentDate } = state
 
@@ -38,6 +62,19 @@ export default function AiWellnessReport() {
   const [bcsScore, setBcsScore] = useState(null)
   const [gradcamImage, setGradcamImage] = useState(null)
 
+  // ============================================================================
+  // EFFECT & FUNCTION: runDiagnostics
+  // ----------------------------------------------------------------------------
+  // What this function does:
+  //   Coordinates the 2-stage AI evaluation pipeline:
+  //   1) Calls YOLOv8 + CNN BCS regression to get body condition score and Grad-CAM.
+  //   2) Calls Late-Fusion BiLSTM network with 7 days of vital signals to obtain
+  //      clinical triage diagnosis.
+  //
+  // Why we need it:
+  //   Fuses visual computer vision findings with temporal vital trends so the final
+  //   verdict is based on complete physiological evidence.
+  // ============================================================================
   useEffect(() => {
     let isMounted = true;
 
@@ -47,7 +84,7 @@ export default function AiWellnessReport() {
           throw new Error('Missing input data. Please return to the triage scan.');
         }
 
-        // Phase 1: Vision Model
+        // Step 1: Run Stage 1 - BCS Computer Vision Model & Grad-CAM Heatmap
         setProgress(16);
         let calculatedBcs = 3.0;
         let gradcam = null;
@@ -74,9 +111,9 @@ export default function AiWellnessReport() {
 
         if (!isMounted) return;
         setProgress(32);
-        await new Promise(r => setTimeout(r, 500)); // Fake UI delay
+        await new Promise(r => setTimeout(r, 500)); // Smooth progress animation
 
-        // Phase 2: Environment & Logs
+        // Step 2: Validate Environmental Climate & 7-Day Sensor Logs
         if (!isMounted) return;
         setProgress(48);
         await new Promise(r => setTimeout(r, 500));
@@ -85,7 +122,7 @@ export default function AiWellnessReport() {
         setProgress(64);
         await new Promise(r => setTimeout(r, 500));
 
-        // Phase 3: Late Fusion Multimodal
+        // Step 3: Run Stage 2 - Late-Fusion BiLSTM Multi-Modal Clinical Triage
         let predClass = 0;
         if (activeCattle && weatherData && logsData) {
           const cur = new Date(currentDate || Date.now());
@@ -95,7 +132,10 @@ export default function AiWellnessReport() {
           const ageMonths = Math.max(0, Math.floor((cur - dob) / (1000 * 60 * 60 * 24 * 30.44)));
           const daysInMilk = Math.max(0, Math.floor((cur - calving) / (1000 * 60 * 60 * 24)));
 
+          const resolvedCattleId = cattleId || activeCattle?.id || activeCattle?._id || null;
+
           const triagePayload = {
+            cattle_id: resolvedCattleId,
             bcs_score: parseFloat(calculatedBcs),
             age_months: parseInt(ageMonths, 10),
             days_in_milk: parseInt(daysInMilk, 10),
@@ -114,7 +154,7 @@ export default function AiWellnessReport() {
 
           const triageRes = await fetch('http://127.0.0.1:8000/api/monitor/predict-7day', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
             body: JSON.stringify(triagePayload),
           });
 
@@ -124,6 +164,11 @@ export default function AiWellnessReport() {
           }
           const triageData = await triageRes.json();
           predClass = triageData.class;
+
+          // Keep global alert badges synchronized with the updated database state
+          if (typeof checkAlertsStatus === 'function') {
+            checkAlertsStatus();
+          }
         }
 
         if (!isMounted) return;

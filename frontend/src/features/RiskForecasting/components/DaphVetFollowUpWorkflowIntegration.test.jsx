@@ -108,14 +108,14 @@ describe('DaphVetFollowUpWorkflowIntegration (Phase 7 Cross-Role Continuity)', (
         operational_priority: 'HIGH',
         instruction_summary: payload.instruction_summary,
         issued_by_daph_id: options?.actorContext?.actor_id || 'daph_hq_01',
-        assigned_vet_id: payload.assigned_vet_id,
+        assigned_vet_id: payload.assigned_vet_ids[0],
         status: 'ISSUED',
         version: 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         issued_at: new Date().toISOString(),
       };
-      return storedFollowUp;
+      return [storedFollowUp];
     });
 
     workflowApi.listFollowUps.mockImplementation(async (filters) => {

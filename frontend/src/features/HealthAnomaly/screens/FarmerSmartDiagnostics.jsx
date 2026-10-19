@@ -1,19 +1,25 @@
+import ImageEvidenceStatus from '../../SmartDiagnostics/components/ImageEvidenceStatus';
+import ImageEvidenceViewer from '../../SmartDiagnostics/components/ImageEvidenceViewer';
+import ImageContextFields from '../../SmartDiagnostics/components/ImageContextFields';
+import SegmenterDetails from '../../SmartDiagnostics/components/SegmenterDetails';
+import { SEGMENTER_NAME, SYMPTOM_OVERLAY_LABEL } from '../../SmartDiagnostics/modelInfo';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import UploadDropzone from '../../SmartDiagnostics/components/UploadDropzone';
 import ReasoningBriefing from '../../SmartDiagnostics/components/ReasoningBriefing';
+import ClinicalRecommendationCard from '../../SmartDiagnostics/components/ClinicalRecommendationCard';
 import useDetection from '../../SmartDiagnostics/hooks/useDetection';
-import { getDiseaseProfile } from '../../SmartDiagnostics/diseaseProfiles';
+import { clinicalDiseaseKey, resolveSeverity } from '../../SmartDiagnostics/clinicalSeverity';
 import { reportDiagnosticCase } from '../../SmartDiagnostics/services/api';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 /**
  * FarmerSmartDiagnostics — Farmer portal view for AI-Powered Smart Diagnosis.
  *
  * Full feature parity with the clinical diagnostics pipeline:
  * - 01 Image Intake (upload dropzone)
- * - 02 Symptom Analysis (Mask R-CNN lesion segmentation & bounding box)
+ * - 02 Symptom Analysis (ResNet50 U-Net lesion segmentation & bounding box)
  * - 03 AI Logic Trace (step reveal + inference results)
  * - Model Reasoning & Evidence (rationale, telemetry, LLM reasoning briefing)
  * - Disease Reporting (creates a "Pending Verification" case routed to assigned vet)
@@ -43,10 +49,11 @@ const FarmerSmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, recommendation, retryReasoning,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
+  const [imageContext, setImageContext] = useState({});
   const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
 
   const [herdList, setHerdList] = useState([]);
@@ -123,9 +130,10 @@ const FarmerSmartDiagnostics = () => {
   const isFailure = status === 'error' || (status === 'done' && !result?.cattle_detected);
 
   // Filter herd list
+  const nonHealthyStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'];
   const filteredHerd = herdList.filter((c) => {
     const isDeceased = c.status === 'Deceased' || c.health_status === 'Deceased';
-    const isAlert = !isDeceased && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk');
+    const isAlert = !isDeceased && (nonHealthyStates.includes(c.status) || nonHealthyStates.includes(c.health_status));
     const isHealthy = !isDeceased && !isAlert;
 
     if (herdFilter === 'healthy' && !isHealthy) return false;
@@ -139,8 +147,8 @@ const FarmerSmartDiagnostics = () => {
     return tag.includes(term) || breed.includes(term) || gender.includes(term);
   });
 
-  const healthyCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && c.status !== 'Alert' && c.health_status !== 'Alert' && c.status !== 'At Risk').length;
-  const alertCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (c.status === 'Alert' || c.health_status === 'Alert' || c.status === 'At Risk')).length;
+  const healthyCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && !nonHealthyStates.includes(c.status) && !nonHealthyStates.includes(c.health_status)).length;
+  const alertCount = herdList.filter(c => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (nonHealthyStates.includes(c.status) || nonHealthyStates.includes(c.health_status))).length;
   const deceasedCount = herdList.filter(c => c.status === 'Deceased' || c.health_status === 'Deceased').length;
 
   // Animate logic trace steps on success
@@ -162,17 +170,22 @@ const FarmerSmartDiagnostics = () => {
   // Authoritative clinical severity & profile resolution from vision composite pipeline
   const disease = result?.disease;
   const diseaseName = disease?.name || '';
-  const staticProfile = getDiseaseProfile(diseaseName);
 
-  const effectiveSeverity = result?.severity;
+  const clinicalKey = clinicalDiseaseKey(diseaseName);
+  const effectiveSeverity = resolveSeverity(result, severityAssessment);
+  const modelReasoned = effectiveSeverity?.source === 'model_llm_reasoning';
+  const automaticVisual = effectiveSeverity?.source === 'visual_thresholds';
+  const usesClinicalChecklist = effectiveSeverity?.source === 'clinical_rules';
   const dynamicSeverity = effectiveSeverity;
   const dynamicStage = result?.stage || result?.severity?.stage;
   const dynamicSpatialCorrelation = result?.spatial_correlation || result?.severity?.spatial_correlation;
 
-  const severityGrade = effectiveSeverity?.grade || (staticProfile.severity.split('/')[1] || '').trim() || 'Moderate';
-  const severityDescription = effectiveSeverity?.description || staticProfile.rationale;
-  const confidenceLevel = effectiveSeverity?.confidence_level || 'High';
-  const needsReview = Boolean(effectiveSeverity?.needs_review);
+  const severityGrade = effectiveSeverity?.grade || 'Unassessable';
+  const severityFormatted = effectiveSeverity?.formatted || severityGrade;
+  const severityDescription = effectiveSeverity?.description || 'No severity assessment is available.';
+  const activeRecommendation = recommendation || effectiveSeverity?.recommendation || explanation?.recommendation || null;
+  const confidenceLevel = effectiveSeverity?.confidence_level || 'Unknown';
+  const needsReview = Boolean(effectiveSeverity?.needs_review || result?.review?.required);
 
   const gradeLower = (severityGrade || '').toLowerCase();
   const severityColor = gradeLower.includes('severe') || gradeLower.includes('high')
@@ -183,11 +196,11 @@ const FarmerSmartDiagnostics = () => {
     ? 'text-teal-400'
     : 'text-primary';
 
-  const stage = dynamicStage || staticProfile.stage;
-  const spatialCorrelation = dynamicSpatialCorrelation || staticProfile.spatialCorrelation;
-  const rationale = effectiveSeverity?.diagnostic_rationale || staticProfile.rationale;
+  const stage = clinicalKey ? 'Not assessed' : dynamicStage || 'Not assessed';
+  const spatialCorrelation = clinicalKey ? 'Clinical lesion extent requires examination by the veterinarian.' : dynamicSpatialCorrelation || 'Body site has not been assessed.';
+  const rationale = effectiveSeverity?.diagnostic_rationale || 'Interpretation requires clinical review.';
   
-  const rawPrognosis = effectiveSeverity?.prognosis || staticProfile.prognosis;
+  const rawPrognosis = effectiveSeverity?.prognosis || 'Not assessed';
   const prognosis = rawPrognosis;
   const progLower = (rawPrognosis || '').toLowerCase();
   const prognosisColor = progLower.includes('guarded') || progLower.includes('poor')
@@ -196,7 +209,7 @@ const FarmerSmartDiagnostics = () => {
     ? 'text-[#f59e0b]'
     : 'text-primary';
 
-  const evidenceItems = staticProfile.evidenceItems;
+  const evidenceItems = [];
 
   const confidence = disease?.confidence
     ? disease.confidence.toFixed(1)
@@ -209,7 +222,7 @@ const FarmerSmartDiagnostics = () => {
   const handleFile = (file) => {
     setCaseReport(null);
     setReportError(null);
-    detect(file);
+    detect(file, imageContext);
   };
 
   const handleResetAnalysis = () => {
@@ -217,6 +230,7 @@ const FarmerSmartDiagnostics = () => {
     setShowSymptomMask(true);
     setCaseReport(null);
     setReportError(null);
+    setImageContext({});
     reset();
   };
 
@@ -233,14 +247,18 @@ const FarmerSmartDiagnostics = () => {
         breed: cattleInfo?.breed || 'Dairy Breed',
         disease_name: disease?.name || 'Cattle (Healthy)',
         confidence: parseFloat(confidence) || 0,
-        severity: severityGrade,
+        severity: automaticVisual ? severityFormatted : severityGrade,
         stage: stage,
         prognosis: prognosis,
         rationale: rationale,
         spatial_correlation: spatialCorrelation,
         symptoms_image: symptomsImage,
         cropped_image: croppedImage,
-        clinical_notes: `Farmer-submitted AI diagnostic report. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Awaiting veterinary verification.`,
+        clinical_notes: modelReasoned
+          ? `Farmer-submitted automated severity estimate. ${JSON.stringify({ disease: disease?.name, grade: severityGrade, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment, reasoning_assessment: effectiveSeverity.reasoning_assessment })}`
+          : automaticVisual
+          ? `Farmer-submitted automatic visual estimate; clinical severity is not established. Awaiting veterinary verification. ${JSON.stringify({ disease: disease?.name, assessment_target: effectiveSeverity.assessment_target, visual_assessment: effectiveSeverity.visual_assessment })}`
+          : `Farmer-submitted AI diagnostic report. Pathology: ${disease?.name || 'Healthy'}. Severity: ${severityGrade} (${stage}). Awaiting veterinary verification.`,
         llm_reasoning: reasoning,
         verified: false, // Farmers create pending verification reports
       };
@@ -302,7 +320,7 @@ const FarmerSmartDiagnostics = () => {
               Farmer AI Diagnostics
             </span>
             <span className="text-outline text-3xs">•</span>
-            <span className="text-tertiary text-3xs font-mono">Vision Transformer &amp; Mask R-CNN</span>
+            <span className="text-tertiary text-3xs font-mono">YOLOv8 · ViT · {SEGMENTER_NAME}</span>
           </div>
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight">
             Smart Livestock Disease Diagnostics
@@ -332,6 +350,8 @@ const FarmerSmartDiagnostics = () => {
           )}
         </div>
       </div>
+
+      <SegmenterDetails />
 
       {/* Success Notification for Mortality */}
       {deathSuccess && (
@@ -366,7 +386,7 @@ const FarmerSmartDiagnostics = () => {
               </h3>
               <p className="text-2xs text-slate-400 mt-0.5">
                 Current Health Status:{' '}
-                <span className={`font-bold ${cattleInfo.status === 'Deceased' ? 'text-red-500' : cattleInfo.health_status === 'Alert' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                <span className={`font-bold ${cattleInfo.status === 'Deceased' ? 'text-red-500' : cattleInfo.health_status === 'Heat Stress' ? 'text-amber-400' : (cattleInfo.health_status === 'Unhealthy' || cattleInfo.health_status === 'Alert') ? 'text-red-400' : 'text-emerald-400'}`}>
                   {cattleInfo.status === 'Deceased' ? 'Deceased' : (cattleInfo.health_status || 'Healthy')}
                 </span>
                 {cattleInfo.bcs_score !== null && cattleInfo.bcs_score !== undefined && (
@@ -429,7 +449,7 @@ const FarmerSmartDiagnostics = () => {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
-              Select an animal from your farm to begin image intake, Mask R-CNN lesion segmentation, and AI pathology triage.
+              Select an animal from your farm to begin image intake, {SEGMENTER_NAME} symptom segmentation, and AI pathology triage.
             </p>
 
             {/* Search & Filter Controls */}
@@ -515,7 +535,7 @@ const FarmerSmartDiagnostics = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredHerd.map((cattle) => {
                 const isDeceased = cattle.status === 'Deceased' || cattle.health_status === 'Deceased';
-                const isAlert = !isDeceased && (cattle.status === 'Alert' || cattle.health_status === 'Alert' || cattle.status === 'At Risk');
+                const isAlert = !isDeceased && (nonHealthyStates.includes(cattle.status) || nonHealthyStates.includes(cattle.health_status));
 
                 return (
                   <div
@@ -547,12 +567,24 @@ const FarmerSmartDiagnostics = () => {
                         className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
                           isDeceased
                             ? 'bg-red-500/15 text-red-300 border-red-500/30'
-                            : isAlert
+                            : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
                             ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                            : isAlert
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
                             : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                         }`}
                       >
-                        {isDeceased ? 'Deceased' : isAlert ? 'Alert' : 'Healthy'}
+                        {isDeceased
+                          ? 'Deceased'
+                          : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
+                          ? 'Heat Stress'
+                          : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                          ? 'Unhealthy'
+                          : isAlert
+                          ? 'Alert'
+                          : 'Healthy'}
                       </span>
                     </div>
 
@@ -645,7 +677,7 @@ const FarmerSmartDiagnostics = () => {
           <>
             {/* ========= IDLE / LOADING VIEW ========= */}
             {(isIdle || isLoading) && (
-              <UploadDropzone isLoading={isLoading} onFile={handleFile} />
+              <div><ImageContextFields value={imageContext} onChange={setImageContext} /><UploadDropzone isLoading={isLoading} onFile={handleFile} /></div>
             )}
           </>
         )}
@@ -655,9 +687,9 @@ const FarmerSmartDiagnostics = () => {
           <div className="space-y-6" data-testid="success-view">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-              {/* Column 1: Symptom Analysis (7/12) */}
-              <div className="lg:col-span-7">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 h-full flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle">
+              {/* Column 1: Symptom Analysis & Clinical Recommendations (7/12) */}
+              <div className="lg:col-span-7 flex flex-col space-y-6">
+                <div className={`bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle ${!activeRecommendation && reasoningStatus !== 'loading' ? 'flex-1' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3 md:mb-4 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
                       <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/20">
@@ -669,17 +701,17 @@ const FarmerSmartDiagnostics = () => {
                       {symptomsImage ? (
                         <span className="px-2 py-0.5 bg-rose-500/15 text-rose-400 text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-rose-500/30 flex items-center gap-1.5 shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
-                          Mask R-CNN Active
+                          {SEGMENTER_NAME} Active
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 bg-primary/15 text-primary text-3xs rounded-md font-mono font-bold uppercase tracking-wider border border-primary/30 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                          Live Scan
+                          Segmentation not displayed
                         </span>
                       )}
                     </div>
                     <div className="text-3xs font-mono text-outline">
-                      {symptomsImage ? 'MASK_RCNN_LAYER_03' : 'YOLO_LAYER_01'}
+                      {symptomsImage ? 'LESION_MASK_LAYER_03' : 'YOLO_LAYER_01'}
                     </div>
                   </div>
 
@@ -716,6 +748,9 @@ const FarmerSmartDiagnostics = () => {
                       <button
                         type="button"
                         onClick={() => setShowSymptomMask(!showSymptomMask)}
+                        title={SYMPTOM_OVERLAY_LABEL}
+                        aria-label={`Show ${SYMPTOM_OVERLAY_LABEL}`}
+                        aria-pressed={showSymptomMask}
                         className={`px-2.5 py-1 rounded-lg text-3xs font-mono font-bold uppercase tracking-wider border transition-all flex items-center gap-1.5 ${
                           showSymptomMask
                             ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
@@ -725,56 +760,27 @@ const FarmerSmartDiagnostics = () => {
                         <span className="material-symbols-outlined text-xs">
                           {showSymptomMask ? 'layers' : 'layers_clear'}
                         </span>
-                        <span>{showSymptomMask ? 'Symptom Mask ON' : 'Symptom Mask OFF'}</span>
+                        <span>Symptom Overlay: {showSymptomMask ? 'VISIBLE' : 'HIDDEN'}</span>
                       </button>
                     )}
                   </div>
 
                   {/* Visual Image Viewport */}
-                  <div className="relative rounded-xl overflow-hidden bg-black/60 aspect-[4/3] flex items-center justify-center border border-outline-variant/10 shadow-inner group">
-                    {activeView === 'lesion' && croppedImage ? (
-                      <img
-                        src={showSymptomMask && symptomsImage ? symptomsImage : croppedImage}
-                        alt="Lesion Region of Interest"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <img
-                        src={showSymptomMask && symptomsImage ? symptomsImage : (imagePreview || croppedImage)}
-                        alt="Clinical Cattle Scan"
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-
-                    {/* Bounding Box overlay for full view */}
-                    {activeView === 'full' && bestBbox && !symptomsImage && (
-                      <div
-                        className="absolute border-2 border-primary/80 bg-primary/10 rounded pointer-events-none transition-all duration-300"
-                        style={{
-                          top: `${bestBbox.y1 * 100}%`,
-                          left: `${bestBbox.x1 * 100}%`,
-                          width: `${(bestBbox.x2 - bestBbox.x1) * 100}%`,
-                          height: `${(bestBbox.y2 - bestBbox.y1) * 100}%`,
-                        }}
-                      >
-                        <span className="absolute -top-5 left-0 px-1.5 py-0.5 bg-primary text-on-primary text-3xs font-mono font-bold rounded">
-                          BOVINE_SUBJECT ({((result?.best_detection?.confidence || 0.9) * 100).toFixed(0)}%)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Visual Telemetry Footnote */}
-                  <div className="mt-3 flex items-center justify-between text-3xs text-outline font-mono">
-                    <span>ANATOMICAL_SEGMENTATION: ACTIVE</span>
-                    <span>RESOLUTION: {result?.image_size?.width || 640}x{result?.image_size?.height || 480}</span>
-                  </div>
+                  <ImageEvidenceViewer result={result} original={imagePreview} cropped={croppedImage}
+                    overlay={symptomsImage} view={activeView} showMask={showSymptomMask} />
                 </div>
+
+                {/* Actionable Clinical Recommendations (LLM Decision Support) */}
+                <ClinicalRecommendationCard
+                  recommendation={activeRecommendation}
+                  loading={reasoningStatus === 'loading'}
+                  className="flex-1"
+                />
               </div>
 
               {/* Column 2: AI Logic Trace & Disease Reporting (5/12) */}
-              <div className="lg:col-span-5">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 border border-outline-variant/15 shadow-card-subtle h-full flex flex-col justify-between">
+              <div className="lg:col-span-5 flex flex-col">
+                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex-1 border border-outline-variant/15 shadow-card-subtle flex flex-col justify-between">
                   <div className="space-y-4">
                     {/* Section Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-outline-variant/10">
@@ -812,9 +818,9 @@ const FarmerSmartDiagnostics = () => {
                       {/* Step 3: Clinical Metrics */}
                       <div className={`p-2.5 rounded-xl border transition-all duration-300 ${visibleSteps >= 3 ? 'bg-surface-container border-primary/30 opacity-100' : 'bg-surface-container/30 border-transparent opacity-30'}`}>
                         <div className="flex items-center justify-between text-2xs mb-0.5">
-                          <span className="text-outline uppercase font-bold">Step 3 • Severity &amp; AI Confidence</span>
+                          <span className="text-outline uppercase font-bold">{modelReasoned ? 'Step 3 · Model findings + LLM severity' : automaticVisual ? 'Step 3 · Automatic visual estimate' : usesClinicalChecklist ? 'Step 3 · Clinical checklist' : 'Step 3 • Severity & AI Confidence'}</span>
                           <div className="flex items-center gap-1.5">
-                            <span className={`font-bold ${severityColor}`}>{severityGrade}</span>
+                            <span className={`font-bold ${severityColor}`}>{severityFormatted}</span>
                             {confidenceLevel && (
                               <span className={`px-1 py-0.2 rounded text-[9px] font-mono font-bold ${
                                 confidenceLevel === 'High'
@@ -823,7 +829,7 @@ const FarmerSmartDiagnostics = () => {
                                   ? 'bg-amber-500/15 text-amber-300'
                                   : 'bg-rose-500/15 text-rose-300'
                               }`}>
-                                {confidenceLevel} Conf.
+                                {confidenceLevel === 'Model estimate' ? confidenceLevel : `${confidenceLevel} Conf.`}
                               </span>
                             )}
                           </div>
@@ -835,7 +841,7 @@ const FarmerSmartDiagnostics = () => {
                         {needsReview && (
                           <div className="mt-1.5 p-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-xs text-amber-400">warning</span>
-                            <span>Uncertainty Notice: Requires field veterinarian verification.</span>
+                            <span>Assessment checks: inspect the evidence and image quality notes.</span>
                           </div>
                         )}
                       </div>
@@ -852,8 +858,9 @@ const FarmerSmartDiagnostics = () => {
                     )}
                   </div>
 
+                  <ImageEvidenceStatus result={result} />
                   {/* Report Action Area for Farmer */}
-                  <div className="mt-5 pt-4 border-t border-outline-variant/15">
+                  <div className="mt-auto pt-4 border-t border-outline-variant/15">
                     {caseReport ? (
                       <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-3 animate-fadeIn" data-testid="farmer-reported-case-banner">
                         <div className="flex items-center justify-between">
@@ -950,7 +957,7 @@ const FarmerSmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {effectiveSeverity?.diagnostic_rationale ? 'COMPOSITE SCORER' : 'VISION INFERENCE'}
+                        {usesClinicalChecklist ? 'CLINICAL OBSERVATIONS' : automaticVisual ? 'AUTOMATIC VISUAL ESTIMATE' : effectiveSeverity?.diagnostic_rationale ? 'EXISTING IMAGE SCORE' : 'VISION INFERENCE'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
@@ -966,7 +973,7 @@ const FarmerSmartDiagnostics = () => {
                         </h4>
                       </div>
                       <span className="text-[9px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                        {effectiveSeverity?.spatial_correlation ? 'ANATOMICAL TELEMETRY' : 'MASK R-CNN ROI'}
+                        {effectiveSeverity?.spatial_correlation ? 'REPORTED / IMAGE GEOMETRY' : 'ANALYZED REGION'}
                       </span>
                     </div>
                     <p className="text-xs md:text-sm text-on-surface-variant leading-relaxed">
@@ -978,7 +985,7 @@ const FarmerSmartDiagnostics = () => {
                 {/* Right: Confidence score + evidence list */}
                 <div className="bg-surface-container-highest/40 backdrop-blur-sm rounded-xl p-5 md:p-6 flex flex-col justify-center border border-primary/15">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-on-surface-variant">Evidence Confidence Score</span>
+                    <span className="text-xs font-bold text-on-surface-variant">Disease class probability (uncalibrated)</span>
                     <span className="text-xl md:text-2xl font-black text-primary font-mono tracking-tight">
                       {confidence}%
                     </span>
@@ -1004,11 +1011,13 @@ const FarmerSmartDiagnostics = () => {
             </div>
 
             {/* Tier 3 — AI Clinical Briefing (LLM Reasoning) */}
+            <div className="mb-3"><button type="button" onClick={retryReasoning} disabled={reasoningStatus === 'loading'} className="text-xs text-primary disabled:opacity-50">Retry explanation</button></div>
             <ReasoningBriefing
               reasoning={reasoning}
               reasoningStatus={reasoningStatus}
               reasoningError={reasoningError}
               severityAssessment={effectiveSeverity}
+              explanation={explanation}
             />
           </div>
         )}

@@ -5,6 +5,7 @@ import pymongo
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
+from components.risk_forecasting.pipeline.geography import normalize_district
 from components.risk_forecasting.integrations.vet_directory import (
     VeterinaryOfficerDirectory,
     VeterinaryOfficerSummary,
@@ -47,6 +48,9 @@ class MongoVeterinaryOfficerDirectory(VeterinaryOfficerDirectory):
                 raise RuntimeError("Veterinary Officer directory is temporarily unavailable.") from e
 
     def _normalize_district(self, district: str) -> str:
+        canonical = normalize_district(district)
+        if canonical:
+            return canonical
         formatted = district.strip().title()
         if formatted in ["Moneragala", "Monaragala"]:
             return "Monaragala"
@@ -105,27 +109,18 @@ class MongoVeterinaryOfficerDirectory(VeterinaryOfficerDirectory):
             return []
             
         norm_dist = self._normalize_district(district)
-        
-        # In adrs_core.vets, district is stored as a string field.
-        # We query for both normalized and unnormalized matches just in case.
-        district_query = {
-            "$in": [
-                norm_dist,
-                district.strip(),
-                district.strip().title(),
-                "Moneragala" if norm_dist == "Monaragala" else norm_dist,
-                "Monaragala" if norm_dist == "Moneragala" else norm_dist,
-                "Nuwaraeliya" if norm_dist == "Nuwara Eliya" else norm_dist,
-                "Nuwara Eliya" if norm_dist == "Nuwaraeliya" else norm_dist
-            ]
-        }
-        
+
+        # Profiles store free-text districts (e.g. "Anuradhapura District"), so match on the
+        # normalised name instead of exact strings. The vets collection is small.
         try:
-            cursor = self.collection.find({"role": "vet", "district": district_query})
+            cursor = self.collection.find({"role": "vet"})
             # Deterministic ordering by _id
             cursor = cursor.sort("_id", pymongo.ASCENDING)
             results = []
             for doc in cursor:
+                raw = doc.get("district")
+                if not isinstance(raw, str) or self._normalize_district(raw) != norm_dist:
+                    continue
                 summary = self._to_summary(doc)
                 if summary:
                     results.append(summary)

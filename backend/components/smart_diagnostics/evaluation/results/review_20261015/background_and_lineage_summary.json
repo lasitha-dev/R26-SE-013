@@ -1,0 +1,10 @@
+{
+  "unresolved_images": 515,
+  "all_unresolved_are_train_backgrounds_with_empty_labels": true,
+  "notebook_evidence": "Tier_1_YOLO_Cattle_Detection.ipynb cell 2 downloads random LoremFlickr/Picsum images and writes empty labels; final photo URL is not retained.",
+  "clinical_negative_controls": false,
+  "lineage_source_summary": {
+    "cross_export_lineage": 109,
+    "single_export_lineage": 141
+  }
+}

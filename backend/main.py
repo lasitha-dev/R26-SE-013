@@ -9,12 +9,13 @@ from core.security import JWT_SECRET, JWT_ALGORITHM
 from fastapi.middleware.cors import CORSMiddleware
 from components.health_anomaly.router import router as health_anomaly_router
 import jwt
+import os
 import uvicorn
 
 from components.smart_diagnostics.config import settings
 from components.smart_diagnostics.implementations.yolo_detector import YOLODetector
 from components.smart_diagnostics.implementations.vit_classifier import ViTClassifier
-from components.smart_diagnostics.implementations.mask_rcnn_segmenter import MaskRCNNSegmenter
+from components.smart_diagnostics.implementations.lesion_segmenter import LesionSegmenter
 from components.smart_diagnostics.routes import router as sd_router
 
 from components.risk_forecasting.routes import router as risk_forecasting_router, setup_production_services
@@ -24,6 +25,8 @@ from components.geospatial_tracking.api.operational_router_factory import create
 from components.geospatial_tracking.api.operational_events_router_factory import create_operational_events_router
 from components.geospatial_tracking.api.my_area_router_factory import create_my_area_router
 from components.geospatial_tracking.api.analysis_trends_router_factory import create_analysis_trends_router
+from components.geospatial_tracking.api.spatial_timeline_router_factory import create_spatial_timeline_router
+from components.geospatial_tracking.services.spatial_timeline.sources import RepositoryHistoricalSourceReader
 
 from components.geospatial_tracking.domain.operational_models import AuthenticatedVetContext
 from components.geospatial_tracking.repositories.provider import set_repository_factory_override
@@ -62,11 +65,16 @@ def create_app() -> FastAPI:
         )
 
     set_repository_factory_override(_create_mongo_repo)
-    try:
-        init_repo = _create_mongo_repo()
-        init_repo.init_schema()
-    except Exception as e:
-        print(f"[GEOSPATIAL SCHEMA INIT NOTICE]: {e}")
+    # Opt-in for read-only development runs: GEOSPATIAL_SKIP_SCHEMA_INIT=1
+    # skips the startup create_index calls. Absent/disabled = unchanged behaviour.
+    if os.getenv("GEOSPATIAL_SKIP_SCHEMA_INIT", "").strip().lower() in {"1", "true", "yes", "on"}:
+        print("[GEOSPATIAL SCHEMA INIT SKIPPED]: GEOSPATIAL_SKIP_SCHEMA_INIT is enabled")
+    else:
+        try:
+            init_repo = _create_mongo_repo()
+            init_repo.init_schema()
+        except Exception as e:
+            print(f"[GEOSPATIAL SCHEMA INIT NOTICE]: {e}")
 
     # Geospatial Authenticated Vet dependency
     async def get_authenticated_vet_context(authorization: str | None = Header(None)) -> AuthenticatedVetContext | None:
@@ -122,6 +130,15 @@ def create_app() -> FastAPI:
     app.include_router(operational_events_router)
     app.include_router(my_area_router)
     app.include_router(analysis_trends_router)
+    # Day-indexed spatial timeline (relative score, nominal reach, direction):
+    # historical sources via the Mongo provider override above, operational
+    # sources via the vet-authorised operational port.
+    historical_source_reader = RepositoryHistoricalSourceReader()
+    app.include_router(create_spatial_timeline_router(
+        get_authenticated_vet_context=get_authenticated_vet_context,
+        get_operational_data_port=lambda: operational_data_port,
+        get_historical_source_reader=lambda: historical_source_reader,
+    ))
 
 
     # Attach configuration and lazy model wrappers to app state.
@@ -136,9 +153,11 @@ def create_app() -> FastAPI:
         class_names=settings.CLASS_NAMES,
         display_names=settings.CLASS_DISPLAY_NAMES,
     )
-    app.state.segmenter = MaskRCNNSegmenter(
-        settings.MASK_RCNN_MODEL_PATH,
-        image_size=224
+    app.state.segmenter = LesionSegmenter(
+        settings.SEGMENTER_MODEL_PATH,
+        image_size=224, threshold=settings.SEGMENTER_THRESHOLD,
+        min_region_fraction=settings.SEGMENTER_MIN_REGION_FRACTION,
+        manifest_path=settings.SEGMENTER_MANIFEST_PATH,
     )
 
     @app.get("/")

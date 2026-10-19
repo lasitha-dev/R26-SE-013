@@ -150,6 +150,8 @@ class ForecastFollowUpService:
 
             follow_up_id = self.id_generator()
 
+            # Copy scientific values from the stored forecast, not request input.
+            # Each vet gets a separate action record while sharing that forecast ID.
             record = ForecastFollowUpRecord(
                 follow_up_id=follow_up_id,
                 forecast_id=forecast.forecast_id,

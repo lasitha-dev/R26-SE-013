@@ -27,7 +27,19 @@ def _mongo_repo() -> MongoOutbreakRepository:
     )
 
 
-def test_default_provider_is_unchanged_sqlite_when_no_override_installed():
+def _point_default_path_at_schema_db(monkeypatch, tmp_path):
+    """The default provider now refuses a missing/empty file, so these
+    tests use a real schema-initialized temp DB instead of whatever sits
+    at the developer's default path."""
+    db_path = tmp_path / "pistes_test.db"
+    seed = SQLiteOutbreakRepository(db_path)
+    seed.init_schema()
+    seed.close()
+    monkeypatch.setattr(provider, "default_sqlite_db_path", lambda: db_path)
+
+
+def test_default_provider_is_unchanged_sqlite_when_no_override_installed(monkeypatch, tmp_path):
+    _point_default_path_at_schema_db(monkeypatch, tmp_path)
     provider.set_repository_factory_override(None)
     repo = provider.create_outbreak_repository()
     try:
@@ -62,7 +74,8 @@ def test_override_is_picked_up_by_managed_repository_10b_without_any_transport_c
         provider.set_repository_factory_override(None)
 
 
-def test_override_none_restores_default_sqlite_provider():
+def test_override_none_restores_default_sqlite_provider(monkeypatch, tmp_path):
+    _point_default_path_at_schema_db(monkeypatch, tmp_path)
     provider.set_repository_factory_override(_mongo_repo)
     mongo_repo = provider.create_outbreak_repository()
     mongo_repo.close()
@@ -74,3 +87,28 @@ def test_override_none_restores_default_sqlite_provider():
         assert isinstance(sqlite_repo, SQLiteOutbreakRepository)
     finally:
         sqlite_repo.close()
+
+
+def test_missing_default_db_is_refused_and_never_created(monkeypatch, tmp_path):
+    missing = tmp_path / "absent.db"
+    monkeypatch.setattr(provider, "default_sqlite_db_path", lambda: missing)
+    provider.set_repository_factory_override(None)
+    try:
+        provider.create_outbreak_repository()
+        raise AssertionError("expected ScientificDatasetUnavailableError")
+    except provider.ScientificDatasetUnavailableError as exc:
+        assert exc.status == "SCIENTIFIC_DATASET_UNAVAILABLE"
+    assert not missing.exists()
+
+
+def test_zero_byte_default_db_is_refused(monkeypatch, tmp_path):
+    empty = tmp_path / "empty.db"
+    empty.write_bytes(b"")
+    monkeypatch.setattr(provider, "default_sqlite_db_path", lambda: empty)
+    provider.set_repository_factory_override(None)
+    try:
+        provider.create_outbreak_repository()
+        raise AssertionError("expected ScientificDatasetUnavailableError")
+    except provider.ScientificDatasetUnavailableError:
+        pass
+    assert empty.stat().st_size == 0

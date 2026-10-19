@@ -22,6 +22,7 @@ real auth dependency and Mongo-backed
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 from typing import Callable
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,8 +31,10 @@ from ..domain.operational_enums import OperationalStatus
 from ..domain.operational_models import AuthenticatedVetContext, OperationalGeospatialContext
 from ..repositories.operational_port import OperationalDataPort
 from ..services.operational.context_service import OperationalContextService
+from ..services.operational.national_cases import build_national_case_records
 
 OPERATIONAL_CONTEXT_ROUTE_PATH = "/operational-context"
+NATIONAL_CASES_ROUTE_PATH = "/national-cases"
 """Mounted under the existing `/api/geospatial` prefix (matches
 `router.py`'s `APIRouter(prefix="/api/geospatial", ...)` convention) --
 full path `/api/geospatial/operational-context`."""
@@ -87,5 +90,27 @@ def create_operational_context_router(
             )
 
         return asdict(context)
+
+    @router.get(NATIONAL_CASES_ROUTE_PATH)
+    async def get_national_cases(
+        vet: AuthenticatedVetContext | None = Depends(get_authenticated_vet_context),
+        port: OperationalDataPort = Depends(get_operational_data_port),
+    ) -> dict:
+        """Countrywide LSD/FMD case records for national surveillance --
+        privacy-reduced (see `national_cases.py`), read-only, vets only."""
+        if vet is None:
+            raise HTTPException(status_code=401, detail="Authentication required.")
+        if not vet.is_vet():
+            raise HTTPException(status_code=403, detail="Veterinarian account required.")
+        reader = getattr(port, "get_national_case_documents", None)
+        if reader is None:
+            raise HTTPException(status_code=_OPERATIONAL_DATA_UNAVAILABLE_HTTP_STATUS, detail="National case records unavailable.")
+        try:
+            cases, farms = await reader()
+        except Exception as exc:  # pragma: no cover - transport failure
+            raise HTTPException(status_code=_OPERATIONAL_DATA_UNAVAILABLE_HTTP_STATUS, detail="Operational data source unavailable.") from exc
+        result = build_national_case_records(cases, farms)
+        result["generated_at"] = datetime.now(timezone.utc).isoformat()
+        return result
 
     return router

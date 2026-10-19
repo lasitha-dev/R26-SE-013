@@ -5,15 +5,38 @@ import { calculateAge } from './AddNewAnimal.jsx'
 export default function HerdRegistry() {
   const [cattleList, setCattleList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('ALL')
 
   const statusStyles = {
     Healthy: {
-      pill: 'bg-primary/10 text-primary',
-      dot: 'bg-primary',
+      pill: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+      dot: 'bg-emerald-400',
+      label: 'HEALTHY',
+    },
+    'Heat Stress': {
+      pill: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+      dot: 'bg-amber-400',
+      label: 'HEAT STRESS',
+    },
+    Unhealthy: {
+      pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+      dot: 'bg-rose-400',
+      label: 'UNHEALTHY',
+    },
+    Alert: {
+      pill: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+      dot: 'bg-rose-400',
+      label: 'ALERT',
     },
     'At Risk': {
-      pill: 'bg-error/10 text-error',
-      dot: 'bg-error',
+      pill: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+      dot: 'bg-amber-400',
+      label: 'AT RISK',
+    },
+    Deceased: {
+      pill: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+      dot: 'bg-slate-500',
+      label: 'DECEASED',
     },
   }
 
@@ -22,41 +45,41 @@ export default function HerdRegistry() {
     {
       id: 'mock-8842',
       identifier: '#BT-8842',
-      dot: 'bg-primary',
+      dot: 'bg-emerald-400',
       gender: 'Female',
       dob: '2020-05-12 (4 Yrs, 2 Mos)',
       breed: 'Friesian',
-      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      status: { label: 'HEALTHY', color: 'Healthy', pulse: false },
       profile_photo: null,
     },
     {
       id: 'mock-sudu',
       identifier: 'Sudu',
-      dot: 'bg-error',
+      dot: 'bg-amber-400',
       gender: 'Male',
       dob: '2021-01-05 (3 Yrs, 6 Mos)',
       breed: 'Jersey',
-      status: { label: 'At Risk', color: 'At Risk', pulse: true },
+      status: { label: 'HEAT STRESS', color: 'Heat Stress', pulse: true },
       profile_photo: null,
     },
     {
       id: 'mock-7729',
       identifier: '#BT-7729',
-      dot: 'bg-primary',
+      dot: 'bg-emerald-400',
       gender: 'Female',
       dob: '2019-10-20 (5 Yrs)',
       breed: 'Sahiwal',
-      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      status: { label: 'HEALTHY', color: 'Healthy', pulse: false },
       profile_photo: null,
     },
     {
       id: 'mock-maanam',
       identifier: 'Maanam',
-      dot: 'bg-primary',
+      dot: 'bg-rose-400',
       gender: 'Female',
       dob: '2022-03-15 (2 Yrs, 4 Mos)',
       breed: 'Local',
-      status: { label: 'Healthy', color: 'Healthy', pulse: false },
+      status: { label: 'UNHEALTHY', color: 'Unhealthy', pulse: true },
       profile_photo: null,
     },
   ]
@@ -120,8 +143,14 @@ export default function HerdRegistry() {
 
   // ─── Dynamic Top Statistics ────────────────────────────────────────────────
   const totalLivestock = cattleList.length
-  const healthyCount = cattleList.filter((c) => (c.health_status || c.status || 'Healthy') === 'Healthy').length
-  const pendingAlertsCount = cattleList.filter((c) => (c.health_status || c.status || 'Healthy') !== 'Healthy').length
+  const healthyCount = cattleList.filter((c) => {
+    const s = c.health_status || c.status || 'Healthy'
+    return s === 'Healthy' && c.status !== 'Deceased' && c.health_status !== 'Deceased'
+  }).length
+  const pendingAlertsCount = cattleList.filter((c) => {
+    const s = c.health_status || c.status || 'Healthy'
+    return ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'].includes(s) || (s !== 'Healthy' && s !== 'Deceased')
+  }).length
 
   const bioSecurityScore =
     totalLivestock > 0 ? Math.round((healthyCount / totalLivestock) * 100) : 100
@@ -221,23 +250,61 @@ export default function HerdRegistry() {
     cattleList.length > 0
       ? cattleList.map((c) => {
           const rawStatus = c.health_status || c.status || 'Healthy'
-          const isHealthy = rawStatus === 'Healthy'
+          const isDeceased = rawStatus === 'Deceased' || c.status === 'Deceased'
+
+          let colorKey = 'Healthy'
+          let labelText = 'HEALTHY'
+          let pulse = false
+
+          if (isDeceased) {
+            colorKey = 'Deceased'
+            labelText = 'DECEASED'
+          } else if (rawStatus === 'Heat Stress') {
+            colorKey = 'Heat Stress'
+            labelText = 'HEAT STRESS'
+            pulse = true
+          } else if (rawStatus === 'Unhealthy') {
+            colorKey = 'Unhealthy'
+            labelText = 'UNHEALTHY'
+            pulse = true
+          } else if (rawStatus === 'Alert') {
+            colorKey = 'Alert'
+            labelText = 'ALERT'
+            pulse = true
+          } else if (rawStatus === 'At Risk') {
+            colorKey = 'At Risk'
+            labelText = 'AT RISK'
+            pulse = true
+          } else if (rawStatus !== 'Healthy') {
+            colorKey = 'Alert'
+            labelText = String(rawStatus).toUpperCase()
+            pulse = true
+          }
+
+          const style = statusStyles[colorKey] || statusStyles['Healthy']
+
           return {
             id: c.id,
             identifier: c.identifier,
-            dot: isHealthy ? 'bg-primary' : 'bg-error',
+            dot: style.dot,
             gender: c.gender,
             dob: `${c.dob} (${calculateAge(c.dob)})`,
             breed: c.breed,
             status: {
-              label: isHealthy ? 'Healthy' : 'Alert',
-              color: isHealthy ? 'Healthy' : 'At Risk',
-              pulse: !isHealthy,
+              label: labelText,
+              color: colorKey,
+              pulse: pulse,
             },
             profile_photo: c.profile_photo,
           }
         })
       : mockRows
+
+  const filteredRows = displayRows.filter((r) => {
+    if (statusFilter === 'ALL') return true
+    if (statusFilter === 'Alert') return r.status.color === 'Alert' || r.status.color === 'At Risk'
+    return r.status.color === statusFilter
+  })
 
   return (
     <div className="space-y-8">
@@ -344,18 +411,29 @@ export default function HerdRegistry() {
 
       {/* Active Registry Table */}
       <div className="bg-surface-container-low rounded-xl overflow-hidden">
-        <div className="px-8 py-6 flex items-center justify-between border-b border-surface/50">
+        <div className="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface/50">
           <h3 className="text-lg font-bold text-white tracking-tight">Active Animal Registry</h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-surface-container-highest/80 px-3 py-1.5 rounded-lg border border-white/5 text-xs text-slate-300">
+              <span className="material-symbols-outlined text-sm text-slate-400">filter_list</span>
+              <select
+                aria-label="Filter by Status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-transparent border-none text-xs font-medium text-white focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="ALL" className="bg-slate-900 text-white">All Statuses ({totalLivestock})</option>
+                <option value="Healthy" className="bg-slate-900 text-emerald-400">Healthy ({healthyCount})</option>
+                <option value="Heat Stress" className="bg-slate-900 text-amber-400">Heat Stress</option>
+                <option value="Unhealthy" className="bg-slate-900 text-rose-400">Unhealthy</option>
+                <option value="Alert" className="bg-slate-900 text-rose-400">Alert</option>
+                <option value="Deceased" className="bg-slate-900 text-slate-400">Deceased</option>
+              </select>
+            </div>
             <button
               className="p-2 hover:bg-surface-container-high rounded transition-colors text-slate-400"
               type="button"
-            >
-              <span className="material-symbols-outlined">filter_list</span>
-            </button>
-            <button
-              className="p-2 hover:bg-surface-container-high rounded transition-colors text-slate-400"
-              type="button"
+              title="Download Registry"
             >
               <span className="material-symbols-outlined">download</span>
             </button>
@@ -387,7 +465,7 @@ export default function HerdRegistry() {
                     </div>
                   </td>
                 </tr>
-              ) : displayRows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-8 py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-slate-450">
@@ -395,23 +473,27 @@ export default function HerdRegistry() {
                         database_off
                       </span>
                       <p className="font-black tracking-wider uppercase text-xs text-slate-400">
-                        No animals found in registry
+                        {statusFilter !== 'ALL' ? `No animals with status "${statusFilter}" found` : 'No animals found in registry'}
                       </p>
                       <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                        Add a new animal record to start monitoring bio-security and physical parameters.
+                        {statusFilter !== 'ALL'
+                          ? 'Try changing the status filter to view other animals.'
+                          : 'Add a new animal record to start monitoring bio-security and physical parameters.'}
                       </p>
-                      <Link
-                        to="/health/add-new-animal"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-4 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all active:scale-95"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                        Add First Animal
-                      </Link>
+                      {statusFilter === 'ALL' && (
+                        <Link
+                          to="/health/add-new-animal"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 mt-4 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span>
+                          Add First Animal
+                        </Link>
+                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
-                displayRows.map((r) => (
+                filteredRows.map((r) => (
                   <tr key={r.id} className="group hover:bg-surface-container-high/30 transition-colors">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
@@ -445,11 +527,13 @@ export default function HerdRegistry() {
                     <td className="px-6 py-5">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${
-                          statusStyles[r.status.color].pill
+                          (statusStyles[r.status.color] || statusStyles['Healthy']).pill
                         } text-[10px] font-bold uppercase tracking-wider`}
                       >
                         <span
-                          className={`w-1 h-1 rounded-full ${statusStyles[r.status.color].dot} ${
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            (statusStyles[r.status.color] || statusStyles['Healthy']).dot
+                          } ${
                             r.status.pulse ? 'animate-pulse' : ''
                           }`}
                         ></span>
@@ -458,7 +542,7 @@ export default function HerdRegistry() {
                     </td>
                     <td className="px-8 py-5 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {r.status.label === 'Deceased' ? (
+                        {r.status.color === 'Deceased' || r.status.label?.toUpperCase() === 'DECEASED' ? (
                           <span
                             className="p-2 text-slate-600 cursor-not-allowed"
                             title="Diagnostics locked for deceased cattle"

@@ -149,8 +149,8 @@ class TestGenerateVeterinaryReport:
     """
 
     @patch("openai.OpenAI")
-    def test_generate_report_success_returns_llm_content(self, MockOpenAI):
-        """A successful LLM completion returns the response content."""
+    def test_generate_report_success_returns_grounded_content(self, MockOpenAI):
+        """Valid selections produce a report with server-owned facts."""
         # Configure the mock chain: client.chat.completions.create()
         mock_client = MagicMock()
         MockOpenAI.return_value = mock_client
@@ -162,21 +162,25 @@ class TestGenerateVeterinaryReport:
 
         # Mock chat completion
         mock_choice = MagicMock()
-        mock_choice.message.content = "## 1. Primary Diagnostic Assessment\nTest report content."
+        mock_choice.message.content = '{"case_kind":"unassessable","evidence_ids":["prediction"],"context_ids":["lsd_signs"],"limitation_ids":["crop_scope"],"next_check_ids":["lsd_exam"]}'
+        mock_choice.finish_reason = "stop"
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
         report, sev = generate_veterinary_report(vision_results)
 
-        assert "Primary Diagnostic Assessment" in report
-        assert "Test report content" in report
+        assert "Assessment Summary" in report
+        assert "WOAH" in report
+        assert "Image-model prediction" in report
         assert sev is not None
+        request = mock_client.chat.completions.create.call_args.kwargs
+        assert request['response_format']['type'] == 'json_schema'
 
     @patch("openai.OpenAI")
     def test_generate_report_empty_response_returns_warning(self, MockOpenAI):
@@ -192,14 +196,13 @@ class TestGenerateVeterinaryReport:
         mock_client.chat.completions.create.return_value = mock_response
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
         report, sev = generate_veterinary_report(vision_results)
 
-        assert "⚠" in report
-        assert "empty" in report.lower()
+        assert "returned no report" in report.lower()
         assert sev is not None
 
     @patch("openai.OpenAI")
@@ -219,7 +222,7 @@ class TestGenerateVeterinaryReport:
         )
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
@@ -227,8 +230,7 @@ class TestGenerateVeterinaryReport:
         report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
-        assert "⚠" in report
-        assert "LM Studio" in report or "Unreachable" in report or "Error" in report or "Standby" in report
+        assert "Explanation unavailable" in report
         assert sev is not None
 
     @patch("openai.OpenAI")
@@ -243,12 +245,12 @@ class TestGenerateVeterinaryReport:
         )
 
         vision_results = {
-            "detections": [],
+            "detections": [{"vit_predicted_class": "lumpy_skin"}],
             "image_size": {"width": 640, "height": 480},
         }
 
         report, sev = generate_veterinary_report(vision_results)
 
         assert isinstance(report, str)
-        assert "⚠" in report
+        assert "original image assessment" in report.lower()
         assert sev is not None

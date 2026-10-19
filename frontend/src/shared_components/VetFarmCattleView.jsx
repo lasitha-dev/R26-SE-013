@@ -107,7 +107,8 @@ export default function VetFarmCattleView() {
       cattle.breed?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const isDeceased = cattle.status === 'Deceased' || cattle.health_status === 'Deceased'
-    const isAlert = !isDeceased && (cattle.health_status === 'Alert' || cattle.status === 'Alert')
+    const nonHealthyStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk']
+    const isAlert = !isDeceased && (nonHealthyStates.includes(cattle.health_status) || nonHealthyStates.includes(cattle.status))
     const matchesStatus =
       statusFilter === 'ALL' ||
       (statusFilter === 'ALERT' && isAlert) ||
@@ -117,7 +118,7 @@ export default function VetFarmCattleView() {
   })
 
   const alertCount = cattleList.filter(
-    (c) => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (c.health_status === 'Alert' || c.status === 'Alert')
+    (c) => c.status !== 'Deceased' && c.health_status !== 'Deceased' && (['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'].includes(c.health_status) || ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk'].includes(c.status))
   ).length
 
   return (
@@ -328,13 +329,33 @@ export default function VetFarmCattleView() {
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 border ${
                             isDeceased
                               ? 'bg-slate-500/20 text-slate-400 border-slate-500/45'
+                              : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                              ? 'bg-red-500/20 text-red-300 border-red-500/40'
                               : isAlert
                               ? 'bg-red-500/20 text-red-300 border-red-500/40'
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           }`}
                         >
-                          {isAlert && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>}
-                          {isDeceased ? 'Deceased' : isAlert ? 'Alert' : 'Healthy'}
+                          {isAlert && (
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
+                                  ? 'bg-amber-400'
+                                  : 'bg-red-400'
+                              } animate-ping`}
+                            ></span>
+                          )}
+                          {isDeceased
+                            ? 'Deceased'
+                            : cattle.health_status === 'Heat Stress' || cattle.status === 'Heat Stress'
+                            ? 'Heat Stress'
+                            : cattle.health_status === 'Unhealthy' || cattle.status === 'Unhealthy'
+                            ? 'Unhealthy'
+                            : isAlert
+                            ? 'Alert'
+                            : 'Healthy'}
                         </span>
                       </div>
 

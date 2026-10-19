@@ -41,7 +41,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { GEO_TIMING, markTiming } from '../adapters/loadTiming'
 import { normalizeOperationalContext } from '../adapters/operationalContextAdapter'
 import { fetchOperationalContext, hasTokenDisappeared, readAuthToken } from '../api/operationalApi'
-import { applyFetchResult, beginFetch, initialOperationalRefreshState, shouldPauseForHiddenTab, shouldPoll } from './operationalRefreshReducer'
+// REFRESH_INTERVAL_MS must be imported, not only re-exported below: an
+// `export { x } from` creates no local binding, and the scheduler uses it.
+import { applyFetchResult, beginFetch, initialOperationalRefreshState, REFRESH_INTERVAL_MS, shouldPauseForHiddenTab, shouldPoll } from './operationalRefreshReducer'
 
 export { OPERATIONAL_STATE, REFRESH_INTERVAL_MS } from './operationalRefreshReducer'
 
@@ -51,6 +53,17 @@ function currentVisibilityState() {
 
 export function useOperationalContext() {
   const [refreshState, setRefreshState] = useState(initialOperationalRefreshState)
+  // The scheduler needs the state a fetch produced right away. A setState
+  // updater can run later (React batches updates on a busy page), which left
+  // the next cycle unscheduled; so each next state is computed here from
+  // this mirror, synchronously, and then stored.
+  const refreshStateRef = useRef(initialOperationalRefreshState)
+  const commitRefreshState = useCallback((reduce) => {
+    const next = reduce(refreshStateRef.current)
+    refreshStateRef.current = next
+    setRefreshState(next)
+    return next
+  }, [])
 
   const abortControllerRef = useRef(null)
   const inFlightRef = useRef(false)
@@ -73,11 +86,7 @@ export function useOperationalContext() {
         clearTimeout(timeoutRef.current)
         timeoutRef.current = null
       }
-      let next
-      setRefreshState((prev) => {
-        next = applyFetchResult(prev, { ok: false, operationalStatus: 'SESSION_REQUIRED' }, Date.now())
-        return next
-      })
+      const next = commitRefreshState((prev) => applyFetchResult(prev, { ok: false, operationalStatus: 'SESSION_REQUIRED' }, Date.now()))
       return Promise.resolve(next)
     }
 
@@ -98,7 +107,7 @@ export function useOperationalContext() {
     // deliberately not re-marked; the mark is about initial load.
     markTiming(GEO_TIMING.OPERATIONAL_FETCH_START)
 
-    setRefreshState((prev) => beginFetch(prev))
+    commitRefreshState((prev) => beginFetch(prev))
 
     const settled = fetchOperationalContext({ signal: controller.signal })
       .then((raw) => {
@@ -106,22 +115,12 @@ export function useOperationalContext() {
         if (!mountedRef.current || controller.signal.aborted) return null
         markTiming(GEO_TIMING.OPERATIONAL_FETCH_END)
         const data = normalizeOperationalContext(raw)
-        let next
-        setRefreshState((prev) => {
-          next = applyFetchResult(prev, { ok: true, data }, Date.now())
-          return next
-        })
-        return next
+        return commitRefreshState((prev) => applyFetchResult(prev, { ok: true, data }, Date.now()))
       })
       .catch((err) => {
         inFlightRef.current = false
         if (!mountedRef.current || err?.name === 'AbortError') return null
-        let next
-        setRefreshState((prev) => {
-          next = applyFetchResult(prev, { ok: false, operationalStatus: err?.operationalStatus }, Date.now())
-          return next
-        })
-        return next
+        return commitRefreshState((prev) => applyFetchResult(prev, { ok: false, operationalStatus: err?.operationalStatus }, Date.now()))
       })
 
     settled.then((next) => {

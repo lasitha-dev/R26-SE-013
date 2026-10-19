@@ -4,6 +4,7 @@ from typing import List, Dict
 from PIL.Image import Image
 
 from ..interfaces.detector import DetectorInterface
+from ..model_errors import ModelUnavailable
 
 logger = logging.getLogger("smart_diagnostics.yolo")
 
@@ -26,25 +27,19 @@ class YOLODetector(DetectorInterface):
         return self._model is not None
 
     def _resolve_model_path(self) -> str:
-        import os
-        candidates = [
-            self.model_path,
-            os.path.join(os.path.dirname(__file__), "..", "models", "yolo_smart_diag_best.pt"),
-            os.path.join(os.path.dirname(__file__), "..", "models", "best.pt"),
-            r"C:\Users\lasit\runs\detect\yolo_smart_diag\cattle_gate_v1\weights\best.pt",
-            os.path.join(os.path.dirname(__file__), "..", "..", "health_anomaly", "best.pt"),
-        ]
-        for path in candidates:
-            if path and os.path.exists(path):
-                # Verify not a Git LFS pointer file (< 1000 bytes)
-                try:
-                    if os.path.getsize(path) > 10000:
-                        return path
-                except Exception:
-                    pass
-        return self.model_path
+        from pathlib import Path
+        path = Path(self.model_path)
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parents[3] / path
+        if not path.is_file():
+            raise ModelUnavailable("The configured cattle detector checkpoint is unavailable.")
+        with path.open("rb") as checkpoint:
+            if checkpoint.read(100).startswith(b"version https://git-lfs.github.com"):
+                raise ModelUnavailable("The cattle detector checkpoint is an unmaterialized LFS pointer.")
+        return str(path)
 
     def _ensure_loaded(self):
+        # Load once on first use, then reuse the checkpoint across requests.
         if self._model is None:
             resolved_path = self._resolve_model_path()
             logger.info("Loading YOLO model from '%s' ...", resolved_path)
@@ -67,12 +62,15 @@ class YOLODetector(DetectorInterface):
             )
 
     def predict(self, image: Image) -> List[Dict]:
+        # YOLO localizes supported regions. Disease classification is handled
+        # separately by ViT after the route selects and crops a region.
         self._ensure_loaded()
         results = self._model.predict(source=image, conf=self.conf_threshold, verbose=False)
         detections: List[Dict] = []
         for result in results:
             boxes = getattr(result, "boxes", [])
             for box in boxes:
+                # Convert library tensors into plain values for the API contract.
                 xyxy = box.xyxy[0].tolist()
                 conf = float(box.conf[0])
                 cls_id = int(box.cls[0])

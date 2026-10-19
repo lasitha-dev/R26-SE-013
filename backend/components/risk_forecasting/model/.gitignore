@@ -27,10 +27,17 @@ data/final/
 data/processed/*
 !data/processed/FMD_dataset_with_spatial_and_climate_indices.csv
 !data/processed/LSD_dataset_with_spatial_and_climate_indices.csv
+# Stage 2 severity labels (small, annual DAPH district-year aggregates; needed to reproduce the severity evaluation)
+!data/processed/severity_labels.csv
+!data/processed/LSD_severity_labels.csv
+!data/processed/daph_severity_dataset.xlsx
 *.csv
 !FMD_dataset_with_spatial_and_climate_indices.csv
 !LSD_dataset_with_spatial_and_climate_indices.csv
+!severity_labels.csv
+!LSD_severity_labels.csv
 *.xlsx
+!daph_severity_dataset.xlsx
 *.tif
 *.shp
 *.shx
@@ -46,3 +53,6 @@ plots/
 
 # Local Backup Snapshots
 scripts/backup_v1_validated/
+
+# v2 pipeline download cache (rebuilt from public sources)
+data/cache/

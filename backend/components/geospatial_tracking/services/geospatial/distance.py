@@ -42,6 +42,8 @@ def geodesic(lat1: float, lon1: float, lat2: float, lon2: float) -> GeodesicResu
     codebase (`AnimalReport.latitude`/`longitude`,
     `HistoricalOutbreakRecord.latitude`/`longitude`, etc.) so callers never
     have to remember a different argument order for this one function."""
+    # Solve distance and bearings on the Earth ellipsoid, then convert meters
+    # to kilometers for the clustering and spatial-kernel thresholds.
     forward_az, back_az, distance_m = _GEOD.inv(lon1, lat1, lon2, lat2)
     return GeodesicResult(
         distance_km=distance_m / 1000.0,

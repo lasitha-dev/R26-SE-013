@@ -27,15 +27,28 @@ describe('GEO-LIVE-05-EXPLAINER-02: deterministic, evidence-backed explanation',
     }
   })
 
-  it('whatChanged references the real disease label and verification time', () => {
+  it('whatChanged references the real disease label and verification time (Asia/Colombo, human-readable)', () => {
     const explanation = buildAlertExplanation(EVENT)
     expect(explanation.whatChanged).toContain('Lumpy Skin Disease')
-    expect(explanation.whatChanged).toContain(EVENT.verified_at)
+    // '2026-01-02 10:00:00' is legacy naive UTC host text -> 15:30 in Sri Lanka.
+    expect(explanation.whatChanged).toContain('2 Jan 2026, 15:30')
+    expect(buildAlertExplanation({ ...EVENT, verified_at: '2026-01-02T10:00:00+00:00' }).whatChanged).toContain('2 Jan 2026, 15:30')
+  })
+
+  it('an unparseable verification time is shown raw, never replaced by a guess', () => {
+    const explanation = buildAlertExplanation({ ...EVENT, verified_at: 'sometime' })
+    expect(explanation.whatChanged).toContain('sometime')
   })
 
   it('whyThisMatters references the real farm id, never a different farm', () => {
     const explanation = buildAlertExplanation(EVENT)
     expect(explanation.whyThisMatters).toContain('F1')
+  })
+
+  it('uses the assigned farm name when the page knows it', () => {
+    const explanation = buildAlertExplanation(EVENT, { farmName: 'Hill Farm' })
+    expect(explanation.whatChanged).toContain('at Hill Farm')
+    expect(explanation.whyThisMatters).toContain('Hill Farm is one of your assigned farms')
   })
 
   it('returns null for no event -- never fabricates an explanation from nothing', () => {

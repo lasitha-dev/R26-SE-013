@@ -38,6 +38,8 @@ def joint_neighbors(
     eps_time_days: float,
 ) -> bool:
     """Pure: the exact joint-neighborhood test (ST-01..04)."""
+    # Events must satisfy BOTH limits to be neighbors: proximity alone cannot
+    # join outbreaks that happened far apart in time.
     spatial_km = distance_km(lat_a, lon_a, lat_b, lon_b)
     if spatial_km > eps_space_km:
         return False

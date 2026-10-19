@@ -1,3 +1,4 @@
+import { cacheFarmLocation } from '../features/HealthAnomaly/utils/wellnessData.js'
 import React, { createContext, useState, useEffect } from 'react'
 
 export const ProfileContext = createContext(null)
@@ -18,7 +19,8 @@ export function ProfileProvider({ children }) {
       })
       if (response.ok) {
         const data = await response.json()
-        const alertExists = data.some(c => c.health_status === 'Alert' || c.status === 'Alert')
+        const alertStates = ['Alert', 'Heat Stress', 'Unhealthy', 'At Risk']
+        const alertExists = Array.isArray(data) && data.some(c => alertStates.includes(c.health_status) || alertStates.includes(c.status))
         setHasAlerts(alertExists)
       }
     } catch (err) {
@@ -48,6 +50,7 @@ export function ProfileProvider({ children }) {
             if (data.owner_name) {
               setFarmerName(data.owner_name)
             }
+            cacheFarmLocation(data)
             checkAlertsStatus()
           }
         } catch (err) {

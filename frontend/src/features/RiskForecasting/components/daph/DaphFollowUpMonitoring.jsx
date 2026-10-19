@@ -8,6 +8,7 @@ import {
   listFollowUps,
   getFollowUp,
   cancelFollowUp,
+  listEligibleFollowUpVets,
   FOLLOW_UP_STATUS,
   OPERATIONAL_PRIORITY,
   RiskForecastingWorkflowApiError,
@@ -54,6 +55,36 @@ function formatTimestamp(isoString) {
 /**
  * Status badge styling mapper.
  */
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const STATUS_LABEL = {
+  ISSUED: 'Issued',
+  ACKNOWLEDGED: 'Acknowledged',
+  ACTION_IN_PROGRESS: 'In progress',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  ESCALATED: 'Escalated',
+};
+
+// The steps a follow-up goes through; the ones not reached yet are shown greyed out while the follow-up is still open.
+function buildTimeline(record) {
+  const steps = [
+    { key: 'issued', label: 'Issued', at: record.created_at, tone: 'done' },
+    { key: 'ack', label: 'Acknowledged by the officer', at: record.acknowledged_at, tone: 'done' },
+    { key: 'action', label: 'Field action started', at: record.action_started_at, tone: 'done' },
+  ];
+  const ending = [
+    { key: 'completed', label: 'Completed', at: record.completed_at, tone: 'done' },
+    { key: 'cancelled', label: 'Cancelled', at: record.cancelled_at, tone: 'cancel' },
+    { key: 'escalated', label: 'Escalated', at: record.escalated_at, tone: 'alert' },
+  ];
+  const reachedEnd = ending.filter((e) => e.at);
+  const closed = reachedEnd.length > 0;
+  const all = [...steps.filter((x) => x.at || !closed), ...reachedEnd];
+  if (!closed) all.push({ key: 'completed', label: 'Completed', at: null, tone: 'done' });
+  return all;
+}
+
 function getStatusBadgeStyle(status) {
   switch (status) {
     case FOLLOW_UP_STATUS.ISSUED:
@@ -179,6 +210,23 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
     },
     [isAuthorized, actorContext, filters]
   );
+
+  // Officer names for the ids on the records (the directory is queried once per district)
+  const [vetNames, setVetNames] = useState({});
+  useEffect(() => {
+    if (!actorContext || followUps.length === 0) return undefined;
+    let active = true;
+    const districts = [...new Set(followUps.map((f) => f.district).filter(Boolean))];
+    Promise.all(districts.map((district) => listEligibleFollowUpVets({ district }, { actorContext }).catch(() => null)))
+      .then((results) => {
+        if (!active) return;
+        const names = {};
+        results.forEach((res) => (res?.veterinary_officers || []).forEach((v) => { names[v.vet_id] = v.display_name; }));
+        setVetNames((prev) => ({ ...prev, ...names }));
+      });
+    return () => { active = false; };
+  }, [followUps, actorContext]);
+  const officerName = (id) => (id ? vetNames[id] || 'Veterinary officer' : 'N/A');
 
   useEffect(() => {
     fetchFollowUps();
@@ -315,16 +363,6 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
           <span className="material-symbols-outlined text-base mr-2" aria-hidden="true">refresh</span>
           Refresh List
         </button>
-      </div>
-
-      {/* Operational Disclaimer */}
-      <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-slate-400 leading-relaxed space-y-1">
-        <p className="font-semibold text-slate-200">
-          Operational Boundary & Scientific Transparency Notice:
-        </p>
-        <p>
-          This workspace displays operational status metrics for issued follow-ups. Completion or cancellation of a follow-up represents standalone task management within DAPH operations and does not guarantee physical field action reversal, farmer notification receipt, or disease elimination.
-        </p>
       </div>
 
       {/* Error & Conflict Banners */}
@@ -525,8 +563,8 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                           <span className="font-semibold text-slate-200">{record.disease}</span>
                           <span className="text-slate-500 block">{record.district}</span>
                         </td>
-                        <td className="p-3 font-mono text-slate-400">
-                          {record.assigned_vet_id || 'N/A'}
+                        <td className="p-3 text-slate-200" title={record.assigned_vet_id || ''}>
+                          {officerName(record.assigned_vet_id)}
                         </td>
                         <td className="p-3 font-semibold">
                           {record.operational_priority || 'N/A'}
@@ -559,12 +597,15 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
         </div>
 
         {/* Detail Panel Column (Span 1 on lg) */}
-        <div className="bg-slate-800/40 rounded-xl border border-slate-800 shadow-sm p-5 space-y-6">
-          <h2 className="text-base font-bold text-white border-b border-slate-800 pb-3 flex items-center justify-between">
-            <span>Record Details</span>
+        <div className="bg-slate-800/40 rounded-2xl border border-slate-800 shadow-sm p-5 space-y-5">
+          <h2 className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3 text-base font-bold text-white">
+            <span className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-xl text-emerald-400" aria-hidden="true">assignment</span>
+              Follow-up details
+            </span>
             {selectedRecord && (
-              <span className="text-xs font-mono font-normal text-slate-500">
-                {selectedRecord.follow_up_id}
+              <span className="rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-0.5 font-mono text-[11px] font-normal text-slate-400" title={selectedRecord.follow_up_id}>
+                Ref {String(selectedRecord.follow_up_id || '').replace(/^ffu_|^fu_/i, '').slice(0, 8).toUpperCase()}
               </span>
             )}
           </h2>
@@ -574,137 +615,105 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
               Select a follow-up record from the table to view details, timeline, and actions.
             </div>
           ) : (
-            <div className="space-y-6 text-xs">
-              {/* Header Status & Version */}
-              <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+            <div className="space-y-5 text-xs">
+              {/* Who, what, where */}
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-slate-500 text-[10px] uppercase font-medium">Status / Version</p>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded border font-semibold mt-1 ${getStatusBadgeStyle(
-                      selectedRecord.status
-                    )}`}
-                  >
-                    {selectedRecord.status}
-                  </span>
+                  <p className="text-lg font-bold leading-tight text-white">{selectedRecord.disease} <span className="font-medium text-slate-400">in {selectedRecord.district}</span></p>
+                  <p className="mt-1 text-slate-400">
+                    For {MONTH_NAMES[Number(selectedRecord.target_month) - 1] || `month ${selectedRecord.target_month}`} {selectedRecord.target_year}
+                  </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-slate-500 text-[10px] uppercase font-medium">Record Version</p>
-                  <p className="font-mono font-bold text-slate-200 text-sm mt-0.5">v{selectedRecord.version}</p>
-                </div>
-              </div>
-
-              {/* Scientific Forecast Snapshot (Read-Only) */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
-                  Scientific Forecast Snapshot (Read-Only)
-                </h3>
-                <div className="grid grid-cols-2 gap-2 text-slate-300">
-                  <div>
-                    <span className="text-slate-500 block">Forecast ID:</span>
-                    <span className="font-mono font-medium">{selectedRecord.forecast_id || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Disease / District:</span>
-                    <span className="font-semibold">{selectedRecord.disease} ({selectedRecord.district})</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Target Period:</span>
-                    <span>{selectedRecord.target_year} - Month {selectedRecord.target_month}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Risk Level:</span>
-                    <span className="font-bold text-white">{selectedRecord.forecast_risk_level || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Probability:</span>
-                    <span>{selectedRecord.forecast_probability_pct !== undefined ? `${selectedRecord.forecast_probability_pct}%` : 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Priority:</span>
-                    <span className="font-semibold">{selectedRecord.operational_priority || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* DAPH Instruction Summary */}
-              <div className="space-y-1">
-                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
-                  Operational Instruction
-                </h3>
-                <p className="p-3 bg-slate-900/50 border border-slate-800 rounded-lg text-slate-200 font-medium leading-relaxed">
-                  {selectedRecord.instruction_summary || 'N/A'}
-                </p>
-              </div>
-
-              {/* Personnel Assignment */}
-              <div className="grid grid-cols-2 gap-2 text-slate-300">
-                <div>
-                  <span className="text-slate-500 block">Assigned Vet ID:</span>
-                  <span className="font-mono font-semibold text-white">{selectedRecord.assigned_vet_id || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Issued By DAPH:</span>
-                  <span className="font-mono font-semibold text-white">{selectedRecord.issued_by_daph_id || 'N/A'}</span>
-                </div>
-              </div>
-
-              {/* External Resource Request Reference */}
-              <div className="space-y-1">
-                <span className="text-slate-500 block">External Resource Request ID:</span>
-                <span className="font-mono text-slate-200 bg-slate-100 px-2 py-1 rounded inline-block">
-                  {selectedRecord.external_resource_request_id || 'Not linked'}
+                <span className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${getStatusBadgeStyle(selectedRecord.status)}`}>
+                  {STATUS_LABEL[selectedRecord.status] || selectedRecord.status}
                 </span>
               </div>
 
+              {/* The instruction */}
+              <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent p-4">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">campaign</span>Instruction
+                </p>
+                <p className="text-sm leading-relaxed text-slate-100">{selectedRecord.instruction_summary || 'N/A'}</p>
+              </div>
+
+              {/* People */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="material-symbols-outlined text-sm" aria-hidden="true">person</span>Assigned to</span>
+                  <span className="mt-0.5 block font-semibold text-white" title={selectedRecord.assigned_vet_id || ''}>{officerName(selectedRecord.assigned_vet_id)}</span>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="material-symbols-outlined text-sm" aria-hidden="true">badge</span>Issued by</span>
+                  <span className="mt-0.5 block font-semibold text-white" title={selectedRecord.issued_by_daph_id || ''}>
+                    {selectedRecord.issued_by_daph_id ? (selectedRecord.issued_by_daph_id === userId ? 'DAPH Official (You)' : 'DAPH Official') : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              {/* The forecast it is based on */}
+              <div className="space-y-2">
+                <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">fact_check</span>Based on the forecast
+                  <span className="ml-auto flex items-center gap-1 rounded-full border border-slate-700 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-500">
+                    <span className="material-symbols-outlined text-xs" aria-hidden="true">lock</span>Read-only
+                  </span>
+                </h3>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                    <span className="text-slate-500">Risk</span>
+                    <span className={`mt-0.5 block font-bold ${selectedRecord.forecast_risk_level === 'HIGH' ? 'text-rose-400' : selectedRecord.forecast_risk_level === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      {selectedRecord.forecast_risk_level || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                    <span className="text-slate-500">Chance</span>
+                    <span className="mt-0.5 block font-bold text-white">{typeof selectedRecord.probability === 'number' ? `${(selectedRecord.probability * 100).toFixed(1)}%` : 'N/A'}</span>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                    <span className="text-slate-500">Priority</span>
+                    <span className="mt-0.5 block font-bold text-amber-300">{selectedRecord.operational_priority || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Linked resource request, only when there is one */}
+              {selectedRecord.external_resource_request_id && (
+                <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                  <span className="flex items-center gap-1.5 text-slate-500"><span className="material-symbols-outlined text-sm" aria-hidden="true">inventory_2</span>Resource request</span>
+                  <span className="font-mono text-slate-200">{selectedRecord.external_resource_request_id}</span>
+                </div>
+              )}
+
               {/* Escalation Reason (If Present) */}
               {selectedRecord.escalation_reason && (
-                <div className="p-3 bg-red-950/30 border border-red-500/30 rounded-lg space-y-1 text-red-300">
-                  <p className="font-bold uppercase text-[10px] text-red-400">Escalation Reason:</p>
+                <div className="p-3 bg-red-950/30 border border-red-500/30 rounded-xl space-y-1 text-red-300">
+                  <p className="font-bold uppercase text-[10px] text-red-400">Escalation reason</p>
                   <p className="leading-relaxed">{selectedRecord.escalation_reason}</p>
                 </div>
               )}
 
-              {/* Lifecycle Timeline */}
-              <div className="space-y-2">
-                <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-1">
-                  Lifecycle Timeline
+              {/* Progress */}
+              <div className="space-y-2.5">
+                <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <span className="material-symbols-outlined text-sm" aria-hidden="true">timeline</span>Progress
                 </h3>
-                <ul className="space-y-1.5 text-[11px] text-slate-400">
-                  <li className="flex justify-between border-b border-slate-50 pb-1">
-                    <span>Issued:</span>
-                    <span className="font-mono">{formatTimestamp(selectedRecord.created_at)}</span>
-                  </li>
-                  {selectedRecord.acknowledged_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1">
-                      <span>Acknowledged:</span>
-                      <span className="font-mono">{formatTimestamp(selectedRecord.acknowledged_at)}</span>
-                    </li>
-                  )}
-                  {selectedRecord.action_started_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1">
-                      <span>Action Started:</span>
-                      <span className="font-mono">{formatTimestamp(selectedRecord.action_started_at)}</span>
-                    </li>
-                  )}
-                  {selectedRecord.completed_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1">
-                      <span>Completed:</span>
-                      <span className="font-mono">{formatTimestamp(selectedRecord.completed_at)}</span>
-                    </li>
-                  )}
-                  {selectedRecord.cancelled_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1 text-slate-300 font-semibold">
-                      <span>Cancelled:</span>
-                      <span className="font-mono">{formatTimestamp(selectedRecord.cancelled_at)}</span>
-                    </li>
-                  )}
-                  {selectedRecord.escalated_at && (
-                    <li className="flex justify-between border-b border-slate-50 pb-1 text-red-400 font-semibold">
-                      <span>Escalated:</span>
-                      <span className="font-mono">{formatTimestamp(selectedRecord.escalated_at)}</span>
-                    </li>
-                  )}
-                </ul>
+                <ol className="space-y-0">
+                  {buildTimeline(selectedRecord).map((step, index, list) => {
+                    const reached = Boolean(step.at);
+                    const dot = !reached ? 'border-slate-600 bg-transparent' : step.tone === 'cancel' ? 'border-slate-400 bg-slate-400' : step.tone === 'alert' ? 'border-red-400 bg-red-400' : 'border-emerald-400 bg-emerald-400';
+                    return (
+                      <li key={step.key} className="relative flex gap-3 pb-3 last:pb-0">
+                        {index < list.length - 1 && <span className="absolute left-[5px] top-3 h-full w-px bg-slate-700" aria-hidden="true" />}
+                        <span className={`relative mt-1 h-[11px] w-[11px] shrink-0 rounded-full border-2 ${dot}`} aria-hidden="true" />
+                        <div className="flex flex-1 items-baseline justify-between gap-3">
+                          <span className={reached ? 'font-medium text-slate-100' : 'text-slate-500'}>{step.label}</span>
+                          <span className={reached ? 'text-[11px] text-slate-400' : 'text-[11px] text-slate-600'}>{reached ? formatTimestamp(step.at) : 'Pending'}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
 
               {/* Allowed DAPH Action Controls */}
@@ -715,7 +724,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
                   <button
                     type="button"
                     onClick={() => setCancelModalRecord(selectedRecord)}
-                    className="w-full py-2.5 px-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none shadow-sm transition-colors flex items-center justify-center space-x-1.5"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 font-semibold text-red-300 transition hover:bg-red-500/20 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                   >
                     <span className="material-symbols-outlined text-base" aria-hidden="true">cancel</span>
                     <span>Cancel Follow-Up</span>
@@ -747,7 +756,7 @@ export function DaphFollowUpMonitoring({ viewerContext }) {
 
             <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800 space-y-1 text-xs text-slate-300">
               <p><strong>Disease / District:</strong> {cancelModalRecord.disease} ({cancelModalRecord.district})</p>
-              <p><strong>Assigned Vet:</strong> {cancelModalRecord.assigned_vet_id || 'N/A'}</p>
+              <p><strong>Assigned Vet:</strong> {officerName(cancelModalRecord.assigned_vet_id)}</p>
               <p><strong>Current Status:</strong> {cancelModalRecord.status} (v{cancelModalRecord.version})</p>
             </div>
 

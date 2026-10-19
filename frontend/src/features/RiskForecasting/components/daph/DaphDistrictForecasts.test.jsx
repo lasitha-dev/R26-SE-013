@@ -344,8 +344,8 @@ describe('DaphDistrictForecasts Component', () => {
     await screen.findByText('Colombo District · FMD');
     await screen.findByText('Colombo District · LSD');
 
-    expect(screen.getByText('85.0%')).toBeInTheDocument();
-    expect(screen.getByText('15.0%')).toBeInTheDocument();
+    expect(screen.getAllByText('85.0%').length).toBeGreaterThan(0);   // card figure and the details tile
+    expect(screen.getAllByText('15.0%').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/HIGH/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/LOW/i).length).toBeGreaterThan(0);
   });
@@ -517,5 +517,28 @@ describe('DaphDistrictForecasts Component', () => {
 
     // Gampaha should be excluded because it's not authorized for this province scope
     expect(screen.queryByText('Gampaha District · FMD')).not.toBeInTheDocument();
+  });
+
+  describe('Plain presentation', () => {
+    it('puts districts that need attention first and explains each card in one sentence', async () => {
+      const record = (district, risk, pct, extra = {}) => ({
+        forecast_id: `f_${district}`, disease: 'FMD', district, target_year: 2025, target_month: 1,
+        risk_level: risk, probability: pct / 100, probability_pct: pct, status: 'GENERATED', model_version: 'fmd_v2.1',
+        forecaster: 'O', deployment_status: 'back_tested', relative_risk: 5, data_quality: 'V2_MODEL', fallback_applied: false, ...extra,
+      });
+      workflowApi.listForecastRecords.mockResolvedValue({ total_count: 3, limit: 200, offset: 0, records: [
+        record('Batticaloa', 'LOW', 33.1, { forecaster: 'climatology', deployment_status: 'baseline', relative_risk: 1 }),
+        record('Colombo', 'HIGH', 29.5),
+        record('Matara', 'MEDIUM', 6.3),
+      ] });
+      render(<DaphDistrictForecasts viewerContext={validNationalDaphContext} />);
+
+      await screen.findByText('Colombo District · FMD');
+      const order = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent).filter((t) => /District · FMD/.test(t));
+      expect(order).toEqual(['Colombo District · FMD', 'Matara District · FMD', 'Batticaloa District · FMD']);
+      expect(screen.getByText('Higher than usual for Colombo in January. Check your animals closely and follow veterinary advice.')).toBeInTheDocument();
+      expect(screen.getByText(/This is the usual level for Batticaloa in January/)).toBeInTheDocument();
+      expect(screen.getAllByText('More details').length).toBe(3);
+    });
   });
 });

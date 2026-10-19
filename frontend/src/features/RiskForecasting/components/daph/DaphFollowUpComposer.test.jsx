@@ -325,7 +325,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -360,7 +360,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -385,6 +385,10 @@ describe('DaphFollowUpComposer Component', () => {
     });
 
     it('proves only one POST occurs after explicit final confirmation', async () => {
+      api.issueFollowUp.mockResolvedValueOnce([{
+        id: 'issued-once', assigned_vet_id: 'vet_1', status: 'ISSUED',
+        instruction_summary: 'Valid instruction', operational_priority: 'HIGH',
+      }]);
       render(
         <DaphFollowUpComposer
           forecastRecord={mockForecastRecord}
@@ -393,7 +397,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -409,6 +413,7 @@ describe('DaphFollowUpComposer Component', () => {
       // Confirm & Issue (first POST)
       const confirmButton = screen.getByRole('button', { name: /Confirm & Issue Follow-Up/i });
       fireEvent.click(confirmButton);
+      await waitFor(() => expect(screen.getByText(/follow-up record\(s\) have been registered/i)).toBeInTheDocument());
       expect(api.issueFollowUp).toHaveBeenCalledTimes(1);
 
       // Attempt double click while disabled, or ensure state protects against multiple POSTs
@@ -425,7 +430,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -450,7 +455,7 @@ describe('DaphFollowUpComposer Component', () => {
   // 6. Submission & Idempotency Key & Double Submit Safety
   describe('Submission & Idempotency Key Safety', () => {
     it('submits exact authorized payload with deterministic idempotency key and renders ISSUED success state', async () => {
-      api.issueFollowUp.mockResolvedValueOnce({
+      api.issueFollowUp.mockResolvedValueOnce([{
         follow_up_id: 'fu_anu_999',
         forecast_id: 'fc_anu_2026_10_01',
         assigned_vet_id: 'vet_anu_01',
@@ -458,7 +463,7 @@ describe('DaphFollowUpComposer Component', () => {
         operational_priority: 'HIGH',
         status: 'ISSUED',
         created_at: '2026-08-24T10:00:00Z',
-      });
+      }]);
 
       render(
         <DaphFollowUpComposer
@@ -468,7 +473,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -482,7 +487,7 @@ describe('DaphFollowUpComposer Component', () => {
         expect(api.issueFollowUp).toHaveBeenCalledWith(
           {
             forecast_id: 'fc_anu_2026_10_01',
-            assigned_vet_id: 'vet_anu_01',
+            assigned_vet_ids: ['vet_anu_01'],
             instruction_summary: 'Conduct immediate field vaccination drive.',
             idempotency_key: 'daph-follow-up:daph_official_01:fc_anu_2026_10_01:vet_anu_01',
           },
@@ -511,7 +516,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -525,14 +530,14 @@ describe('DaphFollowUpComposer Component', () => {
       expect(api.issueFollowUp).toHaveBeenCalledTimes(1);
 
       // Resolve API call to clean up
-      resolveSubmission({
+      resolveSubmission([{
         follow_up_id: 'fu_anu_100',
         forecast_id: 'fc_anu_2026_10_01',
         assigned_vet_id: 'vet_anu_01',
         instruction_summary: 'Conduct immediate field vaccination drive.',
         operational_priority: 'HIGH',
         status: 'ISSUED',
-      });
+      }]);
 
       await waitFor(() => {
         expect(screen.getByText(/Operational Follow-Up Successfully Issued/i)).toBeInTheDocument();
@@ -540,14 +545,14 @@ describe('DaphFollowUpComposer Component', () => {
     });
 
     it('success state does not render generic Issue Another Follow-Up reset control and provides Close button only', async () => {
-      api.issueFollowUp.mockResolvedValueOnce({
+      api.issueFollowUp.mockResolvedValueOnce([{
         follow_up_id: 'fu_anu_999',
         forecast_id: 'fc_anu_2026_10_01',
         assigned_vet_id: 'vet_anu_01',
         instruction_summary: 'Conduct immediate field vaccination drive.',
         operational_priority: 'HIGH',
         status: 'ISSUED',
-      });
+      }]);
 
       const mockClose = vi.fn();
 
@@ -560,7 +565,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -581,14 +586,14 @@ describe('DaphFollowUpComposer Component', () => {
     });
 
     it('prevents resubmission when already in SUCCESS stage', async () => {
-      api.issueFollowUp.mockResolvedValueOnce({
+      api.issueFollowUp.mockResolvedValueOnce([{
         follow_up_id: 'fu_anu_999',
         forecast_id: 'fc_anu_2026_10_01',
         assigned_vet_id: 'vet_anu_01',
         instruction_summary: 'Conduct immediate field vaccination drive.',
         operational_priority: 'HIGH',
         status: 'ISSUED',
-      });
+      }]);
 
       render(
         <DaphFollowUpComposer
@@ -598,7 +603,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -630,7 +635,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -664,7 +669,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -691,7 +696,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);
@@ -732,9 +737,9 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Active Follow-Up Warning \(1 Active\)/i)).toBeInTheDocument();
-        expect(screen.getByText(/ID: fu_existing_01/i)).toBeInTheDocument();
-        expect(screen.getByText('ACTION_IN_PROGRESS')).toBeInTheDocument();
+        expect(screen.getByText(/A follow-up is already in progress/i)).toBeInTheDocument();
+        expect(screen.getByText(/Ref EXISTING/i)).toBeInTheDocument();
+        expect(screen.getByText('In progress')).toBeInTheDocument();
       });
     });
 
@@ -755,7 +760,7 @@ describe('DaphFollowUpComposer Component', () => {
         expect(screen.getByText(/Notice: Unable to verify existing follow-up history/i)).toBeInTheDocument();
       });
 
-      expect(screen.queryByText(/Active Follow-Up Warning/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/follow-up is already in progress/i)).not.toBeInTheDocument();
     });
 
     it('passes exact forecast_id, DAPH actor context, and AbortSignal to listFollowUps', async () => {
@@ -814,14 +819,14 @@ describe('DaphFollowUpComposer Component', () => {
     });
 
     it('success state clearly displays ISSUED status and target officer without claiming farmer delivery or stock allocation', async () => {
-      api.issueFollowUp.mockResolvedValueOnce({
+      api.issueFollowUp.mockResolvedValueOnce([{
         follow_up_id: 'fu_anu_999',
         forecast_id: 'fc_anu_2026_10_01',
         assigned_vet_id: 'vet_anu_01',
         instruction_summary: 'Conduct immediate field vaccination drive.',
         operational_priority: 'HIGH',
         status: 'ISSUED',
-      });
+      }]);
 
       render(
         <DaphFollowUpComposer
@@ -831,7 +836,7 @@ describe('DaphFollowUpComposer Component', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Assign Active Veterinary Officer/i)).toBeInTheDocument();
+        expect(screen.getByText(/Assign Active Veterinary Officers/i)).toBeInTheDocument();
       });
 
       const textarea = screen.getByPlaceholderText(/Provide specific operational guidance/i);

@@ -45,11 +45,27 @@ def test_1_2_3_4_mongo_vet_directory():
     vets = vet_dir.list_vets_by_district("Colombo")
     
     # 1. Mongo Vet `_id` is returned as the canonical eligible Vet ID.
-    assert len(vets) == 2
+    # A Vet profile without a district is never eligible for a district (a real query would not
+    # return it; the mock returns every document, so the directory must filter it).
+    assert len(vets) == 1
     assert vets[0].vet_id == "60d5ec49e2182b8a70656a5c"
     assert vets[0].display_name == "Valid Vet"
-    assert vets[1].vet_id == "60d5ec49e2182b8a70656a5f"
-    assert vets[1].display_name == "Unknown Officer"
+
+
+def test_vet_directory_matches_free_text_district_profiles():
+    mock_collection = MagicMock()
+    mock_collection.find.return_value = MockCursor([
+        {"_id": ObjectId("60d5ec49e2182b8a70656a61"), "role": "vet", "full_name": "Suffix Vet", "district": "Anuradhapura District"},
+        {"_id": ObjectId("60d5ec49e2182b8a70656a62"), "role": "vet", "full_name": "Coord Vet",
+         "district": "8.4162, 80.0261 (Anuradhapura District)"},
+        {"_id": ObjectId("60d5ec49e2182b8a70656a63"), "role": "vet", "full_name": "Other Vet", "district": "Colombo"},
+    ])
+    vet_dir = MongoVeterinaryOfficerDirectory(collection=mock_collection)
+
+    vets = vet_dir.list_vets_by_district("Anuradhapura")
+
+    assert [v.display_name for v in vets] == ["Suffix Vet", "Coord Vet"]
+    assert all(v.assigned_districts == ["Anuradhapura"] for v in vets)
 
 def test_5_6_follow_up_access():
     from components.risk_forecasting.services.follow_up_service import ForecastFollowUpService
@@ -212,3 +228,42 @@ def test_16_conftest_restoration():
         
     # Should be restored exactly to what it was
     assert forecast_follow_up_service.vet_dir is original_vet_dir
+
+
+def test_test_injection_replaces_and_restores_every_production_adapter(monkeypatch):
+    import importlib
+    from components.risk_forecasting.tests.conftest import (
+        _RESTORED_ATTRIBUTES, _inject_in_memory_services_generator,
+    )
+
+    adapters = []
+    for module_name, service_name, attribute in _RESTORED_ATTRIBUTES:
+        service = getattr(importlib.import_module(module_name), service_name)
+        production_adapter = object()
+        monkeypatch.setattr(service, attribute, production_adapter)
+        adapters.append((service, attribute, production_adapter))
+
+    fixture = _inject_in_memory_services_generator()
+    next(fixture)
+    try:
+        # main.app can install production services during collection. No adapter
+        # from that setup may survive into an isolated forecasting test.
+        for service, attribute, production_adapter in adapters:
+            assert getattr(service, attribute) is not production_adapter
+    finally:
+        fixture.close()
+
+    for service, attribute, production_adapter in adapters:
+        assert getattr(service, attribute) is production_adapter
+
+
+def test_test_injection_restores_attributes_absent_before_production_setup(monkeypatch):
+    from components.risk_forecasting.services.notification_service import notification_service
+    from components.risk_forecasting.tests.conftest import _inject_in_memory_services_generator
+
+    monkeypatch.delattr(notification_service, "recipient_dir", raising=False)
+    fixture = _inject_in_memory_services_generator()
+    next(fixture)
+    assert hasattr(notification_service, "recipient_dir")
+    fixture.close()
+    assert not hasattr(notification_service, "recipient_dir")

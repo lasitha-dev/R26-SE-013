@@ -10,6 +10,7 @@ import logging
 
 from core.security import JWT_SECRET, JWT_ALGORITHM
 from core.database import vets_collection
+from components.risk_forecasting.pipeline.geography import normalize_district
 
 from pydantic import BaseModel, ConfigDict
 
@@ -101,7 +102,8 @@ async def get_viewer_context(request: Request) -> ViewerContextResponse:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Veterinary profile missing valid district."
         )
-    authorized_districts = [district.strip()]
+    # Profiles may store e.g. "Anuradhapura District"; forecast records use canonical names.
+    authorized_districts = [normalize_district(district) or district.strip()]
     
     assigned_farm_ids_raw = vet.get("assigned_farm_ids")
     if assigned_farm_ids_raw is None:

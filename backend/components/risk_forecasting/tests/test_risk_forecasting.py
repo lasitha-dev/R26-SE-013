@@ -441,7 +441,8 @@ class TestRiskForecastingAPI(unittest.TestCase):
             "month": 12,
             "model_variant": "30_feature_baseline"
         }
-        res_30 = self.client.post("/api/v1/risk-forecasting/predict/fmd", json=payload_30)
+        with patch.object(fmd_service.data_provider, "get_valid_lag1", return_value=0.0):
+            res_30 = self.client.post("/api/v1/risk-forecasting/predict/fmd", json=payload_30)
         self.assertEqual(res_30.status_code, 200)
         data_30 = res_30.json()
 
@@ -486,7 +487,8 @@ class TestRiskForecastingAPI(unittest.TestCase):
             "month": 12,
             "model_variant": "31_feature_autocorrelation"
         }
-        res_31 = self.client.post("/api/v1/risk-forecasting/predict/fmd", json=payload_31)
+        with patch.object(fmd_service.data_provider, "get_valid_lag1", return_value=1.0):
+            res_31 = self.client.post("/api/v1/risk-forecasting/predict/fmd", json=payload_31)
         self.assertEqual(res_31.status_code, 200)
         data_31 = res_31.json()
 
@@ -498,7 +500,7 @@ class TestRiskForecastingAPI(unittest.TestCase):
         all_31_items = exp_31["top_risk_increasing"] + exp_31["top_risk_decreasing"]
         lag1_item = next((item for item in all_31_items if item["feature"] == "own_outbreak_lag1"), None)
         if lag1_item is not None:
-            self.assertEqual(lag1_item["display_label"], "Previous-Month Same-District Outbreak Status")
+            self.assertEqual(lag1_item["display_label"], "Local Outbreak History (Previous Month)")
             self.assertIn(lag1_item["raw_value"], [0.0, 1.0])
 
         # 3. Test fallback provenance warning (future date Sep 2026)
@@ -515,7 +517,7 @@ class TestRiskForecastingAPI(unittest.TestCase):
         self.assertIsNotNone(exp_fb["provenance_warning"])
         self.assertIn("September 2024 historical feature row", exp_fb["provenance_warning"])
 
-        # 4. Test LSD remains unchanged
+        # 4. LSD now also carries its own (Elastic Net) local explanation
         payload_lsd = {
             "district": "Anuradhapura",
             "year": 2020,
@@ -524,7 +526,8 @@ class TestRiskForecastingAPI(unittest.TestCase):
         res_lsd = self.client.post("/api/v1/risk-forecasting/predict/lsd", json=payload_lsd)
         self.assertEqual(res_lsd.status_code, 200)
         data_lsd = res_lsd.json()
-        self.assertNotIn("explanation_info", data_lsd)
+        self.assertIn("explanation_info", data_lsd)
+        self.assertEqual(data_lsd["explanation_info"]["method"], "Elastic Net Log-Odds Decomposition")
 
     def test_data_freshness_provenance_and_safe_fallback(self):
         """

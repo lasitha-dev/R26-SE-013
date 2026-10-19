@@ -1,19 +1,56 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useOptionalLocationState } from '../context/useOptionalRouter'
+import '../components/prototypeChrome.css'
 
 import { getOutbreakAdapter } from '../adapters'
-import { computeFeatureBounds } from '../adapters/districtGeometry'
-import { formatDisplayDate } from '../adapters/forecastDate'
+import { computeFeatureBounds, isPointInsideDistrictFeature, normalizeDistrictDisplayName } from '../adapters/districtGeometry'
+import { addDaysToIsoDate, formatDisplayDate } from '../adapters/forecastDate'
 import { GEO_TIMING, markTiming } from '../adapters/loadTiming'
 import { selectMostRecentOrigin } from '../adapters/mostRecentOrigin'
 import { aggregateNationalSourcesByLocation } from '../adapters/nationalSourcePresentation'
-import { isWithinObservationWindow, DEFAULT_OBSERVATION_WINDOW_DAYS, OBSERVATION_WINDOW_OPTIONS } from '../adapters/observationWindow'
-import { buildObservedReplayDates, filterContextsByReplayDate } from '../adapters/observedReplay'
+import { PAGE1_PLAYBACK_INTERVAL_MS } from '../adapters/timelinePresentation'
+import {
+  buildNationalTimelineLayers,
+  buildMonitoringZones,
+  clampFrameIndex,
+  frameDates,
+  horizonLabel,
+  isTimelineRenderable,
+  plateauNote,
+  TIMELINE_STATUS,
+} from '../adapters/spatialTimelineView'
+import { isWithinObservationWindow, ALL_RECORDED_WINDOW, OBSERVATION_WINDOW_OPTIONS, resolveObservationWindow } from '../adapters/observationWindow'
+import { buildNationalCaseView, caseDateKey, recentUnmappedRecords, unmappedNoticeText } from '../adapters/nationalCases'
+import { CASE_AGE_CLASS, caseAgeReference } from '../adapters/caseAge'
+import { buildRiskFieldModel, probeRiskField } from '../adapters/riskFieldModel'
+import {
+  ANALYSIS_BASIS,
+  buildAnalysisBasisOptions,
+  buildReachHistory,
+  buildRiskCells,
+  buildSpatialStory,
+  isWithinWindowEndingAt,
+  latestHistoricalOriginDate,
+  latestVerifiedDate,
+  selectedBasisOption,
+  unavailableReason,
+} from '../adapters/spatialStory'
+import { filterContextsByReplayDate } from '../adapters/observedReplay'
 import { classifyOperationalCaseChanges, verificationByCaseId } from '../adapters/operationalCaseReconciliation'
 import { aggregateClinicalContextsByFarm, operationalFarmGroupsSignature } from '../adapters/operationalFarmAggregation'
+import AnalysisBasisSelect from '../components/AnalysisBasisSelect'
 import CellPopup from '../components/CellPopup'
+import CorridorPopup from '../components/CorridorPopup'
 import DiseaseSelector from '../components/DiseaseSelector'
+import Era5Observations from '../components/Era5Observations'
+import { buildEnvironmentFeatures } from '../adapters/environmentMap'
+import { districtSamplePoints, forecastFeature, heatIntensity, kmCircle, weatherCondition } from '../adapters/weatherForecast'
+import WeatherForecastStrip from '../components/WeatherForecastStrip'
+import { useDistrictWeatherForecast } from '../context/useDistrictWeatherForecast'
 import GeospatialAlertBanner from '../components/GeospatialAlertBanner'
 import LocationScopeSelect, { LOCATION_SCOPE } from '../components/LocationScopeSelect'
+import { MapStatusStack, NationalCaseCard, NewCaseToasts, RiskCellCard, TimelineChooserDock } from '../components/MapOverlayChrome'
+import { useNewCaseAlerts } from '../context/useNewCaseAlerts'
 import MapCanvas from '../components/MapCanvas'
 import MapLibreCanvas from '../components/MapLibreCanvas'
 import { buildNationalSourcesFeatureCollection, computeCombinedLngLatBounds, computeRiskTierStats } from '../components/mapLibreAdapter'
@@ -36,14 +73,24 @@ import { OPERATIONAL_STATE } from '../context/operationalRefreshReducer'
 import { ANALYSIS_MODE } from '../context/outbreakSelectionReducer'
 import { useFmdOriginRisk } from '../context/useFmdOriginRisk'
 import { NATIONAL_STATUS, useNationalOutbreaks } from '../context/useNationalOutbreaks'
+import { NATIONAL_CASES_STATE, nationalCasesEventKey, useNationalCases } from '../context/useNationalCases'
+import { eligibleSourceSignature } from '../adapters/liveSourceSignature'
+import { useSourceChangeToken } from '../context/useSourceChangeToken'
+import { sriLankaDateKey } from '../adapters/verificationTime'
+import { buildClusterFeatureCollection, clusterForCase, useStClusters } from '../context/useStClusters'
 import { useOperationalContext } from '../context/useOperationalContext'
+import { useAssignedFarmNames } from '../context/useAssignedFarmNames'
+import { useEnvironmentObservations } from '../context/useEnvironmentObservations'
+import SpatialEvidencePanel from '../components/SpatialEvidencePanel'
 import { useVerifiedClinicalEvents } from '../context/useVerifiedClinicalEvents'
 import { usePrefersReducedMotion } from '../context/usePrefersReducedMotion'
+import { SPATIAL_TIMELINE_STATE, useSpatialTimeline } from '../context/useSpatialTimeline'
 import { FOCUS_STATUS, deriveAvailableForecastDays, useSelectedOutbreakFrames } from '../context/useSelectedOutbreakFrames'
 import { CAPABILITY, getDiseaseConfig, hasCapability, isDiseaseReady } from '../disease/diseaseRegistry'
-import { LABEL_FORECAST_RISK_TIMELINE, LABEL_NO_VERIFIED_CASES_IN_WINDOW, LABEL_OBSERVED_CASES_TIMELINE, PAGE_TAGLINE, PAGE_TITLE } from '../semanticLabels'
+import { LABEL_NO_VERIFIED_CASES_IN_WINDOW, LABEL_OBSERVED_CASES_TIMELINE, PAGE_TAGLINE, PAGE_TITLE } from '../semanticLabels'
 
 const COUNTRY = 'Sri Lanka'
+const EMPTY_FC = Object.freeze({ type: 'FeatureCollection', features: Object.freeze([]) })
 
 /**
  * LSD-UI-03/04: Page 1 -- Outbreak Map. Map-dominant viewport (plan
@@ -71,6 +118,20 @@ export default function OutbreakMapPage() {
   const [refreshToken, setRefreshToken] = useState(0)
   const national = useNationalOutbreaks(ctx.selectedDisease, COUNTRY, refreshToken)
   const focus = useSelectedOutbreakFrames(ctx.selectedDisease, ctx.selectedOutbreakId, refreshToken)
+
+  // GEO-PAGE1-FINAL: distinguishes the genuine FIRST load (no real
+  // national data has ever arrived yet -- the honest "Loading verified
+  // outbreaks and forecast snapshots…" message) from a LATER refresh of
+  // an already-populated page (a disease/window change, or "Check for
+  // newer snapshot" -- the quieter "Updating…" pill). Both are the exact
+  // same real `NATIONAL_STATUS.LOADING` state; only the wording differs,
+  // never the underlying fetch/behavior.
+  const hasEverLoadedNationalRef = useRef(false)
+  useEffect(() => {
+    if (national.status === NATIONAL_STATUS.READY || national.status === NATIONAL_STATUS.EMPTY) {
+      hasEverLoadedNationalRef.current = true
+    }
+  }, [national.status])
 
   // FMD-10C: FMD has real historical origins + a real scalar risk score
   // but no coordinate-bearing endpoint yet -- `showFmdOriginPanel` is
@@ -114,13 +175,23 @@ export default function OutbreakMapPage() {
   // filter, entirely separate from `ctx.selectedForecastDay` (the
   // scientific forecast timeline). Local page state, not shared context,
   // since it belongs only to this page's Cases view.
-  const [observationWindowDays, setObservationWindowDays] = useState(DEFAULT_OBSERVATION_WINDOW_DAYS)
+  const [observationWindowDays, setObservationWindowDays] = useState(ALL_RECORDED_WINDOW)
 
   // GEO26B Section 15: "Sri Lanka" vs "My assigned farms" camera scope.
   // REAL_DISTRICT_GEOMETRY_BLOCKED -- no Sri Lanka ADM2 boundary dataset
   // exists in this repo, so "My assigned farms" fits the vet's own real,
   // authorized farm bounds rather than drawing a fabricated polygon.
   const [locationScope, setLocationScope] = useState(LOCATION_SCOPE.SRI_LANKA)
+  // One Page-1 presentation clock shared by every current real outbreak.
+  // It is deliberately local to this page and independent of selecting a
+  // marker, the WebSocket state, or any per-origin backend horizon.
+  const [page1ForecastActiveIndex, setPage1ForecastActiveIndex] = useState(0)
+  const [isPage1ForecastPlaying, setIsPage1ForecastPlaying] = useState(false)
+  // Entering Cases mode stops any running model playback (no forecast in Cases).
+  useEffect(() => {
+    if (showOperationalLayer) setIsPage1ForecastPlaying(false)
+  }, [showOperationalLayer])
+  const [isPage1ForecastUpdating, setIsPage1ForecastUpdating] = useState(false)
   // GEO-VIVA-VISUAL-RECOVERY-03: true once the camera scope has been set
   // by EITHER an explicit vet action (Fit Sri Lanka / Focus My District,
   // including via the LocationScopeSelect) OR the one-time auto-focus
@@ -144,6 +215,15 @@ export default function OutbreakMapPage() {
   // path `OperationalStatusChip`'s manual refresh already uses), so the
   // marker layer above stays honest and never fabricates a value.
   const clinicalEvents = useVerifiedClinicalEvents()
+  // Realtime invalidation (SSE `geospatial_data_changed` or a changed
+  // `ready.data_version` on reconnect), debounced in the hook: refetch the
+  // operational context now; the timeline/cases/clusters hooks below take
+  // the same token and refetch for the CURRENT disease/date only.
+  const dataChangeToken = clinicalEvents.dataChangeToken
+  useEffect(() => {
+    if (dataChangeToken) operational.refresh?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataChangeToken])
   const lastRefetchedEventIdRef = useRef(null)
   // GEO-LIVE-UPDATE-RECOVERY-06: the real moment a genuine operational
   // update (either a live SSE arrival, or the fallback reconciliation
@@ -264,12 +344,52 @@ export default function OutbreakMapPage() {
   // cases in it (see `adapters/operationalFarmAggregation.js`'s
   // `personallyAssigned` flag for how the popup still respects the
   // narrower scope's privacy rules for a farm that is district-only).
+  // Analysis date ("as of") for the spatial timeline: today (live), the real
+  // latest vet-verified case date, or the real latest historical origin
+  // (retrospective replay). Only options backed by a real date are offered.
+  // `null` = automatic (`automaticBasisId`): today when a case was verified
+  // in the last 14 days, else the latest real verified-case date -- labelled.
+  // Once the vet picks a date, that choice is kept.
+  const [analysisBasis, setAnalysisBasis] = useState(null)
+  const [customAnalysisDate, setCustomAnalysisDate] = useState(null)
+  const todayKey = sriLankaDateKey(new Date())
+  const latestVerifiedForDisease = useMemo(
+    () => latestVerifiedDate(operational.data?.surveillanceContexts, ctx.selectedDisease),
+    [operational.data, ctx.selectedDisease],
+  )
+  const retrospectiveDate = useMemo(() => latestHistoricalOriginDate(national.originsWithSources), [national.originsWithSources])
+  const basisOptions = useMemo(
+    () => buildAnalysisBasisOptions({ latestVerified: latestVerifiedForDisease, retrospective: retrospectiveDate, allowCustom: true, customDate: customAnalysisDate, today: todayKey }),
+    [latestVerifiedForDisease, retrospectiveDate, customAnalysisDate, todayKey],
+  )
+  // Day 0 = today (Asia/Colombo) unless the vet explicitly picks another date.
+  const basisOption = selectedBasisOption(basisOptions, analysisBasis ?? ANALYSIS_BASIS.LIVE)
+  // Observed cases (markers, window, colour age) follow today unless the vet
+  // explicitly chose another analysis date; the automatic shift only moves
+  // the model timeline to the latest real cases.
+  // Cases mode: ages against today (unless a date was chosen). Model modes:
+  // against the analysis date, so the source cases of the zones stay drawn.
+  const casesAsOf = showOperationalLayer && analysisBasis === null ? null : basisOption.asOf
+  // Observed-case age reference: today's Asia/Colombo date unless a past
+  // analysis date was explicitly chosen (labelled retrospective).
+  const caseAgeRef = caseAgeReference({ basisAsOf: casesAsOf, todayKey })
   const operationalContextsForDisease = useMemo(
     () =>
       (operational.data?.surveillanceContexts ?? [])
         .filter((c) => c.disease === ctx.selectedDisease)
-        .filter((c) => isWithinObservationWindow(c.verificationTime, observationWindowDays)),
-    [operational.data, ctx.selectedDisease, observationWindowDays],
+        // Live: "last N days" up to now. Latest verified / retrospective: the
+        // N days ENDING at that analysis date, so the cases shown are the
+        // ones that existed at that date -- never later ones.
+        .filter((c) => {
+          const window = resolveObservationWindow(observationWindowDays, {
+            basisAsOf: casesAsOf,
+            latestRecordDate: latestVerifiedDate(operational.data?.surveillanceContexts, ctx.selectedDisease),
+          })
+          return window.endIsoDate
+            ? isWithinWindowEndingAt(c.verificationTime, window.days, window.endIsoDate)
+            : isWithinObservationWindow(c.verificationTime, window.days)
+        }),
+    [operational.data, ctx.selectedDisease, observationWindowDays, casesAsOf],
   )
 
   // GEO31A Section 5/6: Cases-mode Observed Replay -- real dates only,
@@ -278,7 +398,6 @@ export default function OutbreakMapPage() {
   // "at latest" (every real event currently in the window is shown,
   // identical to this page's pre-GEO31A behavior); scrubbing/playing back
   // to an earlier real date temporarily hides events verified after it.
-  const observedReplayDates = useMemo(() => buildObservedReplayDates(operationalContextsForDisease), [operationalContextsForDisease])
   const [observedReplayDateKey, setObservedReplayDateKey] = useState(null)
   const [isObservedPlaybackActive, setIsObservedPlaybackActive] = useState(false)
   // A disease/window change can invalidate the current scrub position
@@ -288,7 +407,14 @@ export default function OutbreakMapPage() {
   useEffect(() => {
     setObservedReplayDateKey(null)
     setIsObservedPlaybackActive(false)
-  }, [ctx.selectedDisease, observationWindowDays])
+  }, [ctx.selectedDisease, observationWindowDays, basisOption.asOf])
+
+  useEffect(() => {
+    if (!showOperationalLayer) {
+      setObservedReplayDateKey(null)
+      setIsObservedPlaybackActive(false)
+    }
+  }, [showOperationalLayer])
 
   const revealedOperationalContexts = useMemo(
     () => filterContextsByReplayDate(operationalContextsForDisease, observedReplayDateKey),
@@ -316,15 +442,15 @@ export default function OutbreakMapPage() {
   const operationalFeaturesSignatureRef = useRef(null)
   const stableOperationalFeaturesRef = useRef(null)
   const operationalFeatures = useMemo(() => {
-    const signature = operationalFarmGroupsSignature(operationalFarmGroups)
+    const signature = `${operationalFarmGroupsSignature(operationalFarmGroups)}@${caseAgeRef.dateKey}`
     if (stableOperationalFeaturesRef.current && operationalFeaturesSignatureRef.current === signature) {
       return stableOperationalFeaturesRef.current
     }
-    const next = buildOperationalMarkerFeatureCollection(operationalFarmGroups)
+    const next = buildOperationalMarkerFeatureCollection(operationalFarmGroups, { ageReferenceDateKey: caseAgeRef.dateKey })
     operationalFeaturesSignatureRef.current = signature
     stableOperationalFeaturesRef.current = next
     return next
-  }, [operationalFarmGroups])
+  }, [operationalFarmGroups, caseAgeRef.dateKey])
   const operationalFarmGroupsByKey = useMemo(
     () => new Map(operationalFarmGroups.map((g) => [`${g.farmId}::${g.disease}`, g])),
     [operationalFarmGroups],
@@ -413,7 +539,7 @@ export default function OutbreakMapPage() {
   // boundary drawn on the map itself. Declared BEFORE `myDistrictAvailable`
   // (which reads it) -- a `const` read before its own declaration is a
   // fatal TDZ ReferenceError that unmounts the whole tree (see GEO29A).
-  const { feature: districtFeature } = useDistrictGeometry(operational.data?.vetDistrict)
+  const { feature: districtFeature, featureCollection: sriLankaDistricts } = useDistrictGeometry(operational.data?.vetDistrict)
 
   // GEO30B Section 19: a real district polygon match alone is enough to
   // make "Focus My District" meaningful, even with zero real farm points
@@ -475,24 +601,24 @@ export default function OutbreakMapPage() {
   // instead of guessing a delay; typically resolves within one or two
   // frames once the map has already loaded, and briefly longer on first
   // page load while the style is still in flight.
+  // On login the map focuses the vet's registered district once, as soon as
+  // its real polygon resolves and the map is ready -- unless the vet has
+  // already chosen a view (Fit Sri Lanka / Location / a case link).
   useEffect(() => {
-    if (districtAutoFocusDoneRef.current) return undefined
-    if (!myDistrictAvailable) return undefined
-    let frame
-    const tryFocus = () => {
+    if (districtAutoFocusDoneRef.current || !districtFeature || pendingOutbreakFocusRef.current) return undefined
+    let frameId = null
+    const attempt = () => {
       if (districtAutoFocusDoneRef.current) return
-      if (mapCanvasRef.current?.isReady?.()) {
-        handleFocusMyDistrict()
-      } else {
-        frame = requestAnimationFrame(tryFocus)
+      if (!mapCanvasRef.current?.isReady?.()) {
+        frameId = requestAnimationFrame(attempt)
+        return
       }
+      handleFocusMyDistrict()
     }
-    tryFocus()
-    return () => {
-      if (frame) cancelAnimationFrame(frame)
-    }
+    attempt()
+    return () => { if (frameId != null) cancelAnimationFrame(frameId) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myDistrictAvailable])
+  }, [districtFeature])
 
   // Section 11/12: shows the compact operational popup ONLY -- never
   // calls ctx.selectOutbreak, never fetches analysis summary/cells/
@@ -577,10 +703,365 @@ export default function OutbreakMapPage() {
     () => buildNationalSourcesFeatureCollection(national.originsWithSources),
     [national.originsWithSources],
   )
+  // Research layers (historical-origin grid, per-cell gradient arrows, full
+  // corridors, 2020 origin replay) are no longer offered on this page.
+  const showResearchLayers = false
+  // Dated historical research records (grey diamonds) appear only in an
+  // explicitly historical context -- Retrospective analysis date or Research
+  // layers -- never mixed into live national surveillance.
+  const showHistoricalRecords = basisOption.id === ANALYSIS_BASIS.RETROSPECTIVE || showResearchLayers
   const nationalSourcesFC = useMemo(
-    () => aggregateNationalSourcesByLocation(mergedNationalSourcesFC),
-    [mergedNationalSourcesFC],
+    () => (showHistoricalRecords ? aggregateNationalSourcesByLocation(mergedNationalSourcesFC) : EMPTY_FC),
+    [mergedNationalSourcesFC, showHistoricalRecords],
   )
+
+  // Phase 3: the Page-1 timeline layers come from ONE backend snapshot
+  // (`GET /api/geospatial/spatial-timeline`, national scope): backend dates,
+  // backend reach-limited relative-risk polygons, backend direction corridors.
+  // Fetched once per disease / refresh -- never per animation frame.
+  // National case surveillance: countrywide LSD/FMD records, refreshed on the
+  // existing reconciliation heartbeat (>=15 s) and on every live case event.
+  const nationalCases = useNationalCases({ heartbeat: operational.lastRefreshedAt, eventKey: nationalCasesEventKey(clinicalEvents) })
+  // The timeline is refetched when the set of possible sources changes (a
+  // case verified or withdrawn, a farm GPS added) -- not on every heartbeat.
+  const sourceSignature = useMemo(() => eligibleSourceSignature(nationalCases.data?.records, ctx.selectedDisease), [nationalCases.data, ctx.selectedDisease])
+  const sourceChangeToken = useSourceChangeToken(sourceSignature)
+  const spatialTimeline = useSpatialTimeline({
+    disease: ctx.selectedDisease,
+    scope: 'national',
+    asOf: basisOption.asOf,
+    enabled: Boolean(ctx.selectedDisease),
+    refreshToken: `${refreshToken}:${dataChangeToken}:${sourceChangeToken}`,
+    retryKey: operational.lastRefreshedAt,
+  })
+  const timelineSnapshot = spatialTimeline.data
+  const timelineFrameDates = useMemo(() => frameDates(timelineSnapshot), [timelineSnapshot])
+  const farmNames = useAssignedFarmNames(dataChangeToken)
+  // Research inspection (off by default): the selected historical origin's
+  // per-cell grid/arrows and the backend's full reach-length corridors.
+  // Trajectory shows the backend's own per-day corridors (length = that
+  // day's nominal reach); every other mode shows no corridor at all, so the
+  // modes stay visually distinct (origins remain marked in every mode).
+  const showFullCorridors = ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY || showResearchLayers
+  const page1ForecastVisualization = useMemo(() => {
+    const layers = buildNationalTimelineLayers(timelineSnapshot, page1ForecastActiveIndex, { research: showFullCorridors && page1ForecastActiveIndex > 0, landDomain: sriLankaDistricts ?? null })
+    // Static tier fills are drawn by the stage layers instead (scored extent
+    // faded + reach-limited bands bright), so the legacy buffers stay empty.
+    if (ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY || showResearchLayers) {
+      // Sri Lanka Overview: every eligible case nationwide shows its spread.
+      // My District: only the cases inside the logged-in vet's district.
+      if (!districtFeature || locationScope !== LOCATION_SCOPE.MY_DISTRICT) return { ...layers, riskZones: EMPTY_FC }
+      const inDistrict = new Set((timelineSnapshot?.sources ?? [])
+        .filter((src) => isPointInsideDistrictFeature([src.longitude, src.latitude], districtFeature))
+        .map((src) => src.source_id))
+      const keep = (fc) => ({ type: 'FeatureCollection', features: (fc?.features ?? []).filter((f) => [f.properties?.sourceId, ...(f.properties?.memberSourceIds ?? [])].some((id) => inDistrict.has(id))) })
+      return { ...layers, riskZones: EMPTY_FC, paths: keep(layers.paths), fronts: keep(layers.fronts), remaining: keep(layers.remaining), plumes: keep(layers.plumes), origins: keep(layers.origins) }
+    }
+    return { ...layers, riskZones: EMPTY_FC, paths: EMPTY_FC, fronts: EMPTY_FC, remaining: EMPTY_FC, plumes: EMPTY_FC }
+  }, [timelineSnapshot, page1ForecastActiveIndex, showFullCorridors, ctx.analysisMode, showResearchLayers, sriLankaDistricts, districtFeature, locationScope])
+  // Only a snapshot the backend actually computed (status OK) drives the
+  // master timeline and its layers; FMD (no frozen spatial model) and an
+  // empty source set fall back to the existing timelines unchanged.
+  const page1ForecastAvailable = isTimelineRenderable(timelineSnapshot)
+  const page1ForecastReady = page1ForecastAvailable
+  const page1ForecastDateLabel = page1ForecastVisualization.date ? formatDisplayDate(page1ForecastVisualization.date) : null
+  const page1HorizonLabel = horizonLabel(page1ForecastVisualization.frame?.horizon_status)
+  // The relative score is fixed at the as-of date; the day only moves the
+  // nominal-reach outline. Said in the timeline header itself.
+  const page1TimelineStatusLabel = timelineSnapshot?.as_of
+    ? `${page1HorizonLabel} · score fixed as of ${formatDisplayDate(timelineSnapshot.as_of)}`
+    : page1HorizonLabel
+  const spatialTimelineErrorNotice = spatialTimeline.status === SPATIAL_TIMELINE_STATE.ERROR
+    ? 'Spatial risk timeline unavailable right now (retrying with the next sync).'
+    : timelineSnapshot?.status === TIMELINE_STATUS.MODEL_NOT_READY
+      ? `No validated spatial risk model for ${diseaseConfig.shortLabel} -- confirmed markers only.`
+      : timelineSnapshot?.status === TIMELINE_STATUS.NO_ELIGIBLE_SOURCES
+        ? `No eligible ${diseaseConfig.shortLabel} sources in the last 14 days -- no risk zones to show.`
+        : null
+  // Mode semantics (what the tiers / arrows do and do not mean) now sit in
+  // the situation brief's legend; an empty or model-unavailable snapshot gets
+  // the explained empty-state card. Only a real fetch failure keeps this
+  // small top-right notice.
+  const spatialTimelineNotice = spatialTimeline.status === SPATIAL_TIMELINE_STATE.ERROR ? spatialTimelineErrorNotice : null
+  // Phase 4: a clicked corridor/origin is pinned by SOURCE id, so the pinned
+  // tooltip always shows the selected frame's backend values for it; a
+  // hover shows a transient preview.
+  const [selectedCorridorId, setSelectedCorridorId] = useState(null)
+  const [hoveredCorridor, setHoveredCorridor] = useState(null)
+  const selectedCorridor = useMemo(() => {
+    if (!selectedCorridorId) return null
+    const match = (collection) => collection?.features?.find((f) => f.properties?.sourceId === selectedCorridorId)?.properties
+    return match(page1ForecastVisualization.paths) ?? match(page1ForecastVisualization.origins) ?? null
+  }, [selectedCorridorId, page1ForecastVisualization])
+  const corridorTooltip = selectedCorridor ?? hoveredCorridor
+  const page1PlateauNote = plateauNote(timelineSnapshot, page1ForecastActiveIndex)
+
+  // ---- Per-mode stage layers + situation brief (all from the ONE backend
+  // snapshot above, or real operational/district data). `vetDistrict` is
+  // read straight from `operational.data` here: the page-level
+  // `vetDistrict` const is declared further down (TDZ, see GEO29A). ----
+  const storyVetDistrict = operational.data?.vetDistrict ?? null
+  const spatialStory = useMemo(
+    () => buildSpatialStory(timelineSnapshot, page1ForecastActiveIndex, { vetDistrict: storyVetDistrict }),
+    [timelineSnapshot, page1ForecastActiveIndex, storyVetDistrict],
+  )
+  const reachHistory = useMemo(() => buildReachHistory(timelineSnapshot, page1ForecastActiveIndex), [timelineSnapshot, page1ForecastActiveIndex])
+  // Risk Zones: the backend's own scored 5 km cells for the selected day
+  // (bright once that day's nominal reach covers them).
+  const riskCells = useMemo(() => buildRiskCells(timelineSnapshot, page1ForecastActiveIndex), [timelineSnapshot, page1ForecastActiveIndex])
+  // Animated surface: backend cells revealed by their first reached day.
+  const riskFieldModel = useMemo(() => buildRiskFieldModel(timelineSnapshot), [timelineSnapshot])
+  const monitoringZones = useMemo(() => buildMonitoringZones(timelineSnapshot, page1ForecastActiveIndex), [timelineSnapshot, page1ForecastActiveIndex])
+  const baselineZones = useMemo(() => buildNationalTimelineLayers(timelineSnapshot, 0).riskZones, [timelineSnapshot])
+  const latestNationalRecordDate = useMemo(() => {
+    let latest = null
+    for (const record of nationalCases.data?.records ?? []) {
+      if (record.disease !== ctx.selectedDisease) continue
+      const d = caseDateKey(record)
+      if (d && (!latest || d > latest)) latest = d
+    }
+    return latest
+  }, [nationalCases.data, ctx.selectedDisease])
+  const nationalWindow = resolveObservationWindow(observationWindowDays, { basisAsOf: casesAsOf, latestRecordDate: latestNationalRecordDate })
+  const nationalCaseView = useMemo(
+    () => buildNationalCaseView(nationalCases.data?.records, {
+      disease: ctx.selectedDisease,
+      windowDays: nationalWindow.days,
+      endIsoDate: nationalWindow.endIsoDate,
+      districtFeature: locationScope === LOCATION_SCOPE.MY_DISTRICT ? districtFeature : null,
+      ageReferenceDateKey: caseAgeRef.dateKey,
+      observedThrough: showOperationalLayer ? observedReplayDateKey : null,
+    }),
+    [nationalCases.data, ctx.selectedDisease, nationalWindow.days, nationalWindow.endIsoDate, locationScope, districtFeature, caseAgeRef.dateKey, showOperationalLayer, observedReplayDateKey],
+  )
+  const observedReplayDates = nationalCaseView.replayDates
+  const nationalCaseCounts = useMemo(
+    () => ({
+      verifiedOnMap: nationalCaseView.counts.mappedVerified,
+      pendingOnMap: nationalCaseView.counts.mappedPending,
+      withoutGps: nationalCaseView.counts.withoutGps,
+      hiddenOlder: nationalCaseView.counts.hiddenOlder,
+      byAge: nationalCaseView.counts.mappedByAge,
+      ageReferenceLabel: caseAgeRef.label,
+    }),
+    [nationalCaseView, caseAgeRef.label],
+  )
+  const nationalCaseStatusReady = nationalCases.status === NATIONAL_CASES_STATE.READY && Boolean(nationalCases.data)
+  // Real reports from the last 14 days that cannot be placed (farm has no
+  // GPS): said on the map, since they are otherwise invisible here.
+  const recentUnmappedNotice = useMemo(
+    () => unmappedNoticeText(recentUnmappedRecords(nationalCases.data?.records, { disease: ctx.selectedDisease, todayKey }), diseaseConfig.shortLabel),
+    [nationalCases.data, ctx.selectedDisease, todayKey, diseaseConfig.shortLabel],
+  )
+  // "New case" toasts: records that appear (or become verified) on a refresh.
+  const newCaseAlerts = useNewCaseAlerts(nationalCases.data?.records)
+  function handleViewNewCase(alert) {
+    const r = alert.record
+    newCaseAlerts.dismiss(alert.id)
+    if (!Number.isFinite(r?.latitude) || !Number.isFinite(r?.longitude)) return
+    ctx.setMode(ANALYSIS_MODE.CASES)
+    const pad = 0.25
+    mapCanvasRef.current?.resetView([[r.longitude - pad, r.latitude - pad], [r.longitude + pad, r.latitude + pad]])
+  }
+  // Cases, Risk Zones and Trajectory all draw the observed case markers.
+  const showObservedCaseMarkers = ctx.analysisMode === ANALYSIS_MODE.CASES || ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES || ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY
+  const [selectedNationalCase, setSelectedNationalCase] = useState(null)
+  useEffect(() => {
+    setSelectedNationalCase(null)
+  }, [ctx.selectedDisease, ctx.analysisMode, observationWindowDays, basisOption.asOf, observedReplayDateKey])
+
+  // Clicking a case: show its details and, in Trajectory, focus that case's
+  // model source (the source at the clicked farm, within 1 km) -- the other
+  // paths fade back.
+  function handleSelectNationalCase(properties) {
+    setSelectedNationalCase(properties)
+    const [lon, lat] = Array.isArray(properties?.coordinates) ? properties.coordinates : []
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return
+    let best = null
+    for (const source of timelineSnapshot?.sources ?? []) {
+      const km = Math.hypot((source.longitude - lon) * 110.6 * Math.cos((lat * Math.PI) / 180), (source.latitude - lat) * 110.6)
+      if (km <= 1 && (!best || km < best.km)) best = { id: source.source_id, km }
+    }
+    // Neighbouring cases share one outbreak path: focus the path holding this case.
+    const group = best ? (timelineSnapshot?.source_paths ?? []).find((p) => (p.member_source_ids ?? [p.source_id]).includes(best.id)) : null
+    setSelectedCorridorId(group?.source_id ?? best?.id ?? null)
+  }
+
+  // EXPLORATORY runtime ST-DBSCAN, fetched only in Clusters mode.
+  // Also fetched while a case is selected: its card shows the case's cluster result.
+  const stClusters = useStClusters({ disease: ctx.selectedDisease, asOf: basisOption.asOf, enabled: ctx.analysisMode === ANALYSIS_MODE.CLUSTERS || Boolean(selectedCorridorId), refreshToken: dataChangeToken })
+  const selectedCaseCoordinates = useMemo(() => {
+    const source = (timelineSnapshot?.sources ?? []).find((s) => s.source_id === selectedCorridorId)
+    return source ? [source.longitude, source.latitude] : null
+  }, [timelineSnapshot, selectedCorridorId])
+  const selectedCaseCluster = useMemo(() => clusterForCase(stClusters, selectedCaseCoordinates), [stClusters, selectedCaseCoordinates])
+  // The selected case's own farm on the selected day (backend risk raster).
+  const selectedCaseRisk = useMemo(
+    () => (selectedCaseCoordinates ? probeRiskField(riskFieldModel, page1ForecastActiveIndex, ...selectedCaseCoordinates) : null),
+    [riskFieldModel, page1ForecastActiveIndex, selectedCaseCoordinates],
+  )
+  // Env follows the timeline: the selected frame's own date (real ERA5 for
+  // that past day). A frame after today has no observation -- never filled.
+  // Env dates: the model timeline's dates when it is playable, otherwise its
+  // own 15 days from the analysis date (so today's forecast always shows).
+  const [envDayIndex, setEnvDayIndex] = useState(0)
+  const envDates = useMemo(
+    () => (page1ForecastAvailable && timelineFrameDates.length ? timelineFrameDates : Array.from({ length: 15 }, (_, i) => addDaysToIsoDate(basisOption.asOf ?? todayKey, i))),
+    [page1ForecastAvailable, timelineFrameDates, basisOption.asOf, todayKey],
+  )
+  useEffect(() => { setEnvDayIndex(0) }, [basisOption.asOf])
+  const environmentFrameDate = page1ForecastAvailable ? timelineFrameDates[page1ForecastActiveIndex] ?? null : envDates[envDayIndex] ?? null
+  const environmentDate = environmentFrameDate ?? basisOption.asOf ?? todayKey
+  const environmentDateInFuture = environmentDate > todayKey
+  const environmentObservations = useEnvironmentObservations({ disease: ctx.selectedDisease, district: storyVetDistrict, asOf: environmentDate, enabled: ctx.analysisMode === ANALYSIS_MODE.ENV && Boolean(storyVetDistrict) && !environmentDateInFuture, refreshToken: dataChangeToken })
+  // District forecast (today onward) for Env; past dates use backend ERA5.
+  // Weather sample points INSIDE the district polygon; the map label sits at
+  // their mean (always on the district, unlike a bounding-box centre).
+  const districtWeatherPoints = useMemo(() => (districtFeature ? districtSamplePoints(districtFeature) : []), [districtFeature])
+  // Env: a point the vet clicked -> the forecast for that point's model grid
+  // cell (~10 km) instead of the district average. Only points on Sri Lanka
+  // land (inside a district) are accepted; leaving Env clears it.
+  const [envPoint, setEnvPoint] = useState(null) // { point: [lon, lat], place, district }
+  function handleEnvPointSelect({ point, place }) {
+    const district = (sriLankaDistricts?.features ?? []).find((f) => isPointInsideDistrictFeature(point, f))
+    if (!district) return
+    setEnvPoint({ point, place: place?.name ?? null, district: normalizeDistrictDisplayName(district.properties?.shapeName ?? district.properties?.name) ?? null })
+  }
+  useEffect(() => { if (ctx.analysisMode !== ANALYSIS_MODE.ENV) setEnvPoint(null) }, [ctx.analysisMode])
+  const districtCentre = useMemo(() => {
+    const bounds = districtFeature ? computeFeatureBounds(districtFeature) : null
+    if (!bounds) return null
+    const [[w, south], [e, n]] = bounds
+    const inside = districtWeatherPoints.length
+      ? { longitude: districtWeatherPoints.reduce((a, p) => a + p[0], 0) / districtWeatherPoints.length, latitude: districtWeatherPoints.reduce((a, p) => a + p[1], 0) / districtWeatherPoints.length }
+      : { longitude: (w + e) / 2, latitude: (south + n) / 2 }
+    return { ...inside, spanDeg: Math.max(e - w, n - south) }
+  }, [districtFeature, districtWeatherPoints])
+  const districtForecast = useDistrictWeatherForecast({
+    latitude: districtCentre?.latitude, longitude: districtCentre?.longitude,
+    points: envPoint ? [envPoint.point] : districtWeatherPoints,
+    enabled: ctx.analysisMode === ANALYSIS_MODE.ENV,
+  })
+  // Where the forecast symbol sits and how far its wind animation spreads:
+  // the selected point's ~10 km grid cell, or the whole district.
+  const forecastAnchor = envPoint ? { longitude: envPoint.point[0], latitude: envPoint.point[1], spanDeg: 0.09 } : districtCentre
+  const envForecastDay = environmentDate >= todayKey ? districtForecast.days.get(environmentDate) ?? null : null
+  const envArea = useMemo(() => {
+    if (!districtFeature) return null
+    // Selected point: tint a ~5 km radius (about one forecast grid cell), not the district.
+    const areaGeometry = envPoint && envForecastDay ? kmCircle(envPoint.point, 5) : districtFeature.geometry
+    let condition = envForecastDay?.condition ?? null
+    let rainMm = envForecastDay?.rainMm ?? null
+    if (!condition) {
+      // Past date: the backend ERA5 district reference observation.
+      const ref = (environmentObservations.data?.observations ?? []).find((o) => o.role === 'DISTRICT_REFERENCE_POINT' && o.status === 'OK')
+      const value = (name) => ref?.features?.find((f) => f.feature_name === name && f.status === 'REAL')?.value ?? null
+      if (!ref) return null
+      rainMm = value('precipitation_accumulation')
+      const windKmh = value('mean_wind_speed') !== null ? value('mean_wind_speed') * 3.6 : null
+      condition = weatherCondition({ code: null, rainMm, windKmh })
+    }
+    const tint = condition === 'RAIN' || condition === 'STORM' ? 0.14 + Math.min(0.22, (rainMm ?? 0) / 60) : 0.12
+    // A hot, dry day is coloured by the heat layer alone (no grey/cloud tint under it).
+    const heat = heatIntensity(envForecastDay)
+    return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: areaGeometry, properties: { condition, tint: heat > 0 ? 0 : tint, heat } }] }
+  }, [districtFeature, envForecastDay, environmentObservations.data, envPoint])
+  const clusterFeatures = useMemo(() => buildClusterFeatureCollection(stClusters.data), [stClusters.data])
+  const stageLayers = useMemo(
+    () => ({
+      riskCells,
+      monitoringZones,
+      baselineZones,
+      reachHistory,
+      nationalCases: nationalCaseView.featureCollection,
+      clusters: clusterFeatures,
+      riskField: { model: riskFieldModel, index: page1ForecastActiveIndex },
+      environment: ctx.analysisMode !== ANALYSIS_MODE.ENV ? undefined
+        : envForecastDay && forecastAnchor ? { type: 'FeatureCollection', features: [forecastFeature(envForecastDay, forecastAnchor)] }
+          : !environmentDateInFuture ? buildEnvironmentFeatures(environmentObservations.data) : undefined,
+      environmentArea: ctx.analysisMode === ANALYSIS_MODE.ENV ? envArea : undefined,
+    }),
+    [riskCells, monitoringZones, baselineZones, reachHistory, nationalCaseView, clusterFeatures, riskFieldModel, page1ForecastActiveIndex, ctx.analysisMode, environmentDateInFuture, environmentObservations.data, envForecastDay, forecastAnchor, envArea],
+  )
+  // Risk Zones / Trajectory: frame the snapshot's real sources + scored cells
+  // ONCE per (mode, snapshot) -- never on a day change -- so a small model
+  // extent is readable. "Fit Sri Lanka" returns to the national view.
+  const modelFramedKeyRef = useRef(null)
+  // No automatic zoom on entering Risk Zones / Trajectory: the camera stays
+  // on the whole of Sri Lanka (cases and zones visible together) unless the
+  // vet zooms or uses Focus My District / Fit Sri Lanka.
+
+  // Env mode looks at the vet's own district: the weather shown is for it.
+  // Leaving Env returns to the whole-island view.
+  const envFocusedRef = useRef(false)
+  useEffect(() => {
+    if (ctx.analysisMode !== ANALYSIS_MODE.ENV && envFocusedRef.current) {
+      envFocusedRef.current = false
+      if (locationScope !== LOCATION_SCOPE.MY_DISTRICT) mapCanvasRef.current?.resetView()
+    }
+    if (ctx.analysisMode !== ANALYSIS_MODE.ENV || !districtFeature) return undefined
+    envFocusedRef.current = true
+    let frameId = null
+    const attempt = () => {
+      if (!mapCanvasRef.current?.isReady?.()) {
+        frameId = requestAnimationFrame(attempt)
+        return
+      }
+      const bounds = computeFeatureBounds(districtFeature)
+      if (bounds) mapCanvasRef.current.resetView(bounds)
+    }
+    attempt()
+    return () => { if (frameId != null) cancelAnimationFrame(frameId) }
+  }, [ctx.analysisMode, districtFeature])
+
+  // Arrived from My Area "View on Map": show that outbreak in Trajectory,
+  // centred on its real position, with its direction line pinned. Runs once.
+  const locationState = useOptionalLocationState()
+  const pendingOutbreakFocusRef = useRef(locationState?.focusOutbreak ?? null)
+  useEffect(() => {
+    const target = pendingOutbreakFocusRef.current
+    if (!target) return
+    ctx.setMode(target.mode === 'CASES' ? ANALYSIS_MODE.CASES : ANALYSIS_MODE.TRAJECTORY)
+    if (target.disease && target.disease !== ctx.selectedDisease) ctx.selectDisease(target.disease)
+    if (target.asOf) {
+      setCustomAnalysisDate(target.asOf)
+      setAnalysisBasis(ANALYSIS_BASIS.CUSTOM)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const target = pendingOutbreakFocusRef.current
+    if (!target || !Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) return undefined
+    if (target.mode !== 'CASES' && (!isTimelineRenderable(timelineSnapshot) || (target.asOf && timelineSnapshot.as_of !== target.asOf) || (target.disease && ctx.selectedDisease !== target.disease))) return undefined
+    let frameId = null
+    const attempt = () => {
+      if (!mapCanvasRef.current?.isReady?.()) {
+        frameId = requestAnimationFrame(attempt)
+        return
+      }
+      pendingOutbreakFocusRef.current = null
+      // Keep the automatic snapshot framing from overriding this focus.
+      modelFramedKeyRef.current = `${ANALYSIS_MODE.TRAJECTORY}:${timelineSnapshot?.snapshot_id ?? ''}`
+      if (target.mode !== 'CASES') setPage1ForecastActiveIndex(clampFrameIndex(timelineSnapshot, target.day))
+      const pad = 0.35
+      mapCanvasRef.current.resetView([[target.longitude - pad, target.latitude - pad], [target.longitude + pad, target.latitude + pad]])
+      if (target.sourceId) setSelectedCorridorId(target.sourceId)
+    }
+    attempt()
+    return () => { if (frameId != null) cancelAnimationFrame(frameId) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timelineSnapshot])
+
+  // A clicked cell is pinned by id, so its card follows the selected day.
+  const [selectedRiskCellId, setSelectedRiskCellId] = useState(null)
+  const selectedRiskCell = useMemo(
+    () => (selectedRiskCellId ? monitoringZones.features.find((f) => f.properties.cellId === selectedRiskCellId)?.properties ?? null : null),
+    [selectedRiskCellId, monitoringZones],
+  )
+  useEffect(() => {
+    setSelectedRiskCellId(null)
+  }, [ctx.analysisMode, ctx.selectedDisease, basisOption.id])
+  const timelineEmptyReason = unavailableReason(timelineSnapshot, { diseaseShortLabel: diseaseConfig.shortLabel, basis: basisOption.id, fetchState: spatialTimeline.status, errorStatus: spatialTimeline.errorStatus })
 
   // GEO-VISUAL-POLISH-02 Section 1/2/10: the full, honest database ->
   // forecast-origin -> per-origin-geometry -> rendered-marker trace,
@@ -645,7 +1126,15 @@ export default function OutbreakMapPage() {
   // GEO-VISUAL-POLISH-03: the SAME real per-snapshot quartile stats the
   // map's own `cells-circle` layer paints with (`MapLibreCanvas.jsx`) --
   // never a second, divergent computation the legend could drift from.
-  const riskTierStats = useMemo(() => computeRiskTierStats(focusCellFeatures), [focusCellFeatures])
+  // Legend tier counts come from the SAME backend cells the Risk Zones layer
+  // draws (the selected analysis date's snapshot); the legacy focused origin's
+  // cells only when no snapshot is renderable.
+  const riskTierStats = useMemo(() => {
+    const snapshotCells = isTimelineRenderable(timelineSnapshot)
+      ? (timelineSnapshot.cells ?? []).filter((c) => c?.score_status === 'SCORED').map((c) => ({ properties: { risk: { raw_c0_score: c.raw_c0_score } } }))
+      : null
+    return computeRiskTierStats(snapshotCells ?? focusCellFeatures)
+  }, [timelineSnapshot, focusCellFeatures])
 
   // LSD-PAGE1-HARDENING Section 25: fullscreen targets `mapWrapperRef`
   // (the whole map card, including the toolbar/timeline/legend/popup
@@ -691,10 +1180,50 @@ export default function OutbreakMapPage() {
     return adapter.buildForecastFrame({ summary: focus.summary, sources: focus.sources, cells: focus.cells, dayIndex: ctx.selectedForecastDay })
   }, [adapter, focus.status, focus.summary, focus.sources, focus.cells, ctx.selectedForecastDay])
 
+  // GEO-TRAJECTORY-01: the real nominal-reach ring is honest, real
+  // day-varying data (`nominal_reach_by_day`) in BOTH Risk Zones and
+  // Trajectory mode -- Trajectory is the dedicated "where might this
+  // spread" view (reach ring + per-cell direction arrows, no risk-tier
+  // dots), Risk Zones is the dedicated "how risky is this cell right now"
+  // view (tier dots + the same reach ring for scale). Never shown outside
+  // either mode.
   const reachRingCenters = useMemo(() => {
-    if (ctx.analysisMode !== ANALYSIS_MODE.RISK_ZONES) return null
+    if (ctx.analysisMode !== ANALYSIS_MODE.RISK_ZONES && ctx.analysisMode !== ANALYSIS_MODE.TRAJECTORY) return null
+    // The auto-focused HISTORICAL origin's own ring belongs to that origin's
+    // t0, not to the analysis date shown -- drawing it by default produced
+    // "no eligible sources" next to visible reach artifacts. Research only.
+    if (!showResearchLayers) return null
     return focus.sources?.features?.map((f) => f.geometry.coordinates) ?? null
-  }, [ctx.analysisMode, focus.sources])
+  }, [ctx.analysisMode, focus.sources, showResearchLayers])
+
+  // GEO-TRAJECTORY-01: whether the CURRENTLY selected real origin actually
+  // has real direction data on at least one cell -- `direction_status` is
+  // `DIRECTION_AVAILABLE` only when the frozen C0 combined direction
+  // vector didn't cancel/vanish for that cell (`c0_cell_local_tendency_8b3.py`). Confirmed
+  // live against the running backend (2026-09-01): every real LSD origin
+  // sampled had `DIRECTION_AVAILABLE` on 100% of its cells, but this is
+  // computed from the real per-origin response rather than assumed, so an
+  // origin where the combined direction vector genuinely cancels/vanishes
+  // for every cell still gets the honest "unavailable for this origin"
+  // state below instead of a silently empty arrow layer.
+  const trajectoryDirectionAvailable = useMemo(
+    () => focusCellFeatures.some((f) => f.properties?.direction?.bearing_deg !== null && f.properties?.direction?.bearing_deg !== undefined),
+    [focusCellFeatures],
+  )
+  // Whole-origin reach availability -- NOT the current single day's value
+  // (day 0/observed always has no forward reach by design, see
+  // `lsdOutbreakAdapter.js`'s `findNominalReach`, and must never itself
+  // read as "this origin has no reach model at all").
+  const trajectoryReachAvailable = (focus.summary?.nominal_reach_by_day?.length ?? 0) > 0
+  // Legend-facing, day-specific signal -- whether the ring is actually
+  // drawn on THIS snapshot (day 0/observed has no forward reach by design,
+  // so the ring legitimately draws nothing there even for an origin with a
+  // real reach table) -- mirrors `hasClinicalMarkers`'s existing "only key
+  // what's currently really on the map" pattern (`PageLegend.jsx`).
+  const reachRingCurrentlyVisible = (frame?.nominalReachKm ?? 0) > 0
+  const showTrajectoryLayer = ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY
+  const trajectoryUnavailableForOrigin =
+    showTrajectoryLayer && ctx.selectedOutbreakId && focus.status === FOCUS_STATUS.READY && !trajectoryDirectionAvailable && !trajectoryReachAvailable
 
   // GEO-VISUAL-POLISH-01 Section 9: a single shared playback-speed
   // multiplier for BOTH timelines below (0.5x/1x/2x) -- speed changes
@@ -702,6 +1231,90 @@ export default function OutbreakMapPage() {
   // value is honest for both the scientific and the observed-replay
   // clock rather than needing two independent controls that could drift.
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
+
+  useEffect(() => {
+    setPage1ForecastActiveIndex(0)
+    setIsPage1ForecastPlaying(false)
+    setSelectedCorridorId(null)
+    setHoveredCorridor(null)
+  }, [ctx.selectedDisease])
+  // A focused path belongs to Trajectory: switching mode clears the focus.
+  useEffect(() => {
+    setSelectedCorridorId(null)
+    setHoveredCorridor(null)
+  }, [ctx.analysisMode])
+
+  // Exactly one user-triggered clock advances the 14 presentation frames.
+  // Speeds are 2200/1100/550ms for 0.5x/1x/2x, and the final frame stops
+  // in place. RAF keeps this compatible with the feature's timer policy.
+  const page1PlaybackFrameRef = useRef(null)
+  const page1PlaybackLastTickRef = useRef(0)
+  useEffect(() => {
+    if (!isPage1ForecastPlaying || !page1ForecastAvailable) return undefined
+    page1PlaybackLastTickRef.current = performance.now()
+    const intervalMs = PAGE1_PLAYBACK_INTERVAL_MS[playbackSpeed] ?? PAGE1_PLAYBACK_INTERVAL_MS[1]
+    const tick = (now) => {
+      if (now - page1PlaybackLastTickRef.current >= intervalMs) {
+        page1PlaybackLastTickRef.current = now
+        setPage1ForecastActiveIndex((current) => {
+          const finalIndex = timelineFrameDates.length - 1
+          const next = Math.min(finalIndex, current + 1)
+          if (next >= finalIndex) setIsPage1ForecastPlaying(false)
+          return next
+        })
+      }
+      page1PlaybackFrameRef.current = requestAnimationFrame(tick)
+    }
+    page1PlaybackFrameRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (page1PlaybackFrameRef.current) cancelAnimationFrame(page1PlaybackFrameRef.current)
+      page1PlaybackFrameRef.current = null
+    }
+  }, [isPage1ForecastPlaying, page1ForecastAvailable, playbackSpeed, timelineFrameDates.length])
+
+  // The small "Updating…" acknowledgement is tied to a real timeline
+  // change and removes itself after 340ms. It never reflects connection
+  // health and therefore cannot become stuck on RECONNECTING.
+  const page1UpdateFeedbackFrameRef = useRef(null)
+  const page1UpdateFeedbackMountedRef = useRef(false)
+  useEffect(() => {
+    if (!page1UpdateFeedbackMountedRef.current) {
+      page1UpdateFeedbackMountedRef.current = true
+      return undefined
+    }
+    setIsPage1ForecastUpdating(true)
+    const startedAt = performance.now()
+    const tick = (now) => {
+      if (now - startedAt >= 340) {
+        setIsPage1ForecastUpdating(false)
+        page1UpdateFeedbackFrameRef.current = null
+        return
+      }
+      page1UpdateFeedbackFrameRef.current = requestAnimationFrame(tick)
+    }
+    page1UpdateFeedbackFrameRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (page1UpdateFeedbackFrameRef.current) cancelAnimationFrame(page1UpdateFeedbackFrameRef.current)
+      page1UpdateFeedbackFrameRef.current = null
+    }
+  }, [page1ForecastActiveIndex])
+
+  function handleSelectPage1ForecastIndex(index) {
+    setIsPage1ForecastPlaying(false)
+    setPage1ForecastActiveIndex(clampFrameIndex(timelineSnapshot, index))
+  }
+
+  function handlePlayPage1Forecast() {
+    if (!page1ForecastAvailable) return
+    // At the last day, Play replays from Day 0.
+    if (page1ForecastActiveIndex >= timelineFrameDates.length - 1) setPage1ForecastActiveIndex(0)
+    setIsPage1ForecastPlaying(true)
+  }
+
+  useEffect(() => {
+    setPage1ForecastActiveIndex(0)
+    setIsPage1ForecastPlaying(false)
+  }, [basisOption.id, basisOption.asOf])
 
   // Playback: advances one real day roughly every 1.4s (divided by the
   // real user-selected speed multiplier) while the vet has explicitly
@@ -859,19 +1472,6 @@ export default function OutbreakMapPage() {
   return (
     <div className="flex h-full flex-col gap-2">
       <div className="flex shrink-0 flex-col gap-1.5">
-        {districtKnown && (
-          <div>
-            {vetDistrict ? (
-              <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-bold uppercase tracking-wide text-primary">
-                MY DISTRICT · {vetDistrict.toUpperCase()}
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-md border border-outline-variant/30 bg-surface-container-high/40 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant/60">
-                DISTRICT NOT AVAILABLE
-              </span>
-            )}
-          </div>
-        )}
         <div className="flex items-start justify-between gap-3">
           {/* GEO-STITCH-OUTBREAK-MAP-UI-10B: brings this page's header in
               line with `MyAreaPage.jsx`/`AnalysisTrendsPage.jsx`'s own
@@ -880,8 +1480,21 @@ export default function OutbreakMapPage() {
               never rendered here, so Outbreak Map was the one Geospatial
               page missing the secondary descriptive line every sibling
               page already has. */}
-          <div>
-            <h2 className="text-[28px] font-bold leading-[1.15] text-on-surface">{PAGE_TITLE}</h2>
+          {/* Compact header: the district chip sits inline with the title so
+              the map (sized from the remaining viewport) gets the height. */}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="text-[22px] font-bold leading-[1.15] text-on-surface">{PAGE_TITLE}</h2>
+              {districtKnown && (vetDistrict ? (
+                <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+                  MY DISTRICT · {vetDistrict.toUpperCase()}
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-md border border-outline-variant/30 bg-surface-container-high/40 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant/60">
+                  DISTRICT NOT AVAILABLE
+                </span>
+              ))}
+            </div>
             <p className="text-xs text-on-surface-variant/70">{PAGE_TAGLINE}</p>
           </div>
           <StatusDiagnosticsMenu
@@ -894,6 +1507,7 @@ export default function OutbreakMapPage() {
             pushState={clinicalEvents.state}
             pushTransportMode={clinicalEvents.transportMode}
             pushIsStale={clinicalEvents.isStale}
+            pushReconnectAttempt={clinicalEvents.reconnectAttempt}
             lastGenuineUpdateAt={lastGenuineUpdateAt}
             originResolutionStats={originResolutionStats}
           />
@@ -905,7 +1519,7 @@ export default function OutbreakMapPage() {
             Zones/...) stay floating inside the map (Section 14); the
             scientific D0/D+N timeline stays docked to the map's own
             bottom edge (Section 15) -- neither ever appears in this row. */}
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-outline-variant/30 bg-surface-container/60 px-4 py-2">
+        <div className="geo-filterbar flex flex-wrap items-center gap-2.5 rounded-[14px] border border-outline-variant/30 bg-surface-container/60 px-3 py-2 2xl:flex-nowrap">
           <DiseaseSelector selected={ctx.selectedDisease} onSelect={ctx.selectDisease} />
           <span aria-hidden="true" className="h-6 w-px bg-outline-variant/30" />
           <LocationScopeSelect
@@ -916,6 +1530,8 @@ export default function OutbreakMapPage() {
           />
           <span aria-hidden="true" className="h-6 w-px bg-outline-variant/30" />
           <ObservationWindowSelect days={observationWindowDays} onChange={setObservationWindowDays} />
+          <span aria-hidden="true" className="h-6 w-px bg-outline-variant/30" />
+          <AnalysisBasisSelect options={basisOptions} value={basisOption.id} onChange={setAnalysisBasis} customDate={customAnalysisDate} onCustomDateChange={setCustomAnalysisDate} maxDate={todayKey} />
           {/* GEO-UI-TIMELINE-01 Part 1: a single bordered, dividered
               "map utility controls" group -- matches the divider pattern
               already used between Disease/Location/Window above, so this
@@ -1007,7 +1623,7 @@ export default function OutbreakMapPage() {
         </div>
       )}
 
-      {national.status === NATIONAL_STATUS.ERROR && (
+      {national.status === NATIONAL_STATUS.ERROR && showHistoricalRecords && (
         // GEO26D Section 8/18: scoped to the historical/scientific layer
         // ONLY -- never worded as "Geospatial data" broadly, since real
         // verified clinical markers (Cases mode) are a separate fetch
@@ -1024,7 +1640,7 @@ export default function OutbreakMapPage() {
         </div>
       )}
 
-      {national.status === NATIONAL_STATUS.EMPTY && (
+      {national.status === NATIONAL_STATUS.EMPTY && showHistoricalRecords && (
         <div className="shrink-0 rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
           No {diseaseConfig.shortLabel} historical sources are available for this selection.
         </div>
@@ -1036,17 +1652,39 @@ export default function OutbreakMapPage() {
         </div>
       )}
 
+      {/* GEO-TRAJECTORY-01: honest per-origin unavailable state -- shown
+          only when Trajectory mode is active AND this specific real
+          origin's own data genuinely has neither a real direction vector
+          on any cell nor a real nominal-reach table, never a silently
+          blank layer (mirrors the disease-level disabled reason already
+          shown by `ModeToolbar.jsx` for a disease with no model at all). */}
+      {trajectoryUnavailableForOrigin && (
+        <div className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+          This model run does not include spread direction or nominal reach for this origin.
+        </div>
+      )}
+
       <div
         ref={mapWrapperRef}
-        className="relative min-h-[480px] flex-1 overflow-hidden rounded-xl border border-white/10 bg-slate-950"
+        // `shrink-0`, not `flex-1`: a zero flex-basis inside this
+        // indefinite-height column ignored the measured `height` below.
+        className="relative min-h-[480px] shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-slate-950 geo-map-card"
         style={{ height: availableMapHeight }}
       >
         {mapUnavailable ? (
           <div className="flex h-full flex-col gap-2 overflow-auto p-3">
             <div className="rounded border border-amber-300/40 bg-amber-400/10 p-2 text-xs text-amber-200">
-              The interactive map could not be rendered in this browser. Real source/cell data is still shown below.
+              The interactive map could not be rendered in this browser. Geographic playback is unavailable. Observed reports remain accessible below; the timeline and monitoring metrics retain their selected dates.
             </div>
-            <MapCanvas cellFeatures={focusCellFeatures} sourceFeatures={nationalSourcesFC.features} />
+            <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3" aria-label="Observed reports when map is unavailable">
+              <div className="mb-2 text-xs font-semibold text-slate-200">Observed reports{nationalCases.status === NATIONAL_CASES_STATE.READY ? ` · ${nationalCaseView.counts.inWindow} records · ${nationalCaseView.counts.withoutGps} without GPS` : ' · counts pending'}</div>
+              {nationalCases.status !== NATIONAL_CASES_STATE.READY ? <p className="text-xs text-slate-400">{nationalCases.status === NATIONAL_CASES_STATE.LOADING || nationalCases.status === NATIONAL_CASES_STATE.IDLE ? 'Loading authorised case records…' : 'Authorised case records could not be loaded.'}</p> : (
+                <ul className="grid max-h-52 gap-1 overflow-y-auto text-xs sm:grid-cols-2">
+                  {nationalCaseView.featureCollection.features.map((feature) => <li key={`${feature.properties.recordKey}:${feature.properties.ageClass}`}><button type="button" onClick={() => setSelectedNationalCase(feature.properties)} className="w-full rounded-md border border-white/10 px-2 py-2 text-left text-slate-300 hover:border-primary/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">{feature.properties.district ?? 'District unknown'} · {feature.properties.count} {feature.properties.verificationStatus === 'VERIFIED' ? 'verified' : 'pending'} report{feature.properties.count === 1 ? '' : 's'} · {feature.properties.reportDateKey ?? 'Report date unknown'}</button></li>)}
+                </ul>
+              )}
+            </div>
+            {(focusCellFeatures.length > 0 || nationalSourcesFC.features.length > 0) && <details className="rounded-lg border border-white/10 p-2 text-xs text-slate-400"><summary className="cursor-pointer">Historical source/cell preview · static analysis snapshot</summary><MapCanvas cellFeatures={focusCellFeatures} sourceFeatures={nationalSourcesFC.features} /></details>}
           </div>
         ) : (
           <MapLibreCanvas
@@ -1062,71 +1700,45 @@ export default function OutbreakMapPage() {
             operationalFeatures={operationalFeatures}
             showOperationalLayer={showOperationalLayer}
             showRiskLayer={ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES}
+            showTrajectoryLayer={showTrajectoryLayer}
+            page1ForecastVisualization={page1ForecastVisualization}
+            // Model sources/directions belong to Risk Zones and Trajectory only.
+            showPage1ForecastLayer={page1ForecastReady && (ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES || ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY)}
+            showPage1ForecastRiskZones={page1ForecastReady && ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES}
+            showResearchLayers={showResearchLayers}
+            stage={stageLayers}
+            stageMode={ctx.analysisMode}
+            onSelectNationalCase={handleSelectNationalCase}
+            onEnvPointSelect={handleEnvPointSelect}
+            onSelectRiskCell={(properties) => setSelectedRiskCellId(properties?.cellId ?? null)}
             arrivalHighlightKey={arrivalHighlightKey}
             newlyRevealedKeys={newlyRevealedKeys}
             selectedOperationalKey={operationalPopupCase ? `${operationalPopupCase.farmId}::${operationalPopupCase.disease}` : null}
             districtFeature={districtFeature}
+            districtCollection={sriLankaDistricts}
             onSelectSource={handleSelectSource}
             onSelectCell={handleSelectCell}
+            onSelectCorridor={(properties) => setSelectedCorridorId(properties?.sourceId ?? null)}
+            onHoverCorridor={setHoveredCorridor}
+            selectedCorridorSourceId={selectedCorridorId}
+            focusedCaseKey={showObservedCaseMarkers ? selectedNationalCase?.recordKey ?? null : null}
             onSelectOperationalCase={handleSelectOperationalCase}
             onMapUnavailable={() => setMapUnavailable(true)}
           />
         )}
 
-        {!ctx.selectedOutbreakId && national.status === NATIONAL_STATUS.READY && (
-          <div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
-            <div className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-400 backdrop-blur">
-              Select a historical outbreak origin to inspect its spatial context.
-            </div>
-          </div>
-        )}
 
-        {/* GEO-VIVA-TOP-UI-AND-INTERACTION-LATENCY-04: a real disease
-            switch (or a manual "check for newer snapshot") clears the
-            national historical layer while its real re-fetch is in
-            flight (`useNationalOutbreaks.js` -- deliberately locked by
-            FMD-10C1's own test so a stale LSD marker is never briefly
-            shown under FMD's shape/label, or vice versa). Without this,
-            that honest blank read as "did my click even register?" --
-            this is presentation-only, subtle, non-blocking feedback that
-            an update is genuinely in progress; it never changes what
-            data eventually renders or how long the real fetch takes. */}
-        {national.status === NATIONAL_STATUS.LOADING && (
-          <div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
-            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-400 backdrop-blur">
-              <span aria-hidden="true" className={reduceMotion ? 'h-1.5 w-1.5 rounded-full bg-primary' : 'h-1.5 w-1.5 animate-pulse rounded-full bg-primary'} />
-              Updating…
-            </div>
-          </div>
-        )}
 
-        {showNoVerifiedCasesEmptyState && (
-          // GEO30A Section 13: zero local cases is a valid surveillance
-          // result, not an error -- a small compact chip, never a
-          // map-covering message, and never implying anything about the
-          // rest of Sri Lanka (which stays visible on the scientific
-          // layer regardless).
-          <div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
-            <div
-              className="pointer-events-auto rounded-full border border-white/10 bg-slate-900/85 px-3 py-1.5 text-xs text-slate-300 shadow-lg backdrop-blur"
-              title={LABEL_NO_VERIFIED_CASES_IN_WINDOW}
-            >
-              <span aria-hidden="true" className="mr-1 text-emerald-400">
-                ✓
-              </span>
-              No verified {diseaseConfig.shortLabel} cases in{' '}
-              {vetDistrict ? `My District${vetDistrict ? ` · ${vetDistrict}` : ''}` : 'the selected scope'} ·{' '}
-              {(OBSERVATION_WINDOW_OPTIONS.find((o) => o.days === observationWindowDays)?.label ?? 'selected window').toLowerCase()}
-            </div>
-          </div>
-        )}
 
+        {/* Sits above the bottom timeline card (bottom-7, ~110px tall) so
+            the two never overlap. */}
         {clinicalEvents.notifications.length > 0 && (
-          <div className="pointer-events-none absolute bottom-24 left-4">
+          <div className="pointer-events-none absolute bottom-[9.5rem] left-4 right-4 sm:right-auto">
             <GeospatialAlertBanner
               notifications={clinicalEvents.notifications}
               onViewUpdate={handleViewClinicalUpdate}
               onDismiss={clinicalEvents.dismiss}
+              farmNames={farmNames}
             />
           </div>
         )}
@@ -1150,11 +1762,43 @@ export default function OutbreakMapPage() {
             hasClinicalMarkers={showOperationalLayer && operationalFeatures.features.length > 0}
             hasStackedSources={hasStackedSources}
             nationalMarkerShape={diseaseConfig.markerShape}
+            hasReachRing={reachRingCurrentlyVisible}
+            // Per-cell gradient arrows are a research layer: keyed only when shown.
+            hasDirectionArrows={trajectoryDirectionAvailable && showResearchLayers}
+            hasPage1Forecast={page1ForecastReady}
+            page1ForecastDateLabel={page1ForecastDateLabel}
+            nationalCaseCounts={nationalCaseStatusReady ? nationalCaseCounts : null}
+            unmappedRecords={nationalCaseStatusReady ? nationalCaseView.unmappedRecords : []}
+            onSelectUnmappedRecord={setSelectedNationalCase}
+            hasHistoricalRecords={showHistoricalRecords}
           />
         )}
 
-        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center px-4">
-          <ModeToolbar analysisMode={ctx.analysisMode} onSetMode={ctx.setMode} disease={ctx.selectedDisease} />
+        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center pl-4 pr-14 sm:px-4">
+          <ModeToolbar analysisMode={ctx.analysisMode} onSetMode={ctx.setMode} disease={ctx.selectedDisease} clustersAvailable envAvailable={Boolean(storyVetDistrict)} />
+        </div>
+        {/* Status notices: compact stack top-right (open sea), below the zoom buttons. */}
+        <div className="pointer-events-none absolute right-3 top-24 z-10 flex w-[21rem] max-w-[calc(100%-1.5rem)] justify-end">
+          <MapStatusStack
+            items={[
+              // The national research origins only feed the Retrospective view:
+              // their background load is not announced over the live map.
+              showHistoricalRecords && national.status === NATIONAL_STATUS.LOADING && {
+                key: 'national-loading',
+                tone: 'loading',
+                text: hasEverLoadedNationalRef.current ? 'Updating…' : 'Loading historical research records…',
+              },
+              showObservedCaseMarkers && nationalCases.status === NATIONAL_CASES_STATE.ERROR && {
+                key: 'national-cases-error',
+                tone: 'warn',
+                text: nationalCases.data
+                  ? `Could not refresh case records -- showing the last update (${new Date(nationalCases.lastSyncedAt).toLocaleTimeString('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit' })}). Retrying with the next sync.`
+                  : 'Countrywide case records unavailable right now (retrying with the next sync).',
+              },
+              showOperationalLayer && recentUnmappedNotice && { key: 'recent-unmapped', tone: 'warn', text: recentUnmappedNotice },
+              spatialTimelineNotice && { key: 'timeline-error', tone: 'warn', text: spatialTimelineNotice },
+            ]}
+          />
         </div>
 
         {showFmdOriginPanel && (
@@ -1185,6 +1829,75 @@ export default function OutbreakMapPage() {
           </div>
         )}
 
+        {/* Left, below the mode toolbar: the right side holds the zoom
+            controls and the map legend (`PageLegend`, bottom-28 right-4),
+            which a pinned corridor popup used to cover. */}
+        {corridorTooltip && (
+          <div className="pointer-events-none absolute left-4 top-20">
+            <CorridorPopup
+              corridor={corridorTooltip}
+              cluster={selectedCorridor ? selectedCaseCluster : null}
+              risk={selectedCorridor ? selectedCaseRisk : null}
+              pinned={Boolean(selectedCorridor)}
+              onClose={() => {
+                setSelectedCorridorId(null)
+                setHoveredCorridor(null)
+              }}
+            />
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute right-16 top-4 z-20">
+          <NewCaseToasts alerts={newCaseAlerts.alerts} onView={handleViewNewCase} onDismiss={newCaseAlerts.dismiss} />
+        </div>
+
+        {/* Env with a playable timeline: the observed values for the selected
+            day sit beside the map; the dock below drives the date. */}
+        {ctx.analysisMode === ANALYSIS_MODE.ENV && (
+          <div className="pointer-events-auto absolute left-4 top-20 z-10 max-h-[70%] w-[20rem] max-w-[calc(100%-2rem)] overflow-y-auto rounded-xl border border-white/10 bg-slate-900/95 p-3 shadow-xl">
+            <WeatherForecastStrip
+              district={storyVetDistrict}
+              areaLabel={envPoint ? [envPoint.place ? `near ${envPoint.place}` : `${envPoint.point[1].toFixed(3)}, ${envPoint.point[0].toFixed(3)}`, envPoint.district].filter(Boolean).join(' · ') : null}
+              pointMode={Boolean(envPoint)}
+              onClearPoint={() => setEnvPoint(null)}
+              dates={envDates}
+              selectedDate={environmentDate}
+              days={districtForecast.days}
+              status={districtForecast.status}
+              fetchedAt={districtForecast.fetchedAt}
+              pointCount={districtForecast.pointCount}
+              todayKey={todayKey}
+              onSelectIndex={page1ForecastAvailable ? handleSelectPage1ForecastIndex : setEnvDayIndex}
+            />
+            {!envForecastDay && (
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <Era5Observations
+                  state={environmentObservations}
+                  asOf={environmentDate}
+                  district={storyVetDistrict}
+                  unavailableText={!storyVetDistrict ? 'An authorised district must be resolved before loading its environmental observations.' : environmentDateInFuture ? `No observed weather exists yet for ${formatDisplayDate(environmentDate)}.` : null}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedNationalCase && showObservedCaseMarkers && (
+          <div className="pointer-events-none absolute left-4 top-20">
+            <NationalCaseCard record={selectedNationalCase} ageReferenceLabel={caseAgeRef.label} onClose={() => { setSelectedNationalCase(null); setSelectedCorridorId(null) }} />
+          </div>
+        )}
+
+        {selectedRiskCell && !selectedNationalCase && ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES && (
+          <div className="pointer-events-none absolute left-4 top-20">
+            <RiskCellCard cell={selectedRiskCell} story={spatialStory} onClose={() => setSelectedRiskCellId(null)} />
+          </div>
+        )}
+
+
+
+
+
         {selectedCellFeature && (
           <div className="pointer-events-none absolute bottom-28 right-4">
             <CellPopup
@@ -1212,57 +1925,58 @@ export default function OutbreakMapPage() {
             control's own size, and stays well inside the 110px bottom
             camera padding that already reserves room for this lane. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-7 flex justify-center px-4">
-          {showOperationalLayer ? (
-            <ObservedTimelineControl
-              dates={observedReplayDates}
-              selectedDateKey={observedReplayDateKey}
-              isPlaybackActive={isObservedPlaybackActive}
-              onSelectDate={handleSelectObservedDate}
-              onPlay={handlePlayObservedReplay}
-              onPause={handlePauseObservedReplay}
-              onPrev={handleObservedPrev}
-              onNext={handleObservedNext}
-              windowLabel={(OBSERVATION_WINDOW_OPTIONS.find((o) => o.days === observationWindowDays)?.label ?? 'selected window')}
-              emptyStateText={`No verified ${diseaseConfig.shortLabel} cases in ${vetDistrict ? `My District · ${vetDistrict}` : 'the selected scope'}`}
-              reduceMotion={reduceMotion}
-              playbackSpeed={playbackSpeed}
-              onChangeSpeed={setPlaybackSpeed}
-              // GEO33B Section 10: stated EXPLICITLY at the call site
-              // rather than left to the component default, so it is
-              // obvious from this page which real dataset the Cases-mode
-              // timeline replays. These dates come from
-              // `observedReplayDates`, built only from real verified
-              // clinical `verificationTime` values -- never from the
-              // national historical/scientific layer, which has no date
-              // field in its API response at all and therefore has no
-              // replay here. The two are never mixed in one timeline.
-              datasetLabel={LABEL_OBSERVED_CASES_TIMELINE}
-            />
-          ) : (
+          {/* Cases mode never offers model (future) playback: only the observed
+              replay of real verification dates below. */}
+          {ctx.analysisMode === ANALYSIS_MODE.ENV && !page1ForecastAvailable ? null : ctx.analysisMode === ANALYSIS_MODE.CLUSTERS ? (
+            <div className="pointer-events-auto w-full max-w-3xl rounded-xl border border-violet-400/30 bg-[#0e1511]/[0.92] px-4 py-2.5 text-[11px] text-slate-200 shadow-lg" role="status" aria-label="ST-DBSCAN clusters">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded border border-amber-300/50 px-1.5 text-[9px] font-bold uppercase tracking-wide text-amber-200">Exploratory</span>
+                <span className="font-semibold text-violet-200">ST-DBSCAN space-time clusters</span>
+                {stClusters.data && <span>{stClusters.data.cluster_count} cluster{stClusters.data.cluster_count === 1 ? '' : 's'} · {stClusters.data.noise_count} noise · {stClusters.data.input.operational_case_points} case reports ({stClusters.data.input.distinct_operational_farms} farms) · {stClusters.data.as_of}</span>}
+                {stClusters.status === 'loading' && <span>Computing...</span>}
+                {stClusters.status === 'error' && <span>{stClusters.errorStatus === 'SESSION_REQUIRED' ? 'Sign in to load cluster data.' : stClusters.errorStatus === 'FORBIDDEN' ? 'Veterinarian access is required.' : stClusters.errorStatus === 'INVALID_RESPONSE' ? 'Cluster response could not be parsed.' : 'Cluster calculation unavailable: request failed.'}</span>}
+              </div>
+              {stClusters.data && (
+                <div className="mt-1 leading-snug text-slate-400">
+                  {stClusters.data.clusters.map((c) => `${c.member_count} reports from ${c.distinct_farm_or_support_count} farms, ${c.start_date} to ${c.end_date}`).join(' · ') || (stClusters.data.status === 'NO_ELIGIBLE_POINTS' ? 'No eligible observed records for this analysis date.' : 'Eligible records were evaluated; no cluster met the configured space-time and support thresholds.')}
+                  {' '}Clusters describe observed records at the analysis date; they do not move or create future cases during reach playback.
+                  {' '}Parameters ε<sub>s</sub>={stClusters.data.parameters.eps_space_km} km, ε<sub>t</sub>={stClusters.data.parameters.eps_time_days} d, min farms={stClusters.data.parameters.min_core_supports} (unfrozen development candidate). Descriptive grouping only -- not a validated outbreak chain or transmission evidence.
+                </div>
+              )}
+            </div>
+          ) : page1ForecastAvailable && !showOperationalLayer && (ctx.analysisMode === ANALYSIS_MODE.RISK_ZONES || ctx.analysisMode === ANALYSIS_MODE.TRAJECTORY || ctx.analysisMode === ANALYSIS_MODE.ENV) ? (
             <TimelineControl
-              availableDays={ctx.availableForecastFrames}
-              selectedDay={ctx.selectedForecastDay}
-              t0={focus.summary?.analysis_metadata?.t0}
-              isPlaybackActive={ctx.isPlaybackActive}
-              onSelectDay={handleSelectDay}
-              onPlay={ctx.play}
-              onPause={ctx.pause}
-              onPrev={() => handleSelectDay(ctx.availableForecastFrames[Math.max(0, ctx.availableForecastFrames.indexOf(ctx.selectedForecastDay) - 1)])}
-              onNext={() => handleSelectDay(ctx.availableForecastFrames[Math.min(ctx.availableForecastFrames.length - 1, ctx.availableForecastFrames.indexOf(ctx.selectedForecastDay) + 1)])}
+              presentationDates={timelineFrameDates}
+              activeIndex={page1ForecastActiveIndex}
+              isPlaybackActive={isPage1ForecastPlaying}
+              onSelectDay={handleSelectPage1ForecastIndex}
+              onPlay={handlePlayPage1Forecast}
+              onPause={() => setIsPage1ForecastPlaying(false)}
+              onPrev={() => handleSelectPage1ForecastIndex(page1ForecastActiveIndex - 1)}
+              onNext={() => handleSelectPage1ForecastIndex(page1ForecastActiveIndex + 1)}
               reduceMotion={reduceMotion}
               playbackSpeed={playbackSpeed}
               onChangeSpeed={setPlaybackSpeed}
-              isLoadingFocus={focus.status === FOCUS_STATUS.LOADING}
-              // GEO-UI-TIMELINE-01: stated explicitly at the call site, same
-              // reasoning as `ObservedTimelineControl`'s `datasetLabel`
-              // just below -- this is the ONLY mode that currently ever
-              // mounts `TimelineControl` (Clusters/Trajectory/Env stay
-              // honestly disabled in `ModeToolbar.jsx`), so "Forecast risk"
-              // is never a guess about which real dataset is being shown.
-              datasetLabel={LABEL_FORECAST_RISK_TIMELINE}
+              datasetLabel="Reach horizon"
+              statusLabel={[page1HorizonLabel, `${basisOption.shortLabel} · as of ${formatDisplayDate(timelineSnapshot.as_of)}`].filter(Boolean).join(' · ')}
+              plateauLabel={page1PlateauNote}
+              isUpdating={isPage1ForecastUpdating || spatialTimeline.status === SPATIAL_TIMELINE_STATE.LOADING}
             />
+          ) : showOperationalLayer ? null : (
+            spatialTimeline.status === SPATIAL_TIMELINE_STATE.READY || spatialTimeline.status === SPATIAL_TIMELINE_STATE.ERROR ? (
+              <TimelineChooserDock
+                title={timelineEmptyReason.title}
+                body={timelineEmptyReason.body}
+                options={timelineEmptyReason.canSwitchBasis ? basisOptions : []}
+                currentId={basisOption.id}
+                onChoose={setAnalysisBasis}
+              />
+            ) : null
           )}
         </div>
+      </div>
+      <div className="shrink-0">
+        <SpatialEvidencePanel timeline={timelineSnapshot} diseaseShortLabel={diseaseConfig.shortLabel} />
       </div>
     </div>
   )

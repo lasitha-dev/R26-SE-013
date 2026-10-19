@@ -77,3 +77,41 @@ describe('GEO-PAGE1-FINAL Section 19: RECONNECTING is reserved for the operation
     expect(signature).not.toMatch(/national|focus|riskStatus|snapshotStatus/)
   })
 })
+
+describe('connection status never claims to be reconnecting when it is not, and never reconnects forever', () => {
+  it('a healthy delta-refresh stream is PERIODIC REFRESH, not RECONNECTING', () => {
+    const html = renderMenu({ pushState: EVENT_STREAM_STATE.CONNECTED, pushTransportMode: TRANSPORT_MODE.DELTA_REFRESH, pushIsStale: false })
+    expect(headerLabel(html)).toBe('PERIODIC REFRESH')
+  })
+
+  it('a connected stream on no recognised live transport (e.g. a fixture backend) says LIVE UPDATES UNAVAILABLE', () => {
+    const html = renderMenu({ pushState: EVENT_STREAM_STATE.CONNECTED, pushTransportMode: 'fixture_no_live_updates', pushIsStale: false })
+    expect(headerLabel(html)).toBe('LIVE UPDATES UNAVAILABLE')
+  })
+
+  it('RECONNECTING only for the first attempts, then LIVE UPDATES UNAVAILABLE (retries continue quietly)', () => {
+    const at = (attempt) => headerLabel(renderMenu({ pushState: EVENT_STREAM_STATE.RECONNECTING, pushTransportMode: null, pushIsStale: true, pushReconnectAttempt: attempt }))
+    expect(at(1)).toBe('RECONNECTING')
+    expect(at(2)).toBe('RECONNECTING')
+    expect(at(3)).toBe('LIVE UPDATES UNAVAILABLE')
+    expect(at(9)).toBe('LIVE UPDATES UNAVAILABLE')
+  })
+
+  it('the National Map passes the real reconnect attempt count from the event stream', () => {
+    const page = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'pages', 'OutbreakMapPage.jsx'), 'utf-8')
+    expect(page).toContain('pushReconnectAttempt={clinicalEvents.reconnectAttempt}')
+  })
+})
+
+describe('National Map defaults (scientific correction)', () => {
+  const page = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'pages', 'OutbreakMapPage.jsx'), 'utf-8')
+  it('research layers (historical-origin grid, gradient arrows, 2020 replay) are no longer offered', () => {
+    expect(page).toContain('const showResearchLayers = false')
+    expect(page).not.toContain('aria-label="Research layers"')
+    expect(page).not.toContain('setShowResearchLayers')
+  })
+  it('opens on the Sri Lanka overview: no automatic zoom to the vet district on load', () => {
+    expect(page).toContain('const [locationScope, setLocationScope] = useState(LOCATION_SCOPE.SRI_LANKA)')
+    expect(page).not.toMatch(/if \(mapCanvasRef\.current\?\.isReady\?\.\(\)\) \{\s*handleFocusMyDistrict\(\)/)
+  })
+})
