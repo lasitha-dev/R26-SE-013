@@ -1,6 +1,5 @@
 import ImageEvidenceStatus from './components/ImageEvidenceStatus';
 import ImageEvidenceViewer from './components/ImageEvidenceViewer';
-import ImageContextFields from './components/ImageContextFields';
 import SegmenterDetails from './components/SegmenterDetails';
 import { SEGMENTER_NAME, SYMPTOM_OVERLAY_LABEL } from './modelInfo';
 import React, { useEffect, useState } from 'react';
@@ -9,6 +8,7 @@ import UploadDropzone from './components/UploadDropzone';
 import ReasoningBriefing from './components/ReasoningBriefing';
 import useDetection from './hooks/useDetection';
 import ClinicalChecklist from './components/ClinicalChecklist';
+import ClinicalRecommendationCard from './components/ClinicalRecommendationCard';
 import { clinicalDiseaseKey, resolveSeverity } from './clinicalSeverity';
 import { reportDiagnosticCase, verifyDiagnosticCase } from './services/api';
 
@@ -40,12 +40,11 @@ const SmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, retryReasoning,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, recommendation, retryReasoning,
     assessClinicalObservations, invalidateClinicalAssessment,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
-  const [imageContext, setImageContext] = useState({});
   const [activeView, setActiveView] = useState('full'); // 'full' | 'lesion'
 
   // Fetch cattle metadata and existing cases if cattleId is passed in URL
@@ -137,6 +136,7 @@ const SmartDiagnostics = () => {
   const severityGrade = effectiveSeverity?.grade || 'Unassessable';
   const severityDescription = effectiveSeverity?.description || 'No severity assessment is available.';
   const severityFormatted = effectiveSeverity?.formatted || effectiveSeverity?.grade || 'Unassessable';
+  const activeRecommendation = recommendation || effectiveSeverity?.recommendation || explanation?.recommendation || null;
 
   const gradeLower = (severityGrade || '').toLowerCase();
   const severityColor = gradeLower.includes('severe') || gradeLower.includes('high')
@@ -179,7 +179,7 @@ const SmartDiagnostics = () => {
   const handleFile = (file) => {
     setCaseReport(null);
     setReportError(null);
-    detect(file, imageContext);
+    detect(file);
   };
 
   const handleResetAnalysis = () => {
@@ -187,7 +187,6 @@ const SmartDiagnostics = () => {
     setShowSymptomMask(true);
     setCaseReport(null);
     setReportError(null);
-    setImageContext({});
     reset();
   };
 
@@ -404,7 +403,7 @@ const SmartDiagnostics = () => {
           <>
             {/* ========= IDLE / LOADING VIEW ========= */}
             {(isIdle || isLoading) && (
-              <div><ImageContextFields value={imageContext} onChange={setImageContext} /><UploadDropzone isLoading={isLoading} onFile={handleFile} /></div>
+              <UploadDropzone isLoading={isLoading} onFile={handleFile} />
             )}
           </>
         )}
@@ -414,9 +413,9 @@ const SmartDiagnostics = () => {
           <div className="space-y-6" data-testid="success-view">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-              {/* Column 1: Symptom Analysis (7/12 on desktop) */}
-              <div className="lg:col-span-7 self-start lg:sticky lg:top-4">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 h-full flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle">
+              {/* Column 1: Symptom Analysis & Clinical Recommendations (7/12 on desktop) */}
+              <div className="lg:col-span-7 flex flex-col space-y-6">
+                <div className={`bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle ${!activeRecommendation && reasoningStatus !== 'loading' ? 'flex-1' : ''}`}>
                   {/* Section header */}
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3 md:mb-4 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
@@ -504,11 +503,18 @@ const SmartDiagnostics = () => {
                   <ImageEvidenceViewer result={result} original={imagePreview} cropped={croppedImage}
                     overlay={symptomsImage} view={activeView} showMask={showSymptomMask} />
                 </div>
+
+                {/* Actionable Clinical Recommendations (LLM Decision Support) */}
+                <ClinicalRecommendationCard
+                  recommendation={activeRecommendation}
+                  loading={reasoningStatus === 'loading'}
+                  className="flex-1"
+                />
               </div>
 
               {/* Column 2: AI Logic Trace (5/12 on desktop) */}
-              <div className="lg:col-span-5">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col border border-outline-variant/15 shadow-card-subtle h-full">
+              <div className="lg:col-span-5 flex flex-col">
+                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex-1 flex flex-col justify-between border border-outline-variant/15 shadow-card-subtle">
                   {/* Section header */}
                   <div className="flex items-center justify-between mb-4 md:mb-5 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
@@ -523,7 +529,7 @@ const SmartDiagnostics = () => {
                   </div>
 
                   {/* Step-by-step trace */}
-                  <div className="space-y-3 mb-5 md:mb-6 flex-1">
+                  <div className="space-y-3 mb-5 md:mb-6">
                     {/* Step 1 */}
                     <div className={`p-2.5 rounded-xl bg-surface-container/60 border border-outline-variant/10 transition-all duration-500 flex items-center gap-3 ${visibleSteps >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                       <div className="w-6 h-6 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
@@ -606,8 +612,50 @@ const SmartDiagnostics = () => {
                         )}
                       </div>
 
+                      {/* Clinical Severity (LLM Reasoned) Section */}
+                      <div className="pt-2 pb-1 border-t border-outline-variant/15">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-3xs text-outline uppercase font-bold tracking-wider flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-primary">neurology</span>
+                            Clinical Severity (LLM Reasoned)
+                          </span>
+                          <span className={`text-xs font-mono font-black uppercase px-2 py-0.5 rounded border ${
+                            gradeLower.includes('severe') || gradeLower.includes('high')
+                              ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                              : gradeLower.includes('moderate')
+                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                              : 'bg-teal-500/15 border-teal-500/30 text-teal-300'
+                          }`}>
+                            {severityGrade}
+                          </span>
+                        </div>
+                        <p className="font-bold text-sm text-amber-300" data-testid="clinical-checklist-grade">{severityFormatted}</p>
+
+                        {/* Model Inference Telemetry Sent to LLM */}
+                        <div className="mt-2 grid grid-cols-2 gap-2 p-2 rounded-lg bg-surface-container/60 border border-outline-variant/10 text-3xs font-mono">
+                          <div>
+                            <span className="text-outline block">Model Lesion Burden</span>
+                            <span className="text-on-surface font-semibold">
+                              {effectiveSeverity?.visual_assessment?.coverage_pct != null
+                                ? `${effectiveSeverity.visual_assessment.coverage_pct}% crop coverage`
+                                : result?.severity?.coverage_pct != null
+                                ? `${result.severity.coverage_pct}% crop coverage`
+                                : result?.coverage_pct != null
+                                ? `${result.coverage_pct}% crop coverage`
+                                : 'Visual metrics analyzed'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-outline block">Model Confidence</span>
+                            <span className="text-on-surface font-semibold">
+                              {confidence}% (ViT)
+                              {result?.best_detection?.confidence ? ` · ${(result.best_detection.confidence * 100).toFixed(0)}% (YOLO)` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Needs Review Alert Banner */}
-                      <p className="font-bold text-sm text-amber-300" data-testid="clinical-checklist-grade">{severityFormatted}</p>
                       {needsReview && (
                         <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-2xs flex items-center gap-2" data-testid="needs-review-banner">
                           <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
@@ -639,10 +687,8 @@ const SmartDiagnostics = () => {
                     </div>
                   </div>
 
-
-
                   {/* Vet Action & Verification Area */}
-                  <div className={`mt-5 md:mt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                  <div className={`mt-auto pt-5 md:pt-6 transition-all duration-500 ${visibleSteps >= 5 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                     {caseReport && caseReport.verified ? (
                       <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-3 animate-fadeIn" data-testid="verified-case-banner">
                         <div className="flex items-center justify-between">

@@ -22,6 +22,7 @@ export default function useDetection() {
   const [reasoningError, setReasoningError] = useState(null);
   const [severityAssessment, setSeverityAssessment] = useState(null);
   const [explanation, setExplanation] = useState(null);
+  const [recommendation, setRecommendation] = useState(null);
   const imageRevision = useRef(0);
   const reasoningRevision = useRef(0);
   const previewRef = useRef(null);
@@ -41,12 +42,19 @@ export default function useDetection() {
     setReasoning(null);
     setSeverityAssessment(null);
     setExplanation(null);
+    setRecommendation(null);
     try {
       const reasoningData = await fetchReasoning(data);
       if (!current()) return;
       setReasoning(reasoningData.reasoning_report || null);
       setSeverityAssessment(reasoningData.severity_assessment || null);
       setExplanation(reasoningData.explanation || null);
+      setRecommendation(
+        reasoningData.recommendations ||
+        reasoningData.explanation?.recommendation ||
+        reasoningData.severity_assessment?.recommendation ||
+        null
+      );
       setReasoningStatus(reasoningData.status === 'ok' ? 'done' : ['fallback', 'unavailable'].includes(reasoningData.status) ? reasoningData.status : 'error');
       if (reasoningData.status !== 'ok') setReasoningError(reasoningData.reasoning_report);
     } catch (reasonErr) {
@@ -64,6 +72,7 @@ export default function useDetection() {
     setReasoningError(null);
     setSeverityAssessment(null);
     setExplanation(null);
+    setRecommendation(null);
   }, []);
 
   const assessClinicalObservations = useCallback(async (observations) => {
@@ -83,6 +92,7 @@ export default function useDetection() {
     setReasoningError(null);
     setSeverityAssessment(null);
     setExplanation(null);
+    setRecommendation(null);
 
     // Create a local preview URL so we can display the uploaded image
     const previewUrl = URL.createObjectURL(file);
@@ -125,6 +135,7 @@ export default function useDetection() {
     setReasoningError(null);
     setSeverityAssessment(null);
     setExplanation(null);
+    setRecommendation(null);
   }, [imagePreview]);
 
   return {
@@ -139,6 +150,7 @@ export default function useDetection() {
     reasoningError,
     severityAssessment,
     explanation,
+    recommendation,
     assessClinicalObservations,
     invalidateClinicalAssessment,
     retryReasoning: () => result && requestReasoning(lastReasoningInput.current || result, imageRevision.current),

@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import UploadDropzone from '../../SmartDiagnostics/components/UploadDropzone';
 import ReasoningBriefing from '../../SmartDiagnostics/components/ReasoningBriefing';
+import ClinicalRecommendationCard from '../../SmartDiagnostics/components/ClinicalRecommendationCard';
 import useDetection from '../../SmartDiagnostics/hooks/useDetection';
 import { clinicalDiseaseKey, resolveSeverity } from '../../SmartDiagnostics/clinicalSeverity';
 import { reportDiagnosticCase } from '../../SmartDiagnostics/services/api';
@@ -48,7 +49,7 @@ const FarmerSmartDiagnostics = () => {
 
   const {
     status, result, error, imagePreview, detect, reset,
-    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, retryReasoning,
+    reasoning, reasoningStatus, reasoningError, severityAssessment, explanation, recommendation, retryReasoning,
   } = useDetection();
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [showSymptomMask, setShowSymptomMask] = useState(true);
@@ -182,6 +183,7 @@ const FarmerSmartDiagnostics = () => {
   const severityGrade = effectiveSeverity?.grade || 'Unassessable';
   const severityFormatted = effectiveSeverity?.formatted || severityGrade;
   const severityDescription = effectiveSeverity?.description || 'No severity assessment is available.';
+  const activeRecommendation = recommendation || effectiveSeverity?.recommendation || explanation?.recommendation || null;
   const confidenceLevel = effectiveSeverity?.confidence_level || 'Unknown';
   const needsReview = Boolean(effectiveSeverity?.needs_review || result?.review?.required);
 
@@ -685,9 +687,9 @@ const FarmerSmartDiagnostics = () => {
           <div className="space-y-6" data-testid="success-view">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-              {/* Column 1: Symptom Analysis (7/12) */}
-              <div className="lg:col-span-7">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 h-full flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle">
+              {/* Column 1: Symptom Analysis & Clinical Recommendations (7/12) */}
+              <div className="lg:col-span-7 flex flex-col space-y-6">
+                <div className={`bg-surface-container-low rounded-2xl p-4 md:p-6 flex flex-col overflow-hidden relative border border-outline-variant/15 shadow-card-subtle ${!activeRecommendation && reasoningStatus !== 'loading' ? 'flex-1' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3 md:mb-4 pb-3 border-b border-outline-variant/10">
                     <div className="flex items-center gap-2.5">
                       <div className="p-1.5 bg-primary/10 rounded-lg border border-primary/20">
@@ -767,11 +769,18 @@ const FarmerSmartDiagnostics = () => {
                   <ImageEvidenceViewer result={result} original={imagePreview} cropped={croppedImage}
                     overlay={symptomsImage} view={activeView} showMask={showSymptomMask} />
                 </div>
+
+                {/* Actionable Clinical Recommendations (LLM Decision Support) */}
+                <ClinicalRecommendationCard
+                  recommendation={activeRecommendation}
+                  loading={reasoningStatus === 'loading'}
+                  className="flex-1"
+                />
               </div>
 
               {/* Column 2: AI Logic Trace & Disease Reporting (5/12) */}
-              <div className="lg:col-span-5">
-                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 border border-outline-variant/15 shadow-card-subtle h-full flex flex-col justify-between">
+              <div className="lg:col-span-5 flex flex-col">
+                <div className="bg-surface-container-low rounded-2xl p-4 md:p-6 flex-1 border border-outline-variant/15 shadow-card-subtle flex flex-col justify-between">
                   <div className="space-y-4">
                     {/* Section Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-outline-variant/10">
@@ -851,7 +860,7 @@ const FarmerSmartDiagnostics = () => {
 
                   <ImageEvidenceStatus result={result} />
                   {/* Report Action Area for Farmer */}
-                  <div className="mt-5 pt-4 border-t border-outline-variant/15">
+                  <div className="mt-auto pt-4 border-t border-outline-variant/15">
                     {caseReport ? (
                       <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-3 animate-fadeIn" data-testid="farmer-reported-case-banner">
                         <div className="flex items-center justify-between">

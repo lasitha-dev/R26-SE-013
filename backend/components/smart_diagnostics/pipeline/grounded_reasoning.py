@@ -227,6 +227,12 @@ def assemble_explanation(context, selection, origin):
     limitations = selected("limitations", list(context["limitations"]), selection.limitation_ids)
     checks = selected("checks", context["required_checks"], selection.next_check_ids)
     ids = list(dict.fromkeys(ref for item in [*facts, *checks] for ref in item["reference_ids"]))
+    rec_data = context["record"]["assessment"].get("recommendation")
+    recommendation = None
+    if rec_data:
+        from ..schemas import ClinicalRecommendation
+        recommendation = ClinicalRecommendation.model_validate(rec_data) if isinstance(rec_data, dict) else rec_data
+
     visual = context["record"]["assessment"].get("visual_assessment") or {}
     summary = context["evidence"]["assessment"]["text"] + " " + context["evidence"]["prediction"]["text"]
     return GroundedExplanation(origin=origin, summary=summary, supporting_evidence=evidence,
@@ -234,7 +240,8 @@ def assemble_explanation(context, selection, origin):
         references=[dict(id=id, **context["pack"]["sources"][id]) for id in ids],
         reference_pack_version=context["pack"]["version"], reference_pack_sha256=_digest(context["pack"]),
         reference_review_status=context["pack"]["review_status"], evidence_sha256=_digest(context["record"]),
-        severity_policy_version=visual.get("policy_version"), severity_policy_sha256=visual.get("policy_sha256"))
+        severity_policy_version=visual.get("policy_version"), severity_policy_sha256=visual.get("policy_sha256"),
+        recommendation=recommendation)
 
 
 def validate_severity_selection(context, selection):
@@ -256,7 +263,20 @@ def render_report(explanation):
             ("General Reference Context", explanation.reference_context), ("Limitations and Review", explanation.limitations),
             ("Suggested Next Checks", explanation.next_checks)), start=2):
         sections.append(f"## {index}. {title}\n\n" + ("\n".join("- " + item.text for item in items) or "No additional items selected."))
-    sections.append("## 6. References\n\n" + "\n".join(f"- [{ref['title']}]({ref['url']})" for ref in explanation.references))
+    if explanation.recommendation:
+        rec = explanation.recommendation
+        rec_lines = [
+            f"- **Triage Priority:** {rec.triage_level}",
+            "- **Biosecurity & Quarantine:** " + "; ".join(rec.biosecurity_protocol),
+            "- **Clinical Monitoring:** " + "; ".join(rec.clinical_monitoring),
+        ]
+        if rec.treatment_considerations:
+            rec_lines.append(f"- **Supportive Care Considerations:** {rec.treatment_considerations}")
+        sections.append("## 6. Actionable Clinical Recommendations\n\n" + "\n".join(rec_lines))
+        ref_heading = "## 7. References\n\n"
+    else:
+        ref_heading = "## 6. References\n\n"
+    sections.append(ref_heading + "\n".join(f"- [{ref['title']}]({ref['url']})" for ref in explanation.references))
     sections.append(f"Reference review: {explanation.reference_review_status}\n\n"
                     f"Explanation origin: {explanation.origin}; reference pack: {explanation.reference_pack_version}; "
                     f"reference pack SHA-256: {explanation.reference_pack_sha256}; prompt: {explanation.prompt_version}; "

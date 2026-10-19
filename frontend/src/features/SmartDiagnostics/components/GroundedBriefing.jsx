@@ -1,4 +1,5 @@
 import React from 'react';
+import ClinicalRecommendationCard from './ClinicalRecommendationCard';
 
 /** Render only server-validated points; all text uses React's normal escaping. */
 export default function GroundedBriefing({ explanation, assessment, status }) {
@@ -20,6 +21,7 @@ export default function GroundedBriefing({ explanation, assessment, status }) {
     </div>
     {assessment && <p className="text-sm font-bold text-amber-300" data-testid="briefing-severity-grade">{assessment.formatted || assessment.grade}</p>}
     <p className="text-sm text-on-surface-variant">{explanation.summary}</p>
+    {explanation.recommendation && <ClinicalRecommendationCard recommendation={explanation.recommendation} />}
     {groups.filter(([, points]) => points?.length).map(([heading, points]) => <div key={heading}>
       <h4 className="text-sm font-bold text-on-surface">{heading}</h4>
       <ul className="mt-2 space-y-2 text-xs leading-relaxed text-on-surface-variant">

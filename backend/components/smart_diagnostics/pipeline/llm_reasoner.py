@@ -152,6 +152,7 @@ def create_clinical_fallback_severity(vision_results: Dict[str, Any]) -> Severit
     Used when LLM service is offline or in test environments.
     """
     from components.smart_diagnostics.implementations.severity_scorer import compute_composite_severity
+    from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
 
     detections = vision_results.get("detections", [])
     primary_det = detections[0] if detections else {}
@@ -268,6 +269,9 @@ def parse_llm_severity_assessment(
             formatted=grade,
             source="composite_scoring",
         )
+        from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
+        primary_name = primary_det.get("vit_predicted_display") or primary_det.get("vit_predicted_class")
+        sev_model.recommendation = generate_clinical_recommendation(primary_name, grade, lsr)
         return cleaned_report, sev_model
 
     if match:
@@ -300,6 +304,9 @@ def parse_llm_severity_assessment(
             formatted=grade,
             source="llm_reasoning",
         )
+        from components.smart_diagnostics.implementations.clinical_recommendations import generate_clinical_recommendation
+        primary_name = primary_det.get("vit_predicted_display") or primary_det.get("vit_predicted_class")
+        sev_model.recommendation = generate_clinical_recommendation(primary_name, grade, lsr)
         return cleaned_report, sev_model
 
     # Fallback: extract directly from the report text or compute clinical fallback
@@ -325,19 +332,29 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
     from ..config import settings
     from .grounded_reasoning import (ExplanationSelection, build_context, default_selection,
         assemble_explanation, selection_prompt, selection_schema, render_report)
+    from ..implementations.clinical_recommendations import generate_clinical_recommendation
+
     clinical = _clinical_checklist_assessment(vision_results) if vision_results.get("clinical_observations") is not None else None
     upstream = vision_results.get("upstream_severity")
     baseline = clinical[1] if clinical else SeverityMetrics.model_validate(upstream) if upstream else None
     if not vision_results.get("detections"):
         return ReasoningResponse(status="unavailable", error_code="no_analysis_evidence", reasoning_report="No analyzed region is available for explanation.", severity_assessment=baseline)
     baseline = baseline or create_clinical_fallback_severity(vision_results)
+
+    primary = (vision_results.get("detections") or [{}])[0]
+    primary_name = primary.get("vit_predicted_display") or primary.get("vit_predicted_class") or "Condition"
+    grade_for_rec = baseline.grade if baseline else "Unassessable"
+    cov_for_rec = baseline.lesion_coverage_pct if baseline else None
+    rec = generate_clinical_recommendation(primary_name, grade_for_rec, cov_for_rec)
+
     context = build_context(vision_results, baseline, farm_metadata)
     model_name = None
 
     def fallback(code, message, status="fallback"):
         explanation = assemble_explanation(context, default_selection(context), "template")
         return ReasoningResponse(status=status, error_code=code, model_name=model_name,
-            reasoning_report=message + "\n\n" + render_report(explanation), severity_assessment=baseline, explanation=explanation)
+            reasoning_report=message + "\n\n" + render_report(explanation), severity_assessment=baseline,
+            explanation=explanation, recommendations=rec)
 
     try:
         from openai import OpenAI
@@ -368,16 +385,20 @@ def generate_report_result(vision_results: Dict[str, Any], farm_metadata=None):
                 from ..implementations.severity_scorer import combine_reasoned_severity
                 combined = combine_reasoned_severity(baseline, selection.severity_grade,
                     [context["evidence"][id]["text"] for id in selection.severity_evidence_ids], context["severity_policy"])
+                combined_rec = generate_clinical_recommendation(primary_name, combined.grade, combined.lesion_coverage_pct)
+                combined.recommendation = combined_rec
                 updated_context = build_context(vision_results, combined, farm_metadata, policy=context["severity_policy"])
                 # The original context has already validated the recommendation;
                 # the final context renders the combined grade and its evidence.
                 rendered_selection = selection.model_copy(update=dict(severity_grade=None, severity_evidence_ids=[]))
                 explanation = assemble_explanation(updated_context, rendered_selection, "llm_selected")
+                explanation.recommendation = combined_rec
                 baseline = combined
+                rec = combined_rec
         except ValueError:
             return fallback("invalid_explanation", "The generated explanation could not be verified. A reference summary is shown; the original assessment is retained.")
         return ReasoningResponse(status="ok", reasoning_report=render_report(explanation), model_name=model_name,
-            severity_assessment=baseline, explanation=explanation)
+            severity_assessment=baseline, explanation=explanation, recommendations=rec)
     except Exception as exc:
         logger.warning("Explanation unavailable (%s)", type(exc).__name__)
         return fallback("explanation_unavailable", "Explanation unavailable. A reference summary is shown. The original image assessment, measurements and review flags are retained; retry explanation separately.")

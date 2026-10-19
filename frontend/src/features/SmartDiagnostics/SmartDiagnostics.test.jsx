@@ -731,5 +731,49 @@ describe('SmartDiagnostics', () => {
     expect(screen.getAllByText('EXISTING IMAGE SCORE').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('REPORTED / IMAGE GEOMETRY')).toBeInTheDocument();
   });
+
+  it('renders LLM Reasoned Clinical Severity and Clinical Recommendations card when returned by reasoning engine', async () => {
+    const api = await import('./services/api');
+    vi.clearAllMocks();
+    const visual = { grade: 'Mild', source: 'visual_thresholds', needs_review: false, coverage_pct: 15.0 };
+    const combined = {
+      grade: 'Moderate',
+      formatted: 'Moderate severity estimate',
+      source: 'model_llm_reasoning',
+      needs_review: false,
+      description: 'Moderate severity reasoned from ViT confidence and U-Net lesion burden.',
+      diagnostic_rationale: 'LLM reasoned from visual and clinical metrics.',
+      recommendation: {
+        triage_level: 'Urgent',
+        biosecurity_protocol: ['Enforce immediate physical isolation in vector-screened enclosure.'],
+        clinical_monitoring: ['Monitor body temperature BID.'],
+        treatment_considerations: 'Supportive antipyretic therapy.'
+      }
+    };
+    api.detectImage.mockResolvedValue({
+      cattle_detected: true,
+      detections: [],
+      disease: { name: 'Lumpy Skin Disease', confidence: 92.5 },
+      severity: visual,
+      review: { required: false }
+    });
+    api.fetchReasoning.mockResolvedValue({
+      status: 'ok',
+      severity_assessment: combined,
+      recommendations: combined.recommendation
+    });
+
+    renderWithRouter(<SmartDiagnostics />);
+    await act(async () => {
+      await userEvent.upload(screen.getByTestId('file-input'), new File(['image'], 'cow.jpg', { type: 'image/jpeg' }));
+    });
+
+    expect(screen.getByText('Clinical Severity (LLM Reasoned)')).toBeInTheDocument();
+    expect(screen.getByTestId('clinical-checklist-grade')).toHaveTextContent('Moderate severity estimate');
+    expect(screen.getByTestId('clinical-recommendation-card')).toBeInTheDocument();
+    expect(screen.getByTestId('recommendation-triage-level')).toHaveTextContent('Triage: Urgent');
+    expect(screen.getByText('Enforce immediate physical isolation in vector-screened enclosure.')).toBeInTheDocument();
+    expect(screen.getByText('Monitor body temperature BID.')).toBeInTheDocument();
+  });
 });
 

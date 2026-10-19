@@ -52,6 +52,13 @@ class Disease(BaseModel):
     all_probabilities: Dict[str, float]
 
 
+class ClinicalRecommendation(BaseModel):
+    triage_level: str = "Routine Care"
+    biosecurity_protocol: List[str] = Field(default_factory=list)
+    clinical_monitoring: List[str] = Field(default_factory=list)
+    treatment_considerations: Optional[str] = None
+
+
 class VisualSeverityAssessment(BaseModel):
     grade: str = "Unassessable"
     coverage_pct: Optional[float] = None
@@ -95,6 +102,7 @@ class SeverityMetrics(BaseModel):
     clinical_observations: Optional[ClinicalObservations] = None
     visual_assessment: Optional[VisualSeverityAssessment] = None
     reasoning_assessment: Optional[dict] = None
+    recommendation: Optional[ClinicalRecommendation] = None
 
 
 class SegmentationAssessment(BaseModel):
@@ -189,6 +197,7 @@ class GroundedExplanation(BaseModel):
     prompt_version: str = "evidence_severity_selection_v2"
     severity_policy_version: Optional[str] = None
     severity_policy_sha256: Optional[str] = None
+    recommendation: Optional[ClinicalRecommendation] = None
 
 
 class ReasoningResponse(BaseModel):
@@ -199,4 +208,5 @@ class ReasoningResponse(BaseModel):
     model_name: Optional[str] = None  # LLM model that produced the report
     severity_assessment: Optional[SeverityMetrics] = None  # Parsed dynamic LLM clinical severity
     explanation: Optional[GroundedExplanation] = None
+    recommendations: Optional[ClinicalRecommendation] = None
 

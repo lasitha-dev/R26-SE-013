@@ -305,7 +305,8 @@ async def reason(body: ReasoningRequest):
             explanation = assemble_explanation(context, default_selection(context), "template")
             return ReasoningResponse(status="fallback", error_code="reasoning_failed_or_timed_out",
                 reasoning_report="Explanation unavailable. A reference summary is shown; the original assessment is retained.\n\n" + render_report(explanation),
-                severity_assessment=sev, explanation=explanation)
+                severity_assessment=sev, explanation=explanation,
+                recommendations=explanation.recommendation if explanation else None)
         return ReasoningResponse(status="fallback", error_code="reasoning_failed_or_timed_out",
             reasoning_report="Explanation unavailable. The original image assessment is retained.",
             severity_assessment=sev)
