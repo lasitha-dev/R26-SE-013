@@ -2,19 +2,42 @@ import { normalizeLogDate } from '../utils/wellnessData.js'
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 
+// ==============================================================================
+// SCREEN: SevenDayTriageScan.jsx
+// ------------------------------------------------------------------------------
+// What this component does:
+//   Gathers 7 consecutive days of health vitals (milk yield, body weight, water,
+//   feed intake, body temp) and ambient climate data (temp, humidity, THI),
+//   plus a top-down camera photo of the cow for multi-modal clinical triage.
+//
+// Why we need it:
+//   Enables farmers to conduct a comprehensive Tier-1 clinical triage scan when
+//   persistent anomalies or heat stress are suspected, combining vital history
+//   and computer vision before consulting a veterinarian.
+// ==============================================================================
+
 export default function SevenDayTriageScan() {
   const navigate = useNavigate()
   const location = useLocation()
 
   const [cattleList, setCattleList] = useState([])
   const [imageFile, setImageFile] = useState(null)
+
+  // ============================================================================
+  // HELPER: get7DayDates
+  // What it does: Generates an array of 7 consecutive calendar dates ending on Day 7.
+  // Why we need it: Binds each column/row of the 7-day table to exact chronological dates.
+  // ============================================================================
   const get7DayDates = (endDateStr) => {
+    // Step 1: Validate ending date string format (YYYY-MM-DD)
     if (!endDateStr) return []
     const parts = endDateStr.split('-').map(Number)
     if (parts.length !== 3 || parts.some(isNaN)) return []
     const [year, month, day] = parts
     const baseDate = new Date(year, month - 1, day)
     const dates = []
+
+    // Step 2: Step backwards 6 days to construct Day 1 through Day 7
     for (let i = 6; i >= 0; i--) {
       const d = new Date(baseDate)
       d.setDate(baseDate.getDate() - i)
@@ -23,6 +46,7 @@ export default function SevenDayTriageScan() {
       const dd = String(d.getDate()).padStart(2, '0')
       dates.push(`${yyyy}-${mm}-${dd}`)
     }
+    // Step 3: Return ordered array of 7 dates
     return dates
   }
 
@@ -428,13 +452,26 @@ export default function SevenDayTriageScan() {
     }
   }
 
+  // ============================================================================
+  // HANDLER: handleRunDiagnostics
+  // ----------------------------------------------------------------------------
+  // What this function does:
+  //   Validates the completeness of 7 days of vital logs, checks the uploaded
+  //   camera photo, maps the cow's breed to its genetic group (A, B, or C),
+  //   and forwards all data to AiWellnessReport.jsx.
+  //
+  // Why we need it:
+  //   Prevents executing the deep learning Late Fusion model with missing days
+  //   or incomplete data, ensuring clinical reliability.
+  // ============================================================================
   const handleRunDiagnostics = async () => {
+    // Step 1: Ensure a subject cow is chosen
     if (!selectedCattleId) {
       setValidationError('Please select a Cattle ID before running diagnostics.')
       return
     }
 
-    // Validation: Check if any row still has milk <= 0 or weight <= 0
+    // Step 2: Validate that all 7 days have non-zero milk yield and weight records
     const missingDays = []
     for (let i = 0; i < 7; i++) {
       const m = Number(logsData.yields[i])
@@ -452,6 +489,7 @@ export default function SevenDayTriageScan() {
       return
     }
 
+    // Step 3: Ensure a top-down body condition photo has been selected
     if (!imageFile) {
       setValidationError('Please upload a top-down cattle image before running diagnostics.')
       return
@@ -465,6 +503,7 @@ export default function SevenDayTriageScan() {
       return
     }
 
+    // Step 4: Map breed to biological Genetic Group (Group A = Temperate/Exotic, Group B = Tropical Indigenous, Group C = Crossbreeds)
     const GROUP_A = ['Ayrshire', 'Brown_Swiss', 'Danish_Red', 'Fleckvieh', 'Guernsey', 'Holstein-Friesian', 'Illawarra_Shorthorn', 'Jersey', 'Milking_Shorthorn', 'Montbeliarde', 'Normande', 'Norwegian_Red', 'Red_Poll_Africa', 'Simmental'];
     const GROUP_B = ['Ankole', 'Boran', 'Butana', 'Deoni', 'Gangatiri', 'Gir', 'Hariana', 'Kankrej', 'Kenana', 'Krishna_Valley', 'NDama', 'Ongole', 'Rathi', 'Red_Sindhi', 'Sahiwal', 'Tharparkar', 'White_Fulani', 'Local'];
     const GROUP_C = ['Australian_Friesian_Sahiwal', 'Australian_Milking_Zebu', 'Exotic_Local_Cross', 'Girolando', 'Holstein_Zebu_Cross', 'Jersey_Zebu_Cross', 'Tipo_Carora', 'Zebu_Cross_Brazil'];
@@ -483,7 +522,7 @@ export default function SevenDayTriageScan() {
         modelGeneticGroup = 'C';
     }
 
-    // Convert image to base64 so it can be passed through navigation state
+    // Step 5: Convert image file to Base64 data URL for smooth client-side state passing
     setBcsUploading(true)
     try {
       const imageBase64 = await new Promise((resolve, reject) => {
@@ -493,7 +532,7 @@ export default function SevenDayTriageScan() {
         reader.readAsDataURL(imageFile)
       })
 
-      // Navigate immediately — AiWellnessReport will make the actual API calls
+      // Step 6: Navigate to AiWellnessReport screen to execute parallel AI inference
       navigate('/health/ai-wellness-report', {
         state: {
           imageBase64,

@@ -54,8 +54,21 @@ bcs_model = None
 late_fusion_model = None
 late_fusion_scalers = None
 
+# ==============================================================================
+# FUNCTION: load_ai_models
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Loads all deep learning model files (YOLOv8, Keras BCS Regressor, Late-Fusion
+#   BiLSTM model, and training scalers) into server memory on startup.
+#
+# Why we need it:
+#   Loading deep neural networks takes several seconds. Preloading them into global
+#   memory ensures API endpoints make predictions instantly in real time.
+# ==============================================================================
 def load_ai_models():
     global yolo_model, bcs_model, late_fusion_model, late_fusion_scalers
+
+    # Step 1: Load YOLOv8 object detector for cow cropping (best.pt)
     if YOLO is not None:
         try:
             if os.path.exists(YOLO_MODEL_PATH):
@@ -65,6 +78,8 @@ def load_ai_models():
                 print(f"YOLO model not found at {YOLO_MODEL_PATH}")
         except Exception as e:
             print(f"Error loading YOLO model: {e}")
+
+    # Step 2: Load Keras CNN BCS regression model and 7-day Late Fusion model
     if tf is not None:
         try:
             if os.path.exists(BCS_MODEL_PATH):
@@ -82,6 +97,8 @@ def load_ai_models():
                 print(f"Late Fusion Model not found at {LATE_FUSION_MODEL_PATH}")
         except Exception as e:
             print(f"Error loading Late Fusion model: {e}")
+
+    # Step 3: Load fitted MinMaxScalers and column definitions for late fusion inference
     try:
         if os.path.exists(LATE_FUSION_SCALERS_PATH):
             import joblib
@@ -106,27 +123,51 @@ def _invalidate_forecast_cache():
     except Exception:
         pass
 
+
+# ==============================================================================
+# FUNCTION: get_last_conv_layer
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Finds and extracts the final convolutional layer of the BCS neural network.
+#
+# Why we need it:
+#   Grad-CAM needs the final convolutional layer because it preserves the 2D
+#   spatial features (spine, ribs, hook bones) before flattening into a number.
+# ==============================================================================
 def get_last_conv_layer(model):
     """Forcefully extract the last convolution layer by string matching, bypassing output_shape."""
+    # Step 1: Iterate through model layers in reverse to find the last conv layer
     for layer in reversed(model.layers):
+        # Step 2: If the layer is a nested sub-model (like MobileNetV2), search recursively
         if isinstance(layer, tf.keras.models.Model):
             nested_layer, nested_model = get_last_conv_layer(layer)
             if nested_layer is not None:
                 return nested_layer, nested_model
 
-        # String match works across all Keras versions and wrapper types
+        # Step 3: Match layer name or class name containing 'conv' or 'conv2d'
         layer_name = layer.name.lower()
         class_name = layer.__class__.__name__.lower()
         if 'conv' in layer_name or 'conv2d' in class_name:
             return layer, model
 
+    # Step 4: Return None if no convolutional layer is detected
     return None, None
 
 
+# ==============================================================================
+# FUNCTION: make_gradcam_heatmap
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Generates an Explainable AI (XAI) Grad-CAM heatmap showing where the BCS CNN
+#   looked on the cow's body to calculate the Body Condition Score.
+#
+# Why we need it:
+#   Veterinarians need visual proof that the AI evaluated real anatomical landmarks
+#   (short ribs, spine, pin bones) rather than background dirt or shadows.
+# ==============================================================================
 def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=None):
     try:
-        # Keras 3 restricts .output/.inputs access on Sequential models that haven't been called yet.
-        # We manually trace through layers to build a Functional extraction model instead.
+        # Step 1: Build a sub-model that outputs both the last conv activations and predictions
         if isinstance(target_model, tf.keras.Sequential):
             inputs = tf.keras.Input(shape=target_model.input_shape[1:])
             x = inputs
@@ -142,12 +183,12 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
 
             grad_model = tf.keras.Model(inputs, [last_conv_output, x])
         else:
-            # Standard Functional API approach
             grad_model = tf.keras.Model(
                 target_model.inputs,
                 [target_model.get_layer(target_layer_name).output, target_model.output]
             )
 
+        # Step 2: Compute gradients of the prediction with respect to the conv layer features
         img_tensor = tf.cast(img_array, tf.float32)
         with tf.GradientTape() as tape:
             tape.watch(img_tensor)
@@ -157,6 +198,7 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
             else:
                 class_channel = preds[:, pred_index]
 
+        # Step 3: Pool gradients across spatial dimensions to get feature importance weights
         grads = tape.gradient(class_channel, last_conv_layer_output)
         if grads is None:
             print("[GRAD-CAM] Gradients evaluated to None.")
@@ -167,9 +209,10 @@ def make_gradcam_heatmap(img_array, target_model, target_layer_name, pred_index=
         heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
         heatmap = tf.squeeze(heatmap)
 
-        # Linear Regression heatmap magnitude extraction — tf.abs preserves negative gradient signal
+        # Step 4: Use absolute value for regression task so positive and negative signals both highlight
         heatmap = tf.abs(heatmap)
 
+        # Step 5: Normalize heatmap between 0.0 and 1.0
         max_heat = tf.math.reduce_max(heatmap)
         if max_heat == 0:
             return np.zeros((img_array.shape[1], img_array.shape[2]))
@@ -1323,10 +1366,22 @@ async def get_cattle(id: str):
 
 
 
+# ==============================================================================
+# ENDPOINT: create_daily_log (POST /api/monitor/daily-logs)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Validates and records a single day's health observation (milk yield and body weight)
+#   for a specific cow.
+#
+# Why we need it:
+#   Continuous daily recording allows the system to track yield trends, detect sudden
+#   drops, and immediately update the animal's current weight.
+# ==============================================================================
 @router.post("/daily-logs", response_model=DailyLogResponse, status_code=status.HTTP_201_CREATED)
 async def create_daily_log(log_data: DailyLogCreate):
     from bson import ObjectId
-    # Ensure male cattle cannot have daily lactation/milk logs
+
+    # Step 1: Reject male cattle (milk yield logs apply only to female dairy cows)
     if ObjectId.is_valid(log_data.cattle_id):
         cow = await cattles_collection.find_one({"_id": ObjectId(log_data.cattle_id)})
         if cow and str(cow.get("gender", "")).strip().lower() == "male":
@@ -1335,8 +1390,10 @@ async def create_daily_log(log_data: DailyLogCreate):
                 detail="Daily lactation/milk logs cannot be added for male cattle."
             )
 
+    # Step 2: Standardize the input date to YYYY-MM-DD
     norm_date = normalize_date_str(log_data.date)
-    # Check for duplicate daily log entry
+
+    # Step 3: Prevent duplicate log entries for the same animal on the same day
     existing_log = await daily_logs_collection.find_one({
         "cattle_id": log_data.cattle_id,
         "date": norm_date
@@ -1351,12 +1408,14 @@ async def create_daily_log(log_data: DailyLogCreate):
         from bson import ObjectId
         doc = log_data.model_dump()
         doc["date"] = norm_date
+
+        # Step 4: Insert the daily log record into MongoDB
         result = await daily_logs_collection.insert_one(doc)
         
-        # Propagate latest weight
+        # Step 5: Automatically synchronize the animal's master profile weight with this latest entry
         await propagate_latest_weight(log_data.cattle_id)
 
-        # Update last_monitored_date on cattle
+        # Step 6: Update the cow's last_monitored_date if this log is the most recent
         if ObjectId.is_valid(log_data.cattle_id):
             await cattles_collection.update_one(
                 {"_id": ObjectId(log_data.cattle_id), "$or": [
@@ -1379,12 +1438,27 @@ async def create_daily_log(log_data: DailyLogCreate):
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "adrs_persistent_monitoring_model_final1.pkl")
 loaded_model = None
 
+# ==============================================================================
+# FUNCTION: get_predict_model
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Loads and returns the pre-trained 54-feature Random Forest Persistent Monitoring
+#   model (`adrs_persistent_monitoring_model_final1.pkl`).
+#
+# Why we need it:
+#   Implements lazy-loading with caching: the model is unpickled once into memory
+#   on first call and reused for all subsequent predictions without re-reading the disk.
+# ==============================================================================
 def get_predict_model():
     global loaded_model
+    # Step 1: Check if the model has already been loaded into global memory
     if loaded_model is None:
+        # Step 2: Verify the .pkl file exists on disk
         if not os.path.exists(MODEL_PATH):
             raise RuntimeError(f"Pickle model file not found at {MODEL_PATH}")
+        # Step 3: Unpickle the Random Forest classifier
         loaded_model = joblib.load(MODEL_PATH)
+    # Step 4: Return cached model instance
     return loaded_model
 
 BREED_DEFAULTS = {
@@ -1451,6 +1525,17 @@ MONITOR_FEATURE_NAMES = [
     'Lactation_Stage_Mid'
 ]
 
+# ==============================================================================
+# FUNCTION: evaluate_cow_persistent_monitoring
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Calculates dynamic health metrics (age, lactation stage, 3-day drop, 7-day drop,
+#   baseline drops) and runs the 54-feature Random Forest model to detect health anomalies.
+#
+# Why we need it:
+#   A single low milk yield day might be normal noise, but a persistent 3-day drop
+#   or drop below breed averages signals mastitis, ketosis, or metabolic disease.
+# ==============================================================================
 def evaluate_cow_persistent_monitoring(
     cow: dict,
     latest_log: dict,
@@ -1466,6 +1551,7 @@ def evaluate_cow_persistent_monitoring(
     except Exception:
         log_date = datetime.now()
 
+    # Step 1: Calculate age in months from the cow's birth date (DOB)
     age_months = 36
     if cow.get("dob"):
         try:
@@ -1474,6 +1560,7 @@ def evaluate_cow_persistent_monitoring(
         except Exception:
             pass
 
+    # Step 2: Calculate days in milk (DIM) and assign lactation stage (Early, Mid, Late)
     days_in_milk = 100
     if cow.get("calving_date"):
         try:
@@ -1489,6 +1576,7 @@ def evaluate_cow_persistent_monitoring(
     else:
         lactation_stage = "Late"
 
+    # Step 3: Determine breed benchmark averages (or farmer custom overrides)
     breed = cow.get("breed", "Jersey")
     breed_info = BREED_DEFAULTS.get(breed, {"milk": 15.0, "weight": 450.0})
     breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
@@ -1497,6 +1585,7 @@ def evaluate_cow_persistent_monitoring(
     current_milk = float(latest_log["milk_yield"])
     current_weight = float(latest_log["weight"])
 
+    # Step 4: Calculate 7-day historical average milk yield
     log_date_str = norm_latest_date
     seven_days_ago_str = (log_date - timedelta(days=7)).strftime("%Y-%m-%d")
     week_logs = [l for l in historical_logs if seven_days_ago_str <= normalize_date_str(l.get("date", "")) < log_date_str]
@@ -1510,6 +1599,7 @@ def evaluate_cow_persistent_monitoring(
         else:
             prev_week_avg = float(breed_avg_milk)
 
+    # Step 5: Locate the 3-day prior milk yield and weight (Day - 3)
     three_days_ago_str = (log_date - timedelta(days=3)).strftime("%Y-%m-%d")
     day3_log = next((l for l in historical_logs if normalize_date_str(l.get("date", "")) == three_days_ago_str), None)
     if not day3_log:
@@ -1524,6 +1614,7 @@ def evaluate_cow_persistent_monitoring(
         day_minus_3_milk = current_milk
         day_minus_3_weight = current_weight
 
+    # Step 6: Compute percentage drops (rolling 3-day drop and baseline drop)
     prev_milk_3d = day_minus_3_milk if day_minus_3_milk > 0 else current_milk
     milk_drop = ((prev_milk_3d - current_milk) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
 
@@ -1533,6 +1624,7 @@ def evaluate_cow_persistent_monitoring(
     baseline_milk_drop = ((breed_avg_milk - current_milk) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
     baseline_weight_drop = ((breed_avg_weight - current_weight) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
 
+    # Step 7: Build the 54-feature vector matching the trained model's feature order
     row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
     row['Age_Months'] = float(age_months)
     row['Weight_kg'] = float(current_weight)
@@ -1556,6 +1648,7 @@ def evaluate_cow_persistent_monitoring(
     if stage_col in row:
         row[stage_col] = 1.0
 
+    # Step 8: Run Random Forest inference and format output status
     df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
     prediction = model.predict(df)[0]
     is_anomaly = bool(prediction == 1 or prediction == "1")
@@ -1569,13 +1662,25 @@ def evaluate_cow_persistent_monitoring(
         "date": norm_latest_date
     }
 
+# ==============================================================================
+# ENDPOINT: create_daily_logs_bulk (POST /api/monitor/daily-logs/bulk)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Processes bulk CSV daily log uploads for an entire herd in a single HTTP request.
+#
+# Why we need it:
+#   Entering records cow-by-cow is impractical for commercial dairy farms;
+#   bulk uploading processes hundreds of daily entries in seconds.
+# ==============================================================================
 @router.post("/daily-logs/bulk", status_code=status.HTTP_201_CREATED)
 async def create_daily_logs_bulk(
     logs_data: list[DailyLogBulkItem],
     authorization: Optional[str] = Header(None)
 ):
+    # Step 1: Identify the farm owner from the authorization JWT token
     email = await get_current_user_email(authorization)
     try:
+        # Step 2: Delegate ingestion, validation, and AI inference to import_daily_logs
         return await import_daily_logs(
             logs_data, email, cattles_collection, daily_logs_collection,
             breed_settings_collection, evaluate_cow_persistent_monitoring
@@ -2049,14 +2154,26 @@ async def change_password(pass_data: dict, authorization: Optional[str] = Header
 
 from components.health_anomaly.schemas import PredictPayload, PredictResponse
 
+# ==============================================================================
+# ENDPOINT: predict_health_anomaly (POST /api/monitor/predict)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Takes current cow parameters and historical drops, runs the 54-feature
+#   Persistent Monitoring Random Forest classifier, and returns anomaly status.
+#
+# Why we need it:
+#   Provides on-demand wellness evaluation from the frontend interface and
+#   automatically flags sick cows with an "Alert" badge in the herd registry.
+# ==============================================================================
 @router.post("/monitor/predict", response_model=PredictResponse)
 async def predict_health_anomaly(payload: PredictPayload, authorization: Optional[str] = Header(None)):
+    # Step 1: Verify farm ownership of this cattle record
     email = await get_current_user_email(authorization)
     cow = await owned_cattle(cattles_collection, email, payload.cattle_id)
     try:
         model = get_predict_model()
         
-        # 1. Fetch custom overrides if logged in
+        # Step 2: Fetch custom breed benchmark overrides (if set by the farmer)
         custom_milk = None
         custom_weight = None
         if email:
@@ -2069,7 +2186,7 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         breed_avg_milk = custom_milk if custom_milk is not None else breed_info["milk"]
         breed_avg_weight = custom_weight if custom_weight is not None else breed_info["weight"]
         
-        # 2. Compute drop percentages (FIXED: Using Day_Minus_3_Milk)
+        # Step 3: Compute percentage drops between current values and 3 days ago (Day - 3)
         prev_milk_3d = payload.Day_Minus_3_Milk if payload.Day_Minus_3_Milk > 0 else payload.Milk_Yield_L
         milk_drop = ((prev_milk_3d - payload.Milk_Yield_L) / prev_milk_3d) * 100.0 if prev_milk_3d > 0 else 0.0
         
@@ -2079,6 +2196,7 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         baseline_milk_drop = ((breed_avg_milk - payload.Milk_Yield_L) / breed_avg_milk) * 100.0 if breed_avg_milk > 0 else 0.0
         baseline_weight_drop = ((breed_avg_weight - payload.Weight_kg) / breed_avg_weight) * 100.0 if breed_avg_weight > 0 else 0.0
         
+        # Step 4: Populate the 54-feature dictionary
         row = {f: 0.0 for f in MONITOR_FEATURE_NAMES}
         row['Age_Months'] = float(payload.Age_Months)
         row['Weight_kg'] = float(payload.Weight_kg)
@@ -2094,22 +2212,22 @@ async def predict_health_anomaly(payload: PredictPayload, authorization: Optiona
         row['Baseline_Milk_Drop_Percent'] = float(baseline_milk_drop)
         row['Baseline_Weight_Drop_Percent'] = float(baseline_weight_drop)
         
-        # Set breed one-hot column
+        # Step 5: Set one-hot encoded breed and lactation stage indicators
         breed_col = f"Breed_{payload.Breed}"
         if breed_col in row:
             row[breed_col] = 1.0
             
-        # Set lactation stage one-hot column
         stage_col = f"Lactation_Stage_{payload.Lactation_Stage}"
         if stage_col in row:
             row[stage_col] = 1.0
             
+        # Step 6: Execute model prediction (0 = Healthy, 1 = Anomaly/Alert)
         df = pd.DataFrame([row], columns=MONITOR_FEATURE_NAMES)
         prediction = model.predict(df)[0]
         
         is_anomaly = bool(prediction == 1 or prediction == "1")
         
-        # Update cattle status inside database
+        # Step 7: Update cattle status inside database and return response
         new_status = "Alert" if is_anomaly else "Healthy"
         await cattles_collection.update_one(
             living_cattle_filter(cow),
@@ -2209,6 +2327,18 @@ async def reset_breed_settings(breed: str, authorization: Optional[str] = Header
             detail=f"Database error while deleting breed settings: {str(e)}"
         )
 
+# ==============================================================================
+# ENDPOINT: predict_bcs (POST /api/monitor/predict-bcs)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Accepts a top-down camera photo of a cow, detects and crops the animal with YOLOv8,
+#   predicts its Body Condition Score (1.0 to 5.0) using CNN regression, and generates
+#   a Grad-CAM XAI visual explanation.
+#
+# Why we need it:
+#   Manual body condition scoring by hand is subjective, labor-intensive, and prone
+#   to human bias. This automated 2D vision pipeline provides objective, standardized BCS.
+# ==============================================================================
 @router.post("/monitor/predict-bcs")
 async def predict_bcs(
     file: UploadFile = File(...),
@@ -2217,7 +2347,8 @@ async def predict_bcs(
     photo_date: Optional[str] = Form(None)
 ):
     global yolo_model, bcs_model, cv2
-    # Lazy reload check in case modules were imported as None originally
+
+    # Step 1: Ensure required computer vision libraries (OpenCV, YOLO, Keras) are initialized
     if cv2 is None:
         try:
             import cv2 as cv2_imported
@@ -2234,7 +2365,7 @@ async def predict_bcs(
             detail="AI models or OpenCV libraries are not loaded. Please ensure cv2, best.pt, and Cow_BCS_Final_Master.h5 are present."
         )
 
-    # 1. Read uploaded image bytes
+    # Step 2: Read uploaded image bytes and decode into an OpenCV BGR matrix
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -2246,7 +2377,7 @@ async def predict_bcs(
 
     h, w, _ = img_bgr.shape
 
-    # 2. Run YOLO prediction
+    # Step 3: Run YOLOv8 object detector to localize the cow in the frame
     results = yolo_model.predict(img_bgr, conf=confidence, verbose=False)
     boxes = results[0].boxes
     if boxes is None or len(boxes) == 0:
@@ -2443,6 +2574,17 @@ async def get_bcs_logs(id: str):
             detail=f"Database error while loading BCS history logs: {str(e)}"
         )
 
+# ==============================================================================
+# ENDPOINT: predict_7day (POST /api/monitor/predict-7day)
+# ------------------------------------------------------------------------------
+# What this function does:
+#   Runs multi-modal deep learning triage using the trained Late-Fusion BiLSTM network
+#   to classify 7 days of vital signals into Healthy, Heat Stress, or Unhealthy.
+#
+# Why we need it:
+#   Combines 3 distinct data modalities (7-day time series vitals, static cow traits,
+#   and 2D BCS computer vision score) without manual heuristic rule overrides.
+# ==============================================================================
 @router.post("/monitor/predict-7day")
 async def predict_7day(payload: TriagePredictPayload, authorization: Optional[str] = Header(None)):
     cow = None
@@ -2459,7 +2601,7 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
         )
 
     try:
-        # Validate time series lengths
+        # Step 1: Validate that all 8 time series feature arrays have exactly 7 daily values
         if (len(payload.ambient_temp) != 7 or len(payload.humidity) != 7 or len(payload.thi) != 7 or
             len(payload.body_temp) != 7 or len(payload.milk_yield) != 7 or len(payload.water_intake) != 7 or
             len(payload.feed_intake) != 7 or len(payload.weight) != 7):
@@ -2475,7 +2617,7 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
         ts_cols = late_fusion_scalers['ts_cols']
 
         import pandas as pd
-        # 1. Construct 56-feature time series DataFrame matching exact training columns
+        # Step 2: Construct 56-feature time series DataFrame and scale with MinMaxScaler to shape (1, 7, 8)
         ts_row = {}
         for d in range(1, 8):
             idx = d - 1
@@ -2491,7 +2633,7 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
         df_ts = pd.DataFrame([ts_row])[ts_cols]
         X_ts_scaled = scaler_ts.transform(df_ts).reshape(1, 7, 8)
 
-        # 2. Construct 45 dummy columns matching exact training schema
+        # Step 3: Construct static cow attributes (one-hot encoded to 45 columns) and scale
         cow_static_df = pd.DataFrame([{
             'Age_Months': float(payload.age_months),
             'Days_in_Milk': float(payload.days_in_milk),
@@ -2502,14 +2644,15 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
         cow_dummy = pd.get_dummies(cow_static_df).reindex(columns=dummy_columns, fill_value=0)
         X_stat_scaled = scaler_static.transform(cow_dummy)
 
-        # 3. Construct visual BCS DataFrame
+        # Step 4: Scale the 2D visual BCS score
         df_vis = pd.DataFrame([[float(payload.bcs_score)]], columns=['Day_7_BCS'])
         X_vis_scaled = scaler_visual.transform(df_vis)
 
-        # 4. Pure Late Fusion Model Prediction (NO hardcoded if/else rule overrides!)
+        # Step 5: Run pure Late-Fusion BiLSTM multi-branch neural network inference
         preds = late_fusion_model.predict([X_ts_scaled, X_stat_scaled, X_vis_scaled], verbose=False)
         pred_class = int(np.argmax(preds[0]))
 
+        # Step 6: Map predicted class index to clinical triage diagnosis
         status_map = {
             0: "Healthy",
             1: "Heat Stress",
@@ -2517,6 +2660,7 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
         }
         new_status = status_map.get(pred_class, "Healthy")
 
+        # Step 7: Persist new health status to MongoDB cattle collection
         from bson import ObjectId
         if cow is not None:
             await cattles_collection.update_one(
@@ -2524,6 +2668,7 @@ async def predict_7day(payload: TriagePredictPayload, authorization: Optional[st
                 {"$set": {"health_status": new_status, "status": new_status}}
             )
 
+        # Step 8: Return class index, status, confidence score, and probability distribution
         return {
             "class": pred_class,
             "status": new_status,

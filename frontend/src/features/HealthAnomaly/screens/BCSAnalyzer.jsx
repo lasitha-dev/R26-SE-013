@@ -1,3 +1,16 @@
+// ==============================================================================
+// SCREEN: BCSAnalyzer.jsx
+// ------------------------------------------------------------------------------
+// What this component does:
+//   Provides a standalone tool for farmers and veterinarians to upload top-down
+//   cow photos, auto-detect the body with YOLOv8, predict the Body Condition Score (1-5),
+//   and view Grad-CAM heatmaps showing anatomical focus.
+//
+// Why we need it:
+//   Allows instant spot-checking of nutritional status without needing to input
+//   7 days of milk or environmental data.
+// ==============================================================================
+
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -14,6 +27,11 @@ export default function BCSAnalyzer() {
   const [dragActive, setDragActive] = useState(false)
   const [photoDate, setPhotoDate] = useState(new Date().toISOString().split('T')[0])
 
+  // ============================================================================
+  // FUNCTION: fetchCattle
+  // What it does: Loads the registered herd list for optional cow association.
+  // Why we need it: Allows the farmer to optionally save the BCS score to a specific animal's file.
+  // ============================================================================
   useEffect(() => {
     const fetchCattle = async () => {
       try {
@@ -69,8 +87,20 @@ export default function BCSAnalyzer() {
     }
   }
 
+  // ============================================================================
+  // HANDLER: handleAnalyze
+  // ----------------------------------------------------------------------------
+  // What this function does:
+  //   Uploads the selected image to the backend `/api/monitor/predict-bcs` endpoint,
+  //   receiving back YOLO bounding boxes, CNN predicted BCS score, and Grad-CAM heatmap.
+  //
+  // Why we need it:
+  //   Gives immediate visual and numerical feedback on the animal's flesh and fat reserves.
+  // ============================================================================
   const handleAnalyze = async (e) => {
     e.preventDefault()
+
+    // Step 1: Ensure an image has been chosen
     if (!imageFile) {
       setErrorMessage('Please upload or drag a cow image to analyze.')
       return
@@ -81,6 +111,7 @@ export default function BCSAnalyzer() {
     setSuccessMessage('')
     setResult(null)
 
+    // Step 2: Prepare multipart FormData payload
     const formData = new FormData()
     formData.append('file', imageFile)
     formData.append('confidence', confidence)
@@ -91,6 +122,8 @@ export default function BCSAnalyzer() {
 
     try {
       const token = localStorage.getItem('token')
+
+      // Step 3: Call the AI BCS inference API
       const response = await fetch('http://127.0.0.1:8000/api/monitor/predict-bcs', {
         method: 'POST',
         headers: {

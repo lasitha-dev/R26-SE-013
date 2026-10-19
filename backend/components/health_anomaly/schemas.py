@@ -113,6 +113,16 @@ class FarmSummaryResponse(BaseModel):
     alert_count: int = 0
     status: str = "Active Synchronization"
 
+# ==============================================================================
+# SCHEMA: CattleCreate & CattleResponse
+# ------------------------------------------------------------------------------
+# What this schema does:
+#   Validates animal registration details when a farmer adds a new cow to the herd.
+#
+# Why we need it:
+#   Ensures mandatory biological attributes (tag identifier, gender, birth date,
+#   breed, initial weight) are properly provided and correctly formatted.
+# ==============================================================================
 class CattleCreate(BaseModel):
     identifier: str = Field(..., min_length=1)
     gender: str = Field(..., min_length=1)
@@ -146,7 +156,17 @@ class CattleResponse(BaseModel):
     death_cause: Optional[Literal["FMD", "LSD", "Other"]] = None
 
 
-
+# ==============================================================================
+# SCHEMA: DailyLogCreate & DailyLogBulkItem
+# ------------------------------------------------------------------------------
+# What this schema does:
+#   Validates daily health and production inputs (milk yield, body weight,
+#   water intake, feed intake, body temperature) for a single cow or bulk CSV rows.
+#
+# Why we need it:
+#   Prevents invalid or negative numbers from entering the database and feeding
+#   unrealistic numbers into the machine learning models.
+# ==============================================================================
 class DailyLogCreate(BaseModel):
     cattle_id: str = Field(..., min_length=1)
     date: str = Field(..., min_length=1)
@@ -173,6 +193,18 @@ class DailyLogResponse(BaseModel):
     feed_intake: Optional[float] = None
     body_temp: Optional[float] = None
 
+
+# ==============================================================================
+# SCHEMA: PredictPayload & PredictResponse
+# ------------------------------------------------------------------------------
+# What this schema does:
+#   Defines the input features sent to the 54-feature Persistent Monitoring
+#   Random Forest model to check for chronic health drops.
+#
+# Why we need it:
+#   Ensures the machine learning classifier receives all historical drops,
+#   rolling 3-day changes, and breed averages needed to compute anomaly status.
+# ==============================================================================
 class PredictPayload(BaseModel):
     cattle_id: str
     Breed: str
@@ -195,6 +227,18 @@ class PredictResponse(BaseModel):
 
 from typing import List
 
+# ==============================================================================
+# SCHEMA: TriagePredictPayload
+# ------------------------------------------------------------------------------
+# What this schema does:
+#   Defines the 7-day multi-modal time series and static attributes sent to the
+#   Late-Fusion BiLSTM neural network.
+#
+# Why we need it:
+#   Requires exactly 7 consecutive days of 8 sensor/vital features (temperature,
+#   humidity, THI, body temp, milk, water, feed, weight) plus static cow traits
+#   and 2D BCS score for comprehensive clinical triage.
+# ==============================================================================
 class TriagePredictPayload(BaseModel):
     cattle_id: Optional[str] = None
     bcs_score: float
@@ -213,6 +257,17 @@ class TriagePredictPayload(BaseModel):
     weight: List[float]
 
 
+# ==============================================================================
+# SCHEMA: DiagnosticCaseCreate
+# ------------------------------------------------------------------------------
+# What this schema does:
+#   Validates disease diagnosis case creation when an image is scanned or symptoms
+#   are submitted for veterinary verification.
+#
+# Why we need it:
+#   Connects farmers with certified veterinarians, storing clinical notes,
+#   AI confidence scores, severity ratings, and lesion images.
+# ==============================================================================
 class DiagnosticCaseCreate(BaseModel):
     cattle_id: Optional[str] = None
     farm_id: Optional[str] = None

@@ -3,6 +3,19 @@ import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProfileContext } from '../../../context/ProfileContext'
 
+// ==============================================================================
+// SCREEN: WellnessDataIntake.jsx
+// ------------------------------------------------------------------------------
+// What this component does:
+//   Provides the user interface for farmers to record daily health logs (milk yield
+//   and weight) either one-by-one or via bulk CSV upload, immediately triggering
+//   AI anomaly evaluation.
+//
+// Why we need it:
+//   Serves as the primary data entry gateway for persistent herd wellness tracking,
+//   filtering out non-lactating/male cattle and warning farmers of health drops.
+// ==============================================================================
+
 export default function WellnessDataIntake() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('single') // 'single' or 'bulk'
@@ -39,16 +52,24 @@ export default function WellnessDataIntake() {
   // Default date configuration
   const todayDateString = new Date().toISOString().split('T')[0]
 
+  // ============================================================================
+  // FUNCTION: fetchData
+  // What it does: Loads the farm's cattle profiles and daily logs history.
+  // Why we need it: Populates dropdown selectors and historical log tables.
+  // ============================================================================
   const fetchData = async () => {
+    // Step 1: Read the authentication token from local storage
     try {
       const token = localStorage.getItem('token')
       const headers = { Authorization: token ? `Bearer ${token}` : '' }
       
+      // Step 2: Fetch cattle list and daily logs in parallel
       const [cattleRes, logsRes] = await Promise.all([
         fetch('http://127.0.0.1:8000/api/cattle', { headers }),
         fetch('http://127.0.0.1:8000/api/daily-logs', { headers })
       ])
 
+      // Step 3: Update local React state with retrieved data
       if (cattleRes.ok) {
         const cattleData = await cattleRes.json()
         setCattleList(cattleData || [])
@@ -66,17 +87,25 @@ export default function WellnessDataIntake() {
     fetchData()
   }, [])
 
-  // Filter dropdown subjects so that ONLY female cattle in lactation period (within 305 days of calving) are listed
+  // ============================================================================
+  // FILTER: lactationActiveCattle
+  // What it does: Filters the herd to only include female cows in active lactation.
+  // Why we need it: Prevents entering milk yield logs for bulls or dry cows.
+  // ============================================================================
   const lactationActiveCattle = cattleList.filter((c) => {
-    if ((c.gender || '').toLowerCase() === 'male') return false // Male cattle cannot lactate
-    if (!c.calving_date) return false // No calving date means not lactating
+    // Step 1: Exclude male cattle
+    if ((c.gender || '').toLowerCase() === 'male') return false
+    // Step 2: Exclude cows without a recorded calving date
+    if (!c.calving_date) return false
     const calvingDate = new Date(c.calving_date)
     const today = new Date()
     calvingDate.setHours(0, 0, 0, 0)
     today.setHours(0, 0, 0, 0)
     
-    if (today < calvingDate) return false // Future calving date is not in lactation period
+    // Step 3: Exclude future calving dates
+    if (today < calvingDate) return false
     
+    // Step 4: Ensure calving occurred within standard 305 lactation days
     const diffTime = Math.abs(today - calvingDate)
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= 305
@@ -310,7 +339,17 @@ export default function WellnessDataIntake() {
     }
   }
 
-  // ─── Form Submission Handler ─────────────────────────────────────────────
+  // ============================================================================
+  // HANDLER: handleSubmitSingle
+  // ----------------------------------------------------------------------------
+  // What this function does:
+  //   Validates input values, computes historical drops, sends the observation to
+  //   the AI prediction model, and saves the new daily log to the database.
+  //
+  // Why we need it:
+  //   Ensures the farmer receives instant AI feedback on whether this milk/weight
+  //   change is normal or indicates an urgent health problem.
+  // ============================================================================
   const handleSubmitSingle = async (e) => {
     e.preventDefault()
     setErrorMessage('')
@@ -322,6 +361,7 @@ export default function WellnessDataIntake() {
     const weight = parseFloat(formData.get('weight'))
     const dateVal = formData.get('date')
 
+    // Step 1: Validate required fields and inputs
     if (!selectedCattleId || !selectedCattle) {
       setErrorMessage('Please select a subject animal.')
       return
@@ -332,7 +372,7 @@ export default function WellnessDataIntake() {
       return
     }
 
-    // Duplicate Date Rule (Frontend Prevention)
+    // Step 2: Prevent duplicate entries for the same animal on the same date
     const existingLog = dailyLogsList.find(
       (l) =>
         (String(l.cattle_id) === String(selectedCattleId) ||
@@ -346,7 +386,7 @@ export default function WellnessDataIntake() {
       return
     }
 
-    // Dynamic validations check (Front-end)
+    // Step 3: Validate that logging date is not before milking start date
     if (selectedCattle && selectedCattle.calving_date && dateVal < selectedCattle.calving_date) {
       setErrorMessage(`Logging date cannot be prior to the cow's milking start date (${selectedCattle.calving_date}).`)
       return
@@ -361,15 +401,13 @@ export default function WellnessDataIntake() {
       return
     }
 
-    // Calculate dynamic derived metrics
+    // Step 4: Calculate dynamic derived metrics (Age, Days in Milk, Lactation Stage, 3-day history)
     const ageMonths = calculateAgeMonths(selectedCattle.dob)
     const daysInMilk = getDaysInMilk(selectedCattle.calving_date, dateVal)
     const lactationStage = getLactationStage(daysInMilk)
-
-    // Calculate historical attributes or fall back to current values
     const hist = getHistoricalMetrics(selectedCattleId, dateVal, milkYield, weight)
 
-    // Build the prediction payload
+    // Step 5: Build prediction payload for the Random Forest model
     const predictPayload = {
       cattle_id: selectedCattleId,
       Breed: selectedCattle.breed,
@@ -387,7 +425,7 @@ export default function WellnessDataIntake() {
     try {
       const token = localStorage.getItem('token')
       
-      // 1. Post to predict API
+      // Step 6: Post observation to the AI Persistent Monitoring prediction endpoint
       const predictRes = await fetch('http://127.0.0.1:8000/api/monitor/predict', {
         method: 'POST',
         headers: {
@@ -404,7 +442,7 @@ export default function WellnessDataIntake() {
 
       const predictData = await predictRes.json()
 
-      // 2. Post to save daily log API to ensure database persistence
+      // Step 7: Save daily log to database
       const logPayload = {
         cattle_id: selectedCattleId,
         date: dateVal,
